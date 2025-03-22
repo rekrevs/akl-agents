@@ -1,0 +1,118 @@
+% $Id: compiler.akl,v 1.8 1994/04/14 11:27:05 rch Exp $
+
+% import compile_clause from clause
+% import write_pam from writepam
+
+compile_definitions([end|_], _Modes, _D)-_Out :-
+    ->	true.
+compile_definitions([Def|Defs], Modes, D)-Out :-
+    ->	compile_definition(Def, Modes, Abs, Pam)-D,
+        compile_abstractions(Abs, Modes, 0, _, Pams, [Pam]),
+	write_pams(Pams)-Out,
+	Defs = [_|_],
+	compile_definitions(Defs, Modes, D)-Out.
+
+
+compile_definition(Def, Modes, Abs, Pam)-D :-
+	Def = def(Name, Clauses),
+	warn_on_repeated_definition(Name)-D,
+	compile_choice(Clauses, Modes, Used, Max, C0, C1),
+	compile_clauses(Clauses, Modes, Used, Max, C1, [], Abs, []),
+	Pam = pam(Name,C0).
+
+compile_abstractions([], _Modes, N0, N, P0, P):-
+    ->	N = N0,
+	P = P0.
+compile_abstractions([A|Abs], Modes, N0, N, P0, P):-
+    ->	compile_abstraction(A, Modes, N0, N1, P0, P1),
+	compile_abstractions(Abs, Modes, N1, N, P1, P).
+compile_abstraction(abs(As,_Fs,Es,Body,Label), Modes, N0, N, P0, P):-
+    ->	'$concat'(As, Es, Arg),
+        length(Es, E),
+	length(Arg, A),
+	Label = N0,
+	inc(N0, N1),
+	conj_to_list(Body, Bs),
+	Clauses = [Clause],
+	clause_head(Clause, struct(abs, A, Arg)),
+	clause_guard(Clause, []),
+	clause_op(Clause, cond),
+	clause_body(Clause, Bs),
+	compile_choice(Clauses, Modes, Used, Max, C0, C1),
+	compile_clauses(Clauses, Modes, Used, Max, C1, [], Int, []),
+	compile_abstractions(Int, Modes, N1, N, P0, P1),
+	P1 = [pam(N0/A/E, C0)|P].
+
+
+compile_clauses([], _Modes, _Used, _Max)-_S-_P :-
+    ->	true.
+compile_clauses([Cl|Cls], Modes, Used, Max)-S-P :-
+    ->	compile_clause(Cl, Modes, Used, Max)-S-P,
+	compile_clauses(Cls, Modes, Used, Max)-S-P.
+
+compile_clause(Cl, Modes, Used, Max)-S-P :-
+	maybe_compile_deep(Cl, Modes, Used, Max)-S-P,
+	maybe_compile_flat(Cl, Modes, Used, Max)-S-P.
+
+maybe_compile_deep(Cl, _Modes, Used, _Max)-S-P :-
+	clause_label(Cl, Ci),
+	is_member(Ci, Used)
+    ->	compile_clause(Cl)-S-P.
+maybe_compile_deep(_Cl, _Modes, _Used, _Max)-_S-_P :-
+    ->	true.
+
+maybe_compile_flat(Cl, Modes, Used, Max)-S-P :-
+	flat_mode(Modes),
+	clause_label(Cl, Ci),
+	Cj is Ci+Max,
+	is_member(Cj, Used)
+    ->	compile_flat_clause(Cl, Cj)-S-P.
+maybe_compile_flat(_Cl, _Modes, _Used, _Max)-_S-_P :-
+    ->	true.
+
+warn_on_repeated_definition(Name, D0, D) :-
+	is_member(Name, D0)
+    ->	format('{Warning: multiple definitions of ~q}~n', [Name]),
+	D = D0.
+warn_on_repeated_definition(Name, D0, D) :-
+    ->	D = [Name|D0].
+
+is_member(X,[X|_]) :-
+    ->	true.
+is_member(X,[_|Xs]) :-
+    ->	is_member(X, Xs).
+
+
+
+extract(Body, Vars, Ext):- extract(Body, Vars, [], Ext).
+
+extract(var(Name), Vars, E0, E) :-
+        '$memberchk'(var(Name), Vars)
+    ->	E = E0.
+extract(var(Name), _Vars, E0, E) :-
+	'$memberchk'(var(Name), E0)
+    ->	E = E0.
+extract(var(Name), _Vars, E0, E) :-
+    ->	E = [var(Name)|E0].
+extract(struct(_,0,_),_Vars, E0, E):-
+    ->	E = E0.
+extract(struct(_,_,Arg),Vars, E0, E):- 
+    ->	extract_arg(Arg, Vars, E0, E).
+
+extract_arg([],_Vars, E0, E):- 
+    ->	E0 = E.
+extract_arg([A|Arg], Vars, E0, E):- 
+    ->	extract(A, Vars, E0, E1),
+	extract_arg(Arg, Vars, E1, E).
+
+
+conj_to_list(struct('()',0,[]), List) :-
+    ->	List = [].
+conj_to_list(Conj, List) :-
+    ->	conj_to_list_aux(Conj, List).
+
+conj_to_list_aux(struct(',',2,[Var,Rest]), List):-
+    ->	List = [Var|L],
+	conj_to_list_aux(Rest,L).
+conj_to_list_aux(X, List):-
+    ->	List = [X].

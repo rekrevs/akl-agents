@@ -1,0 +1,184 @@
+/*
+2. PROGRAM FORMAT
+
+    The program is DCG-expanded and apply-expanded. The resulting clauses
+    will not contain any terms with a variable as functor. Guards can
+    contain disjunctive flat constraints as well as defined literals.
+    Other disjunctions are unnested, (see below).
+    Connectives ((A;B), (A->B;C),not(A)) in GUARD and BODY
+    are considered to be built-in metacalls. 
+    Before the extraction of equations, the metacalls are unnested.
+
+	DPROGRAM ::= prog(DEFNAME-list,PROGRAM) | exception(EXCEPTION)
+	EXCEPTION ::= end_of_file | ...
+	PROGRAM ::= DEFINITION-list
+	DEFINITION ::= DEFNAME-def(GUARDOP,PREDHEAD,CLAUSE-list)
+	DEFNAME ::= Atom / Arity
+	PREDHEAD ::= TERM
+	CLAUSE ::= clause(HEAD,GUARD,GUARDOP,BODY)
+	HEAD ::= TERM
+	GUARD ::= TERM
+	BODY ::= TERM
+	GUARDOP ::= A-B
+	A ::= noisy | quiet
+	B ::= wait | condition | commit
+
+	The five guards presently in use are
+	  concrete syntax     abstract syntax
+		?               noisy-wait
+		??              quiet-wait
+		->              quiet-condition
+		|               quiet-commit
+		!               noisy-condition
+
+	DEFNAME is NAME/ARITY of a DEFINITION
+	Only one definition is allowed for each NAME/ARITY, 
+	i.e. each definition has a unique guard operation.
+	CALLTERM is a term with the same NAME and ARITY 
+		as the HEAD of a CLAUSE in a DEFINITION
+	CALLNAME is NAME/ARITY of a CALLTERM
+
+	The definition entrypoint/1 contains DEFNAMEs (or lists of
+	DEFNAMEs which are allowed top level agents.
+*/
+/*
+3. ANNOTATED DEFINITION FORMAT
+
+    An annotated program is a program where the following components
+    may be annotated:
+
+	DEFINITION
+	CLAUSE
+	TERM
+
+    For example an annotated CLAUSE is "CLAUSE$Annotation" where
+    Annotation can be any term.
+    The annotations should be easily distinguished by their principal
+    functor. Annotations not understood by a program operating on
+    the abstract syntax should be ignored.
+
+    A component may have several annotations:
+
+	CLAUSE$Annotation1$Annotation2$Annotation3.
+
+    As the ordinary left-associativity of '$' is used, this is to
+    be interpreted as
+
+	((CLAUSE$Annotation1)$Annotation2)$Annotation3.
+
+    An annotated program should be kept on a "balanced" form.
+
+	A number of conversions are possible, and only a few examples
+	of annotations are shown below.
+
+	construct_annotation_template(+PROGRAM,-PROGRAM)
+		constructs a program where free annotation space
+		has been added on all levels
+
+	remove_annotations(+PROGRAM,-PROGRAM)
+		removes all annotations on all levels
+
+	unique_program_vars(+PROGRAM,-PROGRAM)
+		all variables are renamed as follows:
+		var(Name) becomes var(t(Name,DefName,Clausenumber))
+
+	original_program_vars(+PROGRAM,-PROGRAM)
+		the converse of the above,
+		fails if some variable is not of 
+		the form var(t(Name,DefName,Clausenumber))
+
+	first_var_occurences(+PROGRAM,-PROGRAM)
+		the first occurence of each variable is annotated with
+		'first'. E.g. var('X') may become var('X')$first
+
+
+4. READING/WRITING ANNOTATIONS
+
+    Annotations are written with a special infix operator $  
+    understood by read_term/3, which ignores the annotations, i.e.
+    if read_term encounters an infix expression A$B this is returned
+    as A. The terms returned by read_term are of ther form term(T)
+    where T is either of the form var(V) or of the form struct(N,I,Args),
+    V is a variable name, N is the name of the structure, I is the arity,
+    and Args is the list of terms.
+      
+    The special version of read_term, a_read_term/3 returns
+    an annotated term.
+
+	struct(foo,1,[var('X')$void_variable])$single_clause
+
+    is written out as
+
+	foo(X	$ void_variable
+	     )	$ single_clause.
+
+    Note that the annotation is directly related to the term via
+    the infix operator.
+
+    a_read_term(A,S0,S1) will return a term of the form aterm(T) where
+    T is either of the terms var(V,Alist) or
+    struct(S,I,Args,Alist), where Args are terms of the same form, 
+    or exception(E), when reading an expression T$A. 
+    Alist contains a list of annotations 
+    represented by nesting of the operator $. If there is no operator $, 
+    Alist=[]. Different readers can thus easily ignore the annotations 
+    when necessary. The annotation is a term also.
+   
+    Example:
+
+    (p(X$ground,Y$alias(Z),Z$alias(Y))$first_head :- 
+	guard(X,Y,Z,L$local)$nondet
+    ->  body(L$(local$metacall),
+	     X$ground,
+	     Y$ground,
+             Z$alias(Y))
+	  $det)
+	$single_clause.
+
+     Will be read by a_read_term/3 to:
+
+    term(struct((:-),2,
+	[struct(p,3,
+		[var(X,[ground]),
+		 var(Y,[alias(Z)]),
+		 var(Z,[alias(Y)])]),
+	    [first_head]),
+	 struct('->',2,[
+		struct(guard,4,
+			[var(X,[]),
+			var(Y,[]),
+			var(Z,[]),
+			var(L,[struct($,2,
+				[struct(local,0,[]),
+				 struct(metacall,0,[])])])],
+			[nondet]),
+		struct(body,4,
+			[var(X,[ground]),
+			var(Y,[ground]),
+			var(Z,[alias(Y)])],
+			[det])],[]),
+	[single_clause]).
+
+while read_term/3 would return:
+
+
+    term(struct((:-),2,
+	[struct(p,3,
+		[var(X),
+		 var(Y),
+		 var(Z)]),
+	 struct('->',2,[
+		struct(guard,4,
+			[var(X),
+			var(Y),
+			var(Z),
+			var(L)]),
+		struct(body,4,
+			[var(X),
+			 var(Y),
+			 var(Z)])
+			])
+	).
+
+
+*/

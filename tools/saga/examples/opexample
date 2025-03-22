@@ -1,0 +1,14 @@
+left	'+' '-';
+left	'*' '/';
+right	'^' neg;
+
+rule
+s(A)	: '(' s(A) ')';
+s(pow(A,B))	: s(A) '^' s(B);
+s(-A)	: '-' s(A)	prec neg;
+s(A*B)	: s(A) '*' s(B);
+s(A*B)	: s(A) '*' s(B);
+s(A/B)	: s(A) '/' s(B);
+s(A+B)	: s(A) '+' s(B);
+s(A-B)	: s(A) '-' s(B);
+s(id)	: "i";

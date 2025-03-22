@@ -1,0 +1,1124 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%  MAIN dec_optimize
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dec_optimize(Code,[],_Mode,_F,_A,NCode):-
+    ->
+    NCode=Code.
+dec_optimize(Code,OptFlags,Mode,F,A,NCode):-
+    ground(Code)
+    ->
+    init_opt_mode(Mode,OptFlags,F,A,OptMode),
+    dec_optimize1(OptMode,Code,NCode).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% dec_optimize1        - init Jumpvector
+%%%%                      - Code Walk 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dec_optimize1(OptMode,Code,NCode):-
+    ->
+    jump_vector(Code,Jump,Max),
+    functor(From,from,Max),
+    functor(From1,from,Max),
+    open_array_ports(1,Max,From,From1),
+    main_code_walk(1,Jump,From,Done),
+    dec_optimize2(Done,OptMode,From,From1,Max,Jump,NCode).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% dec_optimize2       - After code walk  
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dec_optimize2(done,OptMode,From,From1,Max,Jump,NCode):-
+    ->
+    close_array_ports(1,Max,From),
+    dec_optimize3(OptMode,From1,Max,Jump,NCode).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% dec_optimize3      
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dec_optimize3(OptMode,From,Max,Jump,NCode):-
+    ->
+/*    debug_small_code(Jump),*/
+    dec_opt_last_var(OptMode,Max,From,Jump,GD,done-Done),
+    dec_optimize4(Done,OptMode,Max,Jump,GD,NCode).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% dec_optimize4      -  
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dec_optimize4(done,OptMode,Max,Jump,GD,NCode):-
+    ->
+    functor(From,from,Max),
+    functor(From1,from,Max),
+    open_array_ports(1,Max,From,From1),
+    main_code_walk(1,Jump,From,Done),
+    dec_optimize4_1(Done,OptMode,From,From1,Max,Jump,GD,NCode).
+
+dec_optimize4_1(done,OptMode,From,From1,Max,Jump,GD,NCode):-
+    ->
+    close_array_ports(1,Max,From),
+    dec_optimize5(OptMode,From1,Max,Jump,GD,NCode).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% dec_optimize5      -  
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dec_optimize5(OptMode,From,Max,Jump,GD,NCode):-
+    ->
+    cons_delay(GD,From,Jump,Sub,done-Done),
+    dec_optimize5_0(Done,OptMode,Jump,Sub,Max,NCode).
+
+dec_optimize5_0(done,OptMode,Jump,Sub,Max,NCode):-
+    ->
+    functor(From1,from,Max),
+    functor(From2,from,Max),
+    open_array_ports(1,Max,From1,From2),
+    main_code_walk(1,Jump,From1,Done),
+    dec_optimize5_1(Done,OptMode,From1,From2,Max,Jump,Sub,NCode).
+
+dec_optimize5_1(done,OptMode,From,From1,Max,Jump,Delay,NCode):-
+    ->
+    close_array_ports(1,Max,From),
+    dec_optimize6(OptMode,From1,Jump,Delay,NCode).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% dec_optimize6      -  
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dec_optimize6(OptMode,From,Jump,Delay,NCode):-
+     ->
+     guard_delay(Delay,From,Jump,done-Done),
+     dec_optimize6_1(Done,OptMode,Jump,NCode).
+
+dec_optimize6_1(done,OptMode,Jump,NCode):-
+     ->
+     dec_optimize_reach_one_j_jg_two_g(1,Jump,Js,Gs),
+     union(Js,Gs,All),
+     begin_small_code(1,Js,Gs,Jump,done-Done),
+     dec_optimize6_2(Done,All,OptMode,Jump,NCode).      
+
+dec_optimize6_2(done,All,OptMode,Jump,NCode):-
+     ->
+/*     debug_small_code(Jump),*/
+     dec_optimize7(All,OptMode,Jump,NCode).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% dec_optimize7 - Reg opt
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dec_optimize7(All,OptMode,Dec,NCode):-
+    opt_mode_flags(OptMode,Flags),
+    member(reg_opt,Flags)
+    ->
+    dec_opt_reg(All,Dec,done-Done),
+    dec_optimize8(Done,Dec,NCode).
+dec_optimize7(_,_OptMode,Dec,NCode):-
+    ->
+    dec_optimize8(done,Dec,NCode).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% dec_optimize8
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dec_optimize8(done,Opt,Code):-
+    ->
+    dec_optimize_reach_one_j_two_jg(1,Opt,Js,GJs),
+    begin_make_code(1,Js,GJs,Opt,Code).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%  INITIALIZE
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% jump_vector
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+jump_vector(Code,Vector,Max):-
+    ->
+    prep_jump_vector_beg(Code,List,0,Used,New),
+    make_jump_vector(List,Used,Vector,New,Max).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% make_jump_vector
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+make_jump_vector(List,Max,Vector,NewLabels,MaxOut):-
+    ->
+    deal_with_only_new_labels(Max,NewLabels,MaxOut),
+    functor(Vector,jump_vector,MaxOut),
+    make_jump_vector2(List,Vector).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+make_jump_vector2([],_):- -> true.
+make_jump_vector2([p(L,Init)|Ys],Vector):-
+    ->
+    arg(L,Vector,P),
+    open_port(P,S),
+    init_jump_block(S,Init),
+    make_jump_vector2(Ys,Vector).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% deal_with_only_new_labels
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+deal_with_only_new_labels(Ct,[],Max):-
+    ->
+    Ct=Max.
+deal_with_only_new_labels(Ct,[N|New],Max):-
+    ->
+    inc(Ct,Ct1),N=Ct1,
+    deal_with_only_new_labels(Ct1,New,Max).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% prep_jump_vector_beg
+%%%                       t(Code,First_Class,On)
+%%%                               
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+prep_jump_vector_beg([],Rest,SoFar,Max,L2):- -> Rest=[],SoFar=Max,L2=[].
+prep_jump_vector_beg([X,Y|Zs],Rest,SoFar,Max,L2):-
+   X=label(L)
+   ->
+   max(L,SoFar,SoFar1),
+   Rest=[p(L,t(Next,Class,On))|Rest1],
+   classify_instr(Y,Class),
+   prep_jump_vector_first(Class,Y,Zs,Next,Rest1,SoFar1,Max,L2,On).
+prep_jump_vector_beg([X|Zs],Rest,SoFar,Max,L2):-
+   X=block(label(L),_,_)
+   ->
+   max(L,SoFar,SoFar1),
+   Rest=[p(L,t([X],block,stop))|Rest1],
+   prep_jump_vector_beg(Zs,Rest1,SoFar1,Max,L2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+prep_jump_vector_first(Class,X,Xs,Current,Rest,SoFar,Max,L2,On):-
+    flat_member(Class,[constraint_stack,guard(_)])
+    ->
+    Current=[X],
+    prep_jump_vector_label(Xs,Rest,SoFar,Max,L2,On).
+prep_jump_vector_first(end(_),X,Xs,Current,Rest,SoFar,Max,L2,On):-
+    flat_member(X,[execute(_,_),execute_simple(_,_)])
+    ->
+    execute_convert(X,X1),
+    Current=[X1],On=stop,
+    prep_jump_vector_beg(Xs,Rest,SoFar,Max,L2).
+prep_jump_vector_first(Class,X,Xs,Current,Rest,SoFar,Max,L2,On):-
+    ->
+    prep_jump_vector(Class,X,Xs,Current,Rest,SoFar,Max,L2,On).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% prep_jump_vector
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+prep_jump_vector_label(Xs,Rest,SoFar,Max,L2,On):-
+    Xs=[label(L)|_]
+    ->
+    On=goto(L),
+    prep_jump_vector_beg(Xs,Rest,SoFar,Max,L2).
+prep_jump_vector_label([X|Xs],Rest,SoFar,Max,L2,On):-
+    ->
+    On=goto(L),L2=[L|L2_1],
+    Rest=[p(L,t(Next,Class,On1))|Rest1],
+    classify_instr(X,Class),
+    prep_jump_vector_first(Class,X,Xs,Next,Rest1,SoFar,Max,L2_1,On1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+prep_jump_vector_b(X,On,_On1):- branch_cannot_pass(X) -> On=stop.
+prep_jump_vector_b(_X,On,On1):-                       -> On=On1.
+
+prep_jump_vector(label,X,Xs,Current,Rest,SoFar,Max,L2,On):-
+    X=label(L)
+    ->
+    Current=[],On=goto(L),
+    prep_jump_vector_beg([X|Xs],Rest,SoFar,Max,L2).
+prep_jump_vector(Class,X,Xs,Current,Rest,SoFar,Max,L2,On):-
+    flat_member(Class,[choice(_),write_exit(maybe),jump_match(_,_),try(back,_)])
+    ->
+    Current=[X],
+    prep_jump_vector_label(Xs,Rest,SoFar,Max,L2,On).
+prep_jump_vector(branch(_,_,_),X,Xs,Current,Rest,SoFar,Max,L2,On):-
+    ->
+    prep_jump_vector_b(X,On,On1),
+    branch_convert(X,X1),
+    Current=[X1],
+    prep_jump_vector_label(Xs,Rest,SoFar,Max,L2,On1).
+prep_jump_vector(spec(call),call(A,B,_,C),[Y|Ys],Current,Rest,SoFar,Max,L2,On):-
+    ->
+    quote_atom(A,A1),
+    Current=[bcall(A1,B,Live)|Current1],
+    final_live_calc(C,Live),
+    classify_instr(Y,Class1),
+    prep_jump_vector(Class1,Y,Ys,Current1,Rest,SoFar,Max,L2,On).
+prep_jump_vector(Class,X,[Y|Ys],Current,Rest,SoFar,Max,L2,On):-
+    flat_member(Class,[h_match(_),ord(_),spec(_),read(_),try(_,1)])
+    ->
+    ord_convert(X,X1),
+    Current=[X1|Current1],
+    classify_instr(Y,Class1),
+    prep_jump_vector(Class1,Y,Ys,Current1,Rest,SoFar,Max,L2,On).
+prep_jump_vector(push(_),X,[Y|Ys],Current,Rest,SoFar,Max,L2,On):-
+    ->
+    Current=[X1|Current1],
+    classify_instr(Y,Class1),
+    push_convert(X,X1),
+    prep_jump_vector(Class1,Y,Ys,Current1,Rest,SoFar,Max,L2,On).
+prep_jump_vector(Class,X,Xs,Current,Rest,SoFar,Max,L2,On):-
+    flat_member(Class,[constraint_stack,guard(_)])
+    ->
+    Current=[],
+    prep_jump_vector_label([X|Xs],Rest,SoFar,Max,L2,On).
+prep_jump_vector(end(_),X,Xs,Current,Rest,SoFar,Max,L2,On):-
+    flat_member(X,[execute(_,_),execute_simple(_,_)])
+    ->
+    Current=[],
+    prep_jump_vector_label([X|Xs],Rest,SoFar,Max,L2,On).
+prep_jump_vector(Class,X,Xs,Current,Rest,SoFar,Max,L2,On):-
+    flat_member(Class,[try(deep,2)])
+    ->
+    Current=[X],
+    prep_jump_vector_label(Xs,Rest,SoFar,Max,L2,On).
+prep_jump_vector(Class,X,Xs,Current,Rest,SoFar,Max,L2,On):-
+    flat_member(Class,[try(_,2),write_exit(always)])
+    ->
+    Current=[X],On=stop,
+    prep_jump_vector_beg(Xs,Rest,SoFar,Max,L2).
+prep_jump_vector(end(_),X,Xs,Current,Rest,SoFar,Max,L2,On):-
+    ->
+    proceed_convert(X,X1),	
+    Current=[X1],On=stop,
+    prep_jump_vector_beg(Xs,Rest,SoFar,Max,L2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+ord_convert(load(atom(A)),Out):- -> Out=load_atom(A1),quote_atom(A,A1).
+ord_convert(In,Out):- -> Out=In.
+
+push_convert(push_functor(F,A),Out):- -> Out=push_functor(F1,A),quote_atom(F,F1).
+push_convert(push_atom(A),Out):- -> Out=push_atom(A1),quote_atom(A,A1).
+push_convert(push_list(1),Out):- -> Out=push_list_imm.
+push_convert(push_structure(1),Out):- -> Out=push_structure_imm.
+push_convert(In,Out):-               -> Out=In.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+atom_quote_two_list([],Out):- -> Out=[].
+atom_quote_two_list([atom(A),Y|Xs],Out):-     -> 
+	quote_atom(A,A1),
+	Out=[A1,Y|Out1],atom_quote_two_list(Xs,Out1).
+
+functor_quote_three_list([],Out):- -> Out=[].
+functor_quote_three_list([A,B,C|Xs],Out):- -> 
+	Out=[A1,B,C|Out1],
+	quote_atom(A,A1),
+	functor_quote_three_list(Xs,Out1).
+
+quote_atom(nil,A1):- A1='''[]'''.
+quote_atom(A,A1):- atom_chars(A,Ch),copy_with_var_end(Ch,Ch1,[39]),atom_chars(A1,[39|Ch1]).
+
+
+branch_convert(atom_switch(Reg,TwoList),Out):-
+    ->
+    atom_quote_two_list(TwoList,TwoList1),
+    length_list(TwoList,Len),
+    div(Len,2,Len1),
+    Out=atom_switch(Reg,Len1-TwoList1).
+branch_convert(atom_with_else_switch(Reg,V,TwoList),Out):-
+    ->
+    atom_quote_two_list(TwoList,TwoList1),
+    length_list(TwoList,Len),
+    div(Len,2,Len1),
+    Out=atom_with_else_switch(Reg,V,Len1-TwoList1).
+branch_convert(atom_with_atom_else_switch(Reg,V,TwoList),Out):-
+    ->
+    atom_quote_two_list(TwoList,TwoList1),
+    length_list(TwoList,Len),
+    div(Len,2,Len1),
+    Out=atom_with_atom_else_switch(Reg,V,Len1-TwoList1).
+branch_convert(known_atom_switch(Reg,TwoList),Out):-
+    ->
+    atom_quote_two_list(TwoList,TwoList1),
+    length_list(TwoList,Len),
+    div(Len,2,Len1),
+    Out=known_atom_switch(Reg,Len1-TwoList1).
+branch_convert(known_atom_with_atom_else_switch(Reg,TwoList),Out):-
+    ->
+    atom_quote_two_list(TwoList,TwoList1),
+    length_list(TwoList,Len),
+    div(Len,2,Len1),
+    Out=known_atom_with_atom_else_switch(Reg,Len1-TwoList1).
+
+branch_convert(integer_switch(Reg,TwoList),Out):-
+    ->
+    length_list(TwoList,Len),
+    div(Len,2,Len1),
+    Out=integer_switch(Reg,Len1-TwoList).
+branch_convert(integer_with_else_switch(Reg,V,TwoList),Out):-
+    ->
+    length_list(TwoList,Len),
+    div(Len,2,Len1),
+    Out=integer_with_else_switch(Reg,V,Len1-TwoList).
+branch_convert(integer_with_integer_else_switch(Reg,V,TwoList),Out):-
+    ->
+    length_list(TwoList,Len),
+    div(Len,2,Len1),
+    Out=integer_with_integer_else_switch(Reg,V,Len1-TwoList).
+branch_convert(known_integer_switch(Reg,TwoList),Out):-
+    ->
+    length_list(TwoList,Len),
+    div(Len,2,Len1),
+    Out=known_integer_switch(Reg,Len1-TwoList).
+branch_convert(known_integer_with_integer_else_switch(Reg,TwoList),Out):-
+    ->
+    length_list(TwoList,Len),
+    div(Len,2,Len1),
+    Out=known_integer_with_integer_else_switch(Reg,Len1-TwoList).
+branch_convert(known_functor_switch(Reg,ThreeList),Out):-
+    ->
+    functor_quote_three_list(ThreeList,ThreeList1),
+    length_list(ThreeList,Len),
+    div(Len,3,Len1),
+    Out=known_functor_switch(Reg,Len1-ThreeList1).
+branch_convert(known_functor_with_functor_else_switch(Reg,ThreeList),Out):-
+    ->
+    functor_quote_three_list(ThreeList,ThreeList1),
+    length_list(ThreeList,Len),
+    div(Len,3,Len1),
+    Out=known_functor_with_functor_else_switch(Reg,Len1-ThreeList1).
+branch_convert(In,Out):- -> Out=In.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+proceed_convert(proceed,Out):-        -> Out=bproceed.
+proceed_convert(proceed_simple,Out):- -> Out=bproceed_simple.
+
+execute_convert(execute(F,A),Out):- -> quote_atom(F,F1),Out=bexecute(F1,A).
+execute_convert(execute_simple(F,A),Out):- -> quote_atom(F,F1),Out=bexecute_simple(F1,A).
+
+final_live_calc(In,Out):- 
+   ->
+   Out=Max-In,
+   greatest_element_list(In,Max).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%  SMALL CODE       GoTos only gotos 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+begin_small_code(Begin,Jumps,GoTos,Opt,Cir):-
+    member(Begin,Jumps)
+    ->
+/*    debug_small_code(Opt),*/
+    small_code_beg(Jumps,GoTos,Opt,Cir).
+begin_small_code(Begin,Jumps,GoTos,Opt,Cir):-
+    member_remove(Begin,GoTos,GoTos1)
+    ->
+/*    debug_small_code(Opt),*/
+    small_code_beg([Begin|Jumps],GoTos1,Opt,Cir).
+
+debug_small_code(Jumps):-
+    ->
+    functor(Jumps,_,Arity),
+    write_jump_vector(1,Arity,Jumps).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+small_code_beg([],GoTos,_Opt,C-Cx):-
+    ->
+    C=Cx,
+    error_if_not_equal([],GoTos,small_code_beg).
+small_code_beg([L|Rest],GoTos,Opt,Cir):-
+    integer(L)
+    -> 
+/*    write(' ****   treating ****'),write(L),nl,*/
+    arg(L,Opt,Port),
+    send(get_block(Block),Port,_),
+    send(get_reach(Reach),Port,_),
+    small_code(Block,Reach,Port,GoTos,Opt,Rest,Cir).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%s
+
+small_code(t([],_,goto(G)),p([],_),Port,GoTos,Opt,Rest,C-Cx):-
+    member_remove(G,GoTos,GoTos1)
+    ->
+    first_class(NCode,First),
+    send(set_block_reach(C-C1,t(NCode,First,NEnd),NReach),Port,_),
+/*    write(' ****   joining ****'),write(G),nl,*/
+    arg(G,Opt,Port1),
+    send(get_block(Block),Port1,_),
+    send(get_reach(Reach),Port1,_),
+    send(dummy(C1-C2),Port1,_),
+    small_code_cont(Block,Reach,NCode,NEnd,NReach,GoTos1,Opt,Rest,C2-Cx).
+small_code(t(Code,First,goto(G)),p([],_),Port,GoTos,Opt,Rest,C-Cx):-
+    member_remove(G,GoTos,GoTos1)
+    ->
+    send(set_block_reach(C-C1,t(NCode,First,NEnd),NReach),Port,_),
+/*    write(' ****   joining ****'),write(G),nl,*/
+    copy_with_var_end(Code,NCode,ECode),
+    arg(G,Opt,Port1),
+    send(get_block(Block),Port1,_),
+    send(get_reach(Reach),Port1,_),
+    send(dummy(C1-C2),Port1,_),
+    small_code_cont(Block,Reach,ECode,NEnd,NReach,GoTos1,Opt,Rest,C2-Cx).
+small_code(t(_Code,_First,goto(G)),_,_Port,GoTos,Opt,Rest,Cir):-
+    member_remove(G,GoTos,GoTos1)
+    ->
+    small_code_beg([G|Rest],GoTos1,Opt,Cir).
+small_code(_,_Reach,_Port,GoTos,Opt,Rest,Cir):-
+    ->
+    small_code_beg(Rest,GoTos,Opt,Cir).
+
+first_class([X|_],Class):- -> classify_instr(X,Class).
+first_class([],Class):-    -> Class=dummy.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+small_code_cont(t(CodeIn,_,goto(G)),p([],_),Code,End,NReach,GoTos,Opt,Rest,C-Cx):-
+    member_remove(G,GoTos,GoTos1)
+    ->
+/*    write(' ****   joining ****'),write(p(G,GoTos1)),nl,*/
+    arg(G,Opt,Port1),
+    copy_with_var_end(CodeIn,Code,ECode),
+    send(get_block(Block),Port1,_),
+    send(get_reach(Reach),Port1,_),
+    send(dummy(C-C1),Port1,_),
+    small_code_cont(Block,Reach,ECode,End,NReach,GoTos1,Opt,Rest,C1-Cx).
+small_code_cont(t(C,_,goto(G)),Reach,Code,End,NReach,GoTos,Opt,Rest,Cir):-
+    member_remove(G,GoTos,GoTos1)
+    ->
+/*    write(' ****   not joining 1 ****'),write(t(G,GoTos1,Reach)),nl,*/
+    Code=C,End=goto(G),NReach=Reach,
+    small_code_beg([G|Rest],GoTos1,Opt,Cir).
+small_code_cont(t(C,_,E),Reach,Code,End,NReach,GoTos,Opt,Rest,Cir):-
+    ->
+/*    write(' ****   not joining 2 ****'),write(t(E,GoTos,Reach)),nl,*/
+    Code=C,End=E,NReach=Reach,
+    small_code_beg(Rest,GoTos,Opt,Cir).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%  MAKE CODE
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+begin_make_code(Begin,Jumps,JG,Opt,Code):-
+    member_remove(Begin,Jumps,Jumps1)
+    ->
+    Code=[label(Begin)|Code1],
+    debug_check_code(Code),
+    arg(Begin,Opt,Port),
+    send(get_block(Block),Port,_),
+    make_code(Block,Jumps1,JG,Opt,Code1).
+begin_make_code(Begin,Jumps,JG,Opt,Code):-
+    member_remove(Begin,JG,JG1)
+    ->
+    Code=[label(Begin)|Code1],
+    debug_check_code(Code),
+    arg(Begin,Opt,Port),
+    send(get_block(Block),Port,_),
+    make_code(Block,Jumps,JG1,Opt,Code1).
+begin_make_code(Begin,Jumps,JG,Opt,Code):-
+    ->
+    debug_check_code(Code),
+    arg(Begin,Opt,Port),
+    send(get_block(Block),Port,_),
+    make_code(Block,Jumps,JG,Opt,Code).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+make_code_beg([],JG,_Opt,Code):- -> Code=[],error_if_not_equal(JG,[],make_code_beg).
+make_code_beg([L|Labels],JG,Opt,Code):-
+    -> 
+    arg(L,Opt,Port),
+    send(get_block(Block),Port,_),
+    Code=[label(L)|Code1],
+    maybe_member_remove(L,JG,JG1),
+    make_code(Block,Labels,JG1,Opt,Code1).
+
+maybe_member_remove(X,List,List1):- member_remove(X,List,List2) -> List2=List1.
+maybe_member_remove(_,List,List1):- -> List1=List.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+make_code(t(X,block,stop),Jumps,JG,Opt,Code):-
+    ->
+    block_code(X,Code,Code1),
+    make_code_beg(Jumps,JG,Opt,Code1).
+make_code(t(X,_,stop),Jumps,JG,Opt,Code):-
+    ->
+    copy_with_var_end(X,Code,CodeE),
+    make_code_beg(Jumps,JG,Opt,CodeE).
+make_code(t(X,_,goto(G)),Jumps,JG,Opt,Code):-
+    member_remove(G,JG,JG1)
+    ->
+    copy_with_var_end(X,Code,Code1),
+    Code1=[label(G)|CodeE],
+    arg(G,Opt,Port),
+    send(get_block(Block),Port,_),
+    make_code(Block,Jumps,JG1,Opt,CodeE).
+make_code(t(X,_,goto(G)),Jumps,JG,Opt,Code):-
+    ->
+    copy_with_var_end(X,Code,CodeE),
+    arg(G,Opt,Port),
+    send(get_block(Block),Port,_),
+    make_code(Block,Jumps,JG,Opt,CodeE).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+block_code([block(label(_),instr,X)],B,E):- -> B=[X|E].
+block_code([block(label(_),N,X)],B,E):-     
+    integer(N) 
+    -> 
+    B=[pseudo_term(N)|B1],
+    copy_with_var_end(X,B1,E).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%  WALK through collection suspensions
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+code_walk_debug_flag(no).
+
+
+
+code_walk_debug(X):- code_walk_debug_flag(yes) ->  code_walk_debug1(X).
+code_walk_debug(_):- code_walk_debug_flag(no)  ->  true.
+
+code_walk_debug1(X):- ground(X) | write('CODE WALK '),code_walk_debug_write(X).
+code_walk_debug1(X):-           | 
+   write('CODE WALK partial'),
+   code_walk_debug_write(X),
+   code_walk_debug2(X).
+
+code_walk_debug2(X):- ground(X) -> write(' CODE WALK complete '),code_walk_debug_write(X).
+
+
+code_walk_debug_write(label(Label,Code,Class,End)):-
+    ->
+    write(' label:'),write(Label),write(' Class '),write(Class),write(' End '),write(End),
+    write(' Code '),write(Code),nl,nl.
+code_walk_debug_write(instr(Instr)):- -> write(' instruction'),write(Instr),nl,nl.
+code_walk_debug_write(try(L,Block)):- -> write(' try block '),write(L),write(' Block '),
+    write(Block),nl,nl.
+code_walk_debug_write(note_state(Label,State)):- ->
+    write(' note state at '),write(Label),write(' '),write(State),nl,nl.
+code_walk_debug_write(note_state_and_up(Label,State,Up)):- ->
+    write(' note state at '),write(Label),write(' '),write(State),
+    write(' up '),write(Up),nl,nl.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% main_code_walk
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+main_code_walk(Begin,Jump,From,Done):-
+     code_walk_debug_flag(yes)
+     ->
+     write(' ********** BEGINNING CODE WALK ************ '),nl,nl,
+     code_walk_begin(Begin,Jump,From,[],done-Done,_).
+main_code_walk(Begin,Jump,From,Done):-
+     ->
+     code_walk_begin(Begin,Jump,From,[],done-Done,_).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% code_walk_note_state
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+code_walk_note_state(Label,From,State):-
+   ->
+   code_walk_debug(note_state(Label,State)),
+   arg(Label,From,Port),
+   send(state(State),Port,_).
+code_walk_note_state_and_up(Label,From,State,Up):-
+   ->
+   code_walk_debug(note_state_and_up(Label,State,Up)),
+   arg(Label,From,Port),
+   send(state(State),Port,_),
+   send(up(Up),Port,_).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% code_walk_begin
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+code_walk_begin(Label,Jump,From,State,Cir,Up):-
+   ->
+   arg(Label,Jump,Port),
+   send(get_block(Block),Port,_),
+   code_walk_begin2(Label,Block,Jump,From,State,Cir,Up).
+
+code_walk_begin2(Label,t([X|Xs],Class,End),Jump,From,State,Cir,Up):-
+   ->
+   code_walk_debug(label(Label,[X|Xs],Class,End)),
+   code_walk_note_state(Label,From,State),
+   code_walk1(Class,X,Xs,End,Jump,From,State,Cir,Up). 
+code_walk_begin2(_Label,t([],dummy,goto(X)),Jump,From,State,Cir,Up):-
+   ->
+   code_walk_begin(X,Jump,From,State,Cir,Up).
+
+maybe_code_walk_begin(stop,_Jump,_From,_State,C-Cx):- -> C=Cx.
+maybe_code_walk_begin(goto(L),Jump,From,State,Cir):-  ->  
+  code_walk_begin(L,Jump,From,State,Cir,_).
+
+maybe_code_walk_begin2(stop,_Jump,_From,_State,C-Cx,Up):- -> C=Cx,Up=[].
+maybe_code_walk_begin2(goto(L),Jump,From,State,Cir,Up):-   ->
+  Up=[Up1],
+  code_walk_begin(L,Jump,From,State,Cir,Up1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% code_walk_branch
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+code_walk_branch(Kind,fail,V,Instr,End,Jump,From,State,Cir,Up):-
+    ->
+    code_walk_branch_fail(Kind,V,Instr,End,Jump,From,State,Cir,Up).
+code_walk_branch(Kind,no_fail,V,Instr,End,Jump,From,State,Cir,Up):-
+    branch_contains_fail_dec(Instr)
+    ->
+    code_walk_branch_fail(Kind,V,Instr,End,Jump,From,State,Cir,Up).    
+code_walk_branch(Kind,no_fail,V,Instr,End,Jump,From,State,Cir,Up):-
+    ->
+    code_walk_branch_no_fail(Kind,V,Instr,End,Jump,From,State,Cir,Up).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+code_walk_branch_fail(dyn,V,Instr,End,Jump,From,State,C-Cx,Up):-
+    integer(V)
+    ->
+    Up=not_last_var,
+    branch_get_all_jumps(Instr,LJumps),
+    arg(V,Instr,l(Dyn)),
+    member_remove(Dyn,LJumps,LJumps1),
+    maybe_code_walk_begin(End,Jump,From,State,C-C1),
+    jumps_code_walk(LJumps1,Jump,From,State,C1-C2,_),
+    code_walk_try(Dyn,Jump,From,[dyn|State],C2-Cx,_).
+code_walk_branch_fail(ord,V,Instr,End,Jump,From,State,C-Cx,Up):-
+    integer(V)
+    ->
+    Up=not_last_var,
+    branch_get_all_jumps(Instr,LJumps),
+    arg(V,Instr,l(TryJump)),
+    member_remove(TryJump,LJumps,LJumps1),
+    maybe_code_walk_begin(End,Jump,From,State,C-C1),
+    jumps_code_walk(LJumps1,Jump,From,State,C1-C2,_),
+    code_walk_try(TryJump,Jump,From,State,C2-Cx,_).
+code_walk_branch_fail(ord,no,Instr,End,Jump,From,State,C-Cx,Up):-
+    ->
+    Up=not_last_var,
+    branch_get_all_jumps(Instr,LJumps),
+    maybe_code_walk_begin(End,Jump,From,State,C-C1),
+    jumps_code_walk(LJumps,Jump,From,State,C1-Cx,_).
+code_walk_branch_fail(ord,pass,Instr,goto(End),Jump,From,State,C-Cx,Up):-
+    ->
+    Up=not_last_var,
+    branch_get_all_jumps(Instr,LJumps),
+    jumps_code_walk(LJumps,Jump,From,State,C-C1,_),
+    code_walk_try(End,Jump,From,State,C1-Cx,_).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+code_walk_branch_no_fail(dyn,V,Instr,End,Jump,From,State,C-Cx,Up):-
+    integer(V)
+    ->
+    Up=[Up1,Up2|Up3],
+    branch_get_all_jumps(Instr,LJumps),
+    arg(V,Instr,l(Dyn)),
+    member_remove(Dyn,LJumps,LJumps1),
+    maybe_code_walk_begin2(End,Jump,From,State,C-C2,Up3),
+    jumps_code_walk(LJumps1,Jump,From,State,C2-C3,Up1),
+    code_walk_try(Dyn,Jump,From,[dyn|State],C3-Cx,Up2).
+code_walk_branch_no_fail(ord,V,Instr,End,Jump,From,State,C-Cx,Up):-
+    integer(V)
+    ->
+    Up=[Up1,Up2|Up3],
+    branch_get_all_jumps(Instr,LJumps),
+    arg(V,Instr,l(TryJump)),
+    member_remove(TryJump,LJumps,LJumps1),
+    maybe_code_walk_begin2(End,Jump,From,State,C-C2,Up3),
+    jumps_code_walk(LJumps1,Jump,From,State,C2-C3,Up1),
+    code_walk_try(TryJump,Jump,From,State,C3-Cx,Up2).
+code_walk_branch_no_fail(ord,no,Instr,End,Jump,From,State,C-Cx,Up):-
+    ->
+    Up=[Up1|Up2],
+    branch_get_all_jumps(Instr,LJumps),
+    maybe_code_walk_begin2(End,Jump,From,State,C-C1,Up2),
+    jumps_code_walk(LJumps,Jump,From,State,C1-Cx,Up1).
+code_walk_branch_no_fail(ord,pass,Instr,goto(End),Jump,From,State,C-Cx,Up):-
+    ->
+    Up=[Up1,Up2],
+    branch_get_all_jumps(Instr,LJumps),
+    jumps_code_walk(LJumps,Jump,From,State,C-C1,Up1),
+    code_walk_try(End,Jump,From,State,C1-Cx,Up2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% code_walk_cons
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+code_walk_cons(constraint_stack_test(Regs,l(_)),G,Jump,From,State,Cir,Up):-
+    no_constraint_jump(State,Regs)
+    ->
+    code_walk_begin(G,Jump,From,State,Cir,Up).
+code_walk_cons(constraint_stack_test(_Regs,l(L)),_,Jump,From,State,Cir,Up):-
+    ->
+    code_walk_try(L,Jump,From,State,Cir,Up).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+no_constraint_jump(State,_Regs):- member(dyn,State) -> fail.
+no_constraint_jump(State,Regs):- 
+    ->
+    constraint_regs_state(State,BRegs),
+    intersection(Regs,BRegs,[]).
+    
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% code_walk
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+code_walk([],goto(L),Jump,From,State,Cir,Up):-
+    ->
+    code_walk_begin(L,Jump,From,State,Cir,Up).
+code_walk([Instr|Xs],End,Jump,From,State,Cir,Up):-
+    ->
+    classify_instr(Instr,Class),
+    code_walk_debug(instr(Instr)),
+    code_walk1(Class,Instr,Xs,End,Jump,From,State,Cir,Up).
+
+%%%%
+
+code_walk1(suspend(uncond),_Instr,[],stop,_Jump,_From,_State,C-Cx,_):-
+    ->
+    C=Cx.
+code_walk1(jump,jump(l(L)),[],stop,Jump,From,State,Cir,_):-
+    ->
+    code_walk_begin(L,Jump,From,State,Cir,_).
+code_walk1(alias,_Instr,Xs,End,Jump,From,State,Cir,_):-
+    ->
+    code_walk(Xs,End,Jump,From,State,Cir,_).
+code_walk1(jump_cons,Instr,[],goto(End),Jump,From,State,Cir,Up):-
+    ->
+    code_walk_jump_cons(Instr,End,Jump,From,State,Cir,Up).
+code_walk1(constraint_stack,Instr,[],goto(End),Jump,From,State,Cir,Up):-
+    ->
+    code_walk_cons(Instr,End,Jump,From,State,Cir,Up).
+code_walk1(branch(Kind,Fail,Var),Instr,[],End,Jump,From,State,Cir,Up):-
+    ->
+    code_walk_branch(Kind,Fail,Var,Instr,End,Jump,From,State,Cir,Up).
+code_walk1(guard(Kind),_Instr,_,_End,_Jump,_From,_State,C-Cx,Up):-
+    ->
+    C=Cx,
+    guard_end(Kind,Up).
+code_walk1(choice(_),_Instr,_,_End,_Jump,_From,_State,C-Cx,Up):-
+    ->
+    C=Cx,Up=not_last_var.
+code_walk1(Class,_Instr,Xs,End,Jump,From,State,Cir,Up):-
+    flat_member(Class,[read(_)])
+    ->
+    code_walk(Xs,End,Jump,From,State,Cir,Up).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+guard_end(flat,Up):- 
+    ->
+    Up=flat_guard.
+guard_end(_,Up):-
+    ->
+    Up=not_last_var.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% code_walk_try
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+code_walk_try(L,Jump,From,State,Cir,Up):-
+    ->
+    code_walk_debug(try(L,Block)),
+    arg(L,Jump,Port),
+    send(get_block(Block),Port,_),
+    code_walk_try0(L,Block,Jump,From,State,Cir,Up).
+
+code_walk_try0(_L,t([_],suspend(uncond),_),_Jump,_From,_State,C-Cx,Up):-
+    ->
+    Up=suspend,C=Cx.
+code_walk_try0(L,t([_|Xs],alias,End),Jump,From,State,Cir,Up):-
+    ->
+    Up=fail,
+    Xs=[X1|_],
+    classify_instr(X1,Class),
+    code_walk_try0(L,t(Xs,Class,End),Jump,From,State,Cir,_).
+code_walk_try0(L,t([X],jump_cons,GoTo),Jump,From,State,Cir,Up):-
+    ->
+    code_walk_note_state(L,From,State),
+    code_walk_jump_cons(X,GoTo,Jump,From,State,Cir,Up).
+code_walk_try0(L,Block,Jump,From,State,C-Cx,Up):-
+    Block=t([Try|Tries],Class,stop)
+    ->
+    Up1=try([Up2|Up3]),
+    code_walk_note_state_and_up(L,From,State,Up1),
+    try_get_jlabel(Try,JLabel),
+    try_up(Class,Up,Up1),
+    code_walk_begin(JLabel,Jump,From,[Try|State],C-C1,Up2),
+    code_walk_try2(Tries,Jump,From,State,C1-Cx,Up3).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+code_walk_jump_cons(jump_on_nonempty_constraint_stack(l(_)),G,Jump,From,State,Cir,Up):-
+    constraint_regs_state(State,[])
+    ->
+    code_walk_begin(G,Jump,From,State,Cir,Up).
+code_walk_jump_cons(jump_on_nonempty_constraint_stack(l(L)),_,Jump,From,State,Cir,Up):-
+    ->
+    code_walk_begin(L,Jump,From,State,Cir,Up).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+try_up(try(ord,_),Up,_):-    -> Up=not_last_var.
+try_up(try(simp,_),Up,Up1):- -> Up=Up1.
+try_up(try(test,_),Up,Up1):- -> Up=Up1.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+code_walk_try2([],_Jump,_From,_State,C-Cx,Up):- -> C=Cx,Up=[].
+code_walk_try2([Try|Tries],Jump,From,State,C-Cx,Up):- 
+     -> 
+     Up=[Up1|Up2],
+     try_get_jlabel(Try,JLabel),
+     classify_instr(Try,Class),
+     try_up(Class,Up1,Up11),
+     code_walk_begin(JLabel,Jump,From,[Try|State],C-C1,Up11),
+     code_walk_try2(Tries,Jump,From,State,C1-Cx,Up2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% jumps_code_walk
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+jumps_code_walk([],_Jump,_From,_State,C-Cx,Up):- -> C=Cx,Up=[].
+jumps_code_walk([X|Xs],Jump,From,State,C-Cx,Up):-
+    ->
+    Up=[Up1|Up2],
+    code_walk_begin(X,Jump,From,State,C-C1,Up1),
+    jumps_code_walk(Xs,Jump,From,State,C1-Cx,Up2).
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% UTILITY
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% REACH
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% dec_optimize_one_j_jg_two_g
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dec_optimize_reach_one_j_jg_two_g(Begin,Dec,Jumps,GoTos):-
+    ->
+    dec_optimize_reach0(Begin,Dec,Jumps,G),
+    remove_intersection(G,Jumps,GoTos).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% dec_optimize_one_j_two_jg
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dec_optimize_reach_one_j_two_jg(Begin,Dec,Jumps,JG):-
+    ->
+    dec_optimize_reach0(Begin,Dec,J,G),
+    make_set(J,J1),
+    make_set(G,G1),
+    d_o_r_e(J1,G1,Jumps,JG).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+d_o_r_e([X|J],[X|G],Jumps,JG):- 
+    -> 
+    JG=[X|JG1],
+    d_o_r_e(J,G,Jumps,JG1).
+d_o_r_e(J,[],Jumps,JG):- 
+    -> 
+    JG=[],Jumps=J.
+d_o_r_e([],_,Jumps,JG):- 
+    -> 
+    JG=[],Jumps=[].
+d_o_r_e([X|J],G,Jumps,JG):- 
+    G=[G1|_],X<G1
+    -> 
+    Jumps=[X|Jumps1],
+    d_o_r_e(J,G,Jumps1,JG).
+d_o_r_e(J,[X|G],Jumps,JG):- 
+    J=[J1|_],X<J1
+    -> 
+    d_o_r_e(J,G,Jumps,JG).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% dec_optimize_reach0
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dec_optimize_reach0(Begin,Dec,Jumps,GoTos):-
+    -> 
+    arg(Begin,Dec,Port),
+    send(get_reach(MyR),Port,_),
+    dec_optimize_reach2(MyR,[],[],Dec,[],[Begin],Jumps,GoTos).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% dec_optimize_reach1
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dec_optimize_reach1([],[],_Reach,AccJ,AccG,OutJ,OutG):- -> OutJ=AccJ,OutG=AccG.
+dec_optimize_reach1([],[R|Rest],Reach,AccJ,AccG,OutJ,OutG):-
+    ->
+    dec_optimize_reach1(R,Rest,Reach,AccJ,AccG,OutJ,OutG).
+dec_optimize_reach1([R|R1],Rest,Reach,AccJ,AccG,OutJ,OutG):-
+    member(R,AccJ)
+    ->
+    dec_optimize_reach1(R1,Rest,Reach,AccJ,AccG,OutJ,OutG).
+dec_optimize_reach1([R|R1],Rest,Reach,AccJ,AccG,OutJ,OutG):-
+    member(R,AccG)
+    ->
+    dec_optimize_reach1(R1,Rest,Reach,[R|AccJ],AccG,OutJ,OutG).
+dec_optimize_reach1([R|R1],Rest,Reach,AccJ,AccG,OutJ,OutG):-
+    ->
+    arg(R,Reach,Port),
+    send(get_reach(MyR),Port,_),
+    dec_optimize_reach2(MyR,R1,Rest,Reach,[R|AccJ],AccG,OutJ,OutG).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dec_optimize_reach2(p(R,stop),R1,Rest,Reach,AccJ,AccG,OutJ,OutG):-
+    ->
+    dec_optimize_reach1(R1,[R|Rest],Reach,AccJ,AccG,OutJ,OutG).
+dec_optimize_reach2(p(R,goto(L)),R1,Rest,Reach,AccJ,AccG,OutJ,OutG):-
+    member(L,AccJ)
+    ->
+    dec_optimize_reach1(R,[R1|Rest],Reach,AccJ,[L|AccG],OutJ,OutG).
+dec_optimize_reach2(p(R,goto(L)),R1,Rest,Reach,AccJ,AccG,OutJ,OutG):-
+    ->
+    arg(L,Reach,Port),send(get_reach(MyR),Port,_),
+    dec_optimize_reach2(MyR,R,[R1|Rest],Reach,AccJ,[L|AccG],OutJ,OutG).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% JUMP BLOCK
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% write_jump_vector  DEBUG
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+write_jump_vector(Ct,Max,_Vector):- Ct> Max -> true.
+write_jump_vector(Ct,Max,Vector):-
+    arg(Ct,Vector,Arg)
+    ->
+    send(write(Ct),Arg,_),
+    inc(Ct,Ct1),
+    write_jump_vector(Ct1,Max,Vector).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% jump_block
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+init_jump_block(S,I):- -> jump_block(S,no,I).
+
+jump_block([set_initial_reach(A)|S],no,State):-     -> jump_block(S,A,State).
+jump_block([get_block(A)|S],Reach,State):-  -> A=State,jump_block(S,Reach,State).
+jump_block([get_reach(_)|_],no,_State):-    -> error(jump_block).
+jump_block([get_reach(A)|S],Reach,State):-  -> A=Reach,jump_block(S,Reach,State).
+jump_block([set_block(C-Cx,I)|S],Reach,_):-              -> C=Cx,jump_block(S,Reach,I).
+jump_block([set_block_reach(_,_,_)|_],no,_):-            -> error(jump_block).
+jump_block([set_block_reach(C-Cx,I,R)|S],_,_):-      -> C=Cx,jump_block(S,R,I).
+jump_block([set_block_initial_reach(C-Cx,I,R)|S],no,_):- -> C=Cx,jump_block(S,R,I).
+jump_block([set_block_initial_reach(_,_,_)|_],_,_):- -> error(jump_block).
+jump_block([],_,_):-                                     -> true.
+jump_block([dummy(C-Cx)|S],Reach,_State):-               -> C=Cx,jump_block(S,Reach,dummy).
+jump_block([write(Ct)|S],Reach,State):-      
+    -> 
+    write_jump_entry(Ct,State),
+    write('     Reach: '),write(Reach),nl,
+    jump_block(S,Reach,State).
+
+write_jump_entry(Ct,dummy):- 
+    ->
+    write(Ct),write(':: DUMMY'),nl.
+write_jump_entry(Ct,t(Code,Class,On)):-
+    ->
+    write(Ct),write(':: Beg-'),write(Class),
+    write(' Cont-> '),write(On),nl,
+    write_list(8,Code).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%    DEBUG STUFF
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+debug_check_code(Code):- 
+    ->
+    debug_check_code1(Code,Jumps,[],Labels,[]),
+    qsort_rem_dupl(Jumps,Jumps1),
+    check_code(Jumps1,Labels).
+
+check_code([],[]):- -> true.
+check_code([X|Xs],Labels):-
+    member_remove(X,Labels,Labels1)
+    ->
+    check_code(Xs,Labels1).
+check_code([X|Xs],Labels):-
+    ->
+    write('****** INCORRECT CODE ******    NO LABEL '),write(X),nl,
+    check_code(Xs,Labels).
+check_code([],[L|Labels]):-
+    ->
+    write('****** INCORRECT CODE ******    LABEL NOT USED '),write(L),nl,
+    check_code([],Labels).
+
+
+debug_check_code1([],JB,JE,LB,LE):-        ->    JB=JE,LB=LE.
+debug_check_code1(l(X),JB,JE,LB,LE):-       ->    JB=[X|JE],LB=LE.
+debug_check_code1(label(X),JB,JE,LB,LE):-  ->    LB=[X|LE],JB=JE.
+debug_check_code1([X|Xs],JB,JE,LB,LE):-
+    -> 
+    debug_check_code1(X,JB,JB1,LB,LB1),
+    debug_check_code1(Xs,JB1,JE,LB1,LE).
+debug_check_code1(X,JB,JE,LB,LE):-
+    ->
+    functor(X,_,Arity),
+    debug_check_code_args(Arity,X,JB,JE,LB,LE).
+
+debug_check_code_args(0,_,JB,JE,LB,LE):- -> JB=JE,LB=LE.
+debug_check_code_args(N,Struct,JB,JE,LB,LE):- 
+    -> 
+    arg(N,Struct,Arg),dec(N,N1),
+    debug_check_code1(Arg,JB,JB1,LB,LB1),
+    debug_check_code_args(N1,Struct,JB1,JE,LB1,LE).
+
+
+
+
+

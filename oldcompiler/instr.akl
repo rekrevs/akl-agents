@@ -1,0 +1,189 @@
+% $Id: instr.akl,v 1.10 1994/05/05 10:52:35 secher Exp $
+
+real_instructions(C, D) :-
+	real_instructions(C, D, []).
+
+real_instructions([], S0, S) :-
+    ->	S0 = S.
+real_instructions([I|C0], S0, S) :-
+    ->  real_instruction(I, C0, C1, S0, S1),
+	real_instructions(C1, S1, S).
+
+real_instruction(fd_code(ri(first,x(I)),R), C0, C, S0, S) :-
+    ->  C = C0,
+	S0 = [fd_code(I,R)|S].
+real_instruction(get_v(ri(void,none),_R), C0, C, S0, S) :-
+    ->  C = C0,
+	S = S0.
+real_instruction(get_v(ri(first,x(I)),R), C0, C, S0, S) :-
+    ->  C = C0,
+	reg_or_ri(R, J),
+	S0 = [get_x_variable(I,J)|S].
+real_instruction(get_v(ri(_,x(I)),R), C0, C, S0, S) :-
+    ->  C = C0,
+	reg_or_ri(R, J),
+	S0 = [get_x_value(I,J)|S].
+real_instruction(get_v(ri(first,y(I)),R), C0, C, S0, S) :-
+    ->  C = C0,
+	reg_or_ri(R, J),
+	S0 = [get_y_variable(I,J)|S].
+real_instruction(get_v(ri(_,y(I)),R), C0, C, S0, S) :-
+    ->	C = C0,
+	reg_or_ri(R, J),
+	S0 = [get_y_value(I,J)|S].
+real_instruction(get_s([],0,R), C0, C, S0, S) :-
+    ->  C = C0,
+	reg_or_ri(R, J),
+	S0 = [get_nil(J)|S].
+real_instruction(get_s('.',2,R), C0, C, S0, S) :-
+    ->  C = C0,
+	reg_or_ri(R, J),
+	S0 = [get_list(J)|S].
+real_instruction(get_s(A,0,R), C0, C, S0, S) :-
+    ->	C = C0,
+	reg_or_ri(R, J),
+	S0 = [get_constant(A,J)|S].
+real_instruction(get_s(F,N,R), C0, C, S0, S) :-
+    ->  C = C0,
+	reg_or_ri(R, J),
+	S0 = [get_structure(F/N,J)|S].
+%For features...
+real_instruction(get_rec(F,A,L,R), C0, C, S0, S) :-
+    ->  C = C0,
+	reg_or_ri(R, J),
+	S0 = [get_record(F,A,L,J)|S].
+real_instruction(get_a(F,R), C0, C, S0, S) :-
+    ->  C = C0,
+	reg_or_ri(R, J),
+	S0 = [get_abstraction(F,J)|S].
+real_instruction(get_v(_,ri(void,none)), C0, C, S0, S) :-
+    ->  C = C0,
+	S = S0.
+real_instruction(get_s(_,ri(void,none)), C0, C, S0, S) :-
+    ->  C = C0,
+	S = S0.
+real_instruction(put_v(ri(void,none),R), C0, C, S0, S) :-
+    ->  C = C0,
+	reg_or_ri(R, J),
+	S0 = [put_x_void(J)|S].
+real_instruction(put_v(ri(first,x(I)),R), C0, C, S0, S) :-
+    ->  C = C0,
+	reg_or_ri(R, J),
+	S0 = [put_x_variable(I,J)|S].
+real_instruction(put_v(ri(_,x(I)),R), C0, C, S0, S) :-
+    ->  C = C0,
+	reg_or_ri(R, J),
+	S0 = [put_x_value(I,J)|S].
+real_instruction(put_v(ri(first,y(I)),R), C0, C, S0, S) :-
+    ->  C = C0,
+	reg_or_ri(R, J),
+	S0 = [put_y_variable(I,J)|S].
+real_instruction(put_v(ri(_,y(I)),R), C0, C, S0, S) :-
+    ->	C = C0,
+	reg_or_ri(R, J),
+	S0 = [put_y_value(I,J)|S].
+real_instruction(put_s([],0,R), C0, C, S0, S) :-
+    ->  C = C0,
+	reg_or_ri(R, J),
+	S0 = [put_nil(J)|S].
+real_instruction(put_s('.',2,R), C0, C, S0, S) :-
+    ->  C = C0,
+	reg_or_ri(R, J),
+	S0 = [put_list(J)|S].
+real_instruction(put_s(A,0,R), C0, C, S0, S) :-
+    ->	C = C0,
+	reg_or_ri(R, J),
+	S0 = [put_constant(A,J)|S].
+real_instruction(put_s(F,N,R), C0, C, S0, S) :-
+    ->  C = C0,
+	reg_or_ri(R, J),
+	S0 = [put_structure(F/N,J)|S].
+%For features...
+real_instruction(put_rec(F,A,L,R), C0, C, S0, S) :-
+    ->  C = C0,
+	reg_or_ri(R, J),
+	S0 = [put_record(F,A,L,J)|S].
+real_instruction(put_a(F,R), C0, C, S0, S) :-
+    ->  C = C0,
+	reg_or_ri(R, J),
+	S0 = [put_abstraction(F,J)|S].
+real_instruction(put_v(_,ri(void,none)), C0, C, S0, S) :-
+    ->  C = C0,
+	S = S0.
+real_instruction(put_s(_,ri(void,none)), C0, C, S0, S) :-
+    ->  C = C0,
+	S = S0.
+real_instruction(unify_v(ri(first,x(I))), C0, C, S0, S) :-
+    ->  C = C0,
+	S0 = [unify_x_variable(I)|S].
+real_instruction(unify_v(ri(_,x(I))), C0, C, S0, S) :-
+    ->  C = C0,
+	S0 = [unify_x_value(I)|S].
+real_instruction(unify_v(ri(first,y(I))), C0, C, S0, S) :-
+    ->  C = C0,
+	S0 = [unify_y_variable(I)|S].
+real_instruction(unify_v(ri(_,y(I))), C0, C, S0, S) :-
+    ->  C = C0,
+	S0 = [unify_y_value(I)|S].
+real_instruction(unify_v(ri(void,none)), C0, C, S0, S) :-
+    ->  C = C0,
+	S0 = [unify_void|S].
+real_instruction(unify_c([]), C0, C, S0, S) :-
+    ->  C = C0,
+	S0 = [unify_nil|S].
+real_instruction(unify_c(A), C0, C, S0, S) :-
+    ->  C = C0,
+	S0 = [unify_constant(A)|S].
+real_instruction(call(true,0), C0, C, S0, S) :-
+    ->	C = C0,
+	S = S0.
+real_instruction(call(fail,0), C0, C, S0, S) :-
+    ->	S0 = [fail|S],
+	C = C0.
+real_instruction(call(false,0), C0, C, S0, S) :-
+    ->	S0 = [fail|S],
+	C = C0.
+real_instruction(call('$call',1), C0, C, S0, S) :-
+    ->	S0 = [meta_call(0)|S],
+	C = C0.
+real_instruction(call(send,3), C0, C, S0, S) :-
+    ->	S0 = [send3|S],
+	C = C0.
+real_instruction(call(F,N), C0, C, S0, S) :-
+    ->  C = C0,
+	S0 = [call(F/N)|S].
+real_instruction(apply(ri(_,x(I)),N), C0, C, S0, S) :-
+    ->  C = C0,
+	S0 = [apply(I,N)|S].
+% we postpone this to the editing phase
+real_instruction(guard_op(Gop), C0, C, S0, S) :-
+    ->  C = C0,
+	S0 = [guard_op(Gop)|S].
+
+reg_or_ri(ri(_,x(I0)), I) :-
+    ->  I = I0.
+reg_or_ri(I0, I) :-
+    ->  I = I0.
+
+real_instr_guard_op(cond, I) :-
+    ->  I = guard_cond.
+real_instr_guard_op(commit, I) :-
+    ->  I = guard_commit.
+real_instr_guard_op(wait, I) :-
+    ->  I = guard_wait.
+real_instr_guard_op(cut, I) :-
+    ->  I = guard_cut.
+real_instr_guard_op(unorder(B,B1,B2), I) :-
+    ->	B = ri(last,y(Y)),
+	B1 = ri(first,y(Y1)),
+	B2 = ri(first,y(Y2)),
+	I = guard_unorder(Y,Y1,Y2).
+real_instr_guard_op(order(B,B1,B2), I) :-
+    ->	B = ri(last,y(Y)),
+	B1 = ri(first,y(Y1)),
+	B2 = ri(first,y(Y2)),
+	I = guard_order(Y,Y1,Y2).
+real_instr_guard_op(unit(B,B1), I) :-
+    ->	B = ri(last,y(Y)),
+	B1 = ri(first,y(Y1)),
+	I = guard_unit(Y,Y1).

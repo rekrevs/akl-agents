@@ -1,0 +1,504 @@
+/**************************************************************************
+				SEND
+ *************************************************************************/
+
+gmsend(gm_window(ID,_), Msg)-M :-
+    ->	gmsend_window(Msg, ID)-M.
+
+gmsend(gm_vbox(ID,_), insert(Def))-M :-
+    ->	gmcreate(Def, InsertedID, noname, _)-M,
+	[52,ID,InsertedID]@M.
+
+gmsend(gm_hbox(ID,_), insert(Def))-M :-
+    ->	gmcreate(Def, InsertedID, noname, _)-M,
+	[52,ID,InsertedID]@M.
+
+%gmsend(gm_vbox(ID,_), remove(Obj))-M :- ->
+%	box_remove(Num, Obj)-M
+%	[53,ID,RemoveID]@M.
+
+%gmsend(gm_hbox(ID,_), remove(Obj))-M :- ->
+%	box_remove(Num, Obj)-M,
+%	[53,ID,RemoveID]@M.
+
+gmsend(gm_output(ID,_), out(Text))-M :-
+    ->	[7,ID,str(Text)]@M.
+
+gmsend(gm_input(ID,_), Msg)-M :-
+    ->	gmsend_input(Msg, ID)-M.
+
+gmsend(gm_view(ID,_), Msg)-M :-
+    ->	gmsend_view(Msg, ID)-M.
+
+gmsend(gm_text(ID,_), Msg)-M :-
+    ->	gmsend_text(Msg, ID)-M.
+
+gmsend(gm_slider(ID,_), enable)-M :-
+    ->	[15,ID]@M.
+
+gmsend(gm_slider(ID,_), disable)-M :-
+    ->	[65,ID]@M.
+
+gmsend(gm_slider(ID,_), value(F))-M :-
+    ->	[37,ID,getint(F)]@M.
+
+gmsend(gm_button(ID,_), enable)-M :-
+    ->	[66,ID]@M.
+
+gmsend(gm_button(ID,_), disable)-M :-
+    ->	[67,ID]@M.
+
+gmsend(Name, Msg)-M :-
+    ->	[lookup(name(Name),Obj)]@M,
+	gmsend(Obj, Msg)-M.
+
+
+/**************************************************************************
+			    SEND TO WINDOW
+ *************************************************************************/
+
+gmsend_window(open, ID)-M :- ->
+	gmsend_window(open(-1,-1), ID)-M.
+
+gmsend_window(open(X,Y), ID)-M :- ->
+	[1,ID,X,Y]@M.
+
+gmsend_window(close, _)-M :- ->    % Close all objects in window
+	[2,0]@M.		 % ???????????!!!!!!!!!
+%	[2,.....,0]@M.
+
+gmsend_window(iconify, ID)-M :- ->
+	[45,ID]@M.
+
+gmsend_window(deiconify, ID)-M :- ->
+	[46,ID]@M.
+
+gmsend_window(raise, ID)-M :- ->
+	[69,ID]@M.
+
+gmsend_window(lower, ID)-M :- ->
+	[70,ID]@M.
+
+gmsend_window(setcursor(Name), ID)-M :- -> 
+	cursor_id(Name, C),
+	[60,ID,C]@M.
+
+gmsend_window(getcursor(Name), ID)-M :- -> 
+	[61,ID,getint(C)]@M,
+	cursor_name(C, Name).
+
+gmsend_window(nextevent(E), ID)-M :- ->  
+	[9,ID,getev(E)]@M.
+
+gmsend_window(waitevent(E), ID)-M :- ->  
+	[10,ID,getev(E)]@M.
+
+
+/**************************************************************************
+			    SEND TO INPUT
+ *************************************************************************/
+
+gmsend_input(in(Text), ID)-M :- ->
+	[8,ID,getstr(Text)]@M.
+
+gmsend_input(out(Text), ID)-M :- -> 
+	[43,ID,str(Text)]@M.
+
+gmsend_input(enable, ID)-M :- ->
+	[47,ID]@M.
+
+gmsend_input(disable, ID)-M :- ->
+	[62,ID]@M.
+
+
+
+/**************************************************************************
+			    SEND TO VIEW
+ *************************************************************************/
+
+
+gmsend_view(name(Name,Msg), ID)-M :-
+	gm_view_obj(Msg, Ref) ->
+	gmsend_view(Msg, ID)-M,
+	[insert(name(Name),Ref)]@M.
+
+gmsend_view(name(Name,Msg), ID)-M :-
+	gm_view_obj1(Msg) ->
+	NID is -ID,
+	gmsend_view(Msg, NID)-M,
+	[getint(R),insert(name(Name),graph(R))]@M.
+
+gmsend_view(graph(ID0), ID)-_M :- ->
+	ID = ID0.
+
+gmsend_view(setmenu(gm_menu(Num,_)), ID)-M :- ->
+	[11,ID,Num]@M.
+
+gmsend_view(setmenu(Menu), ID)-M :- 
+    ->	[lookup(name(Menu), Obj)]@M,
+	gmsend_view(setmenu(Obj), ID)-M.
+
+gmsend_view(setcolors(Fg,Bg), ID)-M :- -> 
+	[22,ID|C0]@M,
+	send_colors(Fg, C0, C1),
+	send_colors(Bg, C1, []).
+
+gmsend_view(setpattern(Fill), ID)-M :- -> 
+	pattonum(Fill, F),
+	[23,ID,F]@M.
+
+gmsend_view(setbrush(Pat,W), ID)-M :- -> 
+	pattonum(Pat, P),
+	[24,ID,P,W]@M.
+
+gmsend_view(setfont(Font), ID)-M :- -> 
+	[25,ID,str(Font)]@M.
+
+gmsend_view(enable, ID)-M :- ->
+	[20,ID]@M.
+
+gmsend_view(disable, ID)-M :- ->
+	[63,ID]@M.
+
+gmsend_view(line(X1,Y1,X2,Y2), ID)-M :- -> 
+	[3,ID,X1,Y1,X2,Y2]@M.
+
+gmsend_view(line(Ref,X1,Y1,X2,Y2), ID)-M :- -> 
+	NID is -ID,
+	[3,NID,X1,Y1,X2,Y2,getint(R)]@M,
+	Ref = graph(R).
+
+gmsend_view(picture(Ref,List), ID)-M :- -> 
+	parsepicture(List, L)-M,
+	[34,ID,L,0,getint(R)]@M,
+	Ref = graph(R).
+
+gmsend_view(circle(X,Y,R), ID)-M :- -> 
+	gmsend_view(ellipse(X,Y,R,R), ID)-M.
+
+gmsend_view(circle(C,X,Y,R), ID)-M :- -> 
+	gmsend_view(ellipse(C,X,Y,R,R), ID)-M.
+
+gmsend_view(ellipse(X,Y,R1,R2), ID)-M :- -> 
+	[4,ID,X,Y,R1,R2]@M.
+
+gmsend_view(ellipse(Ref,X,Y,R1,R2), ID)-M :- -> 
+	NID is -ID,
+	[4,NID,X,Y,R1,R2,getint(R)]@M,
+	Ref = graph(R).
+
+gmsend_view(polygon(Xs,Ys), ID)-M :- -> 
+	length(Xs,N), length(Ys, N),
+	[35,ID,N,Xs,Ys]@M.
+
+gmsend_view(polygon(Ref,Xs,Ys), ID)-M :- -> 
+	NID is -ID,
+	length(Xs, N), length(Ys, N),
+	[35,NID,N,Xs,Ys,getint(R)]@M,
+	Ref = graph(R).
+
+gmsend_view(fillpolygon(Xs,Ys), ID)-M :- -> 
+	length(Xs, N), length(Ys, N),
+	[36,ID,N,Xs,Ys]@M.
+
+gmsend_view(fillpolygon(Ref,Xs,Ys), ID)-M :- -> 
+	NID is -ID,
+	length(Xs, N), length(Ys, N),
+	[36,NID,N,Xs,Ys,getint(R)]@M,
+	Ref = graph(R).
+
+gmsend_view(bitmap(X,Y,File), ID)-M :- -> 
+	gmfilename(File, '.bm', Name),
+	[19,ID,X,Y,str(Name)]@M.
+
+gmsend_view(bitmap(Ref,X,Y,File), ID)-M :- -> 
+	NID is -ID,
+	gmfilename(File, '.bm', Name),
+	[19,NID,X,Y,str(Name),getint(R)]@M,
+	Ref = graph(R).
+
+gmsend_view(rect(X1,Y1,X2,Y2), ID)-M :- -> 
+	[5,ID,X1,Y1,X2,Y2]@M.
+
+gmsend_view(rect(Ref,X1,Y1,X2,Y2), ID)-M :- -> 
+	NID is -ID,
+	[5,NID,X1,Y1,X2,Y2,getint(R)]@M,
+	Ref = graph(R).
+
+gmsend_view(move(G,X,Y), ID)-M :- -> 
+	graphtonum(G, N),
+	[26,ID,N,X,Y]@M.
+
+gmsend_view(moveto(G,X,Y), ID)-M :- -> 
+	graphtonum(G, N),
+	[27,ID,N,X,Y]@M.
+
+gmsend_view(remove(G), ID)-M :- ->
+	graphtonum(G, N),
+	[28,ID,N]@M.
+
+gmsend_view(copy(G1,G2), ID)-M :- -> 
+	graphtonum(G1, N),
+	[38,ID,N,getint(R)]@M,
+	G2 = graph(R).
+
+gmsend_view(rotate(G,V), ID)-M :- -> 
+	graphtonum(G, N),
+	[29,ID,N,expr(V*10)]@M.
+
+gmsend_view(newtext(G,Text), ID)-M :- -> 
+	graphtonum(G, N),
+	[33,ID,N,str(Text)]@M.
+
+gmsend_view(scale(G,X,Y), ID)-M :- -> 
+	graphtonum(G, N),
+	[30,ID,N,expr(X*10),expr(Y*10)]@M.
+
+gmsend_view(zoom(Mag), ID)-M :- -> 
+	[31,ID,expr(Mag*10)]@M.
+
+gmsend_view(scrollto(X,Y), ID)-M :- -> 
+	[32,ID,X,Y]@M.
+
+gmsend_view(scrollby(X,Y), ID)-M :- -> 
+	NID is -ID,
+	[32,NID,X,Y]@M.
+
+gmsend_view(string(X,Y,Text), ID)-M :- -> 
+	[6,ID,X,Y,str(Text)]@M.
+
+gmsend_view(string(Ref,X,Y,Text), ID)-M :- -> 
+	NID is -ID,
+	[6,NID,X,Y,str(Text),getint(R)]@M,
+	Ref = graph(R).
+
+gmsend_view(stringlength(Text,Length), ID)-M :- -> 
+	[54,ID,str(Text),getint(Length)]@M.
+
+gmsend_view(clear, ID)-M :- ->  
+%	erasegraphs(ID),
+	[16,ID]@M.
+
+gmsend_view(fillrect(X1,Y1,X2,Y2), ID)-M :- -> 
+	[17,ID,X1,Y1,X2,Y2]@M.
+
+gmsend_view(fillrect(Ref,X1,Y1,X2,Y2), ID)-M :- -> 
+	NID is -ID,
+	[17,NID,X1,Y1,X2,Y2,getint(R)]@M,
+	Ref = graph(R).
+
+gmsend_view(fillcircle(X,Y,R), ID)-M :- -> 
+	gmsend_view(fillellipse(X,Y,R,R), ID)-M.
+
+gmsend_view(fillcircle(C,X,Y,R), ID)-M :- -> 
+	gmsend_view(fillellipse(C,X,Y,R,R), ID)-M.
+
+gmsend_view(fillellipse(X,Y,R1,R2), ID)-M :- -> 
+	[18,ID,X,Y,R1,R2]@M.
+
+gmsend_view(fillellipse(Ref,X,Y,R1,R2), ID)-M :- -> 
+	NID is -ID,
+	[18,NID,X,Y,R1,R2,getint(R)]@M,
+	Ref = graph(R).
+
+gmsend_view(getcur(X,Y), ID)-M :- -> 
+	[21,ID,getint(X),getint(Y)]@M.
+
+gmsend_view(update, ID)-M :- ->
+	[55,ID]@M.
+
+gmsend_view(batchmode, ID)-M :- ->
+	[56,ID]@M.
+gmsend_view(batchmodeoff, ID)-M :- ->
+	[68,ID]@M.
+
+gmsend_view(setcursor(Name), ID)-M :- -> 
+	cursor_id(Name, C),
+	[71,ID,C]@M.
+gmsend_view(getcursor(Name), ID)-M :- -> 
+	[72,ID,getint(C)]@M,
+	cursor_name(C, Name).
+
+
+
+/**************************************************************************
+			    SEND TO TEXT
+ *************************************************************************/
+	
+gmsend_text(setmenu(gm_menu(Num,_)), ID)-M :- ->
+	NegID is -ID,
+	[11, NegID, Num]@M.
+
+gmsend_text(setmenu(Menu), ID)-M :- 
+    ->	[lookup(name(Menu), Obj)]@M,
+	gmsend_text(setmenu(Obj), ID)-M.
+
+gmsend_text(in(Mode,Text), ID)-M :- -> 
+	text_in(Mode, Rest),
+	[42,ID, Rest,getstr(Text)]@M.
+
+gmsend_text(insert(String), ID)-M :- -> 
+	[12,ID,str(String)]@M.
+
+gmsend_text(delete(NoChars), ID)-M :- -> 
+	[39,ID,NoChars]@M.
+
+gmsend_text(delete, ID)-M :- ->
+	[44,ID]@M.
+
+gmsend_text(clear, ID)-M :- ->
+	[57,ID]@M.
+
+gmsend_text(moveto(Line,Pos), ID)-M :- -> 
+	[13,ID,Line,Pos]@M.
+
+gmsend_text(moveby(Lines,Pos), ID)-M :- -> 
+	[14,ID,Lines,Pos]@M.
+
+gmsend_text(endoftext, ID)-M :- ->
+	[58,ID]@M.
+
+gmsend_text(endofline, ID)-M :- ->
+	[59,ID]@M.
+
+gmsend_text(enable, ID)-M :- ->
+	[48,ID]@M.
+
+gmsend_text(disable, ID)-M :- ->
+	[64,ID]@M.
+
+gmsend_text(readonly, ID)-M :- ->
+	[49,ID,1]@M.
+
+gmsend_text(readwrite, ID)-M :- ->
+	[49,ID,0]@M.
+
+gmsend_text(readfile(File), ID)-M :- ->
+	gmfilename(File, '.txt', Name),
+	[50,ID,str(Name)]@M.
+
+gmsend_text(writefile(File), ID)-M :- -> 
+	gmfilename(File, '.txt', Name),
+	[51,ID,str(Name)]@M.
+
+gmsend_text(forwardsearch(String), ID)-M :- -> 
+	[73,ID,str(String)]@M.
+
+gmsend_text(backwardsearch(String), ID)-M :- -> 
+	[74,ID,str(String)]@M.
+
+
+/**************************************************************************
+			    SUPPORT
+ *************************************************************************/
+
+
+gmfilename(library(File0), Ext, Name0) :-
+	library_directory(Lib),
+	gm_adjust_name(File0, File),
+	find_file(Lib, File, Ext, true, Name, _)
+	->
+	Name0 = Name.
+
+gmfilename(File0, Ext, Name0) :- 
+	gm_adjust_name(File0, File),
+	find_file('.', File, Ext, true, Name, _)
+	->
+	Name0 = Name.
+
+gmfilename(File, _, _) :- ->
+	format('GM: File not found - ~w~n', [File]),
+	fail.
+
+gm_adjust_name(File0, File) :-
+	chars_to_atom(File0, File1)
+	->
+	File = File1.
+gm_adjust_name(File0, File) :-
+	->
+	File = File0.
+
+cursor_id(arrow, CID) :- -> CID = 0.
+cursor_id(crosshairs, CID) :- -> CID = 1.
+cursor_id(ltextCursor, CID) :- -> CID = 2.
+cursor_id(rtextCursor, CID) :- -> CID = 3.
+cursor_id(hourglass, CID) :- -> CID = 4.
+cursor_id(upperleft, CID) :- -> CID = 5.
+cursor_id(upperright, CID) :- -> CID = 6.
+cursor_id(lowerleft, CID) :- -> CID = 7.
+cursor_id(lowerright, CID) :- -> CID = 8.
+cursor_id(noCursor, CID) :- -> CID = 9.
+cursor_id(handCursor, CID) :- -> CID = 10.
+cursor_id(leftCursor, CID) :- -> CID = 11.
+cursor_id(rightCursor, CID) :- -> CID = 12.
+cursor_id(upCursor, CID) :- -> CID = 13.
+cursor_id(dnCursor, CID) :- -> CID = 14.
+cursor_id(defaultCurso, CID) :- -> CID = 15.
+cursor_id(N, CID) :- -> CID = N.
+
+cursor_name(0, Name) :- -> Name = arrow.
+cursor_name(1, Name) :- -> Name = crosshairs.
+cursor_name(2, Name) :- -> Name = ltextCursor.
+cursor_name(3, Name) :- -> Name = rtextCursor.
+cursor_name(4, Name) :- -> Name = hourglass.
+cursor_name(5, Name) :- -> Name = upperleft.
+cursor_name(6, Name) :- -> Name = upperright.
+cursor_name(7, Name) :- -> Name = lowerleft.
+cursor_name(8, Name) :- -> Name = lowerright.
+cursor_name(9, Name) :- -> Name = noCursor.
+cursor_name(10, Name) :- -> Name = handCursor.
+cursor_name(11, Name) :- -> Name = leftCursor.
+cursor_name(12, Name) :- -> Name = rightCursor.
+cursor_name(13, Name) :- -> Name = upCursor.
+cursor_name(14, Name) :- -> Name = dnCursor.
+cursor_name(15, Name) :- -> Name = defaultCursor.
+cursor_name(N, Name) :- -> Name = N.
+
+
+send_colors(rgb(R,G,B), C0, C) :- -> C0 = [R,G,B|C].
+send_colors(Color, C0, C) :- -> C0 = [-1,str(Color)|C].
+
+pattonum(white, N) :- -> N = 0.
+pattonum(black, N) :- -> N = 8.
+pattonum(solid, N) :- -> N = 0.
+pattonum(N0, N) :- -> N = N0.
+
+graphtonum(graph(N0), N) :- -> N0 = N.
+% graphtonum(Atom, N) :- atom(Atom),-> .....
+
+parsepicture([], L)-_M :-
+    ->	L = [].
+parsepicture([G|Gs], [ID|Ns])-M :-
+    ->	gmsend_view(G, ID)-M,
+	parsepicture(Gs, Ns)-M.
+
+text_in(all, L) :- -> L = [0].
+text_in(selection, L) :- -> L = [1].
+text_in(line(From,To), L) :- -> L = [2,From,To].
+text_in(word, L) :- -> L = [3].
+
+
+gm_view_obj(line(Ref,_,_,_,_), R) :- -> R = Ref.
+gm_view_obj(rect(Ref,_,_,_,_), R) :- -> R = Ref.
+gm_view_obj(fillrect(Ref,_,_,_,_), R) :- -> R = Ref.
+gm_view_obj(circle(Ref,_,_,_), R) :- -> R = Ref.
+gm_view_obj(fillcircle(Ref,_,_,_), R) :- -> R = Ref.
+gm_view_obj(ellipse(Ref,_,_,_,_), R) :- -> R = Ref.
+gm_view_obj(fillellipse(Ref,_,_,_,_), R) :- -> R = Ref.
+gm_view_obj(polygon(Ref,_,_), R) :- -> R = Ref.
+gm_view_obj(fillpolygon(Ref,_,_), R) :- -> R = Ref.
+gm_view_obj(bitmap(Ref,_,_,_), R) :- -> R = Ref.
+gm_view_obj(string(Ref,_,_,_), R) :- -> R = Ref.
+gm_view_obj(picture(Ref,_), R) :- -> R = Ref.
+
+gm_view_obj1(line(_,_,_,_)) :- -> true.
+gm_view_obj1(rect(_,_,_,_)) :- -> true.
+gm_view_obj1(fillrect(_,_,_,_)) :- -> true.
+gm_view_obj1(circle(_,_,_)) :- -> true.
+gm_view_obj1(fillcircle(_,_,_)) :- -> true.
+gm_view_obj1(ellipse(_,_,_,_)) :- -> true.
+gm_view_obj1(fillellipse(_,_,_,_)) :- -> true.
+gm_view_obj1(polygon(_,_)) :- -> true.
+gm_view_obj1(fillpolygon(_,_)) :- -> true.
+gm_view_obj1(bitmap(_,_,_)) :- -> true.
+gm_view_obj1(string(_,_,_)) :- -> true.

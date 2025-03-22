@@ -1,0 +1,73 @@
+% $Id: builtin.akl,v 1.23 1994/03/30 13:43:30 rch Exp $
+
+%%%
+%%% Open-compiled but needed by call/1.
+%%%
+
+X = Y :- X = Y.				% top-level goal
+
+true :- true.
+
+fail :- fail.
+
+false :- false.
+
+(P, Q) :- P, Q.
+
+%%%
+%%% To be open-compiled in the future.
+%%%
+
+(P & Q) :- P ? Q.
+
+((P -> Q) ; R) :- -> '->;'(P,Q,R).
+(P;Q) :- -> or(P,Q).
+
+'->;'(P,Q,_R) :- P -> Q.
+'->;'(_P,_Q,R) :- -> R.
+
+or(P,_Q) :- ? P.
+or(_P,Q) :- ? Q.
+
+not(G) :- not_aux(G) -> fail.
+not(_) :- -> true.
+
+not_aux(G) :- G | true.
+
+(P -> Q) :- P -> Q.
+	
+call(G) :- data(G) | '$call'(G).
+
+%%%
+%%% TERM MANIPULATION
+%%%
+
+atom_chars(Atom, List) :- atom_to_chars(Atom, List0) | List = List0.
+atom_chars(Atom, List) :- chars_to_atom(List, Atom0) | Atom = Atom0.
+
+term_list(Term, List) :- term_to_list(Term, List0) | List = List0.
+term_list(Term, List) :- list_to_term(List, Term0) | Term = Term0.
+
+'=..'(Term, List) :- term_to_list(Term, List0) | List = List0.
+'=..'(Term, List) :- list_to_term(List, Term0) | Term = Term0.
+
+
+functor(Term, Name, Arity) :-
+	term_to_functor(Term, Name0, Arity0)
+    |	Name = Name0,
+	Arity = Arity0.
+functor(Term, Name, Arity) :-
+	functor_to_term(Name, Arity, Term0)
+    |	Term = Term0.
+
+
+length(List, Length) :-
+	'$islist'(List),
+	length_aux(List, Length).
+
+length_aux(List, Length) :-
+	length_to_list(Length, List0)
+    |	List = List0.
+length_aux(List, Length) :-
+	list_to_length(List, Length0)	
+    |	Length = Length0.

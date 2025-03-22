@@ -1,0 +1,94 @@
+% $Id: reader.akl,v 1.18 1994/04/14 11:27:07 rch Exp $
+
+% import parse_clause from parser.akl
+% import synch_expansion from synch3.akl
+
+read_definitions(Defs, In0, In) :-
+	read_clause(Cl0, In0, In1),
+	read_definitions(Defs, Cl0, In1, In).
+
+read_definitions(Defs, end_of_file, In0, In) :-
+    ->	Defs = [end],
+	In = In0.
+read_definitions([Def|Defs], Cl0, In0, In) :-
+    ->	read_clause(Cl1, In0, In1),
+	read_clauses(Cl0, Cl1, Cl, Cls, In1, In2),
+	verified_definition(Cls, Def),
+	read_definitions(Defs, Cl, In2, In).
+
+read_clauses(Cl0, Cl1, Cl, Def0, In0, In) :-
+	clause_name(Cl0, FN),
+	clause_name(Cl1, FN)
+    ->	Def0 = [Cl0|Def1],
+	read_clause(Cl2, In0, In1),
+	read_clauses(Cl1, Cl2, Cl, Def1, In1, In).
+read_clauses(Cl0, Cl1, Cl, Def0, In0, In) :-
+    ->	Def0 = [Cl0],
+	Cl = Cl1,
+	In = In0.
+
+read_clause(Clause, In0, In) :-
+	akl_read_clause(Term, In0, In1),
+	read_clause_aux(Term, Clause, In1, In).
+
+read_clause_aux(exception(end_of_file), Clause, In0, In) :-
+    ->  Clause = end_of_file,
+	In = In0.
+read_clause_aux(exception(Tokens), Clause, In0, In) :-
+	stdout(S0),
+	write_atom('{Warning: cannot parse: ', S0, S1),
+	write_tokens(Tokens, S1, S2),
+	write_atom('}', S2, S3),
+	fnl(S3, _)
+    ->	read_clause(Clause, In0, In).
+read_clause_aux(term(Term), Clause, In0, In) :-
+    ->	expand_term(Term, Expanded),
+	parse_clause(Expanded, Clause),
+	In = In0.
+
+expand_term(X, Z) :-
+	term_expansion(X, Y)
+    ->	sys_expand_term(Y, Z).
+expand_term(X, Z) :-
+    ->	sys_expand_term(X, Z).
+
+sys_expand_term(X, Z) :-
+	synch_expansion(X, Y)
+    ->	Z = Y.
+sys_expand_term(X, Z) :-
+    ->  format('{Warning: accumulator syntax expansion fails: ~q}~n', [X]),
+	Z = X.
+
+term_expansion(_, _) :- -> false.
+
+verified_definition(Cls, Def) :-
+	verify_clauses(Cls)
+    ->  Cls = [Cl|_],
+	clause_name(Cl, Name),
+	Def = def(Name,Cls).
+verified_definition(Cls, Def) :-
+    ->  format('{Warning: inconsistent guard operator: ~q}~n', [Cls]),
+	Def = syntax_error.
+
+verify_clauses(Cls) :-
+	verify_clauses(Cls, _Op).
+
+verify_clauses([], _) :-
+    ->  true.
+verify_clauses([Cl|Cls], Op) :-
+    ->  clause_op(Cl, Op0),
+	interpreted_clause_op(Op0, Op),
+	verify_clauses(Cls, Op).
+
+interpreted_clause_op(aggregate(CollectOrUnit), Op) :-
+	verify_aggregate(CollectOrUnit)
+    ->	Op = aggregate.
+interpreted_clause_op(Op0, Op) :-
+    ->	Op = Op0.
+
+verify_aggregate(unorder(var(_),var(_),var(_))) :-
+    ->	true.
+verify_aggregate(order(var(_),var(_),var(_))) :-
+    ->	true.
+verify_aggregate(unit(var(_),var(_))) :-
+    ->	true.

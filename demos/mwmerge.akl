@@ -1,0 +1,27 @@
+merger(S, S1) :-
+	server(B, A, S1, s(0)),
+	unordered_bagof(I\generator(I,[S|A]), B).
+
+generator(I, [S|A]) :-
+    |	generator(I, S, A).
+
+generator(I, S, _) :-
+	I = S, is_stream(I).
+generator(I, _, A) :-
+	generator(I, A).
+
+is_stream([]) :-
+    ->	true.
+is_stream([_|_]):-
+    ->	true.
+is_stream(split(_,_)):-
+    ->	true.
+
+server([[E|R]|B], A, S, N) :-
+    |	S = [E|S1], A = [R|A1], server(B, A1, S1, N).
+server([split(S1,S2)|B], A, S, N) :-
+    |	A = [S1,S2|A1], server(B, A1, S, s(N)).
+server([[]|B], A, S, s(N)) :-
+    |	server(B, A, S, N).
+server(_B, A, S, 0) :-
+    |	A = [], S = [].

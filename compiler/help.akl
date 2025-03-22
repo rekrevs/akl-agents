@@ -1,0 +1,838 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%  qsort(InList,-OutList)
+%%%%  partition(InList,Pivot,-Littles,-Bigs)      {equals to bigs}
+%%%%  qsort_rem_dupl(InList,-OutList)
+%%%%  partition_rem_dupl(InList,Pivot,-Littles,-Bigs)      {equals to bigs}
+%%%%  gen_qsort(InList,-OutList)
+%%%%  gen_partition(InList,Pivot,-Littles,-Bigs)      {equals to bigs}
+%%%%
+%%%%  mirror_rev_sort(KeyList,MirrorList,-NewKeyList,-NewMirroList)
+%%%%  mirror_sort(KeyList,MirrorList,-NewKeyList,-NewMirroList)
+%%%%
+%%%%  insert_in_ordered_plist(PEntry,PList,-NewPList)
+%%%%  find_in_ordered_plist(Key,PList,-Entry)
+%%%%  find_in_plist(Key,PList,-Entry)
+%%%%  delete_in_plist(Key,PList,-NewPList)
+%%%%  find_in_ordered_plist_with_rest(Key,PList,-Entry,-NewPList,-NewPListEnd,-Rest)
+%%%%  find_in_plist_with_rest(Key,PList,-Entry,-NewPList,-NewPListEnd,-Rest)
+%%%%  pair_qsort(InList,-OutList)
+%%%%
+%%%   make_set(List,-Set)
+%%%%  union(Set1,Set2,-Union)              
+%%%%  union_sorted(Set1,Set2,-Union)              
+%%%%  empty_intersection(List1,List2)        {fails if non-empty}
+%%%%  empty_intersection_sorted(List1,List2)        {fails if non-empty}
+%%%%  non_empty_intersection(List1,List2)     {fails if empty}
+%%%%  non_empty_intersection_sorted(List1,List2)     {fails if empty}
+%%%%  set_subtract(Set,Minus,-Set1)
+%%%%  set_subtract_sorted(Set,Minus,-Set1)
+%%%%  intersection(List1,List2,-Intersection)
+%%%%  intersection_sorted(List1,List2,-Intersection)
+%%%%  intersection_with_rem(List1,List2,-Intersection,-Remained)
+%%%%  remove_intersection(List1,List2,-Out) {Out is List1 minus Intersection}
+%%%%
+%%%%  list_swap(ListOfLists,-SwappedListOfLists)  {sublists of same length}
+%%%%  flatten_list_rem_nil(ListOfLists,-SimpleList) {nil removed}
+%%%%
+%%%%  list_rem_dupl(List,-List1)
+%%%%  list_rem_dupl_sorted(List,-List1)
+%%%%  member(Element,List)
+%%%%  maybe_add_to_list(Entry,List,-List1)
+%%%%  member_with_next(Element,List,Next)
+%%%%  member_remove(Element,List,-NewList)
+%%%%  member_flag(Element,List,-Flag)    {Flag=yes or no}
+%%%%  length_list(List,-Length)
+%%%%  app(List1,List2,-NewList)
+%%%%  reverse_list(List1,-ReversedList)
+%%%%  all_non_nil(List)
+%%%%  make_c_list(Ct,Constant,-List)
+%%%%  
+%%%%  find_elem_in_list_note_pos(Element,List,-Pos)
+%%%%  find_n_elem(ElementNo,List,-Element)
+%%%%  replace_n_elem(ElementNo,List,Element,-NewList)
+%%%%  greatest_element_list(List,-Greatest)
+%%%%  least_element_list(List,-Least)
+%%%%  rem_elem_less_than(List,Key,-List1)
+%%%%  rem_elem_greater_than(List,Key,-List1)
+%%%%
+%%%%  find_end_list(List,-End) {last element}
+%%%%  find_and_remove_end_list(List,-End,-List1)
+%%%%  find_and_remove_end_list_dlist(List,-End,-ListB,-ListE)
+%%%%  add_list_to_dlist(List,EndDList,-NewEndDList),
+%%%%  copy_with_var_end(List,-NewList,-End)
+%%%%  copy_not_last_with_var_end(List,-NewList,-End)
+%%%%  remove_end_list(List,-NewList,-LastElement)
+%%%%  insert_in_ordered_list(Element,List,-NewList)
+%%%%  delete_in_ordered_list(Element,List,-NewList)
+%%%%  add_to_end_list(Element,List,-NewList)
+%%%%
+%%%%  ground(X)
+%%%%  my_max(E1,E2,-Max)
+%%%%  
+%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%   General List handling predicates
+%%%%
+%%%%              SORTING
+%%%%              P-Lists
+%%%%              Lists as sets
+%%%%              Misc
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%           SORTING
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+ordered_merge([],S,Out):- -> Out=S.
+ordered_merge(S,[],Out):- -> Out=S.
+ordered_merge([X|Xs],Ys,Out):- Ys=[Y|_],X<Y -> Out=[X|Out1],ordered_merge(Xs,Ys,Out1).
+ordered_merge(Ys,[X|Xs],Out):- Ys=[Y|_],X<Y -> Out=[X|Out1],ordered_merge(Ys,Xs,Out1).
+
+qsort(List,SList):-
+   -> qsort(List,SList,[]).
+
+%%%%
+   
+qsort([],B,E):- -> B=E.
+qsort([X|Xs],B,E):-
+   ->
+   partition(Xs,X,Littles,Bigs),
+   qsort(Littles,B,M),
+   M=[X|M1],
+   qsort(Bigs,M1,E).
+
+
+%%%%
+
+partition([],X,L,B):-
+   -> L=[],B=[].
+partition([Y|Ys],X,L,B):-
+   Y=<X 
+   -> 
+   L=[Y|L1],
+   partition(Ys,X,L1,B).
+partition([Y|Ys],X,L,B):-
+   -> 
+   B=[Y|B1],
+   partition(Ys,X,L,B1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+qsort_rem_dupl(List,SList):-
+   -> qsort_rem_dupl(List,SList,[]).
+
+%%%%
+   
+qsort_rem_dupl([],B,E):- -> B=E.
+qsort_rem_dupl([X|Xs],B,E):-
+   ->
+   partition_rem_dupl(Xs,X,Littles,Bigs),
+   qsort_rem_dupl(Littles,B,M),
+   M=[X|M1],
+   qsort_rem_dupl(Bigs,M1,E).
+
+%%%%
+
+partition_rem_dupl([],X,L,B):-
+   -> L=[],B=[].
+partition_rem_dupl([Y|Ys],X,L,B):-
+   Y<X 
+   -> 
+   L=[Y|L1],
+   partition_rem_dupl(Ys,X,L1,B).
+partition_rem_dupl([Y|Ys],X,L,B):-
+   Y>X
+   -> 
+   B=[Y|B1],
+   partition_rem_dupl(Ys,X,L,B1).
+partition_rem_dupl([X|Ys],X,L,B):-
+   -> 
+   partition_rem_dupl(Ys,X,L,B).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+gen_qsort(List,SList):-
+   -> gen_qsort(List,SList,[]).
+
+%%%%
+   
+gen_qsort([],B,E):- -> B=E.
+gen_qsort([X|Xs],B,E):-
+   ->
+   gen_partition(Xs,X,Littles,Bigs),
+   gen_qsort(Littles,B,M),
+   M=[X|M1],
+   gen_qsort(Bigs,M1,E).
+
+%%%%
+
+gen_partition([],X,L,B):-
+   -> L=[],B=[].
+gen_partition([Y|Ys],X,L,B):-
+   Y@<X -> L=[Y|L1],
+   gen_partition(Ys,X,L1,B).
+gen_partition([Y|Ys],X,L,B):-
+   -> B=[Y|B1],
+   gen_partition(Ys,X,L,B1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%   Mirror Sorts
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+mirror_rev_sort(List,Mirror,NList,NMirror):-
+    -> mirror_rev_sort(List,Mirror,NList,[],NMirror,[]).
+
+%%%%
+
+mirror_rev_sort([],[],Beg,End,MBeg,MEnd):-
+    -> Beg=End,MBeg=MEnd.
+mirror_rev_sort([X|Xs],[Y|Ys],Beg,End,MBeg,MEnd):-
+    -> 
+    mirror_part(Xs,X,Ys,L,ML,B,MB),
+    mirror_rev_sort(B,MB,Beg,P1,MBeg,Q1),
+    P1=[X|P2],Q1=[Y|Q2],
+    mirror_rev_sort(L,ML,P2,End,Q2,MEnd).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+mirror_sort(List,Mirror,NList,NMirror):-
+    mirror_sort(List,Mirror,NList,[],NMirror,[]).
+
+%%%%
+
+mirror_sort([],[],Beg,End,MBeg,MEnd):-
+    -> Beg=End,MBeg=MEnd.
+mirror_sort([X|Xs],[Y|Ys],Beg,End,MBeg,MEnd):-
+    -> 
+    mirror_part(Xs,X,Ys,L,ML,B,MB),
+    mirror_sort(L,ML,Beg,P1,MBeg,Q1),
+    P1=[X|P2],Q1=[Y|Q2],
+    mirror_sort(B,MB,P2,End,Q2,MEnd).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+mirror_part([],Pivot,[],L,ML,B,MB):-
+    -> 
+    L=[],ML=[],B=[],MB=[].
+mirror_part([X|Xs],Pivot,[M|MXs],L,ML,B,MB):-
+    X<Pivot
+    -> 
+    L=[X|L1],ML=[M|ML1],
+    mirror_part(Xs,Pivot,MXs,L1,ML1,B,MB).
+mirror_part([X|Xs],Pivot,[M|MXs],L,ML,B,MB):-
+    -> 
+    B=[X|B1],MB=[M|MB1],
+    mirror_part(Xs,Pivot,MXs,L,ML,B1,MB1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%  p-Lists
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+make_p_list([],[],Out):- -> Out=[].
+make_p_list([X|Xs],[Y|Ys],Out):- -> Out=[p(X,Y)|Out1],make_p_list(Xs,Ys,Out1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+insert_in_ordered_plist(T,List,NewList):-
+   T=p(Key,_)
+   ->
+   insert_in_ordered_plist(Key,T,List,NewList).
+
+insert_in_ordered_plist(Key,T,[],Out):-
+   -> Out=[T].
+insert_in_ordered_plist(Key,E,L,Out):-
+   L=[p(Key1,_)|_],Key @=< Key1
+   -> 
+   Out=[E|L].
+insert_in_ordered_plist(Key,E,[T|L],Out):-
+   T=p(Key1,_),Key @> Key1 
+   -> 
+   Out=[T|Out1],
+   insert_in_ordered_plist(Key,E,L,Out1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+find_in_ordered_plist(Key,[p(Key,Entry)|L],Out):-     -> Out=Entry.
+find_in_ordered_plist(Key,[p(Key1,Entry)|L],Out):- 
+    Key@>Key1
+    -> 
+    find_in_ordered_plist(Key,L,Out).
+find_in_ordered_plist(Key,_,Out):-                    -> Out=no.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+find_in_plist(Key,[p(Key,Entry)|L],Out):-     -> Out=Entry.
+find_in_plist(Key,[p(Key1,Entry)|L],Out):-    -> find_in_plist(Key,L,Out).
+find_in_plist(Key,[],Out):-                   -> Out=no.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+delete_in_plist(Key,[p(Key,Entry)|L],Out):-     -> Out=L.
+delete_in_plist(Key,[E|L],Out):-                -> Out=[E|Out1],delete_in_plist(Key,L,Out1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+delete_in_plist_and_note(Key,[],Out,E):-                 -> Out=[],E=no.
+delete_in_plist_and_note(Key,[p(Key,Entry)|L],Out,E):-   -> Out=L,E=p(Key,Entry).
+delete_in_plist_and_note(Key,[E|L],Out,E):-              -> Out=[E|Out1],delete_in_plist(Key,L,Out1,E).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+find_in_ordered_plist_with_rest(Key,[p(Key,Entry)|L],Out,List,ListE,Rest):-
+   -> Out=Entry,Rest=L,List=ListE.
+find_in_ordered_plist_with_rest(Key,[First|L],Out,List,ListE,Rest):-
+   First=p(Key1,_),Key@>Key1 
+   -> 
+   List=[First|List1],
+   find_in_ordered_plist_with_rest(Key,L,Out,List1,ListE,Rest).
+find_in_ordered_plist_with_rest(Key,L,Out,List,ListE,Rest):-
+   L=[p(Key1,_)|_],Key@<Key1
+   -> Out=no,List=ListE,Rest=L.
+find_in_ordered_plist_with_rest(Key,[],Out,List,ListE,Rest):-
+   -> Out=no,List=ListE,Rest=[].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+find_in_plist_with_rest(Key,[p(Key,Entry)|L],Out,List,ListE,Rest):-
+   -> Out=Entry,Rest=L,List=ListE.
+find_in_plist_with_rest(Key,[First|L],Out,List,ListE,Rest):-
+   -> 
+   List=[First|List1],
+   find_in_plist_with_rest(Key,L,Out,List1,ListE,Rest).
+find_in_plist_with_rest(Key,L,Out,List,ListE,Rest):-
+   -> Out=no,List=ListE,Rest=L.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+pair_qsort(List,List1):- -> pair_qsort(List,List1,[]).
+
+pair_qsort([],B,E):- -> B=E.
+pair_qsort([First|Rest],B,E):- 
+   First=p(Key,Entry)
+   -> 
+   pair_part(Rest,Key,Littles,Bigs),
+   pair_qsort(Littles,B,M),
+   M=[First|M1],
+   pair_qsort(Bigs,M1,E).
+
+pair_part([],_,L,B):- -> L=[],B=[].
+pair_part([First|Rest],Key,L,B):- 
+   First=p(N,E),N=<Key
+   -> 
+   L=[First|L1],
+   pair_part(Rest,Key,L1,B).
+pair_part([First|Rest],Key,L,B):- 
+   First=p(N,E),N>Key
+   -> 
+   B=[First|B1],
+   pair_part(Rest,Key,L,B1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+pair_second_qsort(List,List1):- -> pair_second_qsort(List,List1,[]).
+
+pair_second_qsort([],B,E):- -> B=E.
+pair_second_qsort([First|Rest],B,E):- 
+   First=p(Entry,Key)
+   -> 
+   pair_second_part(Rest,Key,Littles,Bigs),
+   pair_second_qsort(Littles,B,M),
+   M=[First|M1],
+   pair_second_qsort(Bigs,M1,E).
+
+pair_second_part([],_,L,B):- -> L=[],B=[].
+pair_second_part([First|Rest],Key,L,B):- 
+   First=p(E,N),N=<Key
+   -> 
+   L=[First|L1],
+   pair_second_part(Rest,Key,L1,B).
+pair_second_part([First|Rest],Key,L,B):- 
+   First=p(E,N),N>Key
+   -> 
+   B=[First|B1],
+   pair_second_part(Rest,Key,L,B1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%  Using lists as sets
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+make_set(List,Set):-
+   ->
+   gen_qsort(List,S1),
+   list_rem_dupl_sorted(S1,Set).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+union(Set1,Set2,Union):-
+   gen_qsort(Set1,S1),
+   gen_qsort(Set2,S2),
+   union_sorted(S1,S2,Union).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+union_sorted(S1,[],Union):- -> Union=S1.
+union_sorted([],S2,Union):- -> Union=S2.
+union_sorted([E|S1],[E|S2],Union):-
+   ->
+   Union=[E|Union1],
+   union_sorted(S1,S2,Union1).
+union_sorted([E1|S1],S2,Union):-
+   S2=[E2|_],E1<E2
+   ->
+   Union=[E1|Union1],
+   union_sorted(S1,S2,Union1).
+union_sorted(S1,[E2|S2],Union):-
+   S1=[E1|_],E2<E1
+   ->
+   Union=[E2|Union1],
+   union_sorted(S1,S2,Union1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+empty_intersection(List1,List2):- 
+   gen_qsort(List1,L1),
+   gen_qsort(List2,L2),
+   empty_intersection_sorted(L1,L2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+empty_intersection_sorted([],[]):- -> true.
+empty_intersection_sorted([X|Xs],Ys):- Ys=[Y|_],X @< Y -> empty_inter(Xs,Ys).
+empty_intersection_sorted(Xs,[Y|Ys]):- Xs=[X|_],Y @< X -> empty_inter(Xs,Ys).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+non_empty_intersection(List1,List2):- 
+   gen_qsort(List1,L1),
+   gen_qsort(List2,L2),
+   non_empty_intersection_sorted(L1,L2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+non_empty_intersection_sorted([X|_],[X|_]):- -> true.
+non_empty_intersection_sorted([X|Xs],Ys):- Ys=[Y|_],X @< Y -> non_empty_inter(Xs,Ys).
+non_empty_intersection_sorted(Xs,[Y|Ys]):- Xs=[X|_],Y @< X -> non_empty_inter(Xs,Ys).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+set_subtract(List1,List2,List):-
+   ->
+   gen_qsort(List1,L1),
+   gen_qsort(List2,L2),
+   set_subtract_sorted(L1,L2,List).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+set_subtract_sorted([X|Xs],[X|Ys],List):-
+   ->
+   set_subtract_sorted(Xs,Ys,List).
+set_subtract_sorted(Xs,[],List):- -> List=Xs.
+set_subtract_sorted([X|Xs],Ys,List):-
+   ->
+   List=[X|List1],
+   set_subtract_sorted(Xs,Ys,List1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+intersection(List1,List2,Intersection):-
+   ->
+   gen_qsort(List1,L1),
+   gen_qsort(List2,L2),
+   intersection_sorted(L1,L2,Intersection).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+intersection_sorted([],[],Inter):- -> Inter=[].
+intersection_sorted([],_,Inter):- -> Inter=[].
+intersection_sorted(_,[],Inter):- -> Inter=[].
+intersection_sorted([X|Xs],[X|Ys],Inter):-
+   -> 
+   Inter=[X|Inter1],
+   intersection_sorted(Xs,Ys,Inter1).
+intersection_sorted([X|Xs],Ys,Inter):-
+   Ys=[Y|_],X@<Y
+   -> 
+   intersection_sorted(Xs,Ys,Inter).
+intersection_sorted(Xs,[Y|Ys],Inter):-
+   Xs=[X|_],Y@<X
+   -> 
+   intersection_sorted(Xs,Ys,Inter).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+intersection_with_rem(Set1,Set2,Inter,Rem):-
+   ->
+   qsort(Set1,S1),
+   qsort(Set2,S2),
+   intersection_sorted(S1,S2,Inter),
+   set_subtract_sorted(S1,Inter,Rem).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+remove_intersection(List1,List2,Out):-
+   ->
+   gen_qsort(List1,SList1),
+   intersection(List1,List2,Inter),
+   set_subtract_sorted(SList1,Inter,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%        lists of lists
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% list_swap(In,Out)    
+%%%%              In=[List1,List2,....ListN]
+%%%%                     where Listi= [Ei1....,Eij,Eij+1,....Eik]
+%%%%              Out=[NList1,.....NListK]
+%%%%                      where NListi=[E1i,....Eni]
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+list_swap(X,Answer):- X=[[]|_] -> Answer=X	.
+list_swap(Args,Answer):-
+   -> 
+   Answer=[Cur|Ans1],
+   list_swap2(Args,Cur,R,R,Ans1).
+
+list_swap2([],Cur,[[]|_],RestE,Answer):-
+   -> 
+   Cur=[],
+   Answer=[].
+list_swap2([],Cur,RestB,RestE,Answer):-
+   -> 
+   Cur=[],
+   RestE=[],
+   Answer=[NCur|RAnswer],
+   list_swap2(RestB,NCur,R,R,RAnswer).
+list_swap2([[ArgX|Args]|A],Cur,RestB,RestE,Answer):-
+   -> 
+   Cur=[ArgX|Cur1],
+   RestE=[Args|Rest1],
+   list_swap2(A,Cur1,RestB,Rest1,Answer).
+    
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%   Flattening
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+flatten_list_rem_nil(List,NewList):- 
+   -> flatten_list_rem_nil(List,NewList,[]).
+
+%%%%
+
+flatten_list_rem_nil([],NewList,End):-
+   -> 
+   NewList=End.
+flatten_list_rem_nil([X|Xs],NewList,End):-
+   -> 
+   flatten_list_rem_nil(X,NewList,L),
+   flatten_list_rem_nil(Xs,L,End).
+flatten_list_rem_nil(X,NewList,End):-
+   -> 
+   NewList=[X|End].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%  General list
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+list_rem_dupl(List,List1):- gen_qsort(List,L1),list_rem_dupl_sorted(L1,List1).
+
+list_rem_dupl_sorted([],Set2):- -> Set2=[].
+list_rem_dupl_sorted([E,E|Xs],Set2):- -> list_rem_dupl_sorted([E|Xs],Set2).
+list_rem_dupl_sorted([E|Xs],Set2):-   -> Set2=[E|S2],list_rem_dupl_sorted(Xs,S2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+member(X,[X|Xs]):- -> true.
+member(X,[_|Xs]):- -> member(X,Xs).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+maybe_add_to_list(Name,List,List1):-
+   member(Name,List)
+   ->
+   List1=List.   
+maybe_add_to_list(Name,List,List1):-
+   ->
+   List1=[Name|List].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+member_with_next(X,[X,Y|Xs],Next):- -> Next=Y.
+member_with_next(X,[X],Next):- -> Next=[].
+member_with_next(X,[Y|Xs],Next):- not(X=Y) -> member_with_next(X,Xs,Next).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+member_remove(X,[X|Xs],New):- -> New=Xs.
+member_remove(X,[Y|Xs],New):- -> New=[Y|NewS],member_remove(X,Xs,NewS).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+member_flag(X,[X|Xs],Flag):- -> Flag=yes.
+member_flag(X,[_|Xs],Flag):- -> member_flag(X,Xs,Flag).
+member_flag(X,[],Flag):-      -> Flag=no.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+length_list(List,L):- -> length_list(List,0,L).
+
+%%% 
+
+length_list([],Acc,Length):- -> Length=Acc.
+length_list([X|Xs],Acc,Length):- 
+   -> 
+   inc(Acc,Acc1),
+   length_list(Xs,Acc1,Length).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+app([],L1,L2):-    -> L1=L2.
+app([X|L],L1,L2):- -> L2=[X|L3],app(L,L1,L3).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+reverse_list(List,Out):- -> reverse_list(List,[],Out).
+
+reverse_list([],Acc,Out):-      -> Out=Acc.
+reverse_list([X|Xs],Acc,Out):-  -> reverse_list(Xs,[X|Acc],Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+all_non_nil([]):- -> true.
+all_non_nil([[]|_]):- -> fail.
+all_non_nil([_|Xs]):- -> all_non_nil(Xs).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+make_c_list(0,_,List):- -> List=[].
+make_c_list(N,X,List):- 
+    N>0
+    -> 
+    List=[X|List1],dec(N,N1),
+    make_c_list(N1,X,List1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%  Manipulation on lists using pos
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+find_elem_in_list_note_pos(E,List,X):- -> find_elem_in_list_note_pos(List,1,E,X).
+
+find_elem_in_list_note_pos([],Ct,E,Out):-     -> Out=no.
+find_elem_in_list_note_pos([E|Xs],Ct,E,Out):- -> Out=Ct.
+find_elem_in_list_note_pos([X|Xs],Ct,E,Out):- 
+    -> 
+    inc(Ct,Ct1),
+    find_elem_in_list_by_pos(Xs,Ct1,E,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+find_n_elem(1,[X|_],Out):-    -> Out=X.
+find_n_elem(R,[X|L],Out):-R>1 -> dec(R,R1),find_n_elem(R1,L,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+find_n_elem_with_rest(1,[X|Xs],Out,Rest):- -> Out=X,Rest=Xs.
+find_n_elem_with_rest(R,[X|L],Out,Rest):-
+   R>1 
+   -> 
+   Rest=[X|Rest1],dec(R,R1),
+   find_n_elem_rest(R1,L,Out,Rest1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+replace_n_elem(1,[X|L],Elem,New):- -> New=[Elem|L].
+replace_n_elem(Ct,[X|L],Elem,New):-
+   -> 
+   New=[X|New1],dec(Ct,Ct1),
+   replace_n_elem(Ct1,L,Elem,New1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%  Greatest element
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+greatest_element_list([X|Xs],Gr):- greatest_element_list(Xs,X,Gr).
+
+greatest_element_list([],Cur,Gr):- -> Cur=Gr.
+greatest_element_list([X|Xs],Cur,Gr):-
+   X>Cur -> 
+   greatest_element_list(Xs,X,Gr).
+greatest_element_list([X|Xs],Cur,Gr):-
+   -> 
+   greatest_element_list(Cur,X,Gr).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+least_element_list([X|Xs],Le):- least_element_list(Xs,X,Le).
+
+least_element_list([],Cur,Le):- -> Cur=Le.
+least_element_list([X|Xs],Cur,Le):-
+   X>Cur -> 
+   least_element_list(Xs,X,Le).
+least_element_list([X|Xs],Cur,Le):-
+   -> 
+   least_element_list(Cur,X,Le).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+rem_elem_less_than([],Key,List):- -> List=[].
+rem_elem_less_than([X|Xs],Key,List):- 
+    X<Key 
+    -> 
+    rem_elem_less_than(Xs,Key,List).
+rem_elem_less_than([X|Xs],Key,List):-
+    X>=Key
+    -> 
+    List=[X|List1],
+    rem_elem_less_than(Xs,Key,List1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+rem_elem_greater_than([],Key,List):- -> List=[].
+rem_elem_greater_than([X|Xs],Key,List):- 
+    X>Key 
+    -> 
+    rem_elem_greater_than(Xs,Key,List).
+rem_elem_greater_than([X|Xs],Key,List):-
+    X=<Key
+    -> 
+    List=[X|List1],
+    rem_elem_greater_than(Xs,Key,List1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%  Ends
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+   
+find_end_list([X,Y|Zs],E):- -> find_end_list([Y|Zs],E).
+find_end_list([X],E):-      -> E=X.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+find_and_remove_end_list([X],E,List):- -> E=X,List=[].
+find_and_remove_end_list([X|Xs],E,List):- 
+    -> 
+    List=[X|List1],
+    find_and_remove_end_list(Xs,E,List1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+find_and_remove_end_list_dlist([X],E,List,ListE):- -> E=X,List=ListE.
+find_and_remove_end_list_dlist([X|Xs],E,List,ListE):- 
+    -> 
+    List=[X|List1],
+    find_and_remove_end_list_dlist(Xs,E,List1,ListE).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+add_list_to_dlist(List,End,NewEnd):- -> copy_with_var_end(List,End,NewEnd).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+copy_with_var_end([],New,End):-     -> New=End.
+copy_with_var_end([X|Xs],New,End):- -> New=[X|New1],copy_with_var_end(Xs,New1,End).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+copy_not_last_with_var_end([_],New,End):-     -> New=End.
+copy_not_last_with_var_end([X|Xs],New,End):- -> New=[X|New1],copy_not_last_with_var_end(Xs,New1,End).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+create_dlist([X],Cur,End):-    -> Cur=[X|End].
+create_dlist([X|Xs],Cur,End):- -> Cur=[X|Cur1],create_dlist(Xs,Cur1,End).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+   
+remove_end_list([X],New,E):-      -> New=[],E=X.
+remove_end_list([X|Xs],New,E):- 
+   Xs=[_|_] 
+   -> 
+   New=[X|New1],
+   remove_end_list(Xs,New1,E).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%   Ordered lists
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+insert_in_ordered_list(Occ,[X|Xs],New):-
+   Occ<X -> 
+   New=[Occ,X|Xs].
+insert_in_ordered_list(Occ,[X|Xs],New):-   
+   -> 
+   New=[X|NL],
+   insert_in_ordered_list(Occ,Xs,NL).
+insert_in_ordered_list(Occ,[],New):-   
+   -> 
+   New=[Occ].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+delete_in_ordered_list(Occ,[Occ|Xs],New):-
+   -> 
+   New=Xs.
+delete_in_ordered_list(Occ,[X|Xs],New):-   
+   Occ>X
+   -> 
+   New=[X|NL],
+   delete_in_ordered_list(Occ,Xs,NL).
+delete_in_ordered_list(Occ,[],New):-   
+   -> error(delete_in_ordered_list).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+add_to_end_list(E,[],NewList):- -> NewList=[E].
+add_to_end_list(E,[X|Xs],NewList):- -> NewList=[X|NewList1],add_to_end_list(E,Xs,NewList1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% MISC
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%       Ground
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+ground(A):-atomic(A) -> true.
+ground([X|Xs]):-     -> ground(X),ground(Xs).
+ground(F):-
+   functor(F,Name,Arity)
+   -> 
+   ground_structure(F,1,Arity).
+ground(X):- -> true.	
+
+ground_structure(F,N,Arity):- N>Arity -> true.
+ground_structure(F,N,Arity):-
+   N =< Arity
+   ->
+   arg(N,F,X),
+   ground(X),
+   inc(N,M),
+   ground_structure(F,M,Arity).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+my_max(D1,D2,Depth):-D1>D2  -> Depth=D1.
+my_max(D1,D2,Depth):-D1=<D2 -> Depth=D2.
+
+
+
+
+

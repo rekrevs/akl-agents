@@ -1,0 +1,43 @@
+proc agents_exit {} {
+  send "halt.\n"
+}
+
+proc agents_start {} {
+  global AGENTS
+  global prompt1
+  global spawn_id
+
+  set stty_init "-echo raw"
+  spawn $AGENTS
+  expect {
+    -re "$prompt1$"			{}
+    -re "^$AGENTS: No such file"	{
+      send_user "\{ERROR: spawn $AGENTS: no such file\}\n"
+      exit 1
+    }
+    timeout				{
+      send_user "\{ERROR: spawn $AGENTS: timeout\}\n"
+      exit 1
+    }
+  }
+}
+
+proc agents_version {} {
+  global AGENTS
+
+  set tmp [exec echo "agents_version(X),format('''~w''',\[X\]).\n" | $AGENTS]
+  if [regexp "'(\[^'\]*)'" $tmp "" version] {
+    clone_output "[which $AGENTS] ($version)"
+  }
+}
+
+if ![info exists AGENTS] then {
+  set AGENTS ../agents
+}
+
+set prompt1 "\| \?\- "
+set prompt2 "\? "
+
+set timeout 30
+
+agents_start

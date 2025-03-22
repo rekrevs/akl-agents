@@ -1,0 +1,134 @@
+% $Id: edit.akl,v 1.7 1994/03/29 10:23:26 sverker Exp $
+
+edit_and_peephole(C, Ysize)-S :-
+	Ysize > 0
+    ->	[allocate(Ysize)]-S,
+%	peephole-C,
+	edit(C, alloc)-S.
+edit_and_peephole(C, Ysize)-S :-
+	Ysize = 0
+    ->	
+%	peephole-C,
+
+	% KLUDGE FOLLOWS:
+	% Current debugger cannot handle failure in guards
+	% without continuations present.
+
+	maybe_fixup_allocate(R)-S,
+	edit(C, noalloc(R))-S.
+
+maybe_fixup_allocate(a(S0,S), S0, S).
+
+alloc(A) :- A = a([allocate(0)|R],R).
+
+noalloc(A) :- A = a(R,R).
+
+
+edit([], noalloc(R))-S :-
+    ->  [proceed]-S,
+	noalloc(R).
+edit([], alloc)-S :-
+    ->  [dealloc_proceed]-S.
+edit([I|C], A)-S :-
+    ->	edit(I, C, A)-S.
+
+edit(call(P), [], alloc)-S :-
+    ->  [dealloc_execute(P)]-S.
+edit(call(P), [], noalloc(R))-S :-
+    ->  [execute(P)]-S,
+	noalloc(R).
+edit(call(P), C, noalloc(R))-S :-
+    ->  alloc(R),
+	[call(P)]-S,
+	edit(C, alloc)-S.
+edit(apply(A,N), [], alloc)-S :-
+    ->  [dealloc_execute_apply(A,N)]-S.
+edit(apply(A,N), [], noalloc(R))-S :-
+    ->  [execute_apply(A,N)]-S,
+	R = noalloc.
+edit(apply(A,N), C, noalloc(R))-S :-
+    ->  R = alloc,
+	[call_apply(A,N)]-S,
+	edit(C, alloc)-S.
+edit(apply(A,N), C, alloc)-S :-
+    ->  [call_apply(A,N)]-S,
+	edit(C, alloc)-S.
+edit(guard_op(Op), C, alloc)-S :-
+    ->  real_instr_guard_op(Op, I),
+	[I]-S,
+	edit(C, alloc)-S.
+edit(guard_op(Op), C, noalloc(R))-S :-
+    -> 	alloc(R),
+	real_instr_guard_op(Op, I),
+	[I]-S,
+	edit(C, alloc)-S.
+edit(get_x_variable(X,X), C, A)-S :-
+    ->  edit(C, A)-S.
+edit(get_y_variable(Y1,X1),
+     [get_y_variable(Y2,X2),
+      get_y_variable(Y3,X3),
+      get_y_variable(Y4,X4),
+      get_y_variable(Y5,X5)|C], A)-S :-
+    ->	[get5_y_variable(Y1,X1,Y2,X2,Y3,X3,Y4,X4,Y5,X5)]-S,
+	edit(C, A)-S.
+edit(get_y_variable(Y1,X1),
+     [get_y_variable(Y2,X2),
+      get_y_variable(Y3,X3),
+      get_y_variable(Y4,X4)|C], A)-S :-
+    ->	[get4_y_variable(Y1,X1,Y2,X2,Y3,X3,Y4,X4)]-S,
+	edit(C, A)-S.
+edit(get_y_variable(Y1,X1),
+     [get_y_variable(Y2,X2),
+      get_y_variable(Y3,X3)|C], A)-S :-
+    ->	[get3_y_variable(Y1,X1,Y2,X2,Y3,X3)]-S,
+	edit(C, A)-S.
+edit(get_y_variable(Y1,X1),
+     [get_y_variable(Y2,X2)|C], A)-S :-
+    ->	[get2_y_variable(Y1,X1,Y2,X2)]-S,
+	edit(C, A)-S.
+edit(put_x_value(X,X), C, A)-S :-
+    ->  edit(C, A)-S.
+edit(put_y_value(Y1,X1),
+     [put_y_value(Y2,X2),
+      put_y_value(Y3,X3),
+      put_y_value(Y4,X4),
+      put_y_value(Y5,X5)|C], A)-S :-
+    ->	[put5_y_value(Y1,X1,Y2,X2,Y3,X3,Y4,X4,Y5,X5)]-S,
+	edit(C, A)-S.
+edit(put_y_value(Y1,X1),
+     [put_y_value(Y2,X2),
+      put_y_value(Y3,X3),
+      put_y_value(Y4,X4)|C], A)-S :-
+    ->	[put4_y_value(Y1,X1,Y2,X2,Y3,X3,Y4,X4)]-S,
+	edit(C, A)-S.
+edit(put_y_value(Y1,X1),
+     [put_y_value(Y2,X2),
+      put_y_value(Y3,X3)|C], A)-S :-
+    ->	[put3_y_value(Y1,X1,Y2,X2,Y3,X3)]-S,
+	edit(C, A)-S.
+edit(put_y_value(Y1,X1),
+     [put_y_value(Y2,X2)|C], A)-S :-
+    ->	[put2_y_value(Y1,X1,Y2,X2)]-S,
+	edit(C, A)-S.
+edit(get_list(0), C, A)-S :-
+    ->  [get_list_x0]-S,
+	edit(C, A)-S.
+edit(get_nil(0), C, A)-S :-
+    ->  [get_nil_x0]-S,
+	edit(C, A)-S.
+edit(get_structure(FN,0), C, A)-S :-
+    ->  [get_structure_x0(FN)]-S,
+	edit(C, A)-S.
+edit(get_constant(A,0), C, A)-S :-
+    ->  [get_constant_x0(A)]-S,
+	edit(C, A)-S.
+/* Not quite correct, should be done in instr. */
+edit(unify_x_variable(X), [get_list(X)|C], A)-S :-
+    ->  [unify_list]-S,
+	edit(C, A)-S.
+edit(unify_x_variable(X), [get_structure(X)|C], A)-S :-
+    ->  [unify_structure(X)]-S,
+	edit(C, A)-S.
+edit(I, C, A)-S :-
+    ->	[I]-S,
+	edit(C, A)-S.

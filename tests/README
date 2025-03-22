@@ -1,0 +1,144 @@
+file:	tests/README
+author: Ralph Clarke Haygood (rch)
+
+This directory contains a DejaGnu set-up for testing AGENTS.  In this
+README, all file names and commands are relative to this directory.
+
+To run the tests:
+
+	% runtest --tool agents AGENTS=../agents
+
+or
+
+	% (cd .. ; make check)
+
+These test ../agents.  To test the installed agents:
+
+	% runtest --tool agents AGENTS=agents
+
+Naturally, to test /foo/agents:
+
+	% runtest --tool agents AGENTS=/foo/agents.
+
+When you run the tests, you'll see something like
+
+	Test Run By rch on Fri Jan  7 10:56:41 MET 1994
+	Native configuration
+
+	                === agents tests ===
+
+	Running ./agents.tests/format.exp ...
+	Running ./agents.tests/old_test.exp ...
+
+	                === agents Summary ===
+
+	# of expected passes       37
+	../agents (AGENTS 0.9)
+
+This says DejaGnu ran two test suites, format and old_test, containing
+37 tests, all of which passed.  To select one of the test suites, just
+append its file (base)name to the runtest command, e.g., "format.exp".
+
+If a test fails, you'll see something like
+
+	FAIL:   format3 (unexpected output)
+
+One other thing: if you run on a DECstation, you'll see an error
+message
+
+	test: arg required
+
+I haven't tracked down the source of this, but it doesn't seem to do
+any harm.
+
+There are several options you can give runtest to get more output on
+the screen.  E.g., try "--all", "--verbose", and "--verbose --verbose"
+(that's right: double verbose).  By the way, you can abbreviate any
+option specifier, including writing a single dash instead of a double
+dash, e.g., "-to" for "--tool", "-a" for "--all", and "-v" for
+"--verbose".
+
+Besides output on the screen, DejaGnu generates two files,
+./agents.sum and ./agents.log.  ./agents.sum gets what you see on the
+screen with "--all".  ./agents.log gets the same plus all output from
+AGENTS.  If a test fails, you may be able to see why from
+./agents.log.  Before generating new versions of these files, DejaGnu
+saves the old versions as ./agents.psum and ./agents.plog.
+
+So how does it work?  To begin with: DejaGnu is a system for testing
+diverse kinds of software.  Much of its flexibility comes from being
+built on Expect and Tcl.  Expect is a script language for interacting
+with interactive software.  Expect itself is built on Tcl.  Tcl is a
+general-purpose script language.  Both tools are worth learning about
+in their own rights.  Rather than say much more here, I refer you to
+the DejaGnu manual, the bulk of which is two appendices, one on Expect
+and the other on Tcl.  The manual is ~rch/dejagnu.ps, or you can
+borrow the hard copy from me and photocopy it.
+
+./agents.tests/format.exp is a good example of a DejaGnu test suite.
+".exp" signifies an Expect script.  This one looks like
+
+	load_lib agents_test.exp
+
+	agents_test_initialize
+
+	agents_test format1 \
+	"format('Hello, world!',\[\]).\n" \
+	"^Hello, world!\n"
+
+	agents_test format2 \
+	"format('~~',\[42\]).\n" \
+	"^~\n"
+
+	agents_test format3 \
+	"format('~d',\[42\]).\n" \
+	"^42\n"
+	...
+
+The first line loads ./lib/agents_test.exp.  This defines a couple of
+procedures, agents_test_initialize and agents_test.  These are my own
+utilities to make it easy to write the kind of test I want to do here.
+I call agents_test_initialize to set up some environment; then I call
+agents_test to do each test.  agents_test takes three arguments: (1) a
+name for the test.  This is used to identify the test in pass and fail
+messages.  It may be any string; (2) a goal to be sent to AGENTS; and
+(3) a regular expression for the expected output or any substring of
+it, up to but not including the next prompt.  "^" means the beginning
+of the output.  The goal is sent to AGENTS, and if the output matches
+the expected output, the test passes; else, the test fails.  Simple,
+isn't it?  The only drawback is the nuisance of escaping (with \)
+certain characters such as '[' that are special to Tcl.  This is the
+one thing I don't like about DejaGnu so far.
+
+Note that agents_test_initialize is *not* responsible for starting
+AGENTS and establishing communications with it.  DejaGnu has already
+taken care of that.  By the time this file is loaded, AGENTS is ready
+to work.  DejaGnu also takes care of shutting down properly when all
+tests have been run.  If you're curious about these matters, look in
+./config/unix.exp, which is loaded prior to any test suite.
+
+Also note that agents_test_initialize, agents_test, and the whole
+style of testing they support are about as simple as can be.  They
+suffice for many purposes, but much more sophisticated arrangements
+are possible by further exploiting the power of Expect and Tcl.
+
+./agents.tests/old_test.exp is an example of a different style of
+testing.  It directs AGENTS to compile ./agents.tests/old_test.akl,
+verbatim from ../testing/test.akl except that I have commented out
+calls to obsolete built-ins, and to call the agent defined therein,
+test/1.  This constitutes a single test, which passes if and only if
+the call succeeds.  Here, I have not bothered to hide the details of
+sending and expecting in utilities.  Still, I think it's not too hard
+to read.  But note that I created this test suite mainly to suggest
+that it is easy to implement diverse styles of testing using DejaGnu.
+I would not recommend continuing this style, which clumsily lumps
+together what should be many tests into a single test.
+
+By the way, DejaGnu seems to be old enough to work but young enough
+that development continues (at Cygnus, which distributes it).  On the
+robustness front, I haven't had any real trouble with it.  Expect and
+Tcl have been in use for several years each, and DejaGnu partakes of
+their strength.  On the development front, they make no promises, but
+future releases may support software with more complex interfaces like
+GUI's.  This really may not be just an idle dream, because support for
+this is already available in the Tcl toolkit Tk.

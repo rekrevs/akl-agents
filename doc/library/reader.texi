@@ -1,0 +1,1013 @@
+@node Reader, SAGA, Random, Top
+@chapter Reader
+
+The library @t{reader} contains routines for use in construction of analysers,
+partial evaluators, program transformation tools etc. Below we include
+text giving more details on these routines and their use.  The text in
+this chapter also occurred as a deliverable in a report for the ESPRIT
+project ParForce 6707, ``Abstract Syntax and Normalisation of AKL
+Programs'' by Dan Sahlin and Thomas Sjoeland.
+
+
+@menu
+* Abstract::                    
+* Reader intro::                
+* Syntax design::               
+* Metasyntax::                  
+* Syntaxes::                    
+* Routines::                    
+* Transformations::             
+* Normalised programs::         
+* Normalising::                 
+* Annotations::                 
+* Conclusion::                  
+* References::                  
+@end menu
+
+@node  Abstract, Reader intro, Reader, Reader
+@section Abstract
+
+We have defined a set of syntaxes and formats for describing and
+representing AKL programs, and definitions which operate on the
+representations and also translate between them. This document is an
+appendix to the report ``Towards an Analysis Tool for AKL'' both written
+by Dan Sahlin and Thomas Sjoeland.  Together with the code for the
+analysis tool the report and this chapter in report form
+the deliverables for work package WP.1.6.1.M1 in the ESPRIT project 
+ParForce 6707.
+
+@node  Reader intro, Syntax design, Abstract, Reader
+@section Introduction
+
+In order to support the implementation of our analysis framework for the
+language AKL in the language itself, a hierarchy of syntaxes and a set
+of tools operating on these syntaxes have been designed and implemented.
+This allows a clear division of the different parts of a tool. It also
+enables experimentation with different strategies for transformations
+and for routines relating to input and output of programs.
+
+The rest of this chapter is structured as follows: 
+
+First we discuss the principles of the design reported here including
+the meta-syntax used here and in the analysis report.  Then we describe
+in detail the concrete and abstract syntaxes. Thereafter we describe the
+concrete abstract syntaxes, the internal formats designed for reading,
+writing and manipulating program code, and the routines operating on
+these internal formats followed by a part in which we define the notion
+of a normalised AKL program and presents and discusses the
+transformation steps involved in converting any AKL program into a
+normalised form. Finally we define and discuss user annotated programs
+and conclude.
+
+One reason for describing the syntaxes in detail is that we need to have
+a clear document as a basis of our discussions within the AKL development
+team in the integration effort in the next phase of the project and also
+with other partners in the ParForce project.
+
+The concrete syntax of AKL is however under discussion, and it is likely
+that at least parts of this chapter may need revision during the next
+phase of the project to follow this development.
+
+
+
+@node  Syntax design, Metasyntax, Reader intro, Reader
+@section General principles of the syntax design
+
+Different abstract syntaxes are defined by grammars. Below we will
+define the concrete syntax for AKL programs as it stands today, the
+abstract syntax, which shows the essential components of an AKL program
+in a form that can be related to the analysis framework, and the
+concrete abstract syntax, which shows the data structures used to
+represent programs. The formats @code{TERM0}, @code{TERM1}, @code{PROGRAM} 
+and @code{ANNOTATED PROGRAM} are formats used to represent programs in the 
+normalisation code. The reading and normalisaton of a program is structured 
+thus:
+
+First a list of ground terms is read. Those ground terms are described
+with the format @code{TERM0}. Then a translation into the @code{TERM1} format and
+later into the @code{PROGRAM} format takes place. Finally transformations on
+the @code{PROGRAM} format handle the normalisation of a program and a 
+template of the program in the @code{ANNOTATED PROGRAM} format is generated. In
+the annotated program format there are uninstantiated slots which can be
+filled in by subsequent routines applied during the analysis. In this
+way an analysed program is represented by a ground instance of the
+@code{ANNOTATED PROGRAM} format. This can be printed out directly.
+
+Routines for reading and writing elements of the grammars to/from
+streams are defined as I/O routines for each format.
+
+The routines for reading can handle errors in the parsing by returning
+special exception terms. Writing routines cannot handle exceptions.
+Therefore the reading and writing of elements is not quite symmetrical.
+Error reporting and warnings occur in the form of exception terms and
+sometimes by opening and writing to the standard output stream.
+
+
+Conversion routines are routines that translate between elements from
+different abstract syntaxes.
+
+Translations occur between the formats @t{TERM} and @t{TERM0}, @t{TERM0} 
+and @t{TERM1}, @t{TERM1} and @t{PROGRAM}, and @t{PROGRAM} and 
+@t{ANNOTATED PROGRAM}. Other data
+structures used for solving the analysis problem, i.e. the
+implementation of an analysis framework, are described in the
+accompanying report ``Towards an Analysis Tools for AKL''.
+
+
+@node  Metasyntax, Syntaxes, Syntax design, Reader
+@section Metasyntax
+
+We use BNF-grammar notation with productions of the form
+@noindent
+@*@t{DEFINED ::= DEFINES}
+@*@noindent for concrete syntaxes. 
+``@t{|}'' indicates a disjunction. Quoting is normally done with the 
+symbol ``@t{'}'' except in the case of @t{'} itself that is instead 
+quoted with '@t{"}', like this: @t{"'"}.  Groups of three juxtaposed 
+digits represents octal character codes. The symbol ``e'' denotes the 
+empty string. The notation ``c1..c2'' denotes any element in the 
+interval of characters c1 to c2.
+
+Functors occurring in the implemented tools begin with small letters,
+parameters of a grammar begin with a capital letter and continue with
+small letters or integers, sometimes interspersed by underlines,
+``@t{_}''.  Production identifiers are entirely written with capital
+letters. Lists with elements of type @t{ELEM} are denoted like this:
+@t{ELEM}-list.
+
+In code specifications arguments are written as production identifiers
+denoted prefix with the letter ``@t{+}'' representing the information
+that the argument is intended to be bound before execution, ``@t{-}''
+that a value will be produced for the argument by calling the agent, and
+``@t{?}'' that it can be either way. Entailment of guards makes sure
+that the ``@t{+}'' mode is fulfilled if the routine is correctly
+implemented.
+
+
+@node  Syntaxes, Routines, Metasyntax, Reader
+@section Syntaxes for AKL
+
+In this section we describe the concrete and abstract syntaxes of AKL
+programs.  They tell us what is the exact form of a program and what are
+the essential structural components of a program respectively.
+
+@menu
+* Concrete syntax::             
+* Abstract syntax::             
+* CA syntaxes::                 
+@end menu
+
+@node  Concrete syntax, Abstract syntax, Syntaxes, Syntaxes
+@subsection Concrete syntax
+
+The syntactic components of an AKL program are defined by a BNF grammar.
+A declaration is used to notify the analyser about the intended initial
+agents (or toplevel queries using older terminology). The keyword
+@t{public} is used for this purpose.
+
+@itemize @asis{@t{}}
+@item PROG    ::=     DEF-list
+@item DEF   ::=     CLAUSE-list
+@item CLAUSE ::=    HEAD REST '.' | PUBLIC
+@item REST  ::=     e | ':-' GUARDBODY
+@item GUARDBODY ::= e | GUARD GUARDOP BODY | GUARDOP BODY | BODY
+@item PUBLIC ::=    ':-' 'public' DEFNAMES '.'
+@item DEFNAMES ::=  NAME '/' ARITY RESTNAMES
+@item RESTNAMES ::= e | ',' DEFNAMES
+@item HEAD  ::=     LITERAL
+@item GUARDOP ::=   '->' | '|' | '!' | '?'
+@item GUARD ::=     CONJ
+@item BODY  ::=     CONJ
+@item CONJ  ::=     LITERAL RESTCONJ
+@item RESTCONJ  ::= e | ',' CONJ
+@item NAME  ::=     FUNC
+@item LITERAL  ::=  TERM
+@itemize |
+@item CONJ ';' CONJ
+@item CONJ '->' CONJ ';' CONJ
+@item 'not' CONJ
+@item '(' CONJ ')'
+@end itemize
+@end itemize
+
+The reading of @t{TERM}s is handled by the built-in definition 
+@t{read_term/3}
+which represents AKL terms in an unambiguous ground form. The grammar
+below is added for completeness. @t{FUNC}s are constants representing
+functors with a fixed associativity and priority which is resolved by
+@t{read_term/3}. In order to consider an infix, prefix or postfix functor
+as a constant, @t{read_term/3} uses parentheses and quoting as indicated
+below.
+
+@itemize @asis{@t{}}
+@item TERM  ::=     APPLICATION | INFIX | CONSTANT | STRUCT | LIST | VAR
+@item APPLICATION ::= VAR '(' ARGS ')'
+@item INFIX ::=     ARG FUNC ARG
+@item STRUCT        ::=     CONSTANT '(' ARGS ')'
+@item ARGS  ::=     TERM RESTARGS
+@item RESTARGS ::=  e | ',' ARGS
+@item LIST  ::=     '['LIST0 ']'
+@item LIST0 ::=     e | ARGS RESTLIST
+@item RESTLIST ::=  e | '|' TERM 
+@item VAR    ::=    VOID | NAMEDVAR
+@item CONSTANT ::=  CONST | " ' " ANYCHS " ' " | '(' FUNC ')' | " ' " FUNC " ' "
+@item CONST    ::=  a..z RESTCONST
+@item RESTCONST ::= e | IDENCHS 
+@item FUNC   ::=    a..z RESTFUNC
+@item RESTFUNC  ::= e | IDENCHS 
+@item VOID   ::=    '_' RESTVOID
+@item RESTVOID ::=  e | IDENCHS
+@item IDENCHS   ::= IDENCH RESTIDENCHS
+@item RESTIDENCHS ::= e | IDENCHS
+@item IDENCH    ::= a..z | A..Z | 0..9 | '_'
+@item ANYCHS   ::=  ANYCH RESTANYCHS
+@item RESTANYCHS ::= e | ANYCHS
+@item ANYCH     ::= 001..255        
+@item NAMEDVAR  ::= A..Z  RESTNAMEDVARS
+@item RESTNAMEDVARS ::= e | IDENCHS
+@item ARITY ::=     Integer
+@end itemize
+        
+A sequence of @t{CLAUSE}s with the same principal functor @t{NAME},
+arity @t{ARITY}, and guard operator @t{GUARDOP}, form a definition
+@t{DEF}.  Only one definition is allowed for each pair @t{NAME/ARITY}. 
+@t{'='/2} is a built in binary infix operator for unification of two terms.
+
+
+@node  Abstract syntax, CA syntaxes, Concrete syntax, Syntaxes
+@subsection Abstract syntax
+
+When talking about an AKL program we need to avoid syntactic
+idiosyncrasies. One of those is that since there is no syntactic element
+representing a definition in the current concrete syntax, we need to
+collect a sequence of clauses with the same name and arity that form a
+definition and check that the same name is not used elsewhere. The
+essential components of an AKL program are therefore defined by an
+abstract syntax disregarding those details. The abstract syntax is also
+useful to clarify the connection between the concrete syntax of an AKL
+program and the analysis frameworks.
+
+For the abstract syntax we use VDM-style productions of the form
+@*@t{DEFINED = DEFINES}.  
+@*We use @t{Pi}, @t{Cij}, @t{Gijk}, @t{Bijl} for definition head literals, 
+clause head literals, guard literals and body (query) literals respectively. 
+The indexes are picked from index sets so that they uniquely identify the
+syntactic component. @t{max(S)} is the largest element of a totally
+ordered set @t{S}.
+
+
+@t{QUERY-indexed-set} corresponds exactly to those agents that are declared 
+@t{public} in the source code.
+
+@itemize @asis{@t{}}
+@item PROG  =    DEF-indexed-set QUERY-indexed-set
+@item DEF   =    DEFNAME GUARDOP PREDHEAD CLAUSE-indexed-set
+@item CLAUSE =   CLAUSEHEAD GUARD BODY
+@item GUARD  =   GUARDLITERAL-indexed-set
+@item BODY   =   BODYLITERAL-indexed-set
+@item QUERY  =   B00m    0@dots{}m@dots{}max(M)
+@item PREDHEAD = Pi      1@dots{}i@dots{}max(I)
+@item CLAUSEHEAD  =  Cij     1@dots{}i@dots{}max(I), 1@dots{}j@dots{}max(Ji)
+@item GUARDLITERAL = Gijk    1@dots{}i@dots{}max(I), 1@dots{}j@dots{}max(Ji), 1@dots{}k@dots{}max(Kij)
+@item BODYLITERAL =  Bijl    1@dots{}i@dots{}max(I), 1@dots{}j@dots{}max(Ji), 1@dots{}l@dots{}max(Lij)
+@item DEFNAME =   NAME/ARITY
+@item GUARDOP =   '->' | '|' | '!' | '?'
+@end itemize
+
+The @t{Pi}, @t{Cij}, @t{Gijk} and @t{Bijl} are literals.
+The indices used are @t{m} from the index set for query literals
+@t{M (=L00)}, @t{i} from a set of indices @t{I} for
+definitions, for each element @t{i} of @t{I}, @t{j} from a set
+of indices @t{Ji} for clauses, for each element @t{j} of each
+@t{Ji}, @t{k} from a set of indices @t{Kij} for guard literals
+and @t{l} from a set of indices @t{Lij} for body literals. The
+index sets are totally ordered except for the set @t{I} of indices
+for definitions, which is unordered.  The ordered index sets can be seen
+as sequences.
+
+
+@node  CA syntaxes, Built in format, Abstract syntax, Syntaxes
+@subsection Concrete abstract syntaxes
+
+The translation from concrete syntax to abstract syntax involve a number
+of ground internal formats.
+
+@menu
+* Built in format::             
+* Primitive format::            
+* Basic format::                
+* PROGRAM format::              
+@end menu
+
+
+@node  Built in format, Primitive format, CA syntaxes, CA syntaxes
+@subsection Built in term format, @code{TERM}
+
+Programs are read with the built in @t{read_term/3}. This routine,
+provided by the AKL environment, represents a program clause as a ground
+term in a unique way.
+
+@node  Primitive format, Basic format, Built in format, CA syntaxes
+@subsection Primitive term format, @code{TERM0}
+
+The @t{TERM0}-format is a slight abstraction of a term in the
+@t{TERM} format.  @t{TERM0} should not normally be handled by the
+user. It reads a term in a raw format, not very well suited to
+processing as the different void variables, written as ``@t{_}'', are not
+distinguished properly.
+
+@itemize @asis{@t{}}
+@item DTERM0 ::= term0(TERM0) | exception(EXCEPTION0)
+@item EXCEPTION0 ::= end_of_file | ...
+@item TERM0 ::= VAR0 | struct(NAME0,Integer,TERM0-list) 
+@item NAME0 ::= Atom | VAR0
+@item VAR0  ::= var(VNAME0)
+@item VNAME0 ::= Atom
+@end itemize
+
+An @t{Atom} in @t{var(Atom)} is the name of the variable, which
+may be ``@t{_}'', but not an integer. The syntax covers the concrete
+syntax @t{F(ARGS)} where @t{F} is a variable. This form is
+transformed to the built-in literal @t{apply(F,ARGS)}. In this format
+a program is represented as a list of @t{DTERM0}s, each one
+representing a clause.
+
+
+@node  Basic format, PROGRAM format, Primitive format, CA syntaxes
+@subsection Basic term format, @code{TERM1}
+
+In this format void variables are given unique numbers as names.
+
+@itemize @asis{@t{}}
+@item DTERM1 ::= term1(TERM1) | exception(EXCEPTION1)
+@item EXCEPTION1 ::= end_of_file | ...
+@item TERM1 ::= VAR1 | struct(NAME1,Integer,TERM1-list)
+@item NAME1 ::= Atomic | VAR1
+@item VAR1  ::= var(VNAME1)
+@item VNAME1 ::= Atomic | noname(INTEGER)
+@end itemize
+
+Note that not all variables named with numbers are void. Sometimes the
+name of a variable is removed or introduced by transformations but we
+still want to be able to represent the term in the abstract syntax.
+
+
+@node  PROGRAM format,  , Basic format, CA syntaxes
+@subsection The @code{PROGRAM} format
+
+In the implemented code a program is stored as a ground data structure
+containing the elements of the abstract syntax. This data structure can
+be seen as an instance of the abstract syntax, where functors are added
+as tags on certain parts, and some components are duplicated for
+convenience. The indexed sets of the abstract syntax are represented by
+trees in which the index for a syntactic component is computable as the
+position in the tree of the component. A node of such a tree is defined below.
+
+A program represented by the program format is DCG-expanded and
+apply-expanded. The resulting clauses do not contain any terms with a
+variable as functor.  Connectives @t{(A;B)}, @t{(A->B;C)}, @t{not(A)}
+in @t{GUARD} and @t{BODY} are considered to be built-in metacalls. Before
+the construction of equations for the analysis phase, the metacalls are 
+unnested by the normalisation process (see below).
+
+@itemize @asis{@t{}}
+@item DPROGRAM ::= prog(QUERYLIT-list, PROGRAM) 
+@item PROGRAM ::= DEFINITION-list
+@item DEFINITION ::= DEFNAME-def(GUARDOP, PREDHEAD, CLAUSE-list)
+@item DEFNAME ::= ATOM/ARITY
+@item QUERYLIT ::= ALIT
+@item LITERAL ::= struct(ATOM, ARITY, VAR-list)     
+@item PREDHEAD ::= ALIT
+@item CLAUSE ::= clause(HEAD, GUARD, GUARDOP, BODY)
+@item HEAD ::= ALIT
+@item GUARD ::= PART
+@item BODY ::= PART
+@item PART ::= ALIT | struct(',' , 2, [PART,PART]) | PART$ANNOT
+@item ALIT ::= LITERAL | LITERAL$ANNOT
+@item ANNOT ::= TERM 
+@item GUARDOP ::= A-B
+@item A ::= noisy | quiet
+@item B ::= wait | condition | commit
+@item VAR ::= var(ATOM)
+@item ATOM ::= FUNC | t(NAME,DEFNAME,CLAUSENO)
+@item TERM ::= struct(ATOM,ARITY,TERM-list) | VAR
+@item CLAUSENO ::= Integer
+@end itemize
+
+The guards presently in use are
+@table @code{ ??? }    @i
+
+@item @b{concrete}
+@b{abstract syntax}
+
+@item ?
+noisy-wait
+
+@item ->
+quiet-condition
+
+@item |
+quiet-commit
+
+@item !
+noisy-condition
+@end table
+        
+@t{DEFNAME} names a @t{DEFINITION}. Only one definition is allowed for 
+each @t{DEFNAME}, so each definition has a unique guard operator. The
+@t{QUERYLIT}-list contains a sequence of literals which are the allowed 
+(top level) initial agents.
+
+The annotations denoted @t{ANNOT} are statements associated with different
+parts of a program. These are provided by the user, by the compiler or
+by the analyser. The binary operator @t{$} is left-associative. The syntax
+allows the use of nested annotations and annotations may also be
+omitted.
+
+
+@node  Routines, Transformations, Syntaxes, Reader
+@section Routines
+
+This section contains descriptions of the different routines available
+in the library @t{reader}. This library is constructed from various
+files located in library/readerdir so you do not need to load each of them
+separately.
+
+@menu
+* I/O routines::                
+* Conversion routines::         
+* Other routines::              
+* Unimplemented routines ::     
+@end menu
+
+@node  I/O routines, Conversion routines, Routines, Routines
+@subsection I/O routines
+
+This section contains descriptions of the I/O routines.
+
+@subsubsection @code{TERM0}
+
+@i{(defined in @file{library/readerdir/rwrDTERM0.akl})}
+
+The I/O-routines for the @t{TERM0}-format read and write terms stored
+in the @t{TERM0}-format. The different versions handle streams,
+files and exception tagged terms. These routines use @t{read_term/3} and
+@t{write_term/3} defined in the AKL I/O-system.
+
+
+@table @code
+@item read_dterm0(@var{-DTERM0},@var{+Stream},@var{-Stream})
+@findex read_dterm0/3
+
+@item read_dterms0(@var{-DTERM0-list},@var{+Stream},@var{-Stream})
+@findex read_dterms0/3
+
+@item read_dterms0(@var{+FILENAME},@var{-DTERM0-list})
+@findex read_dterms0/2
+
+@item write_dterm0(@var{+DTERM0},@var{+Stream},@var{-Stream})
+@findex write_dterm0/3
+
+@item write_term0(@var{+TERM0},@var{+Stream},@var{-Stream})
+@findex write_term0/3
+
+@end table
+
+@subsubsection @code{TERM1}
+
+@i{(defined in @file{library/readerdir/rwrDTERM1.akl})}
+
+The I/O-routines for the @t{TERM1}-format read an exception tagged term (or
+a list of them) from a file or an AKL stream.
+
+@table @code
+@item read_dterm1(@var{-DTERM1}, @var{+Stream}, @var{-Stream})
+@findex read_dterm1/3
+Reads a @t{DTERM1} from a stream.
+
+@item read_dterm1(@var{-DTERM1}, @var{+Stream}, @var{-Stream})
+@findex read_dterm1/3
+
+@item read_dterms1(@var{-DTERM1-list}, @var{+Stream}, @var{-Stream})
+@findex read_dterms1/3
+
+@item read_dterms1(@var{+Filename}, @var{-DTERM1-list})
+@findex read_dterms1/2
+
+@item read_terms1(@var{-TERM1-list}, @var{+Stream}, @var{-Stream})
+@findex read_terms1/3
+
+@item read_terms1(@var{+Filename}, @var{-TERM1-list})
+@findex read_terms1/2
+
+Read until an @t{end_of_file} is reached. These routines do not return the
+exception end_of_file and strips off the @t{term1(_)} tag.
+@end table
+
+
+These routines write a term (or a list of terms) to a file or an AKL
+stream. Variants handle exception tags.
+
+@table @code
+@item write_dterm1(@var{+DTERM1}, @var{+Stream}, @var{-Stream})
+@findex write_dterm1/3
+
+@item write_term1(@var{+TERM1}, @var{+Stream}, @var{-Stream})
+@findex write_term1/3
+
+@item write_dterms1(@var{+DTERM1-list}, @var{+Stream}, @var{-Stream})
+@findex write_dterms1/3
+
+@item write_terms1(@var{+TERM1-list}, @var{+Stream}, @var{-Stream})
+@findex write_terms1/3
+
+@item write_dterms1(@var{+Filename}, @var{+DTERM1-list})
+@findex write_dterms1/2
+
+@item write_terms1(@var{+Filename}, @var{+TERM1-list})
+@findex write_dterm1/2
+@end table
+
+
+There is also a routine which is useful in producing ground terms for
+use in execution:
+
+@table @code
+@item term1_to_term(@var{+TERM1}, @var{-AKLTERM})
+@findex term1_to_term/2
+This routine converts a term to a ground form where each variable is
+represented by a unique constant and all void variables are represented
+by the constant ``@t{_}''
+@end table
+
+@subsubsection @code{PROGRAM}
+
+@table @code
+@item read_program(@var{-DPROGRAM}, @var{+Stream}, @var{-Stream})
+@findex read_program/3
+
+@item read_program(@var{+Filename}, @var{-DPROGRAM})
+@findex read_program/2
+reads a program and returns it in the program format.
+
+@item write_program(@var{+PROGRAM}, @var{+Stream}, @var{-Stream})
+@findex write_program/3
+
+@item write_program(@var{+Filename}, @var{+PROGRAM})
+@findex write_program/2
+pretty-prints the program.
+@end table
+
+@node  Conversion routines, Other routines, I/O routines, Routines
+@subsection Conversion routines
+
+This section contains descriptions of the conversion routines.
+
+@subsubsection @code{TERM0} to @code{TERM1}
+
+@i{(defined in @file{library/readerdir/convDTERM0toDTERM1.akl})}
+
+The conversion routines define the translation between the two formats 
+@t{TERM0} and @t{TERM1}.
+
+@table @code
+@item dterm0_to_dterm1(@var{+DTERM0}, @var{-DTERM1})
+@findex dterm0_to_dterm1/2
+The names of all variables with name ``@t{_}'' are changed into 
+@t{noname(Integer)} where the various integers distinguish the 
+variables.
+
+@item dterm0_to_dterm1(@var{+DTERM0}, @var{-DTERM1}, @var{-NAME0-list}, @var{-NAME0-list})
+@findex dterm0_to_dterm1/4
+The same as above, but the first @t{NAME0}-list contains the names of the
+variables starting with ``@t{_}'' but nevertheless only have one occurrence
+in the @t{DTERM0}. The second @t{NAME0}-list contains the names of the 
+variables that occur several times in the clause, but nevertheless start with 
+``@t{_}'' (except the name ``@t{_}''). This definition is useful for 
+producing warnings when compiling.
+
+@item dterm1_to_dterm0(@var{+DTERM1}, @var{-DTERM0})
+@findex dterm1_to_dterm0/2
+If a variable only occurs once in @t{DTERM1}, its name is replaced by a new
+name, unique within this @t{DTERM0}, starting with ``@t{_}''. 
+If a variable with
+the name @t{noname(Integer)} occurs several times it will receive a new
+name not starting with ``@t{_}'', unique within this @t{DTERM0}.
+
+@end table
+
+@subsubsection @code{TERM1} to @code{PROGRAM}
+
+@i{(defined in @file{library/readerdir/convDTERM1toPROGRAM.akl})}
+
+@table @code
+@item dterms1_to_program(@var{+DTERM1-list}, @var{-PROGRAM})
+@findex dterms1_to_program/2
+This routine parses a program from a list of @t{DTERM1}. It takes care of
+special cases, e.g. @t{p.} and @t{p:-?true} both mean @t{p :-
+true?true}. The program is checked for duplicate definitions and
+warnings are produced on the stdout-stream.
+@end table
+
+@subsubsection @code{PROGRAM} to @code{PROGRAM}
+
+@i{(defined in @file{library/readerdir/convDPROGRAMtoDPROGRAM.akl})}
+
+@table @code
+@item unnest_terms(@var{+PROGRAM}, @var{-PROGRAM})
+@findex unnest_terms/2
+Unnest all composite terms so that goals (except unification) just have
+variables as arguments.
+
+@item unnest_aliases(@var{+PROGRAM}, @var{-PROGRAM})
+@findex unnest_aliases/2
+Unnest all composite terms so that variables occurring in goals have a
+single occurrence. 
+@t{p(f(X), X)} 
+@*is transformed to 
+@*@t{p(V1, X), V1=f(X)}.
+Both of these agents add new variables and explicit unification
+literals. Variables that are introduced will get names of the form @t{V_N}
+where @t{N} is an integer such that @t{V_N} does not occur in the clause
+into which the variable is introduced.
+
+@item unnest_metacalls(@var{+DEFINITION-list}, @var{-DEFINITION-list})
+@findex unnest_metacalls/2
+Replaces meta-calls to built-in predicates of the forms @t{;},
+@t{if(_->_;_)}, @t{not(_)} etc. with calls to newly defined agents.
+@t{... (A;B) ...        }
+@*is rewritten to 
+@*@t{
+... Q(Args) ... 
+@*Q(Args) :- ? A.
+@*Q(Args) :- ? B.
+}
+where @t{Q} is a new unique name and @t{Args} contain the 
+arguments of @t{A} and @t{B}.
+
+@t{... (A->B;C) ... }
+@*is rewritten to
+@*@t{
+... Q(Args) ... 
+@*Q(Args) :- A -> B.
+@*Q(Args) :- -> C.
+}
+where @t{Q} is a new unique name and @t{Args} 
+contain the arguments of @t{A}, @t{B} and @t{C}.
+
+@t{P :- ... not(A) ... }
+@*is rewritten to
+@*@t{
+P :- ... Q(Args) ... 
+@*Q(Args) :- A -> fail.
+@*Q(Args) :- -> true.
+}
+where @t{Q} is a new unique name and @t{Args} contain the arguments of 
+@t{A}.
+
+@end table
+
+The new compiler prefers to keep some simple disjunctions of flat
+constraint literals, so a special version of unnest_metacalls is also
+needed if those are not explicitly represented as a call to a constraint
+solver for flat guards, e.g. 
+@*@t{solve_constraint(A or B)}.
+
+
+@node  Other routines, Unimplemented routines , Conversion routines, Routines
+@subsection Other routines
+
+Some useful helproutines have been specified and implemented.
+
+@table @code
+@item permute_program(@var{+PROGRAM}, @var{-PROGRAM})
+@findex permute_program/2
+Permutes the order of all conjunctions in a program. Most sensible
+programs in AKL should survive such a transformation. This might be used
+to test whether the program has been written in a robust manner. The
+transformation is useful in preparing the program for a parallel
+execution or for testing whether certain program transformations are
+valid.
+
+@item filter_public(@var{+PROGRAM}, @var{-PROGRAM})
+@findex filter_public/2
+Returns a list of public and a program where the entry specifications
+have been moved to the @t{DEFLIT-list} field of @t{prog(DEFLIT-list, DEFLIST)}
+specifying the possible entries. This routine is applied since the
+public declarations are represented as clauses of the definition 
+@t{':-'/1} when first read.
+
+@item balance_program(@var{+PROGRAM}, @var{-PROGRAM})
+@findex balance_program/2
+The same conjunction (or a disjunction), an and-or expression, may be
+represented in different ways: 
+@*
+e.g. @t{(A,(B,C))} and @t{((A,B),C)} 
+@*are the same.
+This routine will make sure that and-or expressions are balanced, i.e. 
+any part of the form 
+@t{((A,B),C)} is rewritten into the form 
+@t{(A,(B,C))} and similarly any part of the form 
+@t{((A;B);C)} is rewritten into @t{(A;(B;C))}.
+@* @t{A}, @t{B}, @t{C} are and-or-expressions.
+
+@item unique_program_vars(@var{+PROGRAM}, @var{-PROGRAM})
+@findex unique_program_vars/2
+Transforms a program to a form where all variables have been transformed from 
+@t{var(NAME)} to @t{var(t(NAME, DEFNAME, CLAUSENO))}. 
+        
+@item original_program_vars(@var{+PROGRAM}, @var{-PROGRAM})
+@findex original_program_vars/2
+Transforms a program to a form where all variables have been transformed from 
+@t{var(t(NAME, DEFNAME, CLAUSENO))} to @t{var(NAME)}.
+
+@item unique_short_program_vars(@var{+PROGRAM}, @var{-PROGRAM})
+@findex unique_short_program_vars/2
+Replaces variable names with names from a numbering A..Z, AA..AZ,
+BA..BZ, etc.  Using this renaming makes it easy to read results from
+various parts of the analysis.
+
+@item xref_program(@var{+PROGRAM},
+@itemize @t{@asis{}}
+@item @var{-((DEFNAME-ALIT)-list)-list},
+@item @var{-((DEFNAME-ALIT)-list)-list},
+@item @var{-((CALLNAME-ALIT)-list)-list},
+@item @var{-((CALLNAME-ALIT)-list)-list},
+@item @var{-DSTRUCT-list})
+@end itemize
+@findex xref_program/6
+@*Returns five lists extracted from the program:
+
+@enumerate
+@item
+for each definition a unique sorted list of those call names used in the
+guards of this definition.
+
+@item
+for each definition a unique sorted list of those call names used in the
+bodies of this definition.
+
+@item
+for each call name a unique sorted list of those definitions in which
+the call is used from a guard.
+
+@item
+for each call name a unique sorted list of those definitions in which
+the call is used from a body.
+
+@item
+a list of the data structures explicitly mentioned in the code.
+@end enumerate
+
+@item xref(@var{+FILENAME})
+@findex xref/1
+Prints (on stdout) some information about the program in FILENAME which
+was found by applying @code{xref_program/6}: Public entries, public but
+not defined, defined but not public and not called, called from guards
+but not defined, and called but not defined from bodies.
+
+@item get_public(@var{+PROGRAM}, @var{-(DEFNAME-list)})
+@findex get_public/2
+Returns a list of names of definitions which are allowed entry points to this
+program.
+@end table
+
+
+@node  Unimplemented routines ,  , Other routines, Routines
+@subsection Unimplemented routines 
+
+Some definition which might be of use are specified but are not yet
+implemented are listed here.
+
+@t{get_dead_code(+PROGRAM, -(DEFNAME-list))}
+@*The difference between the list of unused definitions found with 
+@t{xref/6} and the list of entries given by @t{get_entries/2} 
+is the dead code.
+        
+@t{get_definition(+PROGRAM, ?DEF_NAME, -DEFINITION)}
+
+Returns a definition from a program, possibly nondeterministically. Fails if 
+nonexistent definition name is given.
+
+@t{get_simple_modes(+PROGRAM, +DEF_NAME, -MODES)}
+
+Return the modes of a predicate as can be extracted by simple inspection. 
+@t{MODES} is not defined yet.
+
+@t{get_clause(+PROGRAM, +DEF_NAME, ?CLAUSENUMBER, -CLAUSE)}
+
+Returns a clause from a definition, possibly nondeterministically. Fails if 
+wrong clause number is given.
+
+@t{get_guard_goal(+PROGRAM, +DEF_NAME, +CLAUSE, ?GOALNO, -GOAL)}
+
+Returns a goal from a guard in a clause, possibly
+nondeterministically. Fails if wrong goal number is given.
+
+@t{get_body_goal(+CLAUSE, ?GOALNO, -GOAL)}
+
+Returns a goal from a body in a clause, possibly nondeterministically.
+Fails if wrong goal number is given.
+
+@noindent
+@t{check_program(+PROGRAM, -ERRORS)}
+
+Check for possible errors in the program.
+@noindent
+Possible errors:
+@*@t{NOT_UNIQUE(NAME/ARITY/GUARDOP)}
+@*Multiply defined definition or guard conflict in different clauses
+@*@t{CALLED_BUT_NOT_DEFINED}
+@*@t{DEFINED_BUT_NOT_CALLED}
+@*@t{DEAD_CODE}
+@*the definition cannot be reached with the given entry points
+@*@t{OBVIOUS_DEADLOCK(NAME/ARITY/GUARDOP)}
+@*this definition cannot execute regardless of input
+
+@node  Transformations, Normalised programs, Routines, Reader
+@section Transformations
+
+The transformation uses the conversion agents for the
+@t{PROGRAM}-format in the construction of data structures used in the
+analysis phase. As specified earlier routines are available for
+transformations of metacalls like if-then-else, negation and disjunction
+into new unique clauses and for introduction of necessary new unique
+variables and unification literals.
+
+@node  Normalised programs, Normalising, Transformations, Reader
+@section Normalised programs
+
+In order to simplify the formulation of an analysis for AKL programs we
+have used the transformation filters to convert a program to a
+normalised form. The normalised program has a behaviour which is
+essentially equivalent to the original one. A variable occurs only once
+in a literal in a normalised program. Terms occur only on the right hand
+side in unification literals. The arguments of a term are always
+variables.
+
+
+@node  Normalising, Annotations, Normalised programs, Reader
+@section Forming a normalised AKL program
+
+A normalised program is formed by applying transformations in sequence so:
+
+@enumerate
+@item
+all public declarations of the program are collected and unique
+call literals with unique new variables are constructed for each one of
+them.
+
+@item
+all metacalls are recursively unfolded and new definitions are
+introduced which are called by a new goal where the metacall was in the
+original program.
+
+The metacalls handled in this way are disjunction, if-then-else and negation. 
+
+These transformations keep the operational meaning of the metacalls,
+since we just make an unfolding specialisation of the original
+definition in the spirit of partial evaluation.
+
+@item
+a call is transformed so that each call argument contains only variables by 
+introducing explicit unification literals and possibly new variables
+
+@*@t{p(t(r(s(X, X))))}
+@*is rewritten to
+@*@t{V0=s(X, X), V1=r(V0), V2=t(V1), p(V2)}
+
+By this transformation the handling of unification abstraction is
+localised and the effect of each unification will be visible in a
+separate program point.
+
+@item
+new variables are introduced so that there is only one
+occurrence of a variable in each call literal.
+
+@*@t{p(t(X, s(X, X), r(X)), X)}
+
+@*
+is rewritten to
+@*@t{V0=X, V1=X, V2=X, V3=X, p(t(V0, s(V1, V2), r(V3)), X)}
+
+This transformation makes it unnecessary to consider full term unification in 
+call abstractions and when used together with the previously mentioned one it 
+simplifies the analysis of aliasing. The only place where aliasing between 
+variables can be constructed is in explicit unification literals. 
+
+@item 
+variables are renamed to give each clause a unique set of variables.
+
+@t{
+@*      :- q(X).
+@*      :- r(X).
+}
+@*is rewritten to
+@t{
+@*      :- q(A).
+@*      :- r(B).
+}
+
+This transformation is used in order to avoid confusion between
+variables with the same name occurring in different clauses.
+@end enumerate
+
+@node  Annotations, Conclusion, Normalising, Reader
+@section Annotations
+
+This section describes annotations.
+
+@menu
+* Annotated format::            
+* R/W annotations::             
+@end menu
+
+@node  Annotated format, R/W annotations, Annotations, Annotations
+@subsection Annotated definition format
+
+An annotated program is a program where some parts may be connected to
+annotations, i.e. values produced by the analyser. Either of the
+components @t{DEFINITION}, @t{CLAUSE} or @t{LIT} may be
+annotated.  @*For example an annotated @t{CLAUSE} is
+@t{CLAUSE$Annotation} where @t{Annotation} can be any term. The
+annotations should be easily distinguished by their principal
+functor. Annotations not understood by a program operating of the
+abstract syntax should be ignored.
+
+A component may have several annotations:
+
+@t{CLAUSE$Annotation1$Annotation2$Annotation3}
+
+As the ordinary left-associativity of @t{$} is used, this is to be
+interpreted as
+
+@t{((CLAUSE$Annotation1)$Annotation2)$Annotation3}
+
+
+Two useful routines:
+
+@t{construct_annotation_template(+PROGRAM, -PROGRAM)}
+
+Constructs a program where unbound slots has been added for all
+annotatable components of the program. This can be modified to bind the
+output slots to appropriate variables in other data structures used in
+the analysis phase.
+
+
+@t{remove_annotations(+PROGRAM, -PROGRAM)}
+
+Removes annotations on all levels from a program.
+
+
+@node  R/W annotations,  , Annotated format, Annotations
+@subsection Reading and writing annotations
+
+Annotations can be written in the program with a special infix operator
+@t{$}.  Annotations should be stripped off by @t{read_term/3}. 
+The terms
+returned by @t{read_term/3} are of the form 
+@t{term(T)} where @t{T} is either of the
+form @t{var(V)} or of the form @t{struct(N, I, Args)},
+@t{V} is a variable name, @t{N}
+is the name of the structure, @t{I} is the arity, and @t{Args} 
+is the list of
+terms. A special version of @t{read_term/3}, @t{a_read_term/3} 
+should return an annotated term.
+
+
+@node  Conclusion, References, Annotations, Reader
+@section Conclusion
+
+We have constructed a set of tools in the form of AKL definitions which
+facilitate the practical implementation and integration of an analyser
+or other program transformation tool. This chapter also described
+metasyntax used in the report on the analyser.  The implementation of
+the code specified herein is finalised unless otherwise noted. It will
+be modified to allow integration of the analyser code into the current
+AKL system as the project continues.
+
+@node  References,  , Conclusion, Reader
+@section References
+
+@*
+@sc{Franz@'en93}, Torkel Franz@'en, Formal aspects of the Andorra Kernel Language, 
+(forthcoming revision of) SICS research report 90008, 1990.
+
+@*
+@sc{Janson&Haridi91}, Sverker Janson and Seif Haridi, Programming Paradigms of the 
+Andorra Kernel Language, in Logic Programming: Proceedings of the 1991 
+International Symposium, MIT Press, 1991, ed. P. Deransart
+
+@*
+@sc{Sahlin&Sjoeland93A}, Dan Sahlin and Thomas Sjoeland, 
+Towards Abstract Interpretation of AKL, Extended abstract, 
+in the Workshop of Concurrent Constraint 
+Programming at the International Conference on Logic Programming 1993, 
+Budapest, ed. G. Smolka
+
+@*
+@sc{Sahlin&Sjoeland93B}, Dan Sahlin and Thomas Sjoeland, 
+Towards an Analysis Tool for AKL, other part of deliverable 
+for WP.1.6.1.M1 of ESPRIT project ParForce, 1993
+
+

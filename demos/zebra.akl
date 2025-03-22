@@ -1,0 +1,202 @@
+%
+% This is a version of the houses (zebra) programa
+% as presented in "Constraint Satisfaction in Logic Programming"
+% by Pascal Van Hentenryck.
+%
+%
+% Adapted for AKL by Johan Montelius
+
+
+zebra:- 
+	format('There are five houses each of different colour  and inhabited by~na man of a different nationality, with a different pet, drink and~nbrand of cigaretts~n'),
+	format('  The Englishman lives in the red house. ~n'),
+	format('  The Spaniard owns the dog. ~n'),
+	format('  Coffee is drunk in the green house. ~n'),
+	format('  The Ukrainian drinks tea. ~n'),
+	format('  The green house is immediately to the right of the ivory house. ~n'),
+	format('  The Winston smoker owns snails. ~n'),
+	format('  Kools are smoked in the yellow house. ~n'),
+	format('  Milk is drunk in the middle house. ~n'),
+	format('  The Norwegian lives in the first house on the left ~n'),
+	format('  The man who smokes Chesterfield lives in the house next to the man with the fox.~n'),
+	format('  Kools are smoked in the house next to the house where the horse is kept.~n'),
+	format('  The Lucky Strike smoker drinks orange juice.~n'),
+	format('  The Japanese smokes Parliament.~n'),
+	format('  The Norwegian lives next to the blue house.~n'),
+	format('Who owns the Zebra?  Who drinks water?.~n~n'),
+	format('Try zebra(dif), zebra(ctr) and zebra(cir) to try different techniques.~n').
+
+
+zebra(Mode):-
+	statistics(runtime,_),
+	statistics(nondet,_),
+	zebra(E,S,J,U,N,Z,W,Mode) ->
+	statistics(runtime,[_,Time]),
+	statistics(nondet,[_,Nondet]),
+	dzebra(E,S,J,U,N,Z,W),
+	format('~nSolved in ~w msec. using ~w nondeterministic steps~n',[Time,Nondet]).
+
+
+
+zebra(Englishman,Spaniard,Japanese,Ukrainian,Norwegian,Zebra,Water,Mode):-
+	houses([Blue,Green,Red,Yellow,Ivory],Mode),
+	houses([Norwegian,Englishman,Spaniard,Japanese,Ukrainian],Mode),
+	houses([Dog,Zebra,Fox,Snails,Horse],Mode),
+	houses([Parliament,Kool,Lucky,Chesterfield,Winston],Mode),
+	houses([Milk,Juice,Water,Tea,Coffee],Mode),
+	Englishman = Red, 
+	Spaniard = Dog, 
+	Green = Coffee, 
+	Ukrainian = Tea, 
+	to_the_right(Green,Ivory),
+	Winston = Snails, 
+	Kool = Yellow,
+	Milk = third, 
+	Norwegian = first,
+	next_to(Fox,Chesterfield),
+	next_to(Horse,Kool),
+	Lucky = Juice, 
+	Japanese = Parliament, 
+	next_to(Norwegian,Blue).
+
+
+next_to(fifth,fourth).
+next_to(fourth,fifth).
+next_to(fourth,third).
+next_to(third,fourth).
+next_to(third,second).
+next_to(second,third).
+next_to(second,first).
+next_to(first,second).
+
+to_the_right(fifth,fourth).
+to_the_right(fourth,third).
+to_the_right(third,second).
+to_the_right(second,first).
+
+
+houses(Prop,dif):-	
+	Houses = [first,second,third,fourth,fifth],
+	indomain(Prop,Houses),
+	difflist(Prop).
+houses(Prop,ctr):-	
+	Houses = [first,second,third,fourth,fifth],
+	indomain(Prop,Houses),
+	control(Prop,Houses).
+houses(Prop,cir):-	
+	Houses = [first,second,third,fourth,fifth],
+	circuit(Prop,Houses).
+
+
+/* The predicate indomain/2 is used as a generator. The goal 
+ * indomain(Table,Domain) constrains each element in Table to
+ * be a member in Doamin. 
+ */
+
+indomain([],_).
+indomain([X|Rest],Domain):- 
+	member(X,Domain), 
+	indomain(Rest,Domain).
+
+member(X,[X|_]).
+member(X,[_|R]):- member(X,R).
+
+
+/* The predicate difflist/1 is used to check if a function
+ * is injective. This is done by creating a dif/2 process
+ * for each pair in the table. This implies that (N^2 +N)/2
+ * processes are created. The predicate is passive, it can
+ * not generate solutions.
+ */
+
+difflist([]).
+difflist([X|R]):-
+	diffall(X,R),
+	difflist(R).
+
+diffall(_X,[]).
+diffall(X,[Y|R]):- dif(X,Y), diffall(X,R).
+
+/* The predicate control/2 is used to check if a function
+ * is injective. This is done by creating a monitor for
+ * each element in the table. When an element is determined
+ * its value is send to a controller. The controller will 
+ * delete the value from the domain. This implies that only 
+ * N + 1 processes are created. The predicate is passive, it
+ * can not generate solutions.
+ */
+
+control(Table,Domain):-
+	open_port(Port,Stream),
+	spawn(Table,Port),
+	length(Table,N),
+	controller(Stream,N,Domain).
+
+spawn([],_) :-
+    ->	true.
+spawn([D|Ds],Port):-
+    ->	monitor(D,Port),
+	spawn(Ds,Port).
+
+monitor(X,P):-
+	data(X)
+    ->	X@P.
+
+controller(_,0,_):-
+    ->	true.
+controller([X|S],N,Domain):-
+    ->	del(X,Domain,Rest),
+	N1 is N-1,
+	controller(S,N1,Rest).
+
+del(X,[X|R],Del):-
+    ->	Del = R.
+del(X,[Y|R],Del):-
+    ->	Del = [Y|Rest],
+	del(X,R,Rest).
+
+/* The predicate circuit/2 is used to generate and check that
+ * a function is injective. The predicate uses what is called a
+ * short-circuit technique. It will set up a grid of processes,
+ * each process is connected to its neighbours in the same row
+ * and column. The predicate will create N^2 processes but since
+ * the predicate also works as agenerater the number of non-
+ * deterministic steps can be reduced. The predicate will only
+ * generate binings that are consistent with the current state.
+ */
+
+circuit(Table, Domain) :-
+   tag_elements(Domain, Ys1),
+   circuit_aux(Table, Ys1, 0).
+
+tag_elements([], []).
+tag_elements([Y|Ys], [Y-_|Ys1]) :-
+   tag_elements(Ys, Ys1).
+
+circuit_aux([], _Ys, _).
+circuit_aux([X|Xs], Ys, N) :-
+   connect(Ys, X, begin, end, N),
+   N1 is N+1,
+   circuit_aux(Xs, Ys, N1).
+
+connect([], _X, C, C, _).
+connect([Y|Ys], X, C0, C, N) :-
+   equal(Y, X, C0, C1, N),
+   connect(Ys, X, C1, C, N).
+
+equal(X-N, X, _, _, N).
+equal(_,   _, C, C, _).
+
+/* to display a solution */
+
+dzebra(E,S,J,U,N,Z,W):-
+	person(Z,E,S,J,U,N,Owner),
+	person(W,E,S,J,U,N,Drinker),
+	format('The Zebra is owned by the ~w. ~nThe ~w drinks water.~n', [Owner, Drinker]).
+
+
+person(O,O,_,_,_,_,'Englishman').
+person(O,_,O,_,_,_,'Spaniard').
+person(O,_,_,O,_,_,'Japanese').
+person(O,_,_,_,O,_,'Ukrainian').
+person(O,_,_,_,_,O,'Norwegian').

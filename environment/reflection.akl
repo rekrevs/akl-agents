@@ -1,0 +1,15 @@
+% $Id: reflection.akl,v 1.2 1994/03/30 13:43:36 rch Exp $
+
+reflection(W, R) :-
+	open_port(W, S),
+	reflect(S, none, R).
+
+reflect([], _, R) :-
+    ->	R = [].
+reflect([call(F)|S], _, R0) :-
+    ->	reflective_call(W, F, RR),
+	'$concat'(RR, R, R0),
+	reflect(S, W, R).
+reflect([next|S], W0, R) :-
+    ->	reflective_next(W0, W1),
+	reflect(S, W1, R).

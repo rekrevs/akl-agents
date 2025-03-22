@@ -1,0 +1,402 @@
+/* $Id: synch3.akl,v 1.8 1994/05/16 12:08:46 bd Exp $ */
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%
+%%%	Expansion of accumulator syntax.
+%%%	Written by Bjorn Danielsson
+%%%
+%%%	Now handles:
+%%%
+%%%	foo(X)-S	=>	foo(X,S1,S2)
+%%%	[A,B,C]-S	=>	S1=[A,B,C|S2]
+%%%	(P,Q)-S		=>	(P-S,Q-S)
+%%%	(P;Q)		=>	(P-S;Q-S)
+%%%	P-S		=>	call(P)-S
+%%%	P(X)-S		=>	P(X,S1,S2)
+%%%	M@S		=>	send(M,S1,S2)
+%%%	foo(f(S))-S	=>	foo(f(S1),S1,S2)
+%%%	foo-S-(X,Y)	=>	foo(S1,S2,X,Y)
+%%%	foo-S(X)	=>	foo(X,S2)
+%%%
+%%%	Multiple accumulator variables are supported.
+%%%	Recognizes the guards ->,|,?,??,!. Unification of output
+%%%	variables is at the last occurrence in the body, or just
+%%%	before the guard, if there is no occurrence in the body.
+%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+% Main entry point. First arg is a clause in read_term representation,
+% and second arg is the expanded clause (also read_term repr).
+
+synch_expansion(struct((:-),2,[Head,Body]), Cl) :-
+    ->	head_synch_expand(Head, H1, [], A1),
+	guarded_synch_expand(Body, B, B0, B1, [], A2),
+	analyze_varlists(A1, A2, Only1, _, A),
+	produce_unifiers(Only1, U2),
+	combine_and(U2, B0, B1),
+	enumerate_vars(A, 0, _),
+	Cl = struct((:-),2,[H1,B]).
+synch_expansion(H, Cl) :-
+    ->	synch_expansion(struct((:-),2,[H,struct(true,0,[])]), Cl).
+
+
+% Alternative entry point. This expands a goal instead of a clause.
+% Useful for preprocessing toplevel queries.
+
+goal_synch_expansion(Goal, ExpGoal) :-
+    ->	body_synch_expand(Goal, ExpGoal, [], A),
+	enumerate_vars(A, 0, _).
+
+
+head_synch_expand(struct(-,2,[H0,V]), H, A0, A) :-
+    ->	head_synch_expand(H0, H1, A0, A1),
+	goal_synch_expand(H1, V, H, A1, A).
+head_synch_expand(H0, H, A0, A) :-
+    ->	H=H0,
+	A=A0.
+
+
+% This recognizes guards specially in order to be able to insert
+% unification goals in the right place. The third arg is the expanded
+% body and the fourth is the insertion point for the final body.
+
+guarded_synch_expand(struct(Gop,2,[G1,G2]), G, G3, G4, A0, A) :-
+	is_guard_op(Gop)
+    ->	G=struct(Gop,2,[G5,G4]),
+	body_synch_expand(G1, G5, A0, A1),
+	body_synch_expand(G2, G3, A1, A).
+guarded_synch_expand(struct(Gop,1,[G0]), G, G1, G2, A0, A) :-
+	is_guard_op(Gop)
+    ->	G=struct(Gop,1,[G2]),
+	body_synch_expand(G0, G1, A0, A).
+guarded_synch_expand(G0, G, G1, G2, A0, A) :-
+    ->	G=G2,
+	body_synch_expand(G0, G1, A0, A).
+
+
+%
+% G0-V
+%
+body_synch_expand(struct(-,2,[G0,V]), G, A0, A) :-
+    ->	dash_synch_expand(G0, V, G, A0, A).
+%
+% (G1,G2)
+%
+body_synch_expand(struct(',',2,[G1,G2]), G, A0, A) :-
+    ->	G=struct(',',2,[G3,G4]),
+	body_synch_expand(G1, G3, A0, A1),
+	body_synch_expand(G2, G4, A1, A).
+%
+% G1 op G2
+%
+body_synch_expand(struct(Gop,2,[G1,G2]), G, A0, A) :-
+	is_guard_op(Gop)
+    ->	G=struct(Gop,2,[G3,G4]),
+	body_synch_expand(G1, G3, A0, A1),
+	body_synch_expand(G2, G4, A1, A).
+%
+% op G0
+%
+body_synch_expand(struct(Gop,1,[G0]), G, A0, A) :-
+	is_guard_op(Gop)
+    ->	G=struct(Gop,1,[G1]),
+	body_synch_expand(G0, G1, A0, A).
+%
+% Msg@Var
+%
+body_synch_expand(struct('@',2,[Msg,Var]), G, A0, A) :-
+    ->	dash_synch_expand(struct(send,1,[Msg]), Var, G, A0, A).
+%
+% (G1;G2)
+%
+body_synch_expand(struct(';',2,[G1,G2]), G, A0, A) :-
+    ->	body_synch_expand(G1, G3, A0, A1),
+	body_synch_expand(G2, G4, A0, A2),
+	remove_prebranch_history(A1, A0, B1),
+	remove_prebranch_history(A2, A0, B2),
+	analyze_varlists(B1, B2, Only1, Only2, Joined),
+	connect_varlists(A0, Joined, A),
+	produce_unifiers(Only2, U1),
+	produce_unifiers(Only1, U2),
+	combine_and(U1, G3, G5),
+	combine_and(U2, G4, G6),
+	G=struct(';',2,[G5,G6]).
+%
+% G0
+%
+body_synch_expand(G0, G, A0, A) :-
+    ->	mangle_term(G0, G, A0),
+	A=A0.
+
+is_guard_op((|)).
+is_guard_op((->)).
+is_guard_op((?)).
+is_guard_op((??)).
+is_guard_op((!)).
+
+
+%
+% (G1,G2)-V
+%
+dash_synch_expand(struct(',',2,[G1,G2]), V, G, A0, A) :-
+    ->	body_synch_expand(struct(',',2,[struct(-,2,[G1,V]),
+					struct(-,2,[G2,V])]),
+			  G, A0, A).
+%
+% (G1;G2)-V
+%
+dash_synch_expand(struct(';',2,[G1,G2]), V, G, A0, A) :-
+    ->	body_synch_expand(struct(';',2,[struct(-,2,[G1,V]),
+					struct(-,2,[G2,V])]),
+			  G, A0, A).
+%
+% G0-V
+%
+dash_synch_expand(G0, V, G, A0, A) :-
+    ->	body_synch_expand(G0, G1, A0, A1),
+	goal_synch_expand(G1, V, G, A1, A).
+
+
+% Now we finally get down to business. This is the place where we actually
+% generate and keep track of the variable pairs. For each acc-variable name
+% we keep a record [Name|[Vn,...,V1,V0]] where Vn,...,V1,V0 represent all
+% of its generated variables.
+
+synch_accumulate(V, In, Out, A0, A) :-
+	varassoc(V, A0, Vrec)
+    ->	Vrec=[_|Vlist],
+	Vlist=[In|_],
+	Vlist1=[Out|Vlist],
+	varupdate(V, A0, [V|Vlist1], A).
+synch_accumulate(V, In, Out, A0, A) :-
+    ->	Vlist=[Out,In],
+	A=[[V|Vlist]|A0].
+
+
+%
+% G0-V
+%
+goal_synch_expand(G0, var(V), G, A0, A) :-
+    ->	synch_accumulate(V, In, Out, A0, A),
+	handle_synch_goal(G0, In, Out, G).
+%
+% G0-(X,Y)
+%
+goal_synch_expand(G0, struct(',',2,[In,Out]), G, A0, A) :-
+    ->	handle_synch_goal(G0, In, Out, G),
+	A=A0.
+%
+% G0-V(In)
+%
+goal_synch_expand(G0, struct(apply,2,[var(V),L]), G, A0, A) :-
+	L=struct('.',2,[In,struct([],0,[])])
+    ->	synch_accumulate(V, _, Out, A0, A),
+	handle_synch_goal(G0, In, Out, G).
+
+
+% This expands an individual goal thing.
+
+%
+% []-S
+%
+handle_synch_goal(struct([],0,[]), In, Out, G) :-
+    ->	G=struct(=,2,[Out,In]).
+%
+% [...]-S
+%
+handle_synch_goal(G0, In, Out, G) :-
+	G0=struct('.',2,[_A,_X])
+    ->	source_append(G0, Out, List),
+	G=struct(=,2,[In,List]).
+%
+% F(...)-S
+%
+handle_synch_goal(struct(apply,2,[F,L0]), In, Out, G) :-
+    ->	source_append(L0,
+		      struct('.',2,[In,struct('.',2,[Out,struct([],0,[])])]),
+		      L),
+	G=struct(apply,2,[F,L]).
+%
+% f(...)-S
+%
+handle_synch_goal(struct(F,N0,Args0), In, Out, G) :-
+    ->	'$concat'(Args0, [In,Out], Args),
+	N is N0+2,
+	G=struct(F,N,Args).
+%
+% V-S
+%
+handle_synch_goal(var(V), In, Out, G) :-
+    ->	G=struct(call,3,[var(V),In,Out]).
+
+
+combine_and(struct(true,0,[]), G0, G) :- -> G=G0.
+combine_and(G0, struct(true,0,[]), G) :- -> G=G0.
+combine_and(G1, G2, G) :- -> G=struct(',',2,[G1,G2]).
+
+
+% This compares two varlists after a disjunction and extracts the entries
+% that are present in only one of the branches. It also merges the input
+% and output variables of accumulators that are present in both of the
+% branches.
+
+analyze_varlists(A1, A2, Only1, Only2, Joined) :-
+    ->  common_varlist(A1, A2, Both),
+	diff_varlist(A1, Both, Only1),
+	diff_varlist(A2, Both, Only2),
+	'$concat'(Only1, Only2, Either),
+	'$concat'(Either, Both, Joined).
+
+
+% Extract the accumulators that two varlists have in common.
+% The input variables for the two branches are made identical, as are the
+% output variables. The result is a new combined varlist.
+
+common_varlist([], _, Z) :- -> Z=[].
+common_varlist([[V|Xlist]|L], Y, Z) :-
+	varassoc(V, Y, Yrec)
+    ->	Yrec=[_|Ylist],
+	last_element(Ylist, Y0),
+	Xlist=[X1|Xlist1],
+	Ylist=[Y1|Ylist1],
+	append_but_last(Xlist1, X0, Ylist1, Zlist1),
+	Y0=X0,
+	Y1=X1,
+	Z=[[V,X1|Zlist1]|Z1],
+	common_varlist(L, Y, Z1).
+common_varlist([_|L], Y, Z) :-
+    ->	common_varlist(L, Y, Z).
+
+
+diff_varlist([], _, Z) :- -> Z=[].
+diff_varlist([[V|_]|L], Y, Z) :-
+	varassoc(V, Y, _)
+    ->	diff_varlist(L, Y, Z).
+diff_varlist([Xrec|L], Y, Z) :-
+    ->	Z=[Xrec|Z1],
+	diff_varlist(L, Y, Z1).
+
+
+produce_unifiers([], U) :- -> U=struct(true,0,[]).
+produce_unifiers([[_|Xlist]|L], U) :-
+    ->	Xlist=[X1|Xlist1],
+	last_element(Xlist1, X0),
+	U1=struct(=,2,[X1,X0]),
+	produce_unifiers(L, U2),
+	combine_and(U1, U2, U).
+
+
+% Enumerate the generated variables as var(acc(0)), var(acc(1)), etc,
+% except for the first input variable which gets the name of the accumulator.
+
+enumerate_vars([],N0,N) :- -> N=N0.
+enumerate_vars([[Name|L]|Rest],N0,N) :-
+    ->	enumerate_varlist(L, Name, N0, N1),
+	enumerate_vars(Rest, N1, N).
+
+enumerate_varlist([X], Name, N0, N) :-
+    ->	X=var(Name),
+	N=N0.
+enumerate_varlist([X|Y], Name, N0, N) :-
+    ->	X=var(acc(N0)),
+	N1 is N0+1,
+	enumerate_varlist(Y, Name, N1, N).
+
+
+% This appends lists in read_term representation.
+
+source_append(struct([],0,[]), X, Y) :- -> Y=X.
+source_append(struct('.',2,[A,X]), Y, Z) :-
+    ->	Z=struct('.',2,[A,Z1]),
+	source_append(X, Y, Z1).
+
+
+% This looks for instances of accumulator variables inside terms.
+
+mangle_term(V0, V, A0) :-
+	V0=var(_Name)
+    ->	substitute_input_var(A0, V0, V).
+mangle_term(struct(F,N,Args0), T, A0) :-
+    ->	T=struct(F,N,Args),
+	mangle_terms(Args0, Args, A0).
+
+
+mangle_terms([], Z, _) :-
+    ->	Z=[].
+mangle_terms([X0|Z0], Z, A0) :-
+    ->	Z=[X1|Z1],
+	mangle_term(X0, X1, A0),
+	mangle_terms(Z0, Z1, A0).
+
+substitute_input_var([], V0, V) :-
+    ->	V=V0.
+substitute_input_var([[Name,In|_]|_], var(Name), V) :-
+    ->	V=In.
+substitute_input_var([_|A1], V0, V) :-
+    ->	substitute_input_var(A1, V0, V).
+
+
+% Some access predicates.
+
+varassoc(V, [Data|_], Data1) :- Data=[X|_], V=X -> Data1=Data.
+varassoc(V, [_|L], Data) :- -> varassoc(V, L, Data).
+
+varupdate(V, [Data|Y], New, Z) :- Data=[X|_], V=X -> Z=[New|Y].
+varupdate(V, [E|L], New, Z) :- -> Z=[E|Z1], varupdate(V, L, New, Z1).
+
+append_but_last([X], Last, Y, Z) :- -> Last=X, Z=Y.
+append_but_last([A|X], Last, Y, Z) :-
+    ->	Z=[A|Z1],
+	append_but_last(X, Last, Y, Z1).
+
+last_element([X], Y) :- -> Y=X.
+last_element([_|X], Y) :- -> last_element(X, Y).
+
+
+% Icky stuff for disjunctions.
+
+% This produces a varlist that reflects only the changes since a branch
+% in a disjunction.
+
+remove_prebranch_history([], _, B) :- -> B=[].
+remove_prebranch_history([[V|Xlist]|L], A, B) :-
+   	varassoc(V, A, Arec)
+    ->	Arec=[_|Alist],
+	Alist=[_|Alist1],
+	make_branch_list(Alist1, Xlist, Xlist, Blist),
+	remove_empty_branch_list(Blist, V, B, B1),
+	remove_prebranch_history(L, A, B1).
+remove_prebranch_history([Xrec|L], A, B) :-
+    ->	B=[Xrec|B1],
+	remove_prebranch_history(L, A, B1).
+
+remove_empty_branch_list([_], _, B, B1) :- -> B=B1.
+remove_empty_branch_list(Blist, V, B, B1) :-
+    ->	Blist=[_,_|_],
+	B=[[V|Blist]|B1].
+
+make_branch_list([], [], _, Blist) :- -> Blist=[].
+make_branch_list([], [_|Rest], [X|Xlist], Blist0) :-
+    ->	Blist0=[X|Blist1],
+	make_branch_list([], Rest, Xlist, Blist1).
+make_branch_list([_|Arest], [_|Xrest], Xlist, Blist) :-
+    ->	make_branch_list(Arest, Xrest, Xlist, Blist).
+
+
+% This essentially appends varlists. Used after a disjunction in order
+% to retain the history prior to the disjunction.
+
+connect_varlists([], Y, Z) :- -> Z=Y.
+connect_varlists([[V|Xlist]|L], Y, Z) :-
+	varassoc(V, Y, Yrec)
+    ->	Yrec=[_|Ylist],
+	Xlist=[X1|_],
+	Y0=X1,
+	append_but_last(Ylist, Y0, Xlist, Ylist1),
+	varupdate(V, Y, [V|Ylist1], Ynew),
+	connect_varlists(L, Ynew, Z).
+connect_varlists([Xrec|L], Y, Z) :-
+    ->	Z=[Xrec|Z1],
+	connect_varlists(L, Y, Z1).
+

@@ -1,0 +1,14 @@
+send "compile('$subdir/old_test'),test(term),test(io),test(arith).\n"
+expect {
+  -re "yes.*$prompt1$"			{pass "old_test"}
+  -re "Fail:(\[^?]*)\?"			{
+    fail "old_test ($expect_out(1,string))"
+    send "a\n"
+    expect -re ".*$prompt1$"
+  }
+  -re ".*$prompt1$"			{fail "old_test"}
+  timeout				{fail "old_test (timeout)"}
+}
+
+send "nofailcatch.\n"
+expect -re ".*$prompt1$" {}

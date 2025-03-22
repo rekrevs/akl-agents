@@ -1,0 +1,200 @@
+% $Id: body.akl,v 1.15 1994/05/18 10:07:03 jm Exp $
+
+% export body_code
+% import inline_unify from unify
+% import from fd_akl
+
+% body_code(
+%   ParsedGoals,
+%   ChunkNo0,
+%   ChunkNo,
+%   TempNo0,
+%   TempNo,
+%   CodeStream0,
+%   CodeStream,
+%   VarInfo0,
+%   VarInfo
+% )
+body_code([], C0, C, T0, T, S0, S, V0, V, P0, P) :-
+    ->	C = C0,
+	T = T0,
+	S = S0,
+	V = V0,
+	P = P0.
+body_code([G|Gs], C0, C, T0, T, S0, S, V0, V, P0, P) :-
+    ->	goal_code(G, C0, C1, T0, T1, S0, S1, V0, V1, P0, P1),
+	body_code(Gs, C1, C, T1, T, S1, S, V1, V, P1, P).
+
+goal_code(In, C0, C, T0, T, S0, S, V0, V, P0, P) :-
+	In = struct((fd),_,Indxs0)
+    ->	ask_or_tell(Indxs0, AT, Indxs),
+	fd_code(Indxs, AT, C0, C, T0, T, S0, S, V0, V, P0, P).
+goal_code(struct((=),2,[X,Y]), C0, C, T0, T, S0, S, V0, V, P0, P) :-
+    ->	inline_unify(X, Y, C0, T0, T, S0, S, V0, V, _, P0, P),
+	C = C0.
+goal_code(struct(F,N,Args), C0, C, T0, T, S0, S, V0, V, P0, P) :-
+	c_builtin(F,N)
+    ->	C = C0,
+	S1 = [call(F,N)|S],
+	reorder_goal_args(Args, PrepArgs),
+	put_args(PrepArgs, C0, T0, T, S0, S1, V0, V, P0, P).
+goal_code(struct('apply',2,[Abs,Args]), C0, C, T0, T, S0, S, V0, V, P0, P) :-
+        finite_list_length(Args, List, 0, N)
+    ->	C is C0 + 1,
+	reorder_goal_args(List, PrepArgs),
+	put_args(PrepArgs, C0, T0, T1, S0, S1, V0, V1, P1, P),
+        R = tmp(T1),
+	T2 is T1 + 1,	
+        put_arg(Abs, R, C0, T2, T, S1, S2, V1, V2, P0, P1),
+	S2 = [apply(UI,N)|S], 
+	occurrence(R, UI, C0, V2, V).
+
+
+
+goal_code(struct(F,N,Args), C0, C, T0, T, S0, S, V0, V, P0, P) :-
+    ->	C is C0+1,
+	S1 = [call(F,N)|S],
+	reorder_goal_args(Args, PrepArgs),
+	put_args(PrepArgs, C0, T0, T, S0, S1, V0, V, P0, P).
+
+
+% Compile variable arguments last, left to right,
+% a'la Carlsson.
+
+reorder_goal_args(Args, PrepArgs) :-
+	reorder_goal_args(Args, 0, PrepArgs, P, P).
+
+reorder_goal_args([], _, P0, P, V0) :-
+    ->	V0 = [],
+	P = P0.
+reorder_goal_args([var(U)|As], N, P0, P, V0) :-
+    ->	V0 = [arg(N)-var(U)|V1],
+	N1 is N+1,
+	reorder_goal_args(As, N1, P0, P, V1).
+reorder_goal_args([A|As], N, P0, P, V0) :-
+    ->	P0 = [arg(N)-A|P1],
+	N1 is N+1,
+	reorder_goal_args(As, N1, P1, P, V0).
+
+put_args([], _C, T0, T, S0, S, V0, V, P0, P) :-
+    ->	T = T0,
+	S = S0,
+	V = V0,
+	P = P0.
+put_args([Arg|As], C, T0, T, S0, S, V0, V, P0, P) :-
+    ->  Arg = N-A,
+	put_arg(A, N, C, T0, T1, S0, S1, V0, V1, P0, P1),
+	put_args(As, C, T1, T, S1, S, V1, V, P1, P).
+
+put_arg(var(U), R, C, T0, T, S0, S, V0, V, P0, P) :-
+    ->	T = T0,
+	P = P0,
+	occurrence(U, UI1, C, V0, V1),
+	occurrence(R, UI2, C, V1, V),
+	S0 = [put_v(UI1,UI2)|S].
+put_arg(struct('\',2,[SN,SA]), R, C, T0, T, S0, S, V0, V, P0, P) :-
+	SA = struct(Arity,0,_),
+	integer(Arity),
+	Arity >= 0,
+	SN = struct(Name,0,_),
+	atom(Name)
+    ->	occurrence(R, UI, C, V0, V),
+	S0 = [put_a(Name/Arity,UI)|S],
+	T = T0,
+	P = P0.
+put_arg(struct('\',2,[Form, Body]), R, C, T0, T, S0, S, V0, V, P0, P) :-
+    ->	P0 = [abs(As,[],Es,Body,N)|P1],
+	conj_to_list(Form, As),
+	extract(Body, As, Es),
+	unify_put_args(Es, C, T0, T1, S2, S, V2, V, SS, []),
+	put_args(SS, C, T1, T, S0, S1, V0, V1, P1, P),
+	occurrence(R, UI, C, V1, V2),
+	S1 = [put_a(N,UI)|S2].
+put_arg(struct(F,[Ar|L],As), R, C, T0, T, S0, S, V0, V, P0, P) :-
+    ->	unify_put_args(As, C, T0, T1, S2, S, V2, V, SS, []),
+	put_args(SS, C, T1, T, S0, S1, V0, V1, P0, P),
+	occurrence(R, UI, C, V1, V2),
+	true_features(L,1,Fe),
+	record_or_structure(Fe,put_s(F,Ar,UI),put_rec(F,Ar,Fe,UI),Inst),
+	S1 = [Inst|S2].
+put_arg(struct(F,Ar,As), R, C, T0, T, S0, S, V0, V, P0, P) :-
+    ->	unify_put_args(As, C, T0, T1, S2, S, V2, V, SS, []),
+	put_args(SS, C, T1, T, S0, S1, V0, V1, P0, P),
+	occurrence(R, UI, C, V1, V2),
+	S1 = [put_s(F,Ar,UI)|S2].
+
+% unify_put_args(
+%   GetArgs,
+%   ChunkNo,
+%   TempNo0,
+%   TempNo,
+%   CodeStream0,
+%   CodeStream,
+%   VarInfo0,
+%   VarInfo,
+%   SubCodeStream0,
+%   SubCodeStream
+% )
+
+unify_put_args([], _C, T0, T, S0, S, V0, V, SS0, SS) :-
+    ->	T = T0,
+	S = S0,
+	V = V0,
+	SS = SS0.
+unify_put_args([A|As], C, T0, T, S0, S, V0, V, SS0, SS) :-
+    ->	unify_put_arg(A, C, T0, T1, S0, S1, V0, V1, SS0, SS1),
+	unify_put_args(As, C, T1, T, S1, S, V1, V, SS1, SS).
+
+unify_put_arg(var(U), C, T0, T, S0, S, V0, V, SS0, SS) :-
+    ->	T = T0,
+	occurrence(U, UI, C, V0, V),
+	S0 = [unify_v(UI)|S],
+	SS = SS0.
+unify_put_arg(struct(Atm,0,_), _C, T0, T, S0, S, V0, V, SS0, SS) :-
+    ->	T = T0,
+	S0 = [unify_c(Atm)|S],
+	V = V0,
+	SS = SS0.
+unify_put_arg(Struct, C, T0, T, S0, S, V0, V, SS0, SS) :-
+	Struct = struct(_,_,_)
+    ->	U = tmp(T0),
+	T is T0+1,
+	occurrence(tmp(T0), UI, C, V0, V),
+	S0 = [unify_v(UI)|S],
+	SS0 = [U-Struct|SS].
+unify_put_arg(Abstraction, C, T0, T, S0, S, V0, V, SS0, SS) :-
+	Abstraction = abstraction(_,_,_)
+    ->	U = tmp(T0),
+	T is T0+1,
+	occurrence(tmp(T0), UI, C, V0, V),
+	S0 = [unify_v(UI)|S],
+	SS0 = [U-Abstraction|SS].
+
+finite_list_length(struct([],0,[]), L, N0, N):-
+    ->	L = [],
+	N = N0.
+finite_list_length(struct('.',2,[X,T]), L0, N0, N):-
+    ->	L0 = [X|L1],
+	inc(N0,N1),
+	finite_list_length(T, L1, N1, N).
+
+
+true_features([],_,Features):-
+    ->  Features = [].
+true_features([Fe|R],N,Features):-
+	number(Fe),
+	Fe == N
+    ->	N1 is N +1,
+	true_features(R,N1,Features).
+true_features([Fe|R],1,Features):-
+    ->	Features = [Fe|R1],
+	true_features(R,1,R1).
+true_features([Fe|R],_,Features):-
+    ->	Features = [Fe|R1],
+	true_features(R,no,R1).
+
+record_or_structure([],Str,_Rec,Inst):-
+    ->	Inst = Str.
+record_or_structure([_|_],_Str,Rec,Inst):-
+    ->  Inst = Rec.
+

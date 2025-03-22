@@ -1,0 +1,410 @@
+% consistency compilation of linear constraints 
+% by Mats Carlsson and Bjorn Carlson
+% :- load(fd_arith_tell).
+% :- load(fd_arith_ask).
+
+fd_tell_expression(E1, E2, Rel, S)-Temp :-
+    	fd_tell_expression_x(E1, E2, Rel, S0, [])-Temp,
+	fd_peephole_unif(S0, S).
+
+fd_tell_expression_x(E1, E2, Rel)-S-Temp :-
+	fd_normalize(struct('-',2,[E1,E2]), 1,Poly0,[]),
+	keysort(Poly0, Poly1),
+	keyfuse(Poly1, Poly2),
+    	fd_split(Poly2, LHS0, [], RHS0, []),
+	fd_get_constant(LHS0, LCon, LHS),
+	fd_get_constant(RHS0, RCon, RHS),
+	length(LHS, N0),
+	length(RHS, N1),
+	N is N0+N1,
+	dispatch_length(N, LHS, LCon, RHS, RCon, Rel)-S-Temp.
+
+fd_peephole_unif(S0, S) :-
+    	fd_peephole_unif(S0, U, I),
+	'$concat'(U, I, S).
+
+fd_peephole_unif([], U, I) :-
+    ->	U=[],
+	I=[].
+fd_peephole_unif([X|R], U, I) :-
+    ->	fd_peephole_unif_dispatch(X, R, U, I).
+
+fd_peephole_unif_dispatch(X, R, U, I) :-
+	X = struct('=',_,_)
+    ->	U=[X|U0],
+	fd_peephole_unif(R, U0, I).
+fd_peephole_unif_dispatch(X, R, U, I) :-
+    ->	I=[X|I0],
+	fd_peephole_unif(R, U, I0).
+
+fd_ask_expression(E1, E2, Rel, S) :-
+    	fd_ask_expression_x(E1, E2, Rel, S, []).
+
+fd_ask_expression_x(E1, E2, Rel)-S :-
+	fd_normalize(struct('-',2,[E1,E2]), 1,Poly0,[]),
+	keysort(Poly0, Poly1),
+	keyfuse(Poly1, Poly2),
+	fd_split(Poly2, LHS0, [], RHS0, []),
+	fd_get_constant(LHS0, LCon, LHS),
+	fd_get_constant(RHS0, RCon, RHS),
+	compare(Key, LCon, RCon),
+	fd_ask_lhs(Key, LCon, RCon, Con),
+	fd_ask_rhs(Key, Rel, LHS, RHS, R),
+	[struct(fd,2,[struct(ask,0,[]),struct(in,2,[Con,R])])]-S.
+
+dispatch_length(N, LHS, LCon, RHS, RCon, Rel)-S-_Temp :-
+	N<5
+    ->	fd_inline_compile(LHS, LCon, RHS, RCon, Rel, N)-S.
+dispatch_length(_N, LHS, LCon, RHS, RCon, Rel)-S-Temp :-
+    ->	fd_trans_rel(LHS, LCon, RHS, RCon, Rel)-S-Temp.
+
+fd_normalize(I, Sign)-L :- 
+	I=var(_)
+    ->	[(I-struct(Sign,0,[]))]-L.
+fd_normalize(I, Sign)-L :-
+	I=struct(I0,0,_)
+    ->	[(struct(1,0,[])-J)]-L,
+	integer(I0),
+	J0 is I0*Sign,
+	J = struct(J0,0,[]).
+fd_normalize(struct('*',2,[K,I]), Sign)-L :-
+    ->	K=struct(K0,0,_),
+	integer(K0),
+	J0 is K0*Sign,
+	J=struct(J0,0,[]),
+	[(I-J)]-L.
+fd_normalize(struct('+',2,[E1,E2]), Sign)-L :-
+    ->	fd_normalize(E1, Sign)-L,
+	fd_normalize(E2, Sign)-L.
+fd_normalize(struct('-',2,[E1,E2]), Sign)-L :-
+    ->	fd_normalize(E1, Sign)-L,
+	Neg is -Sign,
+	fd_normalize(E2, Neg)-L.
+
+keyfuse([], L) :-
+    ->	L=[].
+keyfuse([K-I,K-J|L1], L2) :- 
+    ->	I=struct(I0,_,_),
+	J=struct(J0,_,_),
+	IJ0 is I0+J0, 
+	keyfuse([(K-struct(IJ0,0,[]))|L1], L2).
+keyfuse([X|L1], L) :- 
+    ->	L=[X|L2],
+	keyfuse(L1, L2).
+
+fd_split([], LHS0, LHS, RHS0, RHS) :-
+    ->	LHS=LHS0,
+	RHS=RHS0.
+fd_split([K-I|Poly], LHS0, LHS, RHS0, RHS) :-
+    ->	I=struct(I0,_,_),
+	compare(Key, I0, 0),
+	fd_split(Key, K, I0, Poly, LHS0, LHS, RHS0, RHS).
+
+fd_split(<, K, I, Poly, LHS0, LHS, RHS0, RHS) :-
+    ->	J is -I,
+	RHS0=[K-struct(J,0,[])|RHS00],
+	fd_split(Poly, LHS0, LHS, RHS00, RHS).
+fd_split(=, _, _, Poly, LHS0, LHS, RHS0, RHS) :-
+    ->	fd_split(Poly, LHS0, LHS, RHS0, RHS).
+fd_split(>, K, I, Poly, LHS0, LHS, RHS0, RHS) :-
+    ->	LHS0=[K-struct(I,0,[])|LHS00],
+	fd_split(Poly, LHS00, LHS, RHS0, RHS).
+
+fd_get_constant([], C, P) :-
+    ->	C=struct(0,0,[]),
+	P=[].
+fd_get_constant([X|Poly0], C, Poly) :- 
+    ->	fd_get_constant_0(X, Poly0, C, Poly).
+
+fd_get_constant_0(struct(1,_,_)-C0, P0, C, P) :-
+    ->	C0=C,
+	P0=P.
+fd_get_constant_0(X, P0, C, P) :- 
+    ->	fd_get_constant(P0, C, P1),
+	P=[X|P1].
+
+t_r_0(KR)-_L :-
+	KR>0
+    ->	true.
+t_r_0(_)-L :-
+    ->	[fail]-L.
+
+fd_trans_rel([], C, [], D, Rel)-L-_Temp :-
+    ->	compare(Key, C, D),
+	key_code(Key, KeyCode),
+	rel_code(Rel, RelCode),
+	KR is KeyCode/\RelCode,
+	t_r_0(KR)-L.
+fd_trans_rel([], C, RHS, D, Rel)-L-Temp :-
+    ->	rel_inverse(Rel, Rel1),
+	C=struct(C0,_,_),
+	D=struct(D0,_,_),
+	Con is C0-D0, compare(Key, Con, 0),
+	fd_trans_rel_by_one(Key, RHS, struct(Con,0,[]), Rel1)-L-Temp.
+fd_trans_rel(LHS, C, [], D, Rel)-L-Temp :-
+    ->	C=struct(C0,_,_),
+	D=struct(D0,_,_),
+	Con is D0-C0, compare(Key, Con, 0),
+	fd_trans_rel_by_one(Key, LHS, struct(Con,0,[]), Rel)-L-Temp.
+fd_trans_rel(LHS, C, RHS, D, =)-L-Temp :-
+    ->	compare(Key, C, D),
+	length(LHS, Ln),
+	length(RHS, Rn),
+	T=var(fd_temp(Temp)),
+	inc-Temp,
+	U=var(fd_temp(Temp)),
+	inc-Temp,
+	fd_trans_poly(Ln, LHS, [], T, S, S0)-Temp,
+	fd_trans_poly(Rn, RHS, [], U, S0, [])-Temp,
+	fd_trans_eq_by_two(Key, S, T, C, U, D)-L.
+fd_trans_rel(LHS, C, RHS, D, Rel)-L-Temp :-
+    ->	compare(Key, C, D),
+	length(LHS, Ln),
+	length(RHS, Rn),
+	T=var(fd_temp(Temp)),
+	inc-Temp,
+	U=var(fd_temp(Temp)),
+	inc-Temp,
+	fd_trans_poly(Ln, LHS, [], T)-L-Temp,
+	fd_trans_poly(Rn, RHS, [], U)-L-Temp,
+	fd_trans_rel_by_two(Key, T, C, U, D, Rel)-L.
+
+% peep hole opt:
+% x+y=t, t+z=c --> x+y+z=c
+% y+z=t, x+z=c --> x+y+z=c
+t_u_eq_c([], T0, T1, C)-L :-
+    ->	[struct('t+u=c',3,[T0,T1,C])]-L.
+t_u_eq_c([struct('x+y=t',3,[X,Y,T])|R], T, T1, C)-L :-
+    ->	dlist(R)-L,
+	[struct('x+y+z=c',4,[X,Y,T1,C])]-L.
+t_u_eq_c([struct('x+y=t',3,[X,Y,T])|R], T0, T, C)-L :-
+    ->	dlist(R)-L,
+	[struct('x+y+z=c',4,[T0,X,Y,C])]-L.
+t_u_eq_c([X|R], T0, T1, C)-L :-
+    ->	[X]-L,
+	t_u_eq_c(R, T0, T1, C)-L.
+
+fd_trans_poly(1, [U-C|Poly0], Poly, T)-L-_Temp :-
+    ->	Poly0=Poly,
+	fd_trans_poly_1(C, U, T)-L.
+fd_trans_poly(2, [U-C,V-D|Poly0], Poly, T)-L-_Temp :-
+    ->	Poly0=Poly,
+	fd_trans_poly_2(C, U, D, V, T)-L.
+fd_trans_poly(3, [U-C,V-D,W-E|Poly0], Poly, T)-L-Temp :- 
+    ->	Poly0=Poly,
+	T0=var(fd_temp(Temp)),
+	inc-Temp,
+	fd_trans_poly_2(C, U, D, V, T0)-L,
+	fd_trans_poly_2(struct(1,_,_), T0, E, W, T)-L.
+fd_trans_poly(I, Poly0, Poly, T)-L-Temp :-
+    ->	J is I>>1, K is I-J,
+	T0=var(fd_temp(Temp)),
+	inc-Temp,
+	T1=var(fd_temp(Temp)),
+	inc-Temp,
+	fd_trans_poly(J, Poly0, Poly1, T0)-L-Temp,
+	fd_trans_poly(K, Poly1, Poly, T1)-L-Temp,
+	[struct('x+y=t',3,[T0,T1,T])]-L.
+
+fd_trans_poly_1(struct(1,_,_), U, T)-L :-
+    ->	[struct('=',2,[T,U])]-L.
+fd_trans_poly_1(C, U, T)-L :- 
+    ->	[struct('ax=t',3,[C,U,T])]-L.
+
+fd_trans_poly_2(struct(1,_,_),U,struct(1,_,_),V,T)-L :- 
+    ->	[struct('x+y=t',3,[U,V,T])]-L.
+fd_trans_poly_2(struct(1,_,_),U,D,V,T)-L :- 
+    ->	[struct('ax+y=t',4,[D,V,U,T])]-L.
+fd_trans_poly_2(C,U,struct(1,_,_),V,T)-L :- 
+    ->	[struct('ax+y=t',4,[C,U,V,T])]-L.
+fd_trans_poly_2(C,U,D,V,T)-L :- 
+    ->	[struct('ax+by=t',5,[C,U,D,V,T])]-L.
+
+fd_trans_rel_by_one(<, _, _, Rel)-L-_Temp :-
+    ->	rel_code(Rel, RelCode),
+	KR is RelCode/\2'001,
+	t_r_0(KR)-L.
+fd_trans_rel_by_one(=, LHS, _, Rel)-L-Temp :-
+    ->	fd_trans_rel_by_one_eq(Rel, LHS)-L-Temp.
+fd_trans_rel_by_one(>, LHS, Con, Rel)-L-Temp :-
+    ->	fd_trans_poly_rel_c(LHS, Rel, Con)-L-Temp.
+
+fd_trans_rel_by_one_eq(=, LHS)-L-_Temp :- 
+    ->	poly_zero(LHS)-L.
+fd_trans_rel_by_one_eq(=<, LHS)-L-_Temp :- 
+    ->	poly_zero(LHS)-L.
+fd_trans_rel_by_one_eq(\=, LHS)-L-Temp :- 
+    ->	fd_trans_poly_rel_c(LHS, >=, 1)-L-Temp.
+fd_trans_rel_by_one_eq(>=, _)-_L-_Temp :- 
+    ->	true.
+
+poly_zero([])-_L :- 
+    ->	true.
+poly_zero([V-_|R])-L :- 
+    ->	[struct('t=c',2,[V,struct(0,0,[])])]-L, 
+	poly_zero(R)-L.
+
+% divide and conquer translation
+fd_trans_poly_rel_c([U-C], Rel, Con)-L-_Temp :-
+    ->	fd_trans_poly_1(C, U, T)-L,
+	t_rel_c(Rel, T, Con)-L.
+fd_trans_poly_rel_c(Poly0, =, Con)-L-Temp :-
+    ->	length(Poly0, I),
+	J is I>>1, K is I-J,
+	T0=var(fd_temp(Temp)),
+	inc-Temp,
+	T1=var(fd_temp(Temp)),
+	inc-Temp,
+	fd_trans_poly(J, Poly0, Poly1, T0, S, S0)-Temp,
+	fd_trans_poly(K, Poly1, [], T1, S0, [])-Temp,
+	t_u_eq_c(S, T0, T1, Con)-L.
+fd_trans_poly_rel_c(Poly0, Rel, Con)-L-Temp :-
+    ->	length(Poly0, I),
+	J is I>>1, K is I-J,
+	T0=var(fd_temp(Temp)),
+	inc-Temp,
+	T1=var(fd_temp(Temp)),
+	inc-Temp,
+	fd_trans_poly(J, Poly0, Poly1, T0)-L-Temp,
+	fd_trans_poly(K, Poly1, [], T1)-L-Temp,
+	t_u_rel_c(Rel, T0, T1, Con)-L.
+
+fd_trans_rel_by_two(<, T, C, U, D, Rel)-L :-
+    ->	C=struct(C0,_,_),
+	D=struct(D0,_,_),
+	Con is D0-C0,
+	t_rel_u_c(Rel, T, U, struct(Con,0,[]))-L.
+fd_trans_rel_by_two(=, T, _, U, _, =)-L :-	
+    ->	[struct('=',2,[T,U])]-L.
+fd_trans_rel_by_two(=, T, _, U, _, Rel)-L :-
+    ->	t_rel_u_c_0(Rel, T, U)-L.
+fd_trans_rel_by_two(>, T, C, U, D, Rel)-L :-
+    ->	C=struct(C0,_,_),
+	D=struct(D0,_,_),
+	Con is C0-D0,
+	rel_inverse(Rel, Rel1),
+	t_rel_u_c(Rel1, U, T, struct(Con,0,[]))-L.
+
+fd_trans_eq_by_two(<, S, T, C, U, D)-L :-
+    ->	C=struct(C0,_,_),
+	D=struct(D0,_,_),
+	Con is D0-C0,
+	t_eq_u_c(S, T, U, struct(Con,0,[]))-L.
+fd_trans_eq_by_two(=, S, T, _, U, _)-L :- 
+    ->	dlist(S)-L,
+	[struct('=',2,[T,U])]-L.
+fd_trans_eq_by_two(>, S, T, C, U, D)-L :-
+    ->	C=struct(C0,_,_),
+	D=struct(D0,_,_),
+	Con is C0-D0,
+	t_eq_u_c(S, U, T, struct(Con,0,[]))-L.
+
+% peep hole opt:
+% x+y=t, t=u+c --> x+y=u+c
+% x+y=u, t=u+c --> t=x+y+c
+t_eq_u_c([], T0, T1, C)-L :- -> [struct('t=u+c',3,[T0,T1,C])]-L.
+t_eq_u_c([struct('x+y=t',3,[X,Y,T])|R], T, T1, C)-L :-
+    ->	dlist(R)-L,
+	[struct('x+y=u+c',4,[X,Y,T1,C])]-L.
+t_eq_u_c([struct('x+y=t',3,[X,Y,T])|R], T0, T, C)-L :-
+    ->	dlist(R)-L,
+	[struct('t=x+y+c',4,[T0,X,Y,C])]-L.
+t_eq_u_c([X|R], T0, T1, C)-L :-
+    ->	[X]-L,
+	t_eq_u_c(R, T0, T1, C)-L.
+
+t_rel_c(=, T, Con)-L  :- -> [struct('t=c',2,[T,Con])]-L.
+t_rel_c(=<, T, Con)-L :- -> [struct('t=<c',2,[T,Con])]-L.
+t_rel_c(\=, T, Con)-L :- -> [struct('t\=c',2,[T,Con])]-L.
+t_rel_c(>=, T, Con)-L :- -> [struct('t>=c',2,[T,Con])]-L.
+
+t_rel_u_c(=, T, U, Con)-L  :- -> [struct('t=u+c',3,[T,U,Con])]-L.
+t_rel_u_c(=<, T, U, Con)-L :- -> [struct('t=<u+c',3,[T,U,Con])]-L.
+t_rel_u_c(\=, T, U, Con)-L :- -> [struct('t\=u+c',3,[T,U,Con])]-L.
+t_rel_u_c(>=, T, U, Con)-L :- -> [struct('t>=u+c',3,[T,U,Con])]-L.
+
+t_rel_u_c_0(=, T, U)-L  :- -> [struct('t=u',2,[T,U])]-L.
+t_rel_u_c_0(=<, T, U)-L :- -> [struct('t=<u',2,[T,U])]-L.
+t_rel_u_c_0(\=, T, U)-L :- -> [struct('t\=u',2,[T,U])]-L.
+t_rel_u_c_0(>=, T, U)-L :- -> [struct('t>=u',2,[T,U])]-L.
+
+t_u_rel_c(=, T, U, Con)-L  :- -> [struct('t+u=c',3,[T,U,Con])]-L.
+t_u_rel_c(=<, T, U, Con)-L :- -> [struct('t+u=<c',3,[T,U,Con])]-L.
+t_u_rel_c(\=, T, U, Con)-L :- -> [struct('t+u\=c',3,[T,U,Con])]-L.
+t_u_rel_c(>=, T, U, Con)-L :- -> [struct('t+u>=c',3,[T,U,Con])]-L.
+
+dlist([])-_L :- true.
+dlist([X|L0])-L :-
+	[X]-L,
+	dlist(L0)-L.
+
+rel_code(=,  2'000).
+rel_code(=<, 2'110).
+rel_code(\=, 2'101).
+rel_code(>=, 2'011).
+
+key_code(<, 2'100).
+key_code(=, 2'010).
+key_code(>, 2'001).
+
+rel_inverse(=, =).
+rel_inverse(=<, >=).
+rel_inverse(\=, \=).
+rel_inverse(>=, =<).
+rel_inverse(<, >).
+rel_inverse(>, <).
+
+fd_inf_sum([], I) :-
+    ->	I=struct(0,0,[]).
+fd_inf_sum([X-C], I) :-
+    ->	fd_inf_sum_0(C, X, I).
+fd_inf_sum([X-C|R], I) :-
+    ->	I=struct('+',2,[I0,I1]),
+	fd_inf_sum_0(C, X, I0),
+	fd_inf_sum(R, I1).
+
+fd_inf_sum_0(struct(1,_,_), X, I) :-
+    ->	I=struct(min,1,[X]).
+fd_inf_sum_0(C, X, I) :-
+    ->	I=struct('*',2,[C,struct(min,1,[X])]).
+
+fd_sup_sum([], I) :-
+    ->	I=struct(0,0,[]).
+fd_sup_sum([X-C], I) :-
+    ->	fd_sup_sum_0(C, X, I).
+fd_sup_sum([X-C|R], I) :-
+    ->	I=struct('+',2,[I0,I1]),
+	fd_sup_sum_0(C, X, I0),
+	fd_sup_sum(R, I1).
+
+fd_sup_sum_0(struct(1,_,_), X, I) :-
+    ->	I=struct(max,1,[X]).
+fd_sup_sum_0(C, X, I) :-
+    ->	I=struct('*',2,[C,struct(max,1,[X])]).
+
+fd_termify(struct(Op,_,L), T) :-
+    ->	fd_termify_list(L, LT),
+	T =.. [Op|LT].
+fd_termify(var(X), T) :-
+    ->	T = X.
+
+fd_termify_list([], L) :-
+    ->	L=[].
+fd_termify_list([X|R], L) :-
+    ->	fd_termify(X, T),
+	L=[T|S],
+	fd_termify_list(R, S).
+
+fd_display_list(L) :-
+    	fd_termify_list(L, LT)
+    ->	write_list(LT).
+
+fd_display_struct(S) :-
+	fd_termify(S, T)
+    ->	write(T), nl.
+
+write_list([]) :-
+    ->	true.
+write_list([X|R]) :-
+	write(X), nl
+    ->	write_list(R).

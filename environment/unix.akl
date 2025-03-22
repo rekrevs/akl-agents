@@ -1,0 +1,98 @@
+% $Id: unix.akl,v 1.4 1994/04/22 08:56:11 rch Exp $
+
+% *** UNIX --- adapted from SICStus
+
+unix(access(Path,Mode)) :-
+	atom(Path), 
+	integer(Mode)
+    ->	Mode >= 0,
+	Mode < 4096,
+	'$unix_access'(Path, Mode).
+unix(access(Path,Mode)) :-
+	integer(Mode)
+    ->	domain_error(access(Path,Mode), 1, atom).
+unix(access(Path,Mode)) :-
+    ->	domain_error(access(Path,Mode), 2, integer).
+unix(argv(Args)) :-
+    ->	'$unix_argv'(Args).
+unix(cd) :-
+    ->	unix_cd('$HOME', cd).
+unix(cd(Path)) :-
+	atom(Path)
+    ->	unix_cd(Path, cd(Path)).
+unix(cd(Path)) :-
+    ->	domain_error(cd(Path), 1, atom).
+unix(chmod(Path,Old,New)) :-
+	atom(Path), 
+	integer(New)
+    ->	unix_chmod(Path, Old, New).
+unix(chmod(Path,Old,New)) :-
+	integer(New)
+    ->	domain_error(chmod(Path,Old,New), 1, atom).
+unix(chmod(Path,Old,New)) :-
+    ->	domain_error(chmod(Path,Old,New), 3, integer).
+unix(exit(Status)) :-
+	integer(Status),
+	Status >= -32768,
+	Status < 32768
+    ->	'$unix_exit'(Status).
+unix(exit(Status)) :-
+    ->	domain_error(exit(Status), 1, 'integer in -32768..32767').
+unix(mktemp(Template,Filename)) :-
+	atom(Template)
+    ->	unix_mktemp(Template, Filename).
+unix(mktemp(Template,Filename)) :-
+    ->	domain_error(mktemp(Template,Filename), 1, atom).
+unix(shell) :-
+    ->	'$unix_shell'.
+unix(shell(Command)) :-
+	atom(Command)
+    ->	'$unix_shell'(Command, 0).
+unix(shell(Command)) :-
+    ->	domain_error(shell(Command), 1, atom).
+unix(shell(Command,Status)) :-
+	atom(Command)
+    ->	'$unix_shell'(Command, Status).
+unix(shell(Command,Status)) :-
+    ->	domain_error(shell(Command,Status), 1, atom).
+unix(system(Command)) :-
+	atom(Command)
+    ->	'$unix_system'(Command, _Status).
+unix(system(Command)) :-
+    ->	domain_error(system(Command), 1, atom).
+unix(system(Command, Status)) :- 
+	atom(Command)
+    ->	'$unix_system'(Command, Status).
+unix(system(Command,Status)) :-
+    ->	domain_error(system(Command,Status), 1, atom).
+unix(umask(Old,New)) :-
+	integer(New)
+    ->	unix_umask(Old, New).
+unix(umask(Old,New)) :-
+    ->	domain_error(umask(Old,New), 2, integer).
+
+unix_cd(Path, _Selector) :-
+	'$unix_cd'(_, Path)
+    ->	true.
+unix_cd(Path, Selector) :-
+    ->	permission_error(Selector, change, 'directory to', Path, 'chdir fails').
+
+unix_chmod(Path, Old, New) :-
+	New >= 0,
+	New < 4096,
+	'$unix_chmod'(Path, Old0, New)
+    ->	Old = Old0.
+unix_chmod(Path, Old, New) :-
+    ->	permission_error(chmod(Path,Old,New), change, 'mode of', Path, 'chmod fails').
+
+unix_mktemp(Template, Filename) :-
+	'$unix_mktemp'(Template, Filename0)
+    ->	Filename = Filename0.
+unix_mktemp(Template, Filename) :-
+    ->	permission_error(mktemp(Template,Filename), make, 'template from', Template, 'mktemp fails').
+
+unix_umask(Old, New) :-
+	'$unix_umask'(Old0, New)
+    ->	Old = Old0.
+unix_umask(Old, New) :-
+    ->	permission_error(umask(Old,New), change, 'umask to', New, 'umask fails').

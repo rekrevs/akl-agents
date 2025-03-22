@@ -1,0 +1,78 @@
+This is Info file agents-user, produced by Makeinfo version 1.67 from
+the input file user.texi.
+
+   This file documents AGENTS.
+
+   Copyright (C) 1990-1994 Swedish Institute of Computer Science
+
+   All rights reserved.
+
+
+Indirect:
+agents-user-1: 220
+agents-user-2: 46946
+agents-user-3: 95329
+
+Tag Table:
+(Indirect)
+Node: Top220
+Node: Introduction1300
+Node: Getting Started2525
+Node: AGENTS3158
+Node: Entering AGENTS3404
+Node: An Example4138
+Node: Compiling the Example4520
+Node: Running the Example5440
+Node: Debugging the Example5874
+Node: Exiting AGENTS7244
+Node: Top-Level Interaction7715
+Node: Demonstration Programs8875
+Node: Libraries9820
+Node: Syntax and (Informal) Semantics10340
+Node: Data10826
+Node: Variables11328
+Node: Constant Symbols12201
+Node: Compound Terms14409
+Node: Programs16845
+Node: Constraints17018
+Node: Trees17426
+Node: Finite Domains17588
+Node: Ports17730
+Node: Built-in Agents18707
+Node: Data Types21182
+Node: Tree Mappings22718
+Node: Tree Comparisons26574
+Node: Arithmetic31770
+Node: Arrays39342
+Node: Hash Tables43576
+Node: Input and Output46754
+Node: I/O Streams46946
+Node: Data I/O52927
+Node: Interaction with UNIX63157
+Node: Compiling and Loading68678
+Node: Exceptions68866
+Node: Miscellaneous69024
+Node: Modules70665
+Node: Debugging70792
+Node: The AKL Box Model72025
+Node: Basic Debugging Agents74725
+Node: Tracing75893
+Node: Spy-points76688
+Node: Monitors and threads78323
+Node: Format of Debugging Messages79502
+Node: Options available during Debugging80367
+Node: Port filter85505
+Node: Summary of Built-in Agents86521
+Node: Standard Operators86708
+Node: System Limits87946
+Node: Getting and Installing AGENTS88760
+Node: Getting AGENTS89075
+Node: Basic Installation89421
+Node: Including GM92636
+Node: Documentation94046
+Node: GNU Emacs Modes95329
+Node: Comments and Bug Reports97096
+Node: Index of Built-ins97696
+Node: Index of Concepts108811
+
+End Tag Table

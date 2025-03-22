@@ -1,0 +1,24 @@
+%
+% MONITORING PROCESSES
+%
+% ?- trace.
+% ?- t(4).
+% Go to recursive p/2. Skip. Monitor this (*).
+% Next monitored (m).  Go to recursive p/2.
+% Monitor children (!).  Next monitored...
+%
+
+t(N) :- p(a(R), N), q(R).
+
+p(R, 0) :-
+    ->  R = a(nil).
+p(a(R), N) :-
+    ->	R = b(R1),
+	N1 is N-1,
+	p(R1, N1).
+
+q(nil) :-
+    ->	true.
+q(b(R)) :-
+    ->	R = a(R1),
+	q(R1).

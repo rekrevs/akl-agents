@@ -1,0 +1,77 @@
+% $Id: main.akl,v 1.11 1994/04/26 06:56:22 jm Exp $
+
+% compilef(file {, modes})
+% compile(file {, modes})
+
+% import read_definitions from reader.akl
+% import compile_definitions from compiler.akl
+
+compilef(Base) :-
+	compilef(Base, []).
+
+compile(Base) :-
+	compile(Base, []).
+
+compilef([], _ModeList) :-
+    ->	true.
+compilef([Base|Bases], ModeList) :-
+    ->	compilef(Base, ModeList),
+	compilef(Bases, ModeList).
+compilef(Base, ModeList) :-
+    ->	bases_to_akl_pam(Base, Base, InFile, OutFile),
+	compile_file_to_file(InFile, OutFile, ModeList).
+
+compile([], _ModeList) :-
+    ->	true.
+compile([Base|Bases], ModeList) :-
+    ->	compile(Base, ModeList),
+	compile(Bases, ModeList).
+compile(Base, ModeList) :-
+    ->	unix(mktemp('/tmp/aklXXXXXX', Temp)),
+	bases_to_akl_pam(Base, Temp, InFile, OutFile),
+	compile_file_to_file(InFile, OutFile, ModeList)
+	&
+	load_quietly(OutFile)
+	&
+	atom_to_chars(OutFile, CharsFile),
+	'$concat'("/bin/rm ", CharsFile, CharsCommand),
+        chars_to_atom(CharsCommand, Command),
+	unix(shell(Command)).
+ 
+
+compile_file_to_file(InFile0, OutFile0, ModeList) :-
+	find_file('.', InFile0, '.akl', Found, InFile, _InDir),
+	find_file('.', OutFile0, '.pam', _Found, OutFile, _OutDir),	
+	translate_modelist(ModeList, Modes),
+	compile_file_to_file(Found, InFile, OutFile, Modes).
+
+compile_file_to_file(true, InFile, OutFile, Modes) :-
+    ->  format('{compiling ~w...}~n',[InFile]),
+	statistics(runtime,[T0|_]),
+	compile_quietly(InFile, OutFile, Modes)
+	&
+	statistics(runtime,[T1|_]),
+	T is T1-T0,
+	format('{~w compiled, ~w ms}~n', [InFile, T]).
+compile_file_to_file(_, InFile, _, _) :-
+    ->  format('{ERROR: file not found ~w}~n', [InFile]).
+
+compile_quietly(InFile, OutFile, Modes) :-
+	fopen(InFile, r, In),
+	fopen(OutFile, w, Out),
+	read_and_compile(Modes)-In-Out,
+	fclose@In,
+	fclose@Out.
+
+read_and_compile(Modes)-In-Out :-
+	Defs = [_|_],
+	read_definitions(Defs)-In,
+	compile_definitions(Defs, Modes, [])-Out.
+
+bases_to_akl_pam(InBase, OutBase, InFile, OutFile) :-
+	atom_to_chars(InBase, InBaseString),
+	'$concat'(InBaseString, ".akl", InFileString),
+	chars_to_atom(InFileString, InFile),
+	atom_to_chars(OutBase, OutBaseString),
+	'$concat'(OutBaseString, ".pam", OutFileString),
+	chars_to_atom(OutFileString, OutFile).

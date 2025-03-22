@@ -1,0 +1,190 @@
+%   Copyright(C) 1993, Swedish Institute of Computer Science
+%   Adapted from shared code written by Richard A. O'Keefe
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%   File   : ASSOC.AKL                                                 %
+%   Author : R.A.O'Keefe (adapted for AKL by Dan Sahlin)               %
+%   Updated: 9 November 1983                                           %
+%   Purpose: Binary tree implementation of "association lists".        %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% version with argument order suitable for AKL
+% get_assoc/5 renamed to set_assoc/5
+
+% compatibility with arrays:
+
+% new_array/2
+% set_array/5   set_assoc/5
+% get_array/4   get_assoc/4
+% missing       put_assoc/4
+% missing       empty_assoc/1
+
+% nice renaming not yet introduced:
+%                list_to_assoc -> alist_to_assoc
+%                assoc_to_list -> assoc_to_alist
+%                ord_list_to_assoc -> ord_alist_to_assoc
+
+/*
+:- module(assoc, [
+	assoc_to_list/2,
+	gen_assoc/3,
+	get_assoc/4,
+	set_assoc/5,
+	list_to_assoc/2,
+	map_assoc/3,
+	ord_list_to_assoc/2,
+	put_assoc/4
+   ]).
+
+:- meta_predicate
+	map_assoc(:, ?, ?).
+*/
+
+
+%   gen_assoc(?Key, +Assoc, ?Value)
+%   assumes that Assoc is a proper "assoc" tree, and is true when
+%   Key is associated with Value in Assoc.  Can be used to enumerate
+%   all Values by ascending Keys.
+
+gen_assoc(Key, t(_,_,L,_), Val) :- gen_assoc(Key, L, Val).
+gen_assoc(Key, t(Key,Val,_,_), Val).
+gen_assoc(Key, t(_,_,_,R), Val) :- gen_assoc(Key, R, Val).
+
+
+
+%   get_assoc(+Key, ?Value, +Assoc, ?OutAssoc)
+%   assumes that Assoc is a proper "assoc" tree.  It is true when
+%   Key is identical to (==) one of the keys in Assoc, and Value
+%   unifies with the associated value.
+%   The OutAssoc returned is identical to the input Assoc and is used
+%   only for synchronization (and compatibility with the array package)
+
+get_assoc(Key, Val, Assoc, Assoc) :-
+	get_assoc(Key, Val, Assoc).
+
+get_assoc(Key, Val, t(K,V,L,R)) :-
+	compare(Rel, Key, K),
+	get_assoc(Rel, Key, V, L, R, Val).
+
+get_assoc(=, _, Val0, _, _, Val) :-
+    ->  Val=Val0.
+get_assoc(<, Key, _, Tree, _, Val) :-
+    ->  get_assoc(Key, Val, Tree).
+get_assoc(>, Key, _, _, Tree, Val) :-
+    ->  get_assoc(Key, Val, Tree).
+
+
+
+%   set_assoc(+Key, ?OldValue, ?NewValue, +OldAssoc, ?NewAssoc)
+%   is true when OldAssoc and NewAssoc are "assoc" trees of the same
+%   shape having the same elements except that the value for Key in
+%   OldAssoc is OldValue and the value for Key in NewAssoc is NewValue.
+
+set_assoc(Key, Val0, Val, t(K0,V0,L0,R0), NewAssoc) :-
+    ->  NewAssoc=t(K,V,L,R),
+	compare(Rel, Key, K0),
+	set_assoc(Rel, Key, K0, V0, L0, R0, Val0, K, V, L, R, Val).
+
+set_assoc(=, _, K, Val0, L, R, Val0N, KN, Val, LN, RN, ValN) :-
+    ->  KN=K, LN=L, RN=R, ValN=Val, Val0N=Val0.
+set_assoc(<, Key, K, V, Tree0, R, Val0, KN, VN, Tree, RN, Val) :-
+    ->  KN=K, VN=V, RN=R,
+	set_assoc(Key, Val0, Val, Tree0, Tree).
+set_assoc(>, Key, K, V, L, Tree0, Val0, KN, VN, LN, Tree, Val) :-
+    ->  KN=K, VN=V, LN=L,
+	set_assoc(Key, Val0, Val, Tree0, Tree).
+
+
+
+%   assoc_to_list(+Assoc, ?List)
+%   assumes that Assoc is a proper "assoc" tree, and is true when
+%   List is a list of Key-Value pairs in ascending order with no
+%   duplicate Keys specifying the same finite function as Assoc.
+%   Use this to convert an assoc to a list.
+
+assoc_to_list(Assoc, List) :-
+	assoc_to_list(Assoc, List, []).
+
+assoc_to_list(t)-_List :-
+    ->  true.
+assoc_to_list(t(Key,Val,L,R))-List :-
+    ->  assoc_to_list(L)-List,
+	[Key-Val]-List,
+	assoc_to_list(R)-List.
+
+
+
+%   list_to_assoc(+List, ?Assoc)
+%   is true when List is a proper list of Key-Val pairs (in any order)
+%   and Assoc is an association tree specifying the same finite function
+%   from Keys to Values.
+
+list_to_assoc(List, Assoc) :-
+	keysort(List, Keys),
+	length(Keys, N),
+	list_to_assoc(N, Keys, Assoc, []).
+
+list_to_assoc(0, List0, Assoc, List) :-
+    ->  List=List0, Assoc=t.
+list_to_assoc(N, List, Assoc, Rest) :-
+    ->  Assoc=t(Key,Val,L,R),
+	A is (N-1) >> 1,
+	Z is (N-1)-A,
+	list_to_assoc(A, List, L, [Key-Val|More]),
+	list_to_assoc(Z, More, R, Rest).
+
+
+
+%   ord_list_to_assoc(+List, ?Assoc)
+%   is true when List is a proper list of Key-Val pairs (keysorted)
+%   and Assoc is an association tree specifying the same finite function
+%   from Keys to Values.
+
+ord_list_to_assoc(List, Assoc) :-
+	length(List, N),
+	list_to_assoc(N, List, Assoc, []).
+
+
+
+%   map_assoc(:Pred, ?OldAssoc, ?NewAssoc)
+%   is true when OldAssoc and NewAssoc are association trees of the
+%   same shape, and for each Key, if Key is associated with Old in
+%   OldAssoc and with New in NewAssoc, Pred(Old,New) is true.
+
+map_assoc(Pred, OldAssoc, NewAssoc) :-
+	map_assoc2(OldAssoc, NewAssoc, Pred).
+
+map_assoc2(t, Assoc, _) :-
+    ->  Assoc=t.
+map_assoc2(t(Key,Old,L0,R0), Assoc, Pred) :-
+    ->  Assoc=t(Key,New,L1,R1),
+	map_assoc2(L0, L1, Pred),
+	Pred(Old,New),
+	map_assoc2(R0, R1, Pred).
+
+
+
+%   put_assoc(+Key, +Val, +OldAssoc, -NewAssoc)
+%   is true when OldAssoc and NewAssoc define the same finite function,
+%   except that NewAssoc associates Val with Key.  OldAssoc need not
+%   have associated any value at all with Key.
+
+put_assoc(Key, Val, OldAssoc, NewAssoc) :-
+	put_assoc1(OldAssoc, Key, Val, NewAssoc).
+
+put_assoc1(t, Key, Val, Assoc) :-
+    ->  Assoc=t(Key,Val,t,t).
+put_assoc1(t(K,V,L,R), Key, Val, New) :-
+    ->  compare(Rel, Key, K),
+	put_assoc1(Rel, Key, Val, New, K, V, L, R).
+
+put_assoc1(=, Key, Val, Assoc, _, _, L, R) :-
+    ->  Assoc=t(Key,Val,L,R).
+put_assoc1(<, Key, Val, Assoc, K, V, L, R) :-
+    ->  Assoc=t(K,V,Tree,R),
+	put_assoc1(L, Key, Val, Tree).
+put_assoc1(>, Key, Val, Assoc, K, V, L, R) :-
+    ->  Assoc=t(K,V,L,Tree),
+	put_assoc1(R, Key, Val, Tree).
+
+empty_assoc(t).

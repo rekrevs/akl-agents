@@ -1,0 +1,67 @@
+-----------------------------------------------------------------------------
+ Abstract syntax for AKL,	Thomas Sjöland 93 04 21 -  version 7
+-----------------------------------------------------------------------------
+ routines for reading and writing AKL programs 
+  forming library(reader)
+
+utilities.akl
+	various definitions of general use in AKL programs.
+	(moved to main library directory, no longer part of library(reader)).
+
+map.akl
+	definitions for applying definitions to each element
+	in a list
+	(moved to main library directory, no longer part of library(reader)).
+
+syntax.akl
+	definitions for the syntactic components of AKL programs.
+
+rwrDTERM0.akl
+	definitions for reading and writing terms of the
+	form DTERM0.
+
+convDTERM0toDTERM1.akl
+	definitions for converting terms between
+	the form DTERM0 and the form DTERM1.	
+ 	
+rwrDTERM1.akl
+	definitions for reading and writing terms of the
+	form DTERM1.
+
+convDTERM1toDPROGRAM.akl
+	definitions for converting terms between
+	the form DTERM1 and the form DPROGRAM.
+
+convDPROGRAMtoDPROGRAM.akl
+	definitions for conversion and information extraction
+	in elements of the type DPROGRAM.
+
+annotDPROGRAM.akl
+	definitions for handling annotations 
+ 	in elements of the type DPROGRAM.
+
+Makefile
+	contains productions for compiling .pam-files from .akl-files,
+	and the running of a test-example after first loading the
+	appropriate files. 
+  	'make' constructs reader.pam on the directory ..
+	'make test' performs the query in the makefile variable $AKLCOMMAND
+		e.g. 'normalize_program(test)'. or 'xref(test).'
+	'make clean' removes pam-files
+	'make debug' constructs 'query.akl' used for debugging
+
+README
+	this file
+
+toplevel.akl
+	test-queries
+
+test?
+	files used as input to the tested definitions, 
+ 	e.g. normalize_program/2 constructs a file "N.norm" from the input 
+	file N.
+
+
+	
+
+

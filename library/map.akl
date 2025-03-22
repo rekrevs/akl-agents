@@ -1,0 +1,110 @@
+%-------------------------------------------------------------------------
+% map.akl
+% Author: Thomas Sjöland, SICS 1993
+% usage: various definitions of mapping a relation, function or
+% definition over the elements of a list. E.g. in map(P,List)
+% the predicate P(X) is applied to each element X of the list.
+% Variants with the name 'smap' contains accumulator pairs, one, 
+% two or three.
+%-------------------------------------------------------------------------
+% apply P(E) to each element E of a list
+map(_P,[]) :- 
+    ->  true.
+map(P,[H|T]) :-
+    ->  
+%	P(H),
+	apply(P,[H]),
+	map(P,T).
+
+% apply P(E,G) to each element E of a list producing L of Gs
+map(_P,[],L) :- 
+    ->  L=[],
+	true.
+map(P,[H|T],L) :- 
+    ->  L=[G|R],
+%	P(H,G), 
+	apply(P,[H,G]),
+	map(P,T,R).
+
+% apply write predicate P(E,S0,S1) successively to a list with comma between
+smapwr(_P,[],S0,S1) :- 
+    ->  S0=S1.
+smapwr(P,[H|T],S0,S2) :- 
+    ->  
+%	P(H,S0,S1), 
+	apply(P,[H,S0,S1]),
+	smapwr0(P,T,S1,S2).
+smapwr0(_P,[],S0,S1) :- 
+    ->  S0=S1.
+smapwr0(P,[H|T],S0,S3) :- 
+    ->  write0(',',S0,S1),
+%	P(H,S1,S2), 
+	apply(P,[H,S1,S2]),
+	smapwr0(P,T,S2,S3).
+
+% apply P(E,S0,S1) successively to a list, one accumulator
+smap(_P,[],S0,S1) :- 
+    ->  S0=S1.
+smap(P,[H|T],S0,S2) :- 
+    ->  
+%	P(H,S0,S1), 
+	apply(P,[H,S0,S1]),
+	smap(P,T,S1,S2).
+
+% apply P(E,G,S0,S1) successively to a list producing L, one acc
+smap(_P,[],L,S0,S1) :- 
+    ->  L=[], S0=S1.
+smap(P,[H|T],L,S0,S2) :- 
+    ->  L=[G|R],
+%	P(H,G,S0,S1), 
+	apply(P,[H,G,S0,S1]),
+	smap(P,T,R,S1,S2).
+
+% apply P(E,I0,I1,S0,S1) successively to a list, two accumulators
+smap(_P,[],I0,I1,S0,S1) :- 
+    ->  I0=I1,
+	S0=S1.
+smap(P,[H|T],I0,I2,S0,S2) :- 
+    ->  
+%	P(H,I0,I1,S0,S1), 
+	apply(P,[H,I0,I1,S0,S1]),
+	smap(P,T,I1,I2,S1,S2).
+
+% apply P(E,G,I0,I1,S0,S1) successively to a list producing L, two accs
+smap(_P,[],L,I0,I1,S0,S1) :- 
+    ->  L=[], 
+	I0=I1,
+	S0=S1.
+smap(P,[H|T],L,I0,I2,S0,S2) :- 
+    ->  L=[G|R],
+%	P(H,G,I0,I1,S0,S1), 
+	apply(P,[H,G,I0,I1,S0,S1]),
+	smap(P,T,R,I1,I2,S1,S2).
+
+% apply P(E,I0,I1,S0,S1) successively to a list, three accumulators
+smap(_P,[],I0,I1,A0,A1,S0,S1) :- 
+    ->  I0=I1,
+	A0=A1,
+	S0=S1.
+smap(P,[H|T],I0,I2,A0,A2,S0,S2) :- 
+    ->  
+%	P(H,I0,I1,A0,A1,S0,S1), 
+	apply(P,[H,I0,I1,A0,A1,S0,S1]),
+	smap(P,T,I1,I2,A1,A2,S1,S2).
+
+% apply P(E,G,I0,I1,S0,S1) successively to a list producing L,three accs
+smap(_P,[],L,I0,I1,A0,A1,S0,S1) :- 
+    ->  L=[], 
+	I0=I1,
+	A0=A1,
+	S0=S1.
+smap(P,[H|T],L,I0,I2,A0,A2,S0,S2) :- 
+    ->  L=[G|R],
+%	P(H,G,I0,I1,A0,A1,S0,S1), 
+	apply(P,[H,G,I0,I1,A0,A1,S0,S1]),
+	smap(P,T,R,I1,I2,A1,A2,S1,S2).
+
+%-------------------------------------------------------------------------
+% end of map.akl
+%-------------------------------------------------------------------------
+

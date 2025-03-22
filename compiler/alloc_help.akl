@@ -1,0 +1,1245 @@
+
+%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%      Assignment manipulations
+%%%%
+%%%%      Ass struct = ass(AssL,Frees,Max)
+%%%%                AssL= list of p(Name,Comp),
+%%%%                Comp=xy(XPart,YPart) or x(XPart) or y(YPart)
+%%%%                Frees= list of free reg
+%%%%                Max = max reg (all above are free)
+%%%%      Debug
+%%%%          is_ass(Ass)       {fails if not ass/3}
+%%%%
+%%%%      Structure parts
+%%%%          get_assignments(Ass,AssL)
+%%%%          set_assignments(Ass,NewAssL,Ass1),
+%%%%          get_frees_max(Ass,Frees,Max)
+%%%%          get_frees(Ass,Frees)
+%%%%          set_frees(Ass,NewFrees,Ass1)
+%%%%          set_frees_max(Ass,NewFrees,NewMax,Ass1)
+%%%%
+%%%%      Frees,Max manipulations:       
+%%%%            
+%%%%          free_reg(Reg,Ass,Ass1)
+%%%%          free_regs(RegList,Ass,Ass1)
+%%%%          match(Ass,Pos,Ass1,Match)   
+%%%%          pick(Mask,Ass,Ass1,Pick)   
+%%%%          remove_from_free(Reg,Ass,Ass1)
+%%%%
+%%%%      AssL manipulations:
+%%%%
+%%%%          delete_ass(Name,Ass,Ass1)
+%%%%          delete_x_ass(Name,Ass,Ass1)
+%%%%          delete_y_ass(Name,Ass,Ass1)
+%%%%          change_x_ass(Name,XPart,Ass,Ass1)
+%%%%          change_ass(Name,Comp,Ass,Ass1)
+%%%%          new_x_ass(Name,XPart,Ass,Ass1)
+%%%%          new_y_ass(Name,YPart,Ass,Ass1)
+%%%%          new_ass(Name,Comp,Ass,Ass1)
+%%%%          add_x_pos(Name,Reg,Ass,Ass1)
+%%%%
+%%%%      AssL inquiries:
+%%%%
+%%%%          find_ass(Name,Ass,Comp)
+%%%%          find_reg_ass(Reg,Ass,Name,Comp) {Name=no,Comp=no if not assigned}
+%%%%    
+%%%%      Initialisation
+%%%%          initial_ass(Frees,Greater,Ass)
+%%%%
+%%%%      AssL element 
+%%%%          get_x_ass(XPartOrComp,XReg)
+%%%%
+%%%%      Debug
+%%%%          write_ass(Ass)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+write_ass(Ass):- ground_x_ass(Ass) -> write_ass1(Ass).
+
+write_ass1(ass(List,F,M)):- ->
+    write('ASSIGN    max:  '),write(M),nl,
+    write('          free: '),write(F),nl,
+    write_list(10,List).
+
+is_ass(ass(_,_,_)):- -> true.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%      structure parts
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+get_assignments(ass(L,_,_),L).
+
+set_assignments(ass(_,F,M),NL,ass(NL,F,M)).
+
+get_frees_max(ass(_,F,M),F,M).
+
+get_frees(ass(_,F,_),F).
+
+set_frees(ass(L,_,M),F1,ass(L,F1,M)).
+
+set_frees_max(ass(L,_,_),F1,M1,ass(L,F1,M1)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%      Frees,Max manipulations
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+free_reg(Reg,Ass,Ass1):- 
+   get_frees(Ass,F),
+   not(member(Reg,F)),     
+   insert_in_ordered_list(Reg,F,F1),
+   set_frees(Ass,F1,Ass1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+free_regs([],Ass,Ass1):-  ->Ass=Ass1.
+free_regs([Reg|Regs],Ass,Ass2):- 
+   ->
+   free_reg(Reg,Ass,Ass1),
+   free_regs(Regs,Ass1,Ass2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+match(Ass,Pos,Ass1,Match):-
+   get_frees(Ass,Fx),ground(Fx),ground(Pos)
+   ->
+   get_frees(Ass,F),
+   match_find(F,Pos,Match),
+   match2(Match,Ass,Ass1).
+
+%%%%
+
+match2(no,Ass,Ass1):- ->Ass=Ass1.
+match2(Match,Ass,Ass1):- 
+   ->
+   get_frees(Ass,F),
+   delete_in_ordered_list(Match,F,F1),
+   set_frees(Ass,F1,Ass1).
+
+%%%%
+
+match_find([],_,Match):-              ->Match=no.
+match_find(_,[],Match):-              ->Match=no.
+match_find([X|_],[X|_],Match):-       ->Match=X.
+match_find([F|Frees],Pos,Match):-
+   Pos=[X|_],F<X
+   ->
+   match_find(Frees,Pos,Match).
+match_find(Frees,[X|Pos],Match):-
+   Frees=[F|_],F>X
+   ->
+   match_find(Frees,Pos,Match).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+pick(Mask,Ass,Ass1,Pick):-
+  ground(Mask)
+  ->
+  get_frees_max(Ass,F,M),
+  flatten_list_rem_nil(Mask,Mask1),
+  qsort(Mask1,Mask2),
+  pick1(Mask2,F,F1,M,M1,Pick),
+  set_frees_max(Ass,F1,M1,Ass1).
+
+%%%%
+
+pick1(Mask,[],F1,M,M1,Pick):-
+  ->
+  inc(M,M1),
+  F1=[],
+  Pick=M1,
+  not(member(M1,Mask)).				% DEBUG
+pick1([],[F|Frees],F1,M,M1,Pick):-
+  ->
+  Pick=F,
+  F1=Frees,
+  M=M1.
+pick1([X|Mask],[X|Frees],F1,M,M1,Pick):-
+  ->
+  F1=[X|F2],
+  pick1(Mask,Frees,F2,M,M1,Pick).
+pick1([X|Mask],Frees,F1,M,M1,Pick):-
+  Frees=[F|_],X<F
+  ->
+  pick1(Mask,Frees,F1,M,M1,Pick).
+pick1(Mask,[F|Frees],F1,M,M1,Pick):-
+  Mask=[X|_],X>F
+  ->
+  F1=Frees,
+  M=M1,
+  Pick=F.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+remove_from_free(Reg,Ass,Ass1):-
+   ground_x_ass(Ass)
+   ->
+   get_frees(Ass,F),
+   delete_in_ordered_list(Reg,F,F1),
+   set_frees(Ass,F1,Ass1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%      AssList manipulations
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+delete_ass(Name,Ass,Ass1):-
+   ->
+   get_assignments(Ass,L),
+   find_in_ordered_plist_with_rest(Name,L,_,NL,NLEnd,Rest),
+   NLEnd=Rest,
+   set_assignments(Ass,NL,Ass1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+delete_x_ass(Name,Ass,Ass1):-
+   ->
+   get_assignments(Ass,L),
+   set_assignments(Ass,NL,Ass1),
+   find_in_ordered_plist_with_rest(Name,L,Entry,NL,NLEnd,Rest),
+   delete_x_ass1(Entry,Name,NLEnd,Rest).
+
+delete_x_ass1(x(_),_,NLEnd,Rest):- -> NLEnd=Rest.
+delete_x_ass1(xy(_,Y),Name,NLEnd,Rest):- -> NLEnd=[p(Name,y(Y))|Rest].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+delete_y_ass(Name,Ass,Ass1):-
+   ground_x_ass(Ass)
+   ->
+   get_assignments(Ass,L),   
+   find_in_ordered_plist_with_rest(Name,L,E,NL,NLEnd,Rest),
+   delete_y_ass1(Name,E,NLEnd,Rest),
+   set_assignments(Ass,NL,Ass1).
+
+delete_y_ass1(Name,xy(X,_),End,Rest):- -> End=[p(Name,x(X))|Rest].
+delete_y_ass1(_Name,y(_),End,Rest):- -> End=Rest.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+change_x_ass(Name,XPart,Ass,Ass1):-
+   ->
+   get_assignments(Ass,L),
+   find_in_ordered_plist_with_rest(Name,L,Z,NL,NLEnd,Rest),
+   not(Z=no),
+   NLEnd=[p(Name,NewComp)|Rest],
+   set_assignments(Ass,NL,Ass1),
+   change_x_ass2(XPart,Z,NewComp).
+
+%%%%
+
+change_x_ass2(XPart,x(_),Out):-    ->Out=x(XPart).
+change_x_ass2(XPart,xy(_,Y),Out):- ->Out=xy(XPart,Y).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+change_ass(Name,Comp,Ass,Ass1):-
+   ->
+   get_assignments(Ass,L),
+   find_in_ordered_plist_with_rest(Name,L,_,NL,NLEnd,Rest),
+   NLEnd=[p(Name,Comp)|Rest],
+   set_assignments(Ass,NL,Ass1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+new_x_ass(Name,XPart,Ass,Ass1):-
+   ->
+   get_assignments(Ass,L),
+   find_in_ordered_plist_with_rest(Name,L,Entry,NL,NLEnd,Rest),
+   new_x_ass1(Entry,Name,XPart,NLEnd,Rest),
+   set_assignments(Ass,NL,Ass1).
+
+new_x_ass1(no,Name,XPart,End,Rest):- -> End=[p(Name,x(XPart))|Rest].
+new_x_ass1(y(Y),Name,XPart,End,Rest):- -> End=[p(Name,xy(XPart,Y))|Rest].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+new_y_ass(Name,YPart,Ass,Ass1):-
+   ->
+   get_assignments(Ass,L),
+   find_in_ordered_plist_with_rest(Name,L,Entry,NL,NLEnd,Rest),
+   new_y_ass1(Entry,Name,YPart,NLEnd,Rest),
+   set_assignments(Ass,NL,Ass1).
+
+new_y_ass1(no,Name,YPart,End,Rest):-          ->   End=[p(Name,y(YPart))|Rest].
+new_y_ass1(x(X),Name,YPart,End,Rest):-   ->   End=[p(Name,xy(X,YPart))|Rest].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+new_ass(Name,Comp,Ass,Ass1):-
+   ->
+   get_assignments(Ass,L),
+   insert_in_ordered_plist(p(Name,Comp),L,NL),
+   set_assignments(Ass,NL,Ass1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+add_x_pos(Name,XPos,Ass,Ass1):-
+   ->
+   get_assignments(Ass,L),
+   find_in_ordered_plist_with_rest(Name,L,p(Name,Entry),NL,NLEnd,Rest),
+   NLEnd=[p(Name,New)|Rest],
+   set_assignments(Ass,NL,Ass1),
+   add_x_pos2(Entry,XPos,New).
+
+%%%%
+
+add_x_pos2(xy(pos(L),Y),Reg,xy(pos(L2),Y)):- 
+   ->insert_in_ordered_list(Reg,L,L2).
+add_x_pos2(x(pos(L)),Reg,x(pos(L2))):- 
+   ->insert_in_ordered_list(Reg,L,L2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+get_x_ass(opt(X),XReg):- ->X=XReg.
+get_x_ass(bad(X),XReg):- ->X=XReg.
+get_x_ass(badx(X),XReg):- ->X=XReg.
+get_x_ass(non(X),XReg):- ->X=XReg.
+get_x_ass(pos([X|_]),XReg):- ->X=XReg.
+get_x_ass(x(X),XReg):- ->get_x_ass(X,XReg).
+get_x_ass(xy(X,_),XReg):- ->get_x_ass(X,XReg).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dump_x_ass(ass(L,F,M),Ass1):-
+   ->
+   Ass1=ass(L1,F1,M),
+   dump_x_ass1(L,L1,F2),
+   flatten_list_rem_nil(F2,F22),
+   app(F,F22,F3),
+   qsort(F3,F1).
+
+dump_x_ass1([],List,Frees):-
+   ->
+   List=[],
+   Frees=[].
+dump_x_ass1([p(_,x(X))|Rest],List,Frees):-
+   ->
+   arg(1,X,Regs),
+   Frees=[Regs|Frees1],
+   dump_x_ass1(Rest,List,Frees1).
+dump_x_ass1([p(Name,xy(X,Y))|Rest],List,Frees):-
+   ->
+   arg(1,X,Regs),
+   Frees=[Regs|Frees1],
+   List=[p(Name,y(Y))|List1],
+   dump_x_ass1(Rest,List1,Frees1).
+dump_x_ass1([E|Rest],List,Frees):-
+   ->
+   List=[E|List1],
+   dump_x_ass1(Rest,List1,Frees).
+   
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%      AssList inquiries
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+find_ass(Name,Ass,Comp):-
+   ground_x_ass(Ass)
+   ->
+   get_assignments(Ass,L),
+   find_in_ordered_plist(Name,L,Comp).
+
+
+ground_ass(ass(List,A,B)):- -> ground(A),ground(B),ground_ass1(List).
+
+ground_x_ass(ass(List,A,B)):- -> ground(A),ground(B),ground_x_ass1(List).
+
+ground_ass1([]):- -> true.
+ground_ass1([Entry|List]):- ground(Entry) -> ground_ass1(List).
+
+ground_x_ass1([]):- -> true.
+ground_x_ass1([p(N,x(X))|List]):- ground(N),ground(X) -> ground_x_ass1(List).
+ground_x_ass1([p(N,xy(X,_))|List]):- ground(N),ground(X) -> ground_x_ass1(List).
+ground_x_ass1([p(N,y(_))|List]):-  ground(N) -> ground_x_ass1(List).
+ground_x_ass1(X):- -> error(bad_assignment(X)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+find_reg_ass(Reg,Ass,Name,Comp):-
+   ->
+   get_assignments(Ass,L),
+   find_reg_ass2(Reg,L,Name,Comp).
+
+%%%%
+
+find_reg_ass2(_,[],Name,Comp):-   ->Name=no,Comp=no.
+find_reg_ass2(Reg,[p(RName,RComp)|_],Name,Comp):-
+   get_all_x_ass(RComp,XRegs),
+   member(Reg,XRegs)
+   ->
+   Name=RName,
+   RComp=Comp.
+find_reg_ass2(Reg,[_|L],Name,Comp):-
+   ->
+   find_reg_ass2(Reg,L,Name,Comp).
+
+%%%%
+
+get_all_x_ass(y(_),XRegs):-         ->XRegs=[].
+get_all_x_ass(x(pos(X)),XRegs):-    ->XRegs=[X].
+get_all_x_ass(xy(pos(X),_),XRegs):- ->XRegs=[X].
+get_all_x_ass(x(X),XRegs):-         ->XRegs=[XReg],get_x_ass(X,XReg).
+get_all_x_ass(xy(X,_),XRegs):-      ->XRegs=[XReg],get_x_ass(X,XReg).
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%      Initialization
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+initial_ass(Frees,InArity,Greatest,Ass):-
+   Greatest>InArity
+   ->
+   Ass=ass([],F,Greatest),
+   copy_with_var_end(Frees,F,End),
+   inc(InArity,InA1),
+   gen_frees(InA1,Greatest,End).
+initial_ass(Frees,InArity,_Greatest,Ass):-
+   ->
+   Ass=ass([],Frees,InArity).
+
+%%%%
+
+gen_frees(Cur,Limit,End):- Cur>Limit   ->   End=[].
+gen_frees(Cur,Limit,End):-
+   Cur=<Limit
+   ->
+   End=[Cur|End1],
+   inc(Cur,Cur1),
+   gen_frees(Cur1,Limit,End1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%        Alloc objects msg handling
+%%%%     
+%%%%    Backward 1st phase:
+%%%%            init_named(In,Out,Name,Ret)
+%%%%            init_named_x_only(In,Out,Name,Ret)
+%%%%            init_dummy(In,Out,Ret)
+%%%%            id_grabber(in,Out,Id)
+%%%%
+%%%%    Forward 2nd phase:
+%%%%
+%%%%            handle_w_named(In,Out,Name,Pos,Ret,ShiftFlagOrId)
+%%%%            handle_dummy(In,Out,Ret)
+%%%%            handle_id(In,Out,Id,Ret)
+%%%%            free_er(In,Out,Reg,WantedName)
+%%%%            id_stopper(In,Out,Id)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% init_named    
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+init_named(In,Out,Name,N):- init_named1(In,Out,Name,no,N).
+
+%%%%
+
+% pos wanted
+init_named1([Msg|In],Out,Name,x,N):-
+   Msg=x(Name,W)
+   ->
+   Out=[Msg|Out1],
+   init_named1(In,Out1,Name,x([W]),N).
+init_named1([Msg|In],Out,Name,y,N):-
+   Msg=x(Name,W)
+   ->
+   Out=[Msg|Out1],
+   init_named1(In,Out1,Name,xy([W]),N).
+init_named1([Msg|In],Out,Name,no,N):-
+   Msg=x(Name,W)
+   ->
+   Out=[Msg|Out1],
+   init_named1(In,Out1,Name,x([W]),N).
+init_named1([Msg|In],Out,Name,x(Pos),N):-
+   Msg=x(Name,W)
+   ->
+   Out=[Msg|Out1],
+   insert_in_ordered_list(W,Pos,Pos1),
+   init_named1(In,Out1,Name,x(Pos1),N).
+init_named1([Msg|In],Out,Name,xy(Pos),N):-
+   Msg=x(Name,W)
+   ->
+   Out=[Msg|Out1],
+   insert_in_ordered_list(W,Pos,Pos1),
+   init_named1(In,Out1,Name,xy(Pos1),N).
+
+% x wanted
+init_named1([Msg|In],Out,Name,y,N):-
+   Msg=x(Name)
+   ->
+   Out=[Msg|Out1],
+   init_named1(In,Out1,Name,xy,N).
+init_named1([Msg|In],Out,Name,no,N):-
+   Msg=x(Name)
+   ->
+   Out=[Msg|Out1],
+   init_named1(In,Out1,Name,x,N).
+
+% y wanted
+init_named1([Msg|In],Out,Name,x(Pos),N):-
+   Msg=y(Name)
+   ->
+   Out=[Msg|Out1],
+   init_named1(In,Out1,Name,xy(Pos),N).
+init_named1([y(Name)|In],Out,Name,x,N):-
+   Msg=y(Name)
+   ->
+   Out=[Msg|Out1],
+   init_named1(In,Out1,Name,xy,N).
+init_named1([y(Name)|In],Out,Name,no,N):-
+   Msg=y(Name)
+   ->
+   Out=[Msg|Out1],
+   init_named1(In,Out1,Name,y,N).
+
+% end
+init_named1([E|In],Out,_Name,Pos,N):-
+   E=end(_,_,_)
+   ->
+   Out=[E|Out1],N=p(Pos,In,Out1).
+
+% no match
+
+init_named1([Msg|In],Out,Name,Pos,N):-
+   ->
+   Out=[Msg|Out1],
+   init_named1(In,Out1,Name,Pos,N).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% init_named_x_only      Used: f_halloc f_balloc
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+init_named_x_only(In,Out,Name,N):-
+   init_named_x_only1(In,Out,Name,no,N).
+
+% pos wanted
+init_named_x_only1([Msg|In],Out,Name,no,N):-
+   flat_member(Msg,[x(Name,_),x(Name)])
+   ->
+   Out=[Msg|Out1],
+   init_named_x_only1(In,Out1,Name,x,N).
+
+% end
+init_named_x_only1([E|In],Out,_Name,Pos,N):-
+   E=end(_,_,_)
+   ->
+   Out=[E|Out1],N=p(Pos,In,Out1).
+
+% else
+init_named_x_only1([W|In],Out,Name,Pos,N):-
+   ->
+   Out=[W|Out1],
+   init_named_x_only1(In,Out1,Name,Pos,N).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% init_dummy        Used: vac_alloc f_alloc talloc f_talloc
+%%%%                     Id=id(Id) only for talloc
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% end
+init_dummy([E|In],Out,N):-
+   E=end(_,_,_)
+   ->
+   Out=[E|Out1],N=p(In,Out1).
+
+% else
+init_dummy([W|In],Out,N):-
+   ->
+   Out=[W|Out1],
+   init_dummy(In,Out1,N).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% id_grabber     
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+id_grabber([end(GIn,Id1,Ar)|In],Out,Id):-
+   ->
+   inc(Id1,Id2),
+   Id=Id1,
+   Out=[end(GIn,Id2,Ar)|In].
+id_grabber([Msg|In],Out,Id):-
+   ->
+   Out=[Msg|Out1],
+   id_grabber(In,Out1,Id).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% handle_w_named
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+handle_w_named([Msg|In],Out,Name,Pos,Ret,Shift):-
+  Msg=w(next(_,_),_)
+  ->
+  handle_w_named_next(Msg,In,Out,Name,Pos,Ret,Shift).
+handle_w_named([Msg|In],Out,Name,Pos,Ret,Shift):-
+  Msg=w(last(_),_)
+  ->
+  handle_w_named_last(Msg,In,Out,Name,Pos,Ret,Shift).
+handle_w_named([w(free(Want,WName),Mask)|In],Out,Name,Pos,Ret,Shift):-
+  flat_member(Pos,[x(P),xy(P)])
+  ->
+  Mask=[P|Mask1],
+  Out=[w(free(Want,WName),Mask1)|Out1],
+  handle_w_named(In,Out1,Name,Pos,Ret,Shift).
+handle_w_named([Msg|In],Out,Name,Pos,Ret,Shift):-
+  Msg=w(free(_,_),_)
+  ->
+  Out=[Msg|Out1],
+  handle_w_named(In,Out1,Name,Pos,Ret,Shift).
+handle_w_named([w(id(Id),Mask)|In],Out,Name,Pos,Ret,Shift):-
+  flat_member(Pos,[x(P),xy(P)])
+  ->
+  Mask=[P|Mask1],
+  Out=[w(id(Id),Mask1)|Out1],
+  handle_w_named(In,Out1,Name,Pos,Ret,Shift).
+handle_w_named([Msg|In],Out,Name,Pos,Ret,Shift):-
+  flat_member(Msg,[mark(_),last_y(_,_),new_y(_,_),w(id(_),_)])
+  ->
+  Out=[Msg|Out1],
+  handle_w_named(In,Out1,Name,Pos,Ret,Shift).
+handle_w_named([Msg|_],_Out,Name,_Pos,_Ret,_):-
+  ->
+  error(handle_w_named(Msg,Name)).
+handle_w_named(Ass,Out,_Name,_Pos,Ret,_):-
+  ->
+  Ret=p(Ass,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+handle_w_named_last(w(last(Name),Mask),In,Out,Name,Pos,Ret,Shift):-
+  Shift=shift(Id),flat_member(Pos,[no,y])
+  ->
+  Out=[w(id(Id),Mask)|Out1],
+  handle_w_named(In,Out1,Name,Pos,Ret,Shift).
+handle_w_named_last(w(last(Name),Mask),In,Out,Name,Pos,Ret,Shift):-
+  flat_member(Pos,[no,y])
+  ->
+  Mask=[],
+  handle_w_named(In,Out,Name,Pos,Ret,Shift).
+handle_w_named_last(Msg,In,Out,Name,Pos,Ret,Shift):-
+  Msg=w(last(Name),_),
+  flat_member(Pos,[x,xy,x(_),xy(_)])
+  ->
+  Out=[Msg|Out1],
+  handle_w_named(In,Out1,Name,Pos,Ret,Shift).
+handle_w_named_last(w(last(Name2),Mask),In,Out,Name,Pos,Ret,Shift):-
+  flat_member(Pos,[x(M),xy(M)])
+  ->
+  Mask=[M|Mask1],
+  Out=[w(last(Name2),Mask1)|Out1],
+  handle_w_named(In,Out1,Name,Pos,Ret,Shift).
+handle_w_named_last(w(last(Name2),Mask),In,Out,Name,Pos,Ret,Shift):-
+  flat_member(Pos,[x,xy,no,y])
+  ->
+  Out=[w(last(Name2),Mask)|Out1],
+  handle_w_named(In,Out1,Name,Pos,Ret,Shift).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+handle_w_named_next(w(next(Name,_Reg),Flag),In,Out,Name,Pos,Ret,shift):-
+ ->
+  Flag=no,
+  handle_w_named(In,Out,Name,Pos,Ret,shift).
+handle_w_named_next(w(next(Name,Reg),Flag),In,Out,Name,Pos,Ret,Shift):-
+  Shift=shift(Id)
+ ->
+  Out=[w(id(Id),Mask)|Out1],
+  mask_member_flag(Reg,Mask,Flag),
+  handle_w_named(In,Out1,Name,Pos,Ret,Shift).
+handle_w_named_next(Msg,In,Out,Name,Pos,Ret,no_shift):-
+  Msg=w(next(Name,_),_)
+  ->
+  Out=[Msg|Out1],
+  handle_w_named(In,Out1,Name,Pos,Ret,no_shift).
+handle_w_named_next(w(next(_,Reg),Flag),In,Out,Name,Pos,Ret,Shift):-
+  flat_member(Pos,[x(P),xy(P)]),
+  member(Reg,P)
+  ->
+  Flag=yes,
+  handle_w_named(In,Out,Name,Pos,Ret,Shift).
+handle_w_named_next(Msg,In,Out,Name,Pos,Ret,Shift):-
+  ->
+  Out=[Msg|Out1],
+  handle_w_named(In,Out1,Name,Pos,Ret,Shift).
+
+%%%%
+
+mask_member_flag(Reg,Mask,Flag):-   mask_member(Reg,Mask)   ->   Flag=yes.
+mask_member_flag(_,_,Flag):-   ->   Flag=no.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% handle_dummy
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+handle_dummy([Msg|In],Out,Ret):-
+  flat_member(Msg,[w(_,_),mark(_),last_y(_,_),new_y(_,_)])
+  ->
+  Out=[Msg|Out1],
+  handle_dummy(In,Out1,Ret).
+handle_dummy([Msg|_],_Out,_Ret):-
+  ->
+  error(handle_dummy(Msg)).
+handle_dummy(Ass,Out,Ret):-
+  ->
+  Ret=p(Ass,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% handle_id
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+handle_id([w(id(Id),Mask)|In],Out,Id,Ret):-
+  ->
+  Mask=[],
+  handle_id(In,Out,Id,Ret).
+handle_id([Msg|In],Out,Id,Ret):-
+  flat_member(Msg,[w(_,_),mark(_),last_y(_,_),new_y(_,_)])
+  ->
+  Out=[Msg|Out1],
+  handle_id(In,Out1,Id,Ret).
+handle_id([A|_],_Out,_Id,_Ret):-
+  ->
+  write(handle_id_error(A)),nl,
+  fail.
+handle_id(Ass,Out,_Id,Ret):-
+  ->
+  Ret=p(Ass,Out).
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% free_er
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+free_er(In,Out,Reg,Wanted):- free_er1(In,Out,Reg,Wanted,no).
+
+free_er1([w(free(P,Name),Mask)|In],Out,Reg,Wanted,no):-
+  member(Reg,P)
+  ->
+  Mask=[],Wanted=Name,
+  free_er1(In,Out,Reg,_,yes).
+free_er1([w(free(P,Name),Mask)|In],Out,Reg,Wanted,Flag):-
+  ->
+  Out=[w(free(P,Name),Mask)|Out1],
+  free_er1(In,Out1,Reg,Wanted,Flag).
+free_er1([Msg|In],Out,Reg,W,Flag):-
+  flat_member(Msg,[w(_,_),mark(_),last_y(_,_),new_y(_,_)])
+  ->
+  Out=[Msg|Out1],
+  free_er1(In,Out1,Reg,W,Flag).
+free_er1([Msg|_],_Out,_Reg,_W,_Flag):- -> error(free_er1(Msg)).
+free_er1(Ass,Out,_Reg,W,no):-  ->  W=[],Ass=Out.
+free_er1(Ass,Out,_Reg,_W,_):-   ->  Ass=Out.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% id_stopper
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+id_stopper([w(id(Id),Mask)|In],Out,Id):-
+  ->
+/*  write(mask_close_id_stopper(Id,Mask)),nl,*/
+  Mask=[],
+  id_stopper(In,Out,Id).
+id_stopper([Msg|In],Out,Id):-
+  flat_member(Msg,[w(_,_),mark(_),last_y(_,_),new_y(_,_)])
+  ->
+  Out=[Msg|Out1],
+  id_stopper(In,Out1,Id).
+id_stopper([Msg|_],_Out,_Id):-
+  ->
+  error(id_stopper(Msg)).
+id_stopper(Ass,Out,_Id):-
+  ->
+  Ass=Out.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%   Other alloc help 
+%%%%
+%%%%       Mask:
+%%%%           mask_member(Reg,Mask)
+%%%%
+%%%%       Determine register suitability:
+%%%%           det_opt_bad(Reg,Out,Out1,Name,Ret)
+%%%%           det_non_bad(Pos,Reg,Out,Out1,Name,Ret)
+%%%%           det_best_x_place(Name,Want,Ass,Ass1,Out,Out1,Reg,NewX)
+%%%%
+%%%%       Register shift
+%%%%           maybe_x_move(Cur,Ass,Ass1,Out,Out1,Name,Want,RW,NCur)
+%%%%           maybe_shift_split(Cur,Ass,Out,Ass1,Out1,Name,Want,RW,New)
+%%%%
+%%%%       RW (rw(RW) or rw(R,W)
+%%%%           reg_shift(Old,New,RW)
+%%%%           close_rw(RW)
+%%%%       
+%%%%       Y changes:
+%%%%           maybe_dump_or_add_y_ass(Cur,Name,Want,Ass,Out,Ass1,Out1,RW,NCur,Want)
+%%%%           dump_y_ass(Name,YReg,Ass,Out,Ass1,Out1)
+%%%%           maybe_add_y_ass(Want,Name,Cur,RW,Ass,Out,Ass1,Out1)
+%%%%           make_new_y_ass(Name,YReg,Ass,Out,Ass1,Out1)
+%%%%
+%%%%       Misc
+%%%%           pos_remove_y(Pos,Pos1)
+%%%%           add_x_to_pos(Pos,Pos1)
+%%%%
+%%%%       Choice
+%%%%           ass_choice(Want,Cur,AltReg,Ass,Ass1,Out,Out1,Return)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%     Masks
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+mask_member(Reg,List):- -> mask_member1(Reg,List,[]).
+
+%%%%
+
+mask_member1(_,[],[]):- -> fail.
+mask_member1(Reg,[X|Xs],L):-  X=[_|_] -> mask_member1(Reg,X,[Xs|L]).  
+mask_member1(Reg,[Reg|_],_):- -> true.
+mask_member1(Reg,[_|Xs],L):- -> mask_member1(Reg,Xs,L).
+mask_member1(Reg,[],L):-       -> mask_member1(Reg,L,[]).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%     Determining register suitability
+%%%%
+%%%%           det_opt_bad
+%%%%           det_non_bad
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+det_opt_bad(Reg,Out,OutX,Name,M,F):-
+  ->
+  Out=[w(last(Name),Mask)|Out1],
+  det_opt_bad2(Mask,Reg,Out1,OutX,Name,M,F).
+
+%%%%
+
+det_opt_bad2(Mask,Reg,Out,OutX,Name,M,F):-
+  mask_member(Reg,Mask)
+  ->
+  Out=[w(next(Name,Reg),Flag)|Out1],
+  det_opt_bad3(Flag,Mask,Reg,Out1,OutX,M,F).
+det_opt_bad2(_,Reg,Out,OutX,_Name,_M,F):-  ->  Out=OutX,F=opt(Reg).
+
+%%%%
+
+det_opt_bad3(no,_Mask,Reg,Out,OutX,_,F):-   ->  F=badx(Reg),Out=OutX.
+det_opt_bad3(yes,Mask,_Reg,Out,OutX,M,F):-  ->  F=pick,M=Mask,Out=OutX.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+det_non_bad(Pos,Reg,Out,OutX,Name,M,F):-
+  ->
+  Out=[w(free(Pos,Name),Mask)|Out1],
+  det_non_bad2(Mask,Reg,Out1,OutX,Name,M,F).
+
+%%%%
+
+det_non_bad2(Mask,Reg,Out,OutX,Name,M,F):-
+  mask_member(Reg,Mask)
+  ->
+  Out=[w(next(Name,Reg),Flag)|Out1],
+  det_non_bad3(Flag,Mask,Reg,Out1,OutX,M,F).
+det_non_bad2(_,Reg,Out,OutX,_Name,_M,F):-  ->  F=non(Reg),Out=OutX.
+
+%%%%
+
+det_non_bad3(no,_Mask,Reg,Out,OutX,_,F):-   ->  F=bad(Reg),Out=OutX.
+det_non_bad3(yes,Mask,_Reg,Out,OutX,M,F):-  ->  F=pick,M=Mask,Out=OutX.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% det_best_x_place
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+det_best_x_place(Name,Want,Ass,AssX,Out,OutX,Reg):-
+  flat_member(Want,[x(Pos),xy(Pos)])
+  ->
+  match(Ass,Pos,Ass1,Match),
+  (Match=no ->
+        Out=[w(free(Pos,Name),Mask)|OutX],
+	pick(Mask,Ass1,Ass2,Reg),
+	new_x_ass(Name,non(Reg),Ass2,AssX)
+   ;    Match=Reg,
+	new_x_ass(Name,pos([Reg]),Ass1,AssX),
+        Out=OutX).
+det_best_x_place(Name,Want,Ass,AssX,Out,OutX,Reg):-
+  flat_member(Want,[x,xy])
+  ->
+  Out=[w(last(Name),Mask)|OutX],
+  pick(Mask,Ass,Ass1,Reg),
+  new_x_ass(Name,opt(Reg),Ass1,AssX).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%        maybe_x_move
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+maybe_x_move(Cur,Ass,AssX,Out,OutX,_Name,_Want,RW,NCur):-
+  flat_member(Cur,[no,y])
+  ->
+  Ass=AssX,Out=OutX,NCur=Cur,close_rw(RW).
+maybe_x_move(Cur,Ass,AssX,Out,OutX,_Name,Want,RW,NCur):-
+  flat_member(Want,[no,y])
+  ->
+  Ass=AssX,Out=OutX,NCur=Cur,close_rw(RW).
+maybe_x_move(Cur,Ass,AssX,Out,OutX,_Name,Want,RW,NCur):-
+  flat_member(Cur,[x(pos(_)),xy(pos(_),_)]),
+  flat_member(Want,[x(Pos),xy(Pos)])
+  ->
+  Ass=AssX,Out=OutX,NCur=Cur,close_rw(RW).
+maybe_x_move(x(X),Ass,AssX,Out,OutX,Name,Want,RW,NCur):-
+  flat_member(Want,[x(Pos),xy(Pos)])
+  ->
+  NCur=x(NX),
+  match(Ass,Pos,Ass1,Match),
+  pos_x_move1(Match,X,Ass1,AssX,Out,OutX,Name,Pos,RW,NX).
+maybe_x_move(xy(X,Y),Ass,AssX,Out,OutX,Name,Want,RW,NCur):-
+  flat_member(Want,[x(Pos),xy(Pos)])
+  ->
+  NCur=xy(NX,Y),
+  match(Ass,Pos,Ass1,Match),
+  pos_x_move1(Match,X,Ass1,AssX,Out,OutX,Name,Pos,RW,NX).
+maybe_x_move(Cur,Ass,AssX,Out,OutX,_Name,Want,RW,NCur):-
+  flat_member(Cur,[x(opt(_)),xy(opt(_),_)]),
+  flat_member(Want,[x,xy])
+  ->
+  Ass=AssX,Out=OutX,NCur=Cur,close_rw(RW).
+maybe_x_move(x(badx(XReg)),Ass,AssX,Out,OutX,Name,Want,RW,NCur):-
+  flat_member(Want,[x,xy])
+  ->
+  NCur=x(NX),
+  Out=[w(next(Name),Mask)|OutX],
+  x_x_move(Mask,XReg,Ass,AssX,Out,OutX,Name,RW,NX).
+maybe_x_move(xy(badx(XReg,Y)),Ass,AssX,Out,OutX,Name,Want,RW,NCur):-
+  flat_member(Want,[x,xy])
+  ->
+  NCur=xy(NX,Y),
+  Out=[w(next(Name),Mask)|OutX],
+  x_x_move(Mask,XReg,Ass,AssX,Out,OutX,Name,RW,NX).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+x_x_move(Mask,XReg,Ass,AssX,Name,RW,NCurX):-
+  mask_member(XReg,Mask)
+  ->
+  NCurX=opt(Pick),
+  pick(Mask,Ass,Ass1,Pick),
+  reg_shift(XReg,Pick,RW),
+  change_x_ass(Name,NCurX,Ass1,AssX).
+x_x_move(_Mask,XReg,Ass,AssX,_Name,RW,NCurX):-
+  ->
+  NCurX=badx(XReg),Ass=AssX,
+  close_rw(RW).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+pos_x_move1(no,CurX,Ass,AssX,Out,OutX,_Name,_,RW,NCurX):-
+  CurX=non(_)
+  ->
+  Ass=AssX,NCurX=CurX,Out=OutX,close_rw(RW).
+pos_x_move1(no,bad(XReg),Ass,AssX,Out,OutX,Name,Want,RW,NCurX):-
+  ->
+  Out=[w(next(Name,XReg),Flag)|Out1],
+  pos_x_move2(Flag,XReg,Ass,AssX,Out1,OutX,Name,Want,RW,NCurX).
+pos_x_move1(Match,X,Ass,AssX,Out,OutX,Name,_,RW,NCurX):-
+  ->
+  get_x_ass(X,XReg),
+  NCurX=pos([Match]),Out=OutX,
+  reg_shift(XReg,Match,RW),
+  change_x_ass(Name,NCurX,Ass,AssX).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+pos_x_move2(yes,XReg,Ass,AssX,Out,OutX,Name,Pos,RW,NCurX):-
+  ->
+  Out=[w(free(Pos,Name),Mask)|OutX],
+  pos_x_move3(Mask,XReg,Ass,AssX,Name,RW,NCurX).
+pos_x_move2(no,XReg,Ass,AssX,Out,OutX,_Name,_Pos,RW,NCurX):-
+  ->
+  Out=OutX,NCurX=bad(XReg),Ass=AssX,close_rw(RW).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+pos_x_move3(Mask,XReg,Ass,AssX,Name,RW,NCurX):-
+  mask_member(XReg,Mask)
+  ->
+  pick(Mask,Ass,Ass1,Pick),
+  reg_shift(XReg,Pick,RW),
+  NCurX=non(Pick),
+  change_x_ass(Name,NCurX,Ass1,AssX).
+   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%       maybe_shift_split
+%%%%              if x assignment is badx determine from split
+%%%%                   if unnacceptable then shift
+%%%%              if x assignment is bad determine from split
+%%%%                   if unacceptable then shift 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+maybe_shift_split(Cur,Ass,AssX,Out,OutX,Id,Name,Want,Code,New):-
+   flat_member(Cur,[x(badx(XReg)),xy(badx(XReg),_),x(bad(XReg)),xy(bad(XReg),_)])
+   ->
+   Out=[w(id(Id),Mask)|Out1],
+   mask_member_flag(XReg,Mask,Flag),
+   maybe_shift_split2(Flag,Mask,Cur,Ass,AssX,Out1,OutX,Name,Want,Code,New).
+maybe_shift_split(Cur,Ass,AssX,Out,OutX,_Id,_Name,_Want,Code,New):-
+   ->
+   Out=OutX,Ass=AssX,Code=[],New=Cur.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+maybe_shift_split2(no,_,Cur,Ass,AssX,Out,OutX,_Name,_,RW,New):-
+   ->
+   Out=OutX,Ass=AssX,RW=[],New=Cur.
+maybe_shift_split2(yes,_,x(bad(XReg)),Ass,AssX,Out,OutX,Name,Want,RW,New):-
+   flat_member(Want,[x(Pos),xy(Pos)])
+   ->
+   match(Ass,Pos,Ass1,Match),
+   New=x(NewX),
+   maybe_shift_pos(Match,XReg,Ass1,AssX,Out,OutX,Name,RW,NewX).
+maybe_shift_split2(yes,_,xy(bad(_),Y),Ass,AssX,Out,OutX,Name,Want,RW,New):-
+   flat_member(Want,[x(Pos),xy(Pos)])
+   ->
+   match(Ass,Pos,Ass1,Match),
+   New=xy(NewX,Y),
+   maybe_shift_pos(Match,Ass1,AssX,Out,OutX,Name,RW,NewX).
+maybe_shift_split2(yes,_,x(badx(XReg)),Ass,AssX,Out,OutX,Name,Want,RW,New):-
+   flat_member(Want,[x,xy])
+   ->
+   New=x(NewX),
+   maybe_shift_x(XReg,Ass,AssX,Out,OutX,Name,RW,NewX).
+maybe_shift_split2(yes,_,xy(badx(XReg),Y),Ass,AssX,Out,OutX,Name,Want,RW,New):-
+   flat_member(Want,[x,xy])
+   ->
+   New=xy(NewX,Y),
+   maybe_shift_x(XReg,Ass,AssX,Out,OutX,Name,RW,NewX).
+maybe_shift_split2(yes,Mask,x(badx(XReg)),Ass,AssX,Out,OutX,Name,Want,RW,New):-
+   flat_member(Want,[no,y])
+   ->
+   New=x(NewX),
+   maybe_shift_x_m(Mask,XReg,Ass,AssX,Out,OutX,Name,Want,RW,NewX).
+maybe_shift_split2(yes,Mask,xy(badx(XReg),Y),Ass,AssX,Out,OutX,Name,Want,RW,New):-
+   flat_member(Want,[no,y])
+   ->
+   New=xy(NewX,Y),
+   maybe_shift_x_m(Mask,XReg,Ass,AssX,Out,OutX,Name,Want,RW,NewX).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+maybe_shift_pos(no,XReg,Ass,AssX,Out,OutX,Name,RW,NewX):-
+   ->
+   Out=[w(last(Name),Mask)|OutX],NewX=non(Pick),
+   pick(Mask,Ass,Ass1,Pick),
+   change_x_ass(Name,NewX,Ass1,AssX),
+   reg_shift(XReg,Pick,RW).
+maybe_shift_pos(Match,XReg,Ass,AssX,Out,OutX,Name,RW,NewX):-
+   ->
+   NewX=pos([Match]),Out=OutX,
+   change_x_ass(Name,NewX,Ass,AssX),
+   reg_shift(XReg,Match,RW).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+maybe_shift_x(Reg,Ass,AssX,Out,OutX,Name,RW,NewX):-
+   ->
+   Out=[w(last(Name),Mask)|OutX],NewX=opt(Pick),
+   pick(Mask,Ass,Ass1,Pick),
+   reg_shift(Reg,Pick,RW),
+   change_x_ass(Name,NewX,Ass1,AssX).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+maybe_shift_x_m(Mask,Reg,Ass,AssX,Out,OutX,Name,RW,NewX):-
+   ->
+   Out=OutX,NewX=opt(Pick),
+   pick(Mask,Ass,Ass1,Pick),
+   reg_shift(Reg,Pick,RW),
+   change_x_ass(Name,NewX,Ass1,AssX).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% reg_shift
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+reg_shift(XReg,Pick,rw(RW)):-  -> RW=set_reg_reg(XReg,Pick).
+reg_shift(XReg,Pick,rw(R,W)):- -> R=set_reg_reg(XReg,Pick),W=set_reg_H(Pick).
+
+rw_add_y(XReg,Y,rw(RW)):-      -> RW=set_yvar_reg(XReg,Y).
+rw_add_y(XReg,Y,rw(R,W)):-      -> R=set_yvar_reg(XReg,Y),W=set_yvar_H(Y).
+
+m_s_update(NewX,x(_),Out):-    -> Out=x(NewX).
+m_s_update(NewX,xy(_,Y),Out):- -> Out=xy(NewX,Y).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% close_rw
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+close_rw(rw(R,W)):- -> R=[],W=[].
+close_rw(rw(RW)):-  -> RW=[].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%        maybe_dump_or_add_y_ass
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+maybe_dump_or_add_y_ass(no,_Name,Want,Ass,Out,Ass1,Out1,RW,NCur,NWant):-
+   ->
+   NCur=no,Ass=Ass1,Out=Out1,Want=NWant,close_rw(RW).
+maybe_dump_or_add_y_ass(Cur,_Name,Want,Ass,Out,Ass1,Out1,RW,NCur,NWant):-
+   Cur=x(_),flat_member(Want,[x,xy,xy(_),x(_),no])
+   ->
+   NCur=Cur,Ass=Ass1,Out=Out1,
+   close_rw(RW),
+   pos_remove_y(Want,NWant).
+maybe_dump_or_add_y_ass(Cur,Name,y,Ass,Out,Ass1,Out1,RW,NCur,NWant):-
+   Cur=x(X)
+   ->
+   NCur=Cur,NWant=no,Out=[new_y(Name,Y)|Out1],
+   get_x_ass(X,XReg),
+   rw_add_y(XReg,Y,RW),
+   new_y_ass(Name,Y,Ass,Ass1).
+maybe_dump_or_add_y_ass(xy(X,_),_Name,Want,Ass,Out,Ass1,Out1,RW,NCur,NWant):-
+   flat_member(Want,[xy,xy(_)])
+   ->
+   NCur=x(X),Ass=Ass1,Out=Out1,
+   close_rw(RW),
+   pos_remove_y(Want,NWant).
+maybe_dump_or_add_y_ass(Cur,_Name,Want,Ass,Out,Ass1,Out1,RW,NCur,NWant):-
+   flat_member(Cur,[y(_),xy(_,_)]),
+   flat_member(Want,[y,xy,xy(_)])
+   ->
+   NCur=Cur,Ass=Ass1,Out=Out1,
+   close_rw(RW),
+   pos_remove_y(Want,NWant).
+maybe_dump_or_add_y_ass(Cur,Name,Want,Ass,Out,Ass1,Out1,RW,NCur,NWant):-
+   flat_member(Want,[x,x(_),no]),
+   flat_member(Cur,[y(Y),xy(_,Y)])
+   ->
+   Out=[last_y(Name,Y)|Out1],NCur=Cur,
+   delete_y_ass(Name,Ass,Ass1),close_rw(RW),
+   pos_remove_y(Want,NWant).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%        maybe_dump_y_ass  
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+maybe_dump_y_ass(Pos,Name,y(Y),Ass,Out,Ass1,Out1):-
+   flat_member(Pos,[no,x,x(_)])
+   ->
+   dump_y_ass(Name,Y,Ass,Out,Ass1,Out1).
+maybe_dump_y_ass(_,_Name,_,Ass,Out,Ass1,Out1):-   ->   Ass=Ass1,Out=Out1.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%        dump_y_ass
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dump_y_ass(Name,Y,Ass,Out,Ass1,Out1):-
+   ->
+   Out=[last_y(Name,Y)|Out1],
+   delete_y_ass(Name,Ass,Ass1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%        maybe_add_y_ass
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+maybe_add_y_ass(y,Name,x(X),rw(R,W),Ass,Out,Ass1,Out1):-
+   ->
+   get_x_ass(X,XReg),
+   new_y_ass(Name,Y,Ass,Ass1),
+   Out=[new_y(Name,Y)|Out1],
+   R=set_yvar_reg(XReg,Y),
+   W=set_yvar_H(Y).
+maybe_add_y_ass(y,Name,x(X),rw(RW),Ass,Out,Ass1,Out1):-
+   ->
+   get_x_ass(X,XReg),
+   new_y_ass(Name,Y,Ass,Ass1),
+   Out=[new_y(Name,Y)|Out1],
+   RW=set_yvar_reg(XReg,Y).
+maybe_add_y_ass(_,_Name,_,RW,Ass,Out,Ass1,Out1):-
+   ->
+   close_rw(RW),Ass=Ass1,Out=Out1.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% make_new_y_ass
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+make_new_y_ass(Name,Y,Ass,Out,Ass1,Out1):-
+   ->
+   Out=[new_y(Name,Y)|Out1],
+   new_y_ass(Name,Y,Ass,Ass1).   
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% pos_remove_y
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+pos_remove_y(xy,Pos):- ->Pos=x.
+pos_remove_y(y,Pos):- ->Pos=no.
+pos_remove_y(xy(P),Pos):- ->Pos=x(P).
+pos_remove_y(Pos,Pos1):- ->Pos=Pos1.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% add_x_to_pos
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+add_x_to_pos(no,Out):- -> Out=x.
+add_x_to_pos(y,Out):-  -> Out=xy.
+add_x_to_pos(In,Out):- -> Out=In.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% ass_choice 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+ass_choice(x(Pos),x(pos([RegC|_])),AltReg,Name,Ass,AssX,Out,OutX,What):- 
+    ->
+    Out=OutX,
+    member_flag(AltReg,Pos,Flag),
+    (Flag=yes ->
+         add_x_pos(Name,AltReg,Ass,AssX),
+         What=add(RegC,AltReg)
+    ;    What=old(RegC),
+	 free_reg(AltReg,Ass,AssX)).
+ass_choice(x(Pos),x(X),AltReg,Name,Ass,AssX,Out,OutX,What):- 
+    ->
+    Out=OutX,
+    get_x_ass(X,XReg),
+    member_flag(AltReg,Pos,Flag),
+    (Flag=yes ->
+         change_x_ass(Name,x(pos([AltReg])),Ass,Ass1),
+	 free_reg(XReg,Ass1,AssX),
+         What=new(AltReg)
+    ;    What=old(XReg),free_reg(AltReg,Ass,AssX)).
+ass_choice(x,x(opt(XReg)),AltReg,_Name,Ass,AssX,Out,OutX,What):- 
+    ->
+    What=old(XReg),free_reg(AltReg,Ass,AssX),Out=OutX.
+ass_choice(x,x(badx(XReg)),AltReg,Name,Ass,AssX,Out,OutX,What):- 
+    ->
+    det_opt_bad(AltReg,Out,Out1,Name,_,NFlag),
+    det_opt_bad(XReg,Out1,OutX,Name,Mask,OFlag),
+    ass_choice2(NFlag,OFlag,Mask,XReg,AltReg,Name,Ass,AssX,What).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+ass_choice2(_,opt,_,XReg,AltReg,_Name,Ass,AssX,What):-
+    ->
+    What=old(XReg),free_reg(AltReg,Ass,AssX).
+ass_choice2(opt,_,_,XReg,AltReg,Name,Ass,AssX,What):-
+    ->
+    What=new(AltReg),
+    change_x_ass(Name,opt(AltReg),Ass,Ass1),
+    free_reg(XReg,Ass1,AssX).
+ass_choice2(badx,_,_,XReg,AltReg,_Name,Ass,AssX,What):-
+    ->
+    What=old(XReg),free_reg(AltReg,Ass,AssX).
+ass_choice2(pick,badx,_,XReg,AltReg,Name,Ass,AssX,What):-
+    ->
+    What=new(AltReg),
+    change_x_ass(Name,badx(AltReg),Ass,Ass1),
+    free_reg(XReg,Ass1,AssX).
+ass_choice2(pick,pick,Mask,XReg,AltReg,Name,Ass,AssX,What):-
+    ->
+    pick(Mask,Ass,Ass1,Pick),
+    What=neither(Pick,XReg,AltReg),
+    change_x_ass(Name,opt(Pick),Ass1,Ass1),
+    free_reg(XReg,Ass1,Ass2),free_reg(AltReg,Ass2,AssX).
+
+
+
+

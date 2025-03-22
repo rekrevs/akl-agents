@@ -1,0 +1,275 @@
+%%     Cryptarithmetic puzzle 
+%%     AKL by Johan Montelius 
+
+money:- format('The SEND+MORE=MONEY puzzle~n~n'),
+	dmoney('S','E','N','D','M','O','R','Y'),
+	format('~nTry money(dif), money(neq), money(ctr) and money(cir)'),
+	format('~nto try different techniques'),
+	format('~n~ndif - use pairwise dif (detects X = X)'),
+	format('~nneq - use pairwise not_equal (does not detect X = X)'),
+	format('~nctr - use the monitor/controller technique'),
+	format('~nfctr - use the monitor/controller technique (if flat)'),
+	format('~ncir - use the short-circuit/mutex technique').
+
+
+money(Mode):- 
+    statistics(runtime,_),
+    statistics(nondet,_),
+    money(S,E,N,D,M,O,R,Y,Mode) ->
+    statistics(runtime,[_,Time]),
+    statistics(nondet,[_,Nondet]),
+    format('The solution is:~n~n'), 
+    dmoney(S,E,N,D,M,O,R,Y),
+    format('~nSolved in ~w msec using ~w nondeterministic steps',[Time,Nondet]).
+
+
+money(S,E,N,D,M,O,R,Y,Mode):-
+    carry(C1),
+    carry(C2),
+    carry(C3),
+    carry(C4),
+    M = 1,
+    integers(Mode, [S,E,N,D,O,R,Y]),
+    calc( 0,D,E,C1,Y),
+    calc(C1,N,R,C2,E),
+    calc(C2,E,O,C3,N),
+    calc(C3,S,M,C4,O),
+         C4 =      M.
+
+carry(0).
+carry(1).
+
+calc(C0,D,E,C1,Y):-
+    sum(C0,D,CD),
+    sum(CD,E,S),
+    prod(C1,10,C10),
+    sum(C10,Y,S).
+
+/* By implementing sum/3 as a multi directional
+ * agents much constraint propagation is gained.
+ */ 
+
+sum(X,Y,Z):- integer(X) | sumx(X,Y,Z).
+sum(X,Y,Z):- integer(Y) | sumy(X,Y,Z).
+sum(X,Y,Z):- integer(Z) | sumz(X,Y,Z).
+sum(X,Y,Z):- X = Y | prod(2,X,Z).
+sum(X,Y,Z):- X = Z | Y = 0.
+sum(X,Y,Z):- Y = Z | X = 0.
+
+sumx(X,Y,Z):- X = 0 | Y = Z.
+sumx(X,Y,Z):- integer(Y) | Z is X+Y.
+sumx(X,Y,Z):- integer(Z) | Y is Z-X.
+sumx(X,Y,Z):- Y = Z | X = 0.
+
+sumy(X,Y,Z):- Y = 0 | X = Z.
+sumy(X,Y,Z):- integer(X) | Z is X+Y.
+sumy(X,Y,Z):- integer(Z) | Y is Z-X.
+sumy(X,Y,Z):- X = Z | Y = 0.
+
+sumz(X,Y,Z):- Z = 0 | X = 0, Y = 0.
+sumz(X,Y,Z):- integer(X) | Y is Z-X.
+sumz(X,Y,Z):- integer(Y) | X is Z-Y.
+sumz(X,Y,Z):- X = Y | X is Z//2, 0 is Z mod 2.
+
+/* There is little to gain (in this example) to 
+ * implement prod/3 in the same way.
+ */
+
+prod(X,Y,Z):- Z is X*Y.
+
+/* The predicate integers/2 can operate in three modes:
+ * dif, ctr or cir. Each element in the Table will be 
+ * constrained to an integer of the Domain. Two elements
+ * can not be constrained to the same integer.
+ */
+
+
+integers(dif,Table):- ->
+	Domain = [0,2,3,4,5,6,7,8,9],
+	indomain(Table,Domain),
+	diflist(Table).
+integers(neq,Table):- ->
+	Domain = [0,2,3,4,5,6,7,8,9],
+	indomain(Table,Domain),
+	neqlist(Table).
+integers(ctr,Table):- ->
+	Domain = [0,2,3,4,5,6,7,8,9],
+	indomain(Table,Domain),
+	control(Table,Domain).
+integers(fctr,Table):- ->
+	Domain = [0,2,3,4,5,6,7,8,9],
+	indomain(Table,Domain),
+	fcontrol(Table,Domain).
+integers(cir,Table):- ->
+	Domain = [0,2,3,4,5,6,7,8,9],
+	circuit(Table,Domain).
+
+
+/* The predicate indomain/2 is used as a generator. The goal 
+ * indomain(Table,Domain) constrains each element in Table to
+ * be a member in Doamin. 
+ */
+
+indomain([], _) :-
+    ->	true.
+indomain([X|Rest], Domain):- 
+    ->	member(X,Domain), 
+	indomain(Rest, Domain).
+
+member(X,[X|_]).
+member(X,[_|R]):-
+    	member(X,R).
+
+
+/* The predicate difflist/1 is used to check if a function
+ * is injective. This is done by creating a dif/2 process
+ * for each pair in the table. This implies that (N^2 +N)/2
+ * processes are created. The predicate is passive, it can
+ * not generate solutions.
+ */
+
+diflist([]) :-
+    ->	true.
+diflist([X|R]) :-
+    ->	difall(R, X),
+	diflist(R).
+
+difall([], _) :-
+    ->	true.
+difall([Y|R], X) :- 
+    ->	dif(X, Y),
+	difall(R, X).
+
+neqlist([]) :-
+    ->	true.
+neqlist([X|R]):-
+    ->	neqall(R, X),
+	neqlist(R).
+
+neqall([], _) :-
+    ->	true.
+neqall([Y|R], X) :-
+    ->	not_equal(X, Y),
+	neqall(R, X).
+
+/* The predicate control/2 is used to check if a function
+ * is injective. This is done by creating a monitor for
+ * each element in the table. When an element is determined
+ * its value is send to a controller. The controller will 
+ * delete the value from the domain. This implies that only 
+ * N + 1 processes are created. The predicate is passive, it
+ * can not generate solutions.
+ */
+
+control(Table,Domain):-
+    open_port(Port,Stream),
+    spawn(Table,Port),
+    length(Table,N),
+    controller(Stream,N,Domain).
+
+spawn([],_) :-
+    ->	true.
+spawn([D|Ds],Port):-
+    ->	monitor(D,Port),
+	spawn(Ds,Port).
+
+monitor(X,P):-
+	data(X)
+    ->	X@P.
+
+controller(_,0,_):-
+    ->	true.
+controller([X|S],N,Domain):-
+    ->	del(X,Domain,Rest),
+	N1 is N-1,
+	controller(S,N1,Rest).
+
+del(X,[X|R],Del):- -> Del = R.
+del(X,[Y|R],Del):- -> Del = [Y|Rest], del(X,R,Rest).
+
+/* For the flat case...
+ */
+
+fcontrol(Table,Domain):-
+    open_port(Port,Stream),
+    fspawn(Table,Port),
+    length(Table,N),
+    controller(Stream,N,Domain).
+
+fspawn([],_) :-
+    ->	true.
+fspawn([D|Ds],Port):-
+    ->	fmonitor(D,Port),
+	fspawn(Ds,Port).
+
+fmonitor(0,P):-
+    ->	0@P.
+fmonitor(1,P):-
+    ->	1@P.
+fmonitor(2,P):-
+    ->	2@P.
+fmonitor(3,P):-
+    ->	3@P.
+fmonitor(4,P):-
+    ->	4@P.
+fmonitor(5,P):-
+    ->	5@P.
+fmonitor(6,P):-
+    ->	6@P.
+fmonitor(7,P):-
+    ->	7@P.
+fmonitor(8,P):-
+    ->	8@P.
+fmonitor(9,P):-
+    ->	9@P.
+
+/* The predicate circuit/2 is used to generate and check that
+ * a function is injective. The predicate uses what is called a
+ * short-circuit technique. It will set up a grid of processes,
+ * each process is connected to its neighbours in the same row
+ * and column. The predicate will create N^2 processes but since
+ * the predicate also works as agenerater the number of non-
+ * deterministic steps can be reduced. The predicate will only
+ * generate binings that are consistent with the current state.
+ */
+
+circuit(Table, Domain) :-
+	tag_elements(Domain, Ys1),
+	circuit_aux(Table, Ys1, 0).
+
+tag_elements([], Ys1) :-
+    ->	Ys1 = [].
+tag_elements([Y|Ys], Ys0) :-
+    ->	Ys0 = [Y-_|Ys1],
+	tag_elements(Ys, Ys1).
+
+circuit_aux([], _, _) :-
+    ->	true.
+circuit_aux([X|Xs], Ys, N) :-
+    ->	connect(Ys, X, begin, end, N),
+	N1 is N+1,
+	circuit_aux(Xs, Ys, N1).
+
+connect([], _, C0, C, _) :-
+    ->	C = C0.
+connect([Y|Ys], X, C0, C, N) :-
+    ->	equal(Y, X, C0, C1, N),
+	connect(Ys, X, C1, C, N).
+
+equal(X-N, X, _, _, N).
+equal(_,   _, C, C, _).
+
+
+/* to display a solution */
+
+dmoney(S,E,N,D,M,O,R,Y):-
+    format('     ~w~w~w~w~n',[S,E,N,D]), 
+    format('  +  ~w~w~w~w~n',[M,O,R,E]),
+    format('  -------~n'),
+    format('    ~w~w~w~w~w~n', [M,O,N,E,Y]).
+
+
+
+
+
+

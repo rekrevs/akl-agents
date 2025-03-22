@@ -1,0 +1,12 @@
+% X ~= Y :- not X=Y.
+
+% some F :- F(_).
+
+% (P => Q) :- not P ; Q.
+
+% (Q <= P) :- not P ; Q.
+
+% (P <=> Q) :- (P => Q), (P <= Q).
+
+% if P then Q :- !, (P -> Q).
+% if P then Q else R :- '->;'(P, Q, R).

@@ -1,0 +1,74 @@
+@node Prolog, Random, Ordsets, Top
+@chapter Prolog Built-in Predicates
+@cindex Prolog built-in predicates
+
+<<<NEEDS WORK>>>
+
+<<<The agents described below are built into AGENTS at
+present, i.e., there is no need to load a library to get
+them.  In fact, there is no library to load yet!>>>
+
+@table @code
+@item functor(@var{+Term}, @var{-Name}, @var{-Arity})
+@itemx functor(@var{-Term}, @var{+Name}, @var{+Arity})
+@findex functor/3
+@emph{synchronization:} Suspends until @var{Term} is
+constrained or @var{Name} and @var{Arity} are constrained.
+
+@emph{behavior:} If @var{Term} is constrained, unifies
+@var{Name} with the name and @var{Arity} with the arity of
+the principal functor of @var{Term}.  If @var{Name} and
+@var{Arity} are constrained, fails unless @var{Name} is an
+atom or, if @var{Arity} is @code{0}, an integer or float and
+@var{Arity} is a nonnegative integer; otherwise unifies
+@var{Term} with the least-constrained term whose principal
+functor has name @var{Name} and arity @var{Arity}.
+
+@item @var{+Term} =.@. @var{-List}
+@itemx @var{-Term} =.@. @var{+List}
+@itemx term_list(@var{+Term}, @var{-List})
+@itemx term_list(@var{-Term}, @var{+List})
+@findex =.@. /2, univ
+@findex term_list/2
+@emph{synchronization:} Suspends until @var{Term} or
+@var{List} is constrained.  If @var{Term} is unconstrained
+and @var{List} is a proper list, suspends until the head of
+@var{List} is constrained.
+
+@emph{behavior:} If @var{Term} is constrained, unifies
+@var{List} with a list whose head is the name of the
+principal functor of @var{Term} and whose tail is a list of
+the arguments of @var{Term}.  If @var{List} is constrained,
+fails unless @var{List} is a proper list whose head is an
+atom or, if its tail is @code{[]}, an integer or float;
+otherwise unifies @var{Term} with the term having the head
+of @var{List} as the name of its principal functor and the
+elements of the tail of @var{List} as its arguments.
+
+@item length(@var{+List}, @var{-Length})
+@itemx length(@var{-List}, @var{+Length})
+@findex length/2
+@emph{synchronization:} Suspends until @var{List} or
+@var{Length} is constrained.
+
+@emph{behavior:} If @var{List} is constrained, fails unless
+@var{List} is a proper list; otherwise unifies @var{Length}
+with the length of @var{List}.  If @var{Length} is
+constrained, fails unless @var{Length} is a nonnegative
+integer; otherwise unifies @var{List} with the
+least-constrained list whose length is @var{Length}.
+
+@item atom_chars(@var{+Atom}, @var{-Chars})
+@itemx atom_chars(@var{-Atom}, @var{+Chars})
+@findex atom_chars/2
+@emph{synchronization:} Suspends until @var{Atom} or
+@var{Chars} is constrained.
+
+@emph{behavior:} If @var{Atom} is constrained, fails unless
+@var{Atom} is an atom; otherwise unifies @var{Chars} with
+the string representing @var{Atom} (the ``name'' of
+@var{Atom}).  If @var{Chars} is constrained, fails unless
+@var{Chars} is a string; otherwise unifies @var{Atom} with
+the atom whose print representation is @var{Chars}.
+@end table
+

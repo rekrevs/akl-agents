@@ -1,0 +1,510 @@
+xscanner(R,C) :-
+	gmstart(G),
+	window(R, C, Window, Sview, Xview, Out, Rw, Cl, Ld, Rd)-G,
+	rays_init(R, C, Rays, Rw, Cl, Ld, Rd)-G,
+	sample_init(R, C, Sample, Sview)-G,
+	xray_init(R, C, Xray, Xview)-G,
+	message(waitevent(Event),Window)@G,
+	handle(Event, Window, Sample, Xray, Rays, Out, G).
+
+
+/******* window  interface ***************************************/
+
+window(R, C, Window, Sview, Xview, Out, Rw,Cl,Ld,Rd)-G :-
+	X is R*10,
+	Y is C*10,
+	sview(X, Y, Sview)-G,
+	xview(X, Y, Xview)-G,
+	rview(Rw,Cl,Ld,Rd)-G,
+	swindow(Window, Sview, Xview, Out, Rw, Cl, Ld, Rd)-G,
+	message(open,Window)@G.
+
+sview(X, Y, View)-G :-
+	create(view(X,Y),View)@G,
+	M = menu(["Load..","Save..","X-ray","Solve","Quit"],[load,save,xray,solve,quit]),
+	create(M,Menu)@G,
+	message(enable,View)@G,
+	message(setmenu(Menu),View)@G.
+
+
+xview(X, Y, View)-G :-
+	create(view(X,Y),View)@G,
+	M = menu(["Next","Ok"],[next,ok]),
+	create(M,Menu)@G,
+	message(batchmode,View)@G,
+	message(setmenu(Menu),View)@G.
+
+rview(Rw,Cl,Ld,Rd)-G :-
+	create(output("Rows"),Rw)@G,
+	create(output("Columns"),Cl)@G,
+	create(output("Left diagonal"), Ld)@G,
+	create(output("Right diagonal"), Rd)@G.
+
+swindow(Window, Sview, Xview, Out, Rw, Cl, Ld, Rd)-G :-
+	create(output(""),Out)@G,
+	create(output("The Scanner", "-*-times-bold-r-*-*-20-*-*-*-*-*-*-*"),
+		Scanner)@G,
+	create(output("Sample"), Sample)@G,
+	create(output("X-ray"), Xray)@G,
+	Sbox = vbox([hbox([Sample,space]), frame(Sview)]),
+	Xbox = vbox([hbox([Xray,space]), frame(Xview)]),
+	Header = hbox([Scanner,space]),
+	View = hbox([Sbox,space,Xbox,space]),
+	Output = hbox([Out,space]),
+	W = hbox([space,vbox([Header,View,Output,Rw,Cl,Ld,Rd]),space]),
+	create(window("scanner",W),Window)@G.
+
+
+
+/******** event handler ***********************************/
+
+
+handle(down(_,_,X,Y), Window, Sample, Xray, Rays, Out, G) :-
+    ->	message(out(""),Out)@G,
+	toggle(X,Y,G,G1)@Sample,
+	message(waitevent(Event),Window)@G1,
+	handle(Event, Window, Sample, Xray, Rays, Out, G1).
+handle(menu(_,load), Window, Sample, Xray, Rays, Out, G) :-
+    ->	message(out("not implemented"),Out)@G,
+	message(waitevent(Event),Window)@G,
+	handle(Event, Window, Sample, Xray, Rays, Out, G).
+handle(menu(_,save), Window, Sample, Xray, Rays, Out, G) :-
+    ->	message(out("not implemented"),Out)@G,
+	message(waitevent(Event),Window)@G,
+	handle(Event, Window, Sample, Xray, Rays, Out, G).
+handle(menu(_,xray), Window, Sample, Xray, Rays, Out, G) :-
+    ->	message(out("x-ray"),Out)@G,
+	xray(R,C,Rx,Cx,Ldx,Rdx)@Sample,
+	set(R,C,Rx,Cx,Ldx,Rdx,G,G1)@Rays,
+	message(waitevent(Event),Window)@G1,
+	handle(Event, Window, Sample, Xray, Rays, Out, G1).
+handle(menu(_,solve), Window, Sample, Xray, Rays, Out, G) :-
+    ->	get(R,C,Rx,Cx,Ldx,Rdx)@Rays,	
+	rscanner(R, C, Rx, Cx, Ldx, Rdx, Refl,Sols),
+	shandle(Sols, Refl, Window, Sample, Xray, Rays, Out, G).	
+handle(menu(_,quit), Window, _Sample, _Xray, _Rays, _Out, G) :-
+    ->	message(close, Window)@G.
+handle(_Other, Window, Sample, Xray, Rays, Out, G) :-
+    ->	message(waitevent(Event),Window)@G,
+	handle(Event, Window, Sample, Xray, Rays, Out, G).	
+
+
+shandle([], _Refl, Window, Sample, Xray, Rays, Out, G) :-
+    ->	message(out("error"), Out)@G,
+	message(waitevent(Event),Window)@G,
+	handle(Event, Window, Sample, Xray, Rays, Out, G).
+shandle([suspended|_Sol], _Refl, Window, Sample, Xray, Rays, Out, G) :-
+    ->	message(out(suspended), Out)@G,
+	message(waitevent(Event),Window)@G,
+	handle(Event, Window, Sample, Xray, Rays, Out, G).
+shandle([fail|_Sol], _Refl, Window, Sample, Xray, Rays, Out, G) :-
+    ->	message(out("no solution"), Out)@G,
+	message(waitevent(Event),Window)@G,
+	handle(Event, Window, Sample, Xray, Rays, Out, G).
+shandle([solution(S)|Sol], Refl, Window, Sample, Xray, Rays, Out, G) :-
+    ->	message(out("solution"), Out)@G,
+	display(S,G,G1)@Xray,
+	message(waitevent(Event),Window)@G1,
+	xhandle(Event, Sol, Refl, Window, Sample, Xray, Rays, Out, G1).
+
+
+xhandle(menu(_,ok), _Sol, _Refl, Window, Sample, Xray, Rays, Out, G) :-
+    ->	message(out(ok), Out)@G,
+	message(waitevent(Event),Window)@G,
+	handle(Event, Window, Sample, Xray, Rays, Out, G).
+xhandle(menu(_,next), Sol, Refl, Window, Sample, Xray, Rays, Out, G) :-
+    ->	reflective_next(Refl, Refl1),
+	shandle(Sol, Refl1, Window, Sample, Xray, Rays, Out, G).
+xhandle(_Other, Sol, Refl, Window, Sample, Xray, Rays, Out, G) :-
+    ->	message(out("next or ok"), Out)@G,
+	message(waitevent(Event),Window)@G,
+	xhandle(Event, Sol, Refl, Window, Sample, Xray, Rays, Out, G).	
+
+
+/******** sampler process ********************************************/
+
+sample_init(R, C, Sample, View)-G :-
+	pad(R, C, Pad, View)-G,
+	message(update, View)@G,
+	open_port(Sample,S),
+	sample(S, Pad, View).
+
+
+
+sample([], _, _) :-
+    ->	true.
+sample([toggle(X,Y,G,G1) | S], Pad, View) :-
+    ->	R is Y//10+1,
+	C is X//10+1,
+	Pad = pad(_,_,Rows),
+	arg(R, Rows, Row),
+	arg(C, Row, Sq),
+	toggle(Sq, View, G, G1),
+	sample(S, Pad, View).
+sample([xray(R,C,Rws,Cls,Lds,Rds)|S], Pad, View) :-
+    ->	Pad = pad(R,C,Rows),
+	lines(1, R, C, Rows, Rws, Cls, Lds, Rds),
+	sample(S, Pad, View).
+
+
+lines(R, R, C, Rows, Arws, Acls, Alds, Ards) :- 
+	C > 0
+    ->	lseed(C,Cls),
+	C1 is C-1,
+	lseed(C1,Lds),
+	lseed(C1,Rds),
+	arg(R, Rows, Row),
+	lrow(C, Row, 0, Rw),
+	Arws = [Rw],
+	lcolumn(1, C, Row, Cls, Acls),
+	ldiagonal(1, C, Row, Lds, Alds),
+	ldiagonal(C, Row, Rds, Ards).
+lines(N, R, C, Rows, Arws, Acls, Alds, Ards) :-
+    ->	N1 is N+1,
+	lines(N1, R, C, Rows, Rws, Cls, Lds, Rds),
+	arg(N, Rows, Row),
+	Arws = [Rw|Rws],
+	lrow(C, Row, 0, Rw),
+	lcolumn(1, C, Row, Cls, Acls),
+	ldiagonal(1, C, Row, Lds, Alds),
+	ldiagonal(C, Row, Rds, Ards).
+
+
+lseed(0,Seed) :-
+    ->	Seed = [].
+lseed(C,Seed) :-
+    ->	Seed = [0|S1],
+	C1 is C-1,
+	lseed(C1,S1).
+
+
+lrow(0, _, A, Rw) :-
+    ->	Rw = A.
+lrow(C, Row, A, Rw) :-
+    ->	arg(C, Row, sq(N,_)),
+	An is A+N,
+	C1 is C-1,
+	lrow(C1, Row, An, Rw).
+
+lcolumn(0, _, Cls, Acls) :-
+    ->	Cls = Acls.
+lcolumn(C, Row, Acls, Anls) :-
+    ->	Acls = [A|Cls], 
+	Anls = [An|Als],
+	arg(C, Row, sq(N,_)),
+	An is A+N,
+	C1 is C-1,
+	lcolumn(C1, Row, Cls, Als).
+
+
+
+lcolumn(C, C, Row, Acls, Anls) :-
+    ->	Acls = [A|Cls], 
+	Anls = [An|Cls],
+	arg(C, Row, sq(N,_)),
+	An is A+N.
+lcolumn(X, C, Row, Acls, Anls) :-
+    ->	Acls = [A|Cls], 
+	Anls = [An|Als],
+	arg(X, Row, sq(N,_)),
+	An is A+N,
+	X1 is X+1,
+	lcolumn(X1, C, Row, Cls, Als).
+
+
+ldiagonal(C, Row, Dg, [N|Dgs]) :-
+	arg(C, Row, sq(N,_)),
+	C1 is C-1,
+	lcolumn(C1, Row, Dg, Dgs).
+
+ldiagonal(X, C, Row, Dg, [N|Dgs]) :-
+	arg(X, Row, sq(N,_)),
+	X1 is X+1,
+	lcolumn(X1, C, Row, Dg, Dgs).
+
+
+
+toggle(Sq, View)-G :- 
+	Sq = sq(0,R)
+    ->	sys_setarg(1, Sq, 1),
+	message(scale(R, 500, 500), View)@G.
+toggle(Sq, View)-G :- 
+	Sq = sq(1,R)
+    ->	sys_setarg(1, Sq, 0),
+	message(scale(R, 20, 20), View)@G.
+
+/******* ray process ******************************************/
+
+
+rays_init(R, C, Rays, Rw, Cl, Ld, Rd)-G :-
+	zeroes(R, Rx),
+	zeroes(C, Cx),
+	D is R+C-1,
+	zeroes(D, Ldx),
+	zeroes(D, Rdx),
+	message(out(format('R: ~w', [Rx])), Rw)@G,
+	message(out(format('C: ~w', [Cx])), Cl)@G,
+	message(out(format('L: ~w', [Ldx])), Ld)@G,
+	message(out(format('R: ~w', [Rdx])), Rd)@G,
+	open_port(Rays,S),
+	rays(S, rc(R,C), x(Rx, Cx, Ldx, Rdx), o(Rw,Cl,Ld,Rd)).
+
+rays([], _, _, _) :-
+    ->	true.
+rays([set(R,C,Rx,Cx,Ldx,Rdx,G,G1)|S], _, _, o(Rw,Cl,Ld,Rd)) :-
+    ->	message(out(format('R: ~w', [Rx])), Rw)@G,
+	message(out(format('C: ~w', [Cx])), Cl)@G,
+	message(out(format('L: ~w', [Ldx])), Ld)@G,
+	message(out(format('R: ~w', [Rdx])), Rd)@G,
+	G1 = G,
+	rays(S, rc(R,C), x(Rx,Cx,Ldx,Rdx),  o(Rw,Cl,Ld,Rd)).
+rays([get(R,C,Rx,Cx,Ldx,Rdx)|S], RC, X, O) :-
+    ->	RC = rc(R,C),
+	X = x(Rx,Cx,Ldx,Rdx),
+	rays(S, RC, X, O).
+
+
+zeroes(0,Z) :-
+    ->	Z = [].
+zeroes(N,Z) :-
+    ->	Z = [0|Z1],
+	N1 is N-1,
+	zeroes(N1, Z1).
+
+
+/********* xray process **********************************************/
+
+xray_init(R, C, Xray, View)-G :-
+    ->	pad(R, C, Pad, View)-G,
+	message(update,View)@G,
+	open_port(Xray,S),
+	xray(S, Pad, View).
+
+xray([], _, _) :-
+    ->	true.
+xray([display(T,G,G1)|S], Pad, View) :-
+    ->	Pad = pad(R,C,Rows),
+	xdisplay(1, R, C, T, Rows, View)-G,
+	message(update, View)@G,
+	G1 = G,
+	xray(S, Pad, View).
+
+
+xdisplay(R, R, C, [Rw], Rows, View)-G :-
+    ->	arg(R, Rows, Row),
+	xrdisplay(1, C, Rw, Row, View)-G.
+xdisplay(N, R, C, [Rw|Rws], Rows, View)-G :-
+    ->	arg(N, Rows, Row),
+	xrdisplay(1, C, Rw, Row, View)-G,
+	N1 is N+1,
+	xdisplay(N1, R, C, Rws, Rows, View)-G.
+	
+xrdisplay(C, C, [on], Row, View)-G :-
+    ->	arg(C, Row, Sq),
+	xson(Sq, View)-G.
+xrdisplay(C, C, [off], Row, View)-G :-
+    ->	arg(C, Row, Sq),
+	xsoff(Sq, View)-G.
+xrdisplay(N, C, [on|Rw], Row, View)-G :-
+    ->	arg(N, Row, Sq),
+	xson(Sq, View)-G,
+	N1 is N+1,
+	xrdisplay(N1, C, Rw, Row, View)-G.
+xrdisplay(N, C, [off|Rw], Row, View)-G :-
+    ->	arg(N, Row, Sq),
+	xsoff(Sq, View)-G,
+	N1 is N+1,
+	xrdisplay(N1, C, Rw, Row, View)-G.
+
+xson(Sq, View)-G :- 
+	Sq = sq(0,R)
+    ->	sys_setarg(1,Sq,1),
+	message(scale(R, 500, 500), View)@G.
+xson(_Sq, _View)-_G :-
+    ->	true.
+
+xsoff(Sq, View)-G :- 
+	Sq = sq(1,R)
+    ->	sys_setarg(1,Sq,0),
+	message(scale(R, 20, 20), View)@G.
+xsoff(_Sq, _View)-_G :-
+    ->	true.
+
+
+/******* create a pad **************/
+
+
+pad(R, C, pad(R,C,Rows), View)-G :- 
+	functor(Rows, rows, R),
+	pad_init(R, C, Rows, View)-G.
+	
+
+pad_init(0,_,_Rows,_V)-_G :-
+    ->	true.
+pad_init(N, C, Rows, View)-G :-
+    ->	arg(N, Rows, Row),
+	functor(Row, row, C),
+	pad_init1(N, C, Row, View)-G,
+	N1 is N-1,
+	pad_init(N1, C, Rows, View)-G.
+
+pad_init1(_, 0, _, _)-_G :-
+    ->	true.
+pad_init1(N, C, Row, View)-G :-
+    ->	arg(C, Row, sq(0,Rect)),
+	X1 is C*10-4,
+	X2 is X1-2,
+	Y1 is N*10-4,
+	Y2 is Y1-2,
+	message(fillrect(Rect,X1,Y1,X2,Y2), View)@G,
+	C1 is C-1,
+	pad_init1(N, C1, Row, View)-G.
+
+/******* inteface to the scanner ****************/
+
+rscanner(R, C, Rd, Cd, D1d, D2d, Refl, Sol) :- 
+	integer(R), integer(C), rays(Rd), rays(Cd), rays(D1d), rays(D2d)
+    ->	reflective_call(Refl, scanner(R,C,Rd,Cd,D1d,D2d), Sol).
+
+
+rays([]) :-
+    ->	true.
+rays([A|R]) :-
+	integer(A)
+    ->	rays(R).
+
+
+
+/* This is the main predicate in the scanner program */
+
+scanner(R, C, RwData, ClData, D1Data, D2Data, Rws) :- 
+	board(R,C,All,Rws,Cls,D1,D2), 
+	check(RwData,Rws),
+	check(ClData,Cls),
+	check(D1Data,D1),
+	check(D2Data,D2),
+	domain(All).
+
+
+check([],[]) :-
+    ->	true.
+check([K|RwsD],[R|Rws]) :-
+    ->	length(R,L),
+	open_port(P,I),
+	spawn(R,S,P),
+	controller(K,L,I,S),
+	check(RwsD,Rws).
+
+
+/* Since the processor model can not generate solutions a 
+ * nondeterministic process is needen to break a dead-
+ * lock.
+ */
+
+
+domain([]).
+domain([E|R]) :-
+   pixle(E) ?
+   domain(R).
+
+pixle(on).
+pixle(off).
+
+
+/* Create a monitor process for each element in the line.
+ * The monitors will report to a copntroller process as
+ * soon as an element is determined. The controller will
+ * make sure taht the messages are consistent. If a deter-
+ * ministic situation occures the controller will issue
+ * a message to the remaining monitors to either turn 
+ * their element on or off.
+ */
+
+spawn([],_,_) :-
+    ->	true.
+spawn([E|R],S,P) :-
+    ->	monitor(S,P,E),
+	spawn(R,S,P).
+
+
+controller(K,L,M,S) :-
+	K = 0
+    |	S = turn(off),
+	turned(L,M,off).
+controller(K,L,M,S) :-
+	L = K
+    |	S = turn(on),
+	turned(L,M,on).
+controller(K,L,[Ms|M],S) :-
+    |	controller0(Ms,K,L,M,S).
+
+controller0(on,K,L,M,S) :-
+	K > 0
+    |	K1 is K-1,
+	L1 is L-1,
+	controller(K1,L1,M,S).
+controller0(off,K,L,M,S) :- 
+	L > K
+    |	L1 is L-1,
+	controller(K,L1,M,S).
+
+
+turned(0,_,_) :-
+    ->	true.
+turned(N,[Val|S],Val) :- 
+	N > 0
+    ->	N1 is N-1,
+	turned(N1,S,Val).
+
+
+monitor(_S,P,X) :- 
+	atom(X)
+    |	X@P.
+monitor(turn(V),P,X) :-
+    |	X = V,
+	X@P.
+
+/* board(R,C,All,Rows,Columns,Rights,Left) constructs a grid RxC with one
+ * variable per square. All is a list of all variables, Rows is list of
+ * all rows, each row represented as alist of its variables. The same
+ * hold for Columns, Right(diagonals) and Left(diagonals)
+ */
+
+board(0,C,[],[],Cls,D,D) :- 
+	C > 0
+    ?	C1 is C-1,
+	seed(C,Cls),
+	seed(C1,D).
+board(R,C,All,[Row|Rws],Cols,Rdiag,Ldiag) :- 
+	R > 0
+    ?	R1 is R-1,
+	row(C, Row),
+	all(Row,Al,All),
+	column(Row,Cls,Cols),
+	diagonal(Row,Rdg,Rdiag),
+	rev(Row,[],Rev),
+	diagonal(Rev,Ldg,Ldiag),
+	board(R1,C,Al,Rws,Cls,Rdg,Ldg).
+
+
+seed(0,[]).
+seed(C,[[]|S1]) :- C > 0 ? C1 is C-1, seed(C1,S1).
+
+
+all([],Al,Al).
+all([H|Row],Al,[H|All]) :- all(Row,Al,All).
+
+row(0,[]).
+row(C,[_|R]) :- C > 0 ? C1 is C-1, row(C1,R).
+
+column([],X,X).
+column([H|R],[Cl|Cls],[[H|Cl]|Columns]) :-  column(R,Cls,Columns).
+
+diagonal([H|Row],Dg, [[H]|Diag]) :- column(Row,Dg,Diag).
+
+rev([],Y,Y).
+rev([H|T],Y,Z) :- rev(T,[H|Y],Z).
+
+
+
+

@@ -1,0 +1,190 @@
+/* $Id: sort.akl,v 1.9 1994/04/06 14:43:45 rch Exp $ */
+
+%   Author : Richard A. O'Keefe
+%   Updated: 1 June 84 (July 90 by matsc; Feb 93 by sverker)
+%   Purpose: a sorting routine which exploits existing order
+
+/*  Adapted from shared code written by the same author; all changes */
+/*  Copyright (C) 1988-1993, Swedish Institute of Computer Science. */
+
+/*  First adapted for AKL by Johan Montelius. */
+/*  Rewritten in pure AKL by Sverker Janson. */
+
+%   Sorting.  Adapted from O'Keefe's code, but uses recursion instead of
+%   an auxiliary stack.  Takes care to check validity of arguments.
+
+sort(List, Sorted) :-
+	sort(List, -1, Sorted0, [])
+    ->	Sorted = Sorted0.
+sort(List, Sorted) :-
+    ->	sort_diagnosis(List, sort(List, Sorted)).
+
+sort([Head|Tail], Lim, Sorted, Rest) :-
+    ->	samrun(Tail, [Head|T], Head, T, Run, Rest0),
+	sort(Rest0, 1, Lim, Run, Sorted, Rest).
+sort(List, _, Sorted, Rest) :-
+    ->	Sorted = [],
+	Rest = List.
+
+sort([Head|Tail], J, Lim, Run0, Sorted, Rest) :-
+	J =\= Lim
+    ->	samrun(Tail, [Head|T], Head, T, Run1, Rest0),
+	sort(Rest0, 1, J, Run1, Run2, Rest1),
+	akl_merge(Run0, Run2, Run),
+	K is J<<1,
+	sort(Rest1, K, Lim, Run, Sorted, Rest).
+sort(List, _, _, Run0, Sorted, Rest) :-
+    ->	Sorted = Run0,
+	Rest = List.
+
+% samrun(List, Begin, Last, End, Run, Rest)
+
+samrun([Head|Tail], Begin, Last, End, Run, Rest) :-
+    ->	compare(X, Head, Last),
+	samrunt(X, Head, Tail, Begin, Last, End, Run, Rest).
+samrun(List, Begin, _, End, Run, Rest) :-
+    ->	End = [],
+	Run = Begin,
+	Rest = List.
+
+samrunt(>, Head, Tail, Begin, _, End, Run, Rest) :-
+    ->	End = [Head|NewEnd],
+	samrun(Tail, Begin, Head, NewEnd, Run, Rest).
+samrunt(=, _, Tail, Begin, Last, End, Run, Rest) :-
+    ->	samrun(Tail, Begin, Last, End, Run, Rest).
+samrunt(<, Head, Tail, Begin, Last, End, Run, Rest) :-
+    ->	Begin = [First|_],
+	compare(X, Head, First),
+	samrunh(X, Head, Tail, Begin, Last, End, Run, Rest).
+
+samrunh(<, Head, Tail, Begin, Last, End, Run, Rest) :-
+    ->	samrun(Tail, [Head|Begin], Last, End, Run, Rest).
+samrunh(=, _, Tail, Begin, Last, End, Run, Rest) :-
+    ->	samrun(Tail, Begin, Last, End, Run, Rest).
+samrunh(>, Head, Tail, Begin, _, End, Run, Rest) :-
+    ->	End = [],
+	Run = Begin,
+	Rest = [Head|Tail].
+
+akl_merge([], Ns, Set) :-
+    ->	Set = Ns.
+akl_merge([O|Os], Ns, Set) :-
+    ->	akl_merge(Ns, O, Os, Set).
+
+akl_merge([], O, Os, Set) :-
+    ->	Set = [O|Os].
+akl_merge([N|Ns], O, Os, Set) :-
+    ->	compare(C, O, N), 
+	akl_merge(C, O, Os, N, Ns, Set).
+
+akl_merge(<, O1, Os, N, Ns, Set0) :-
+    ->	Set0 = [O1|Set],
+	akl_merge(Os, N, Ns, Set).
+akl_merge(=, _, Os, N, Ns, Set0) :-
+    ->	Set0 = [N|Set],
+	akl_merge(Os, Ns, Set).
+akl_merge(>, O, Os, N1, Ns, Set0) :-
+    ->	Set0 = [N1|Set],
+	akl_merge(Ns, O, Os, Set).
+
+sort_diagnosis([_|Tail], Goal) :-
+    ->	sort_diagnosis(Tail, Goal).
+sort_diagnosis([], _) :-
+    ->	fail.
+sort_diagnosis(_, Goal) :-
+    ->	domain_error(Goal, 1, list).
+
+
+%   Keysorting.  Adapted from O'Keefe's code, but uses recursion instead of
+%   an auxiliary stack.  Takes care to check validity of arguments.
+%   Could be speeded up if there was an inline keycompare/3.
+
+keysort(List, Sorted) :-
+	keysort(List, -1, Sorted0, [])
+    ->	Sorted = Sorted0.
+keysort(List, Sorted) :-
+    ->	keysort_diagnosis(List, keysort(List, Sorted)).
+
+keysort([Head|Tail], Lim, Sorted, Rest) :-
+    ->	Head = H-_,
+	samkeyrun(Tail, [Head|Qh], H, Qh, Run, Rest0),
+	keysort(Rest0, 1, Lim, Run, Sorted, Rest).
+keysort(List, _, Sorted, Rest) :-
+    ->	Sorted = [],
+	Rest = List.
+
+keysort([Head|Tail], J, Lim, Run0, Sorted, Rest) :-
+	J =\= Lim
+    ->	Head = H-_,
+	samkeyrun(Tail, [Head|Qh], H, Qh, Run1, Rest0),
+	keysort(Rest0, 1, J, Run1, Run2, Rest1),
+	akl_keymerge(Run0, Run2, Run),
+	K is J<<1,
+	keysort(Rest1, K, Lim, Run, Sorted, Rest).
+keysort(List, _, _, Run0, Sorted, Rest) :-
+    ->	Sorted = Run0,
+	Rest = List.
+
+% samkeyrun(List, QH, Last, QH, Run, Rest)
+
+/*
+samkeyrun([Hd|Tail], QH, Last, QT, Run, Rest) :-
+	Hd = H-_,
+	H @>= Last
+    ->	QT = [Hd|QT1],
+	samkeyrun(Tail, QH, H, QT1, Run, Rest).
+samkeyrun([Hd|Tail], QH, Last, QT, Run, Rest) :-
+	Hd = H-_,
+	QH = [Q-_|_],
+	H @< Q
+    ->	samkeyrun(Tail, [Hd|QH], Last, QT, Run, Rest).
+samkeyrun(List, QH, _, QT, Run, Rest) :-
+    ->	QT = [],
+	Run = QH,
+	Rest = List.
+*/
+
+samkeyrun([Hd|Tail], QH, Last, QT, Run, Rest) :-
+    ->	Hd = H-_,
+	compare(X, H, Last),
+	samkeyrunt(X, QH, Last, QT, Run, Rest, Hd, Tail, H).
+samkeyrun(List, QH, _, QT, Run, Rest) :-
+    ->	QT = [],
+	Run = QH,
+	Rest = List.
+
+samkeyrunt(<, QH, Last, QT, Run, Rest, Hd, Tail, H) :-
+    ->	QH = [Q-_|_],
+	compare(X, H, Q),
+	samkeyrunh(X, QH, Last, QT, Run, Rest, Hd, Tail).
+samkeyrunt(_, QH, _, QT, Run, Rest, Hd, Tail, H) :-
+    ->	QT = [Hd|QT1],
+	samkeyrun(Tail, QH, H, QT1, Run, Rest).
+
+samkeyrunh(<, QH, Last, QT, Run, Rest, Hd, Tail) :-
+    ->	samkeyrun(Tail, [Hd|QH], Last, QT, Run, Rest).
+samkeyrunh(_, QH, _, QT, Run, Rest, Hd, Tail) :-
+    ->	QT = [],
+	Run = QH,
+	Rest = [Hd|Tail].
+
+akl_keymerge([], L2, Out) :-
+    ->	Out = L2.
+akl_keymerge([H1|T1], L2, Out) :-	
+	L2 = [K2-_|_],
+	H1 = K1-_,
+	K1 @=< K2
+    ->	Out = [H1|Out1],
+	akl_keymerge(T1, L2, Out1).
+akl_keymerge(L1, [H2|L2], Out) :-
+    ->	Out = [H2|Out1],
+	akl_keymerge(L1, L2, Out1).
+akl_keymerge(List, _, Out):-
+    ->	Out = List.
+
+keysort_diagnosis([_-_|Tail], Goal) :-
+    ->	keysort_diagnosis(Tail, Goal).
+keysort_diagnosis([], _) :-
+    ->	fail.
+keysort_diagnosis(_, Goal) :-
+    ->	domain_error(Goal, 1, 'list of Key-Value pairs').

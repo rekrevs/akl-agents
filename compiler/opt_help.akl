@@ -1,0 +1,540 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% OPT HELP
+%%%%                Instruction Classification
+%%%%                           classify_instr(Instr,-Class)
+%%%%                           classify_try_instr(Instr,-Class)
+%%%%                Instruction Components
+%%%%                           branch_constaint_fail_dec(Branch)
+%%%%                           branch_get_all_jump(Branch,-Jumps)
+%%%%                           try_get_jlabel(TryInstr,-Label)
+%%%%                           try_get_reg(TryInstr,-Reg)
+%%%%                           try_get_binding(TryInstr,Bind)
+%%%%                Unif
+%%%%                           pseudo_unify(Bind1,Bind2,Jump,-Out)
+%%%%                Opt Mode
+%%%%                           init_opt_mode(Mode,Flags,F,A,-Out)
+%%%%                           opt_mode_guard_op(OptMode,-Guard)
+%%%%                           opt_mode_flags(OptMode,-Flags)
+%%%%                           opt_mode_arity(OptMode,-Arity)
+%%%%                           opt_mode_functor(OptMode,-Functor)
+%%%%                Array of Ports
+%%%%                           open_array_ports(Beg,Max,Gaps,Array1,Array2)
+%%%%                           close_array_ports(Beg,Max,Gaps,Array)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% INSTRUCTION classification
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% classify_instr
+%%%%                                   block
+%%%%                                   choice(N)      N={1,2}
+%%%%                                   guard(F)       F={flat,deep,short}
+%%%%                                   write_exit(F)  F={always,maybe}
+%%%%                                   spec(F)        F={call,cont}
+%%%%                                   end(F)         F={simple,normal}
+%%%%                                   constraint_stack
+%%%%                                   branch(A,B,C)  A={static,dyn}
+%%%%                                                  B={fail,no_fail}
+%%%%                                                  C={N,no,pass} 
+%%%%							where N is int
+%%%%                                  push(X)         X={data,USE}
+%%%%                                  try(X,N)        X={back,ord,test,deep}
+%%%%						      N={1,2}
+%%%%                                  read(USELIST)
+%%%%                                  h_match(USE)
+%%%%				      ord(USELIST)
+%%%%                                  jump_match(USELIST,N)     N is int
+%%%%                                  
+%%%%                                        USELIST=[USE,...USE]
+%%%%                                        USE={use(x),use(y),init(x),init(y)
+%%%%                                            match(x),match(xy),match(xx),match(y)}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%% BLOCK
+
+classify_instr(block(_,_,_),Out):-              -> Out=block.
+
+%%%% LABEL
+
+classify_instr(label(_),Out):-                  -> Out=label.
+
+%%%% CHOICE
+
+classify_instr(choice_single_quiet_cut,Out):-         -> Out=choice(1).
+classify_instr(choice_single_quiet_commit,Out):-      -> Out=choice(1).
+classify_instr(choice_single_noisy_wait,Out):-        -> Out=choice(1).
+
+classify_instr(choice_quiet_cut,Out):-             -> Out=choice(2).
+classify_instr(choice_quiet_commit,Out):-          -> Out=choice(2).
+classify_instr(choice_noisy_wait,Out):-            -> Out=choice(2).
+
+%%%% GUARD
+
+classify_instr(flat_quiet_cut(_),Out):-         -> Out=guard(flat).
+classify_instr(flat_quiet_commit(_),Out):-      -> Out=guard(flat).
+classify_instr(flat_noisy_wait(_),Out):-        -> Out=guard(flat).
+
+classify_instr(shortcut_quiet_cut(_,_),Out):-    -> Out=guard(short).
+classify_instr(shortcut_quiet_commit(_,_),Out):- -> Out=guard(short).
+classify_instr(shortcut_noisy_wait(_,_),Out):-   -> Out=guard(short).
+
+classify_instr(deep_quiet_cut,Out):-         -> Out=guard(deep).
+classify_instr(deep_quiet_commit,Out):-      -> Out=guard(deep).
+classify_instr(deep_noisy_wait,Out):-        -> Out=guard(deep).
+
+%%%% WRITE_EXIT
+
+classify_instr(jump(_),Out):-                   -> Out=write_exit(always).
+classify_instr(test_level(_,_),Out):-           -> Out=write_exit(maybe).
+
+%%%% SPEC
+
+classify_instr(call(_,_,_,_),Out):-             -> Out=spec(call).
+classify_instr(create_cont(_),Out):-            -> Out=spec(cont).
+classify_instr(create_guard(_),Out):-           -> Out=spec(guard).
+
+%%%% CONSTRAINT STACK
+
+classify_instr(constraint_stack_test(_,_),Out):-      -> Out=constraint_stack.
+
+%%%% END
+
+classify_instr(execute_simple(_,_),Out):-       -> Out=end(simple).
+classify_instr(execute(_,_),Out):-              -> Out=end(normal).
+classify_instr(proceed,Out):-                   -> Out=end(normal).
+classify_instr(proceed_simple,Out):-            -> Out=end(simple).
+
+%%%% BRANCH
+
+classify_instr(int_compare_reg_reg(_,_,_,_),Out):-                -> Out=branch(ord,no_fail,no).
+classify_instr(int_compare_reg_int(_,_,_,_),Out):-                -> Out=branch(ord,no_fail,no).
+
+classify_instr(atom_switch(_,_),Out):-                            -> Out=branch(ord,fail,pass).
+classify_instr(atom_with_else_switch(_,_,_),Out):-                -> Out=branch(ord,no_fail,2).
+classify_instr(atom_with_atom_else_switch(_,_,_),Out):-           -> Out=branch(ord,fail,2).
+classify_instr(atom_type(_,_),Out):-                              -> Out=branch(ord,fail,2).
+classify_instr(atom_type_with_else(_,_,_),Out):-                  -> Out=branch(ord,no_fail,2).
+classify_instr(known_atom_switch(_,_),Out):-                      -> Out=branch(ord,fail,no).
+classify_instr(known_atom_with_atom_else_switch(_,_),Out):-       -> Out=branch(ord,no_fail,no).
+
+classify_instr(integer_switch(_,_),Out):-                         -> Out=branch(ord,fail,pass).
+classify_instr(integer_with_else_switch(_,_,_),Out):-             -> Out=branch(ord,no_fail,2).
+classify_instr(integer_with_integer_else_switch(_,_,_),Out):-     -> Out=branch(ord,fail,2).
+classify_instr(integer_type(_,_),Out):-                           -> Out=branch(ord,fail,2).
+classify_instr(integer_type_with_else(_,_,_),Out):-               -> Out=branch(ord,no_fail,2).
+classify_instr(known_integer_switch(_,_),Out):-                   -> Out=branch(ord,fail,no).
+classify_instr(known_integer_with_integer_else_switch(_,_),Out):- -> Out=branch(ord,no_fail,no).
+
+classify_instr(term_switch(_,_,_,_,_,_),Out):-                    -> Out=branch(ord,no_fail,pass).
+classify_instr(list_switch(_,_,_),Out):-                          -> Out=branch(ord,fail,3).
+classify_instr(list_type_with_else(_,_,_),Out):-                  -> Out=branch(ord,no_fail,3).
+
+classify_instr(struct_type(_,_),Out):-                           -> Out=branch(ord,fail,2).
+classify_instr(struct_type_with_else(_,_,_),Out):-               -> Out=branch(ord,no_fail,2).
+
+classify_instr(known_functor_switch(_,_),Out):-                  -> Out=branch(ord,fail,no).
+classify_instr(known_functor_with_functor_else_switch(_,_),Out):-  -> Out=branch(ord,no_fail,no).
+
+classify_instr(eq_reg_reg(_,_,_,_),Out):-                        -> Out=branch(dyn,no_fail,4).
+
+%%%% PUSH
+
+classify_instr(push_list_imm,Out):-               -> Out=push(data).
+classify_instr(push_list(_),Out):-                -> Out=push(data).
+classify_instr(push_nil,Out):-                    -> Out=push(data).
+classify_instr(push_structure_imm,Out):-          -> Out=push(data).
+classify_instr(push_structure(_),Out):-           -> Out=push(data).
+classify_instr(push_functor(_,_),Out):-           -> Out=push(data).
+classify_instr(push_reg(_),Out):-                 -> Out=push([use(x)]).
+classify_instr(push_void,Out):-                   -> Out=push(data).
+classify_instr(push_integer(_),Out):-             -> Out=push(data).
+classify_instr(push_atom(_),Out):-                -> Out=push(data).
+classify_instr(push_yvar(_),Out):-                -> Out=push([use(y)]).
+classify_instr(set_reg_and_yvar_H_and_push_void(_,_),Out):- -> Out=push([init(xy)]).
+classify_instr(set_yvar_H(_),Out):-               -> Out=push([init(y)]).
+classify_instr(set_reg_H(_),Out):-                -> Out=push([init(x)]).
+classify_instr(set_reg_H_and_push_void(_),Out):-  -> Out=push([init(x)]).
+classify_instr(set_yvar_H_and_push_void(_),Out):- -> Out=push([init(y)]).
+
+%%%% TRY
+
+classify_instr(back(_),Out):-                      -> Out=try(back,2).
+
+classify_instr(try(_,_,_,_),Out):-                 -> Out=try(ord,1).
+classify_instr(trust(_,_,_,_),Out):-               -> Out=try(ord,2).
+
+classify_instr(s_try(_,_),Out):-                   -> Out=try(simp,1).
+classify_instr(s_trust(_,_),Out):-                 -> Out=try(simp,2).
+
+classify_instr(test_try(_,_,_,_),Out):-            -> Out=try(test,1).
+classify_instr(test_trust(_,_,_,_),Out):-          -> Out=try(test,2).
+
+classify_instr(gen_try(_,_),Out):-                 -> Out=try(deep,1).
+classify_instr(gen_trust(_),Out):-                 -> Out=try(deep,2).
+
+
+%%%% H_MATCH
+
+classify_instr(match_reg_H_list(_,_),Out):-               -> Out=h_match([match(x)]).
+classify_instr(match_yvar_H_list(_,_),Out):-              -> Out=h_match([match(y)]).
+classify_instr(match_reg_H_struct(_,_),Out):-             -> Out=h_match([match(x)]).
+classify_instr(match_yvar_H_struct(_,_),Out):-            -> Out=h_match([match(y)]).
+
+%%%% READ
+
+classify_instr(read_car(_,_),Out):-                       -> Out=read([use(x),init(x)]).
+classify_instr(read_cdr(_,_),Out):-                       -> Out=read([use(x),init(x)]).
+classify_instr(read_arg(_,_,_),Out):-                     -> Out=read([use(x),init(x)]).
+
+%%%% ORD 
+
+classify_instr(match_reg_nil(_),Out):-                    -> Out=ord([match(x)]).
+classify_instr(match_reg_off_nil(_,_),Out):-              -> Out=ord([use(x)]).
+classify_instr(match_reg_atom(_,_),Out):-                 -> Out=ord([match(x)]).
+classify_instr(match_reg_off_atom(_,_,_),Out):-           -> Out=ord([use(x)]).
+
+classify_instr(match_reg_integer(_,_),Out):-              -> Out=ord([match(x)]).
+classify_instr(match_reg_off_integer(_,_,_),Out):-        -> Out=ord([use(x)]).
+classify_instr(match_reg_reg(_,_),Out):-                  -> Out=ord([match(xx)]).
+classify_instr(match_reg_reg_off(_,_,_),Out):-            -> Out=ord([match(x),use(x)]).
+classify_instr(match_reg_yvar(_,_),Out):-                 -> Out=ord([match(xy)]).
+
+classify_instr(match_yvar_reg_off(_,_,_),Out):-             -> Out=ord([match(y),use(x)]).
+classify_instr(match_yvar_yvar(_,_),Out):-                  -> Out=ord([match(yy)]).
+
+classify_instr(load_nil(_),Out):-                         -> Out=ord([init(x)]).
+classify_instr(load_atom(_,_),Out):-                      -> Out=ord([init(x)]).
+classify_instr(load_integer(_,_),Out):-                   -> Out=ord([init(x)]).
+
+classify_instr(set_reg_reg(_,_),Out):-                    -> Out=ord([use(x),init(x)]).
+classify_instr(set_yvar_reg(_,_),Out):-                   -> Out=ord([use(x),init(y)]).
+classify_instr(set_reg_yvar(_,_),Out):-                   -> Out=ord([use(y),init(x)]).
+
+
+%%%% JUMP_MATCH
+
+classify_instr(match_reg_struct(_A,_B,_C,_D,_E,_F),Out):-                 -> Out=jump_match([match(x),init(x)],4).
+classify_instr(match_reg_struct_level(_A,_B,_C,_D,_E,_F,_G),Out):-        -> Out=jump_match([match(x),init(x)],4).
+classify_instr(match_reg_off_struct(_A,_B,_C,_D,_E,_F,_G),Out):-          -> Out=jump_match([match(x),init(x)],5).
+classify_instr(match_reg_off_struct_level(_A,_B,_C,_D,_E,_F,_G,_H),Out):- -> Out=jump_match([match(x),init(x)],5).
+classify_instr(match_yvar_struct(_A,_B,_C,_D,_E,_F),Out):-                -> Out=jump_match([match(y),init(x)],4).
+classify_instr(match_yvar_struct_level(_A,_B,_C,_D,_E,_F,_G),Out):-       -> Out=jump_match([match(y),init(x)],4).
+
+classify_instr(match_reg_list_car(_A,_B,_C),Out):-                  -> Out=jump_match([match(x),init(x)],2).
+classify_instr(match_reg_list_cdr(_A,_B,_C),Out):-                  -> Out=jump_match([match(x),init(x)],2).
+classify_instr(match_reg_list_car_level(_A,_B,_C,_D),Out):-         -> Out=jump_match([match(x),init(x)],2).
+classify_instr(match_reg_list_cdr_level(_A,_B,_C,_D),Out):-         -> Out=jump_match([match(x),init(x)],2).
+classify_instr(match_reg_off_list_car_level(_A,_B,_C,_D,_E),Out):-  -> Out=jump_match([match(x),init(x)],3).
+classify_instr(match_reg_off_list_cdr_level(_A,_B,_C,_D,_E),Out):-  -> Out=jump_match([match(x),init(x)],3).
+classify_instr(match_reg_off_list_car(_A,_B,_C,_D),Out):-           -> Out=jump_match([match(x),init(x)],3).
+classify_instr(match_reg_off_list_cdr(_A,_B,_C,_D),Out):-           -> Out=jump_match([match(x),init(x)],3).
+classify_instr(match_yvar_list_car(_A,_B,_C),Out):-                 -> Out=jump_match([match(y),init(x)],2).
+classify_instr(match_yvar_list_cdr(_A,_B,_C),Out):-                 -> Out=jump_match([match(y),init(x)],2).
+classify_instr(match_yvar_list_car_level(_A,_B,_C,_D),Out):-        -> Out=jump_match([match(y),init(x)],2).
+classify_instr(match_yvar_list_cdr_level(_A,_B,_C,_D),Out):-        -> Out=jump_match([match(y),init(x)],2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% STAGE 2
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+classify_instr(choice_single_quiet_cut(_),Out):-         -> Out=choice(1).
+classify_instr(choice_single_quiet_commit(_),Out):-      -> Out=choice(1).
+classify_instr(choice_single_noisy_wait(_),Out):-        -> Out=choice(1).
+
+classify_instr(choice_quiet_cut(_),Out):-             -> Out=choice(2).
+classify_instr(choice_quiet_commit(_),Out):-          -> Out=choice(2).
+classify_instr(choice_noisy_wait(_),Out):-            -> Out=choice(2).
+
+classify_instr(suspend_lone_var(_,_,_),Out):- ->  Out=suspend(uncond).
+classify_instr(suspend(_,_,_),Out):-          ->  Out=suspend(uncond).
+classify_instr(suspend_without_reg(_,_),Out):- ->  Out=suspend(uncond).
+
+classify_instr(alias_check,Out):- -> Out=alias.
+classify_instr(alias_check(_,_),Out):- -> Out=alias.
+classify_instr(fail_on_alias(_),Out):- -> Out=alias.
+
+classify_instr(jump_on_nonempty_constraint_stack(_),Out):-  -> Out=jump_cons.
+
+classify_instr(jump_gc(_),Out):- -> Out=jump.
+classify_instr(jump_gc_and_dump_cont(_),Out):- -> Out=jump.
+
+classify_instr(bcall(_,_,_),Out):- -> Out=spec(call).
+
+classify_instr(bexecute(_,_),Out):-        -> Out=end(normal).
+classify_instr(bexecute_simple(_,_),Out):- -> Out=end(simple).
+classify_instr(bproceed,Out):-             -> Out=end(normal).
+classify_instr(bproceed_simple,Out):-      -> Out=end(simple).
+
+classify_instr(flat_quiet_cut(_,_),Out):- -> Out=guard(flat).
+classify_instr(flat_quiet_commit(_,_),Out):- -> Out=guard(flat).
+classify_instr(flat_noisy_wait(_,_),Out):- -> Out=guard(flat).
+
+classify_instr(shortcut_quiet_cut(_),Out):- -> Out=guard(short).
+classify_instr(shortcut_quiet_commit(_),Out):- -> Out=guard(short).
+classify_instr(shortcut_noisy_wait(_),Out):- -> Out=guard(short).
+
+classify_instr(btry(_,_,_),Out):-             -> Out=try(ord,1).
+classify_instr(btrust(_,_,_),Out):-           -> Out=try(ord,2).
+classify_instr(test_try(_,_),Out):-          -> Out=try(test,1).
+classify_instr(test_trust(_,_),Out):-        -> Out=try(test,2).
+classify_instr(s_try(_),Out):-               -> Out=try(simp,1).
+classify_instr(s_trust(_),Out):-             -> Out=try(simp,2).
+
+classify_instr(gen_try(_),Out):-             -> Out=try(deep,1).
+classify_instr(gen_trust,Out):-              -> Out=try(deep,2).
+
+classify_instr(X,_Out):- -> error(classify_instr(X)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% classify_try_instr
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+classify_try_instr(btry(_,_,_),Out):- -> Out=ord.
+classify_try_instr(btrust(_,_,_),Out):- -> Out=ord.
+classify_try_instr(try(_,_,_,_),Out):- -> Out=ord.
+classify_try_instr(trust(_,_,_,_),Out):- -> Out=ord.
+classify_try_instr(test_try(_,_),Out):- -> Out=test.
+classify_try_instr(test_trust(_,_),Out):- -> Out=test.
+classify_try_instr(test_try(_,_,_,_),Out):- -> Out=test.
+classify_try_instr(test_trust(_,_,_,_),Out):- -> Out=test.
+classify_try_instr(s_trust(_),Out):- -> Out=simp.
+classify_try_instr(s_try(_),Out):- -> Out=simp.
+classify_try_instr(s_trust(_,_),Out):- -> Out=simp.
+classify_try_instr(s_try(_,_),Out):- -> Out=simp.
+classify_try_instr(back(_),Out):- -> Out=back.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+branch_cannot_pass(known_atom_switch(_,_)):- -> true.
+branch_cannot_pass(known_integer_switch(_,_)):- -> true.
+branch_cannot_pass(term_switch(_,_)):- -> true.
+branch_cannot_pass(known_functor_switch(_,_)):- -> true.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% Instruction parts
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+branch_contains_fail_dec(Branch):-
+    ->
+    functor(Branch,_,Ct),
+    branch_can_fail(Ct,Branch).
+
+branch_can_fail(0,_Branch):-  -> fail.
+branch_can_fail(Ct,Branch):-  
+    arg(Ct,Branch,fail_dec)
+    ->
+    true.
+branch_can_fail(Ct,Branch):-  
+    arg(Ct,Branch,X),X=[_|_],
+    member(fail_dec,X)
+    ->
+    true.
+branch_can_fail(Ct,Branch):-  
+    ->
+    dec(Ct,Ct1),
+    branch_can_fail(Ct1,Branch).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% branch_get_all_jumps
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+branch_get_all_jumps(Branch,Jumps):- 
+   ->
+   functor(Branch,_,Ct),
+   branch_get_all_jumps1(Ct,Branch,Jumps0),
+   list_rem_dupl(Jumps0,Jumps).
+
+%%%%
+
+branch_get_all_jumps1(0,_,Jumps):- -> Jumps=[].
+branch_get_all_jumps1(Ct,Branch,Jumps):- 
+    arg(Ct,Branch,X),X=l(L)
+    -> 
+    Jumps=[L|Jumps1],dec(Ct,Ct1),
+    branch_get_all_jumps1(Ct1,Branch,Jumps1).
+branch_get_all_jumps1(Ct,Branch,Jumps):- 
+    arg(Ct,Branch,X),X=_-List,
+    List=[_|_]
+    -> 
+    list_get_all_jumps(List,Jumps,Jumps1),
+    dec(Ct,Ct1),
+    branch_get_all_jumps1(Ct1,Branch,Jumps1).
+branch_get_all_jumps1(Ct,Branch,Jumps):- 
+    arg(Ct,Branch,X),X=[_|_]
+    -> 
+    list_get_all_jumps(X,Jumps,Jumps1),
+    dec(Ct,Ct1),
+    branch_get_all_jumps1(Ct1,Branch,Jumps1).
+branch_get_all_jumps1(Ct,Branch,Jumps):- 
+    ->
+    dec(Ct,Ct1),
+    branch_get_all_jumps1(Ct1,Branch,Jumps).    
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+list_get_all_jumps([],B,E):-  -> B=E.
+list_get_all_jumps([l(X)|Xs],B,E):- 
+    -> 
+    B=[X|B1],
+    list_get_all_jumps(Xs,B1,E).
+list_get_all_jumps([_|Xs],B,E):- 
+    -> 
+    list_get_all_jumps(Xs,B,E).
+              
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% try parts
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+try_get_jlabel(Try,JLabel):-          -> arg(1,Try,l(JLabel)).
+
+try_get_reg(Try,Reg):-                -> arg(2,Try,Reg).
+
+try_get_binding(try(_,_,Bind),Out):-    -> Out=Bind.
+try_get_binding(trust(_,_,Bind),Out):-  -> Out=Bind.
+try_get_binding(try(_,_,_,Bind),Out):-    -> Out=Bind.
+try_get_binding(trust(_,_,_,Bind),Out):-  -> Out=Bind.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% PSEUDO_UNIFICATION
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% pseudo_unify
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% type
+pseudo_unify(type(A),type(A),_,Out):-                  -> Out=true.
+pseudo_unify(type(integer),integer(_),_,Out):-         -> Out=true.
+pseudo_unify(type(atom),atom(_),_,Out):-               -> Out=true.
+pseudo_unify(type(atom),nil,_,Out):-                   -> Out=true.
+
+% atom
+pseudo_unify(atom(A),atom(A),_,Out):-                  -> Out=true.
+pseudo_unify(atom(_),type(atom),_,Out):-               -> Out=true.
+
+% integer
+pseudo_unify(integer(A),integer(A),_,Out):-            -> Out=true.
+pseudo_unify(integer(_),type(integer),_,Out):-         -> Out=true.
+
+% list
+pseudo_unify(list(A),list(B),Jump,Out):-               
+   -> 
+   pseudo_unify_block(A,B,Jump,Out).
+
+% struct
+pseudo_unify(struct(A),struct(B),Jump,Out):-           
+    -> 
+   pseudo_unify_block(A,B,Jump,Out).
+
+% else
+pseudo_unify(_,_,_,Out):-                              -> Out=false.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+pseudo_unify_blocks(l(A),l(B),Jump,F):-
+    ->
+    arg(A,Jump,Port),
+    send(get_block(t([block(_,As,A1)],_,_)),Port,_),
+    arg(B,Jump,Port),
+    send(get_block(t([block(_,Bs,B1)],_,_)),Port,_),
+    pseudo_unify_blocks1(As,A1,Bs,B1,Jump,F).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+pseudo_unify_blocks(A,As,A,Bs,Jump,F):- -> p_unify_block(As,Bs,Jump,F).
+pseudo_unify_blocks(_,_,_,_,_Jump,F):-  -> F=false.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+p_unify_block([],[],_,Out):- -> Out=true.
+p_unify_block([X|Xs],[Y|Ys],Jump,Out):-
+    ->
+    p_unify(X,Y,Jump,F),
+    p_unify_block1(F,Xs,Ys,Jump,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+p_unify_block1(false,_,_,_,Out):-             -> Out=false.
+p_unify_block1(true,Xs,Ys,Jump,Out):-         -> p_unify_block(Xs,Ys,Jump,Out).
+p_unify_block1(dont_know,_Xs,_Ys,_Jump,Out):- -> Out=dont_know.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+p_unify(reg(_),_,_,F):-   -> F=dont_know.
+p_unify(reg(_,_),_,_,F):- -> F=dont_know.
+p_unify(_,reg(_),_,F):-   -> F=dont_know.
+p_unify(_,reg(_,_),_,F):- -> F=dont_know.
+p_unify(_,void,_,F):-     -> F=true.
+p_unify(void,_,_,F):-     -> F=true.
+p_unify(X,Y,Jump,F):-     -> pseudo_unify(X,Y,Jump,F).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% MISC HELP
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% OPT MODE
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+init_opt_mode(Mode,OptFlags,F,A,optmode(Mode,OptFlags,F,A)).
+
+opt_mode_guard_op(optmode(Mode,_,_,_),GOp):- -> guard_op(Mode,GOp).
+
+opt_mode_flags(optmode(_,Flags,_,_),Out):- ->  Out=Flags.
+
+opt_mode_arity(optmode(_,_,_,A),A).
+
+opt_mode_functor(optmode(_,_,F,_),F).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%  ARRAY of ports 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% open_array_ports
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+open_array_ports(N,Max,_From,_To):- N>Max -> true.
+open_array_ports(N,Max,From,To):- 
+    N=<Max 
+    -> 
+    arg(N,From,P),
+    arg(N,To,S),
+    open_port(P,S),
+    inc(N,N1),
+    open_array_ports(N1,Max,From,To).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% close_array_ports
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+close_array_ports(N,Max,_From):- N>Max -> true.
+close_array_ports(N,Max,From):- 
+    N=<Max 
+    -> 
+    arg(N,From,P),
+    close_port(P),
+    inc(N,N1),
+    close_array_ports(N1,Max,From).
+
+
+

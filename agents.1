@@ -1,0 +1,62 @@
+.TH AGENTS 1 "19 Jan 1994"
+.SH NAME
+AGENTS \- a system for concurrent constraint programming
+.SH SYNOPSIS
+.B agents
+.RI "[\|" files " .\|.\|.\|]"
+.RB "[\|" \-l\fIlibrary\fR "\|]"
+.RB "[\|" \-o
+.IR file "\|]"
+.RI "[\|" args " .\|.\|.\|]"
+.SH DESCRIPTION
+.LP
+The Agents Kernel Language (AKL) is a general-purpose concurrent
+constraint programming language designed at SICS.  The basic
+programming paradigm is that of agents interacting through a
+constraint store, but the combinators of AKL make other readings
+possible, depending on the context, where agents compute functions or
+relations, serve as user-defined constraints, or as objects in
+object-oriented programs.
+
+.B AGENTS
+is a system for programming in AKL.  It provides a complete
+implementation of AKL along with many built-in agents and a
+programming environment.
+.SH OPTIONS
+.TP
+.IR files " .\|.\|.\|"
+Process files as indicated by their extensions and add them before
+starting/creating an AGENTS system. The extensions are \fI.fd\fR
+(C interface descriptions), \fI.c\fR (C files), \fI.o\fR (object
+files), \fI.akl\fR (AKL files) and \fI.pam\fR (AGENTS object files).
+.TP
+.BI \-l "library"
+Add a library, specified as if to \fIld\fR or \fIcc\fR.
+.TP
+.BI \-o " file"
+Create an AGENTS system with the specified additions, saving into the
+start-up script \fIfile\fR, the binary file \fIfile\fR.exe, and the
+AGENTS object file \fIfile\fR.pam.
+.TP
+.IR args " .\|.\|.\|"
+Arguments not caught above are passed to AGENTS.  They are accessible
+to programs via the
+.B unix/1
+built-in agent.
+.SH "SEE ALSO"
+\fIProgramming Paradigms of the Andorra Kernel Language\fR (by Sverker
+Janson and Seif Haridi, SICS Research Report R91:08, also in Logic
+Programming: Proceedings of the 1991 International Symposium, MIT
+Press).
+.SH BUGS
+.LP
+Send bug reports to agents-bug@sics.se.
+.LP
+Note that AGENTS is under development.  Features (and bugs) may be
+added, changed, or removed without notice.
+.SH COPYRIGHT
+Copyright (C) 1990-1994 Swedish Institute of Computer Science.
+.SH AUTHORS
+Concurrent Constraint Programming Group
+.br
+Swedish Institute of Computer Science

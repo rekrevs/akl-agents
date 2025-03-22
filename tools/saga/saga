@@ -1,0 +1,33 @@
+#!/bin/sh
+case $1 in
+	*.saga) Basename=`dirname $1`/`basename $1 .saga`;;
+	*)      echo extension of infile must be .saga
+		exit 1;;
+esac
+
+Infilename=$Basename.saga
+Prefix=${2-}
+Outfilename=${3-$Basename}
+
+if /bin/test -z "$1"
+then
+	echo Usage: saga Infile [Prefix [Outfile]]
+	echo at least the first argument must be given
+	exit 1
+fi
+
+if /bin/test ! -f $Infilename
+then
+	echo file not found $Infilename
+	exit 1
+fi
+
+oakl <<!
+load(library(lists)).
+load(library(ordsets)).
+load(library(ugraphs)).
+load(library(assoc)).
+load(library(saga)).
+load(library(sagaruntime)).
+saga('$Infilename',"$Prefix",'$Outfilename').
+!

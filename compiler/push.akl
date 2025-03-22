@@ -1,0 +1,374 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%               Compiling explicit unifications
+%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% compile_pre_unifies
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+compile_pre_unifies([],Code):- -> Code=[].
+compile_pre_unifies([U1|U],Code):-
+   ->
+   Code=[Code1|Code2],
+   pre_unify(U1,Code1),
+   compile_pre_unifies(U,Code2).
+
+%%%%
+
+pre_unify(Goal,Code):-
+   Goal=eq(var(Name),Other)
+   ->
+   Code=[process(P,Answer)|Code1],
+   pre_alloc(P,Name,Answer),
+   push_term(Other,Code1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%
+%%%%               Compiling guard and body goals
+%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% compile_execute_goal
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+compile_execute_goal(struct(F,A,Args),normal,Code):-
+   ->
+   Code=[Code1,execute(F,A)],
+   compile_args(Args,1,Code1).
+compile_execute_goal(struct(F,A,Args),simple,Code):-
+   ->
+   Code=[Code1,execute_simple(F,A)],
+   compile_args(Args,1,Code1).
+compile_execute_goal(atom(A),normal,Code):-
+   ->
+   Code=execute(A,0).
+compile_execute_goal(atom(A),simple,Code):-
+   ->
+   Code=execute_simple(A,0).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% compile_call_goal
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+compile_call_goal(Flag,struct(F,A,Args),Code,Db):-
+   ->
+   Code=[Code1,process(P),call(F,A,Size,Live)],
+   goal_alloc(P,Flag,A,call(Size,Live),Db),
+   compile_args(Args,1,Code1).
+compile_call_goal(Flag,atom(A),Code,Db):-
+   ->
+   Code=[process(P),call(A,0,Size,Live)],
+   goal_alloc(P,Flag,A,call(Size,Live),Db).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% compile_args
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+compile_args([],_,Code):- -> Code=[].
+compile_args([Arg|Args],Ct,Code):-
+   ->
+   Code=[Code1|Code2],
+   compile_arg(Arg,Ct,Code1),
+   inc(Ct,Ct1),
+   compile_args(Args,Ct1,Code2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+compile_arg(var(Name),Ct,Code):-
+   ->
+   Code=process(P,Ai),
+   ralloc(P,Name,Ai,Ct).
+compile_arg(unnamed,Ct,Code):-         ->   Code=load_void(Ct).
+compile_arg(atom(A),Ct,Code):-         ->   Code=load_atom(Ct,A).
+compile_arg(integer(I),Ct,Code):-      ->   Code=load_integer(Ct,I).
+compile_arg(nil,Ct,Code):-             ->   Code=load_nil(Ct).
+compile_arg(list(Head,Tail),Ct,Code):-
+   ->
+   Code=[set_reg_H(Ct),push_list_imm|Code1],
+   push_list(Head,Tail,Code1).
+compile_arg(struct(F,A,Args),Ct,Code):-
+   ->
+   Code=[set_reg_H(Ct),push_structure_imm,push_functor(F,A)|Code1],
+   push_args(Args,Code1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%                PUSH predicates
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% push_simple
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+push_simple(nil,Push):-          -> Push=push_nil.
+push_simple(integer(I),Push):-   -> Push=push_integer(I).
+push_simple(atom(A),Push):-      -> Push=push_atom(A).
+push_simple(unnamed,Push):-      -> Push=push_void.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% push_args
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+push_args([Term],Code):-  -> push_term(Term,Code).
+push_args(Args,Code):- 
+   ->
+   remove_end_list(Args,Args1,End),
+   Code=[Code1,Code2|Code3],
+   count_pushes(Code2,NC),
+   push_args_off(Args1,NC,Code1,Code3),
+   push_term(End,Code2).
+
+%%%%
+
+push_args_off([],_,Push,Write):-
+   ->
+   Push=[],Write=[].
+push_args_off([Term|Args],NC,Push,Write):-
+   ->
+   Push=[Push1|Push2],
+   Write=[Write1|Write2],
+   push_term_off(Term,NC,Push1,Write1),
+   count_pushes(Write1,NC1),
+   count_pushes(Push1,NC2),
+   add(NC,NC1,Temp),
+   sub(Temp,NC2,NC3),
+   push_args_off(Args,NC3,Push2,Write2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% push_term
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+push_term(list(Head,Tail),Code):-
+   ->
+   Code=[push_list_imm|Code1],
+   push_list(Head,Tail,Code1).
+push_term(struct(F,A,Args),Code):-
+   ->
+   Code=[push_structure_imm,push_functor(F,A)|Code1],
+   push_args(Args,Code1).
+push_term(var(Name),Code):-
+   ->
+   Code=process(P,Answer),
+   palloc(P,Name,Answer).
+push_term(Term,Code):-   
+   ->
+   push_simple(Term,Code).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% push_term_off
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+push_term_off(list(Head,Tail),Off,Push,Write):-
+   ->
+   Push=push_list(Off),
+   push_list(Head,Tail,Write).
+push_term_off(struct(F,A,Args),Off,Push,Write):-
+   ->
+   Push=push_structure(Off),
+   Write=[push_functor(F,A)|Write1],
+   push_args(Args,Write1).
+push_term_off(var(Name),_Off,Push,Write):-
+   ->
+   Push=process(P,Answer),
+   Write=[],
+   palloc(P,Name,Answer).
+push_term_off(var_simple(_,_),_,_,_):-
+   ->
+   error(push_term_off).
+push_term_off(Else,_,Push,Write):-
+   ->
+   Write=[],
+   push_simple(Else,Push).
+   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% push_list
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+push_list(Head,Tail,Code):-
+   flat_member(Head,[list(_,_),struct(_,_,_)])
+   ->
+   Code=[Code1,Code2|Code3],
+   count_pushes(Code2,NC),
+   push_term_off(Head,NC,Code1,Code3),
+   push_term(Tail,Code2).
+push_list(var(Name),Tail,Code):-
+   ->
+   Code=[process(P,Answer)|Code2],
+   palloc(P,Name,Answer),
+   push_term(Tail,Code2).
+push_list(Head,Tail,Code):-
+   ->
+   Code=[Code1|Code2],
+   push_simple(Head,Code1),
+   push_term(Tail,Code2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%
+%%%%               Output unification
+%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+compile_output(out(VC,VV,U,NU),Code,LCode,GOp):-
+   flat_member(GOp,[quiet_cut,quiet_commit,quiet_wait])
+   ->
+   Code=[Code1,Code2,Code3|Code4],
+   post_var_constant(VC,Code1),
+   post_eq_two_vars(VV,Code2),
+   post_complex_u(U,GOp,Code3,LCode),
+   compile_nu(NU,Code4).
+
+%%%%
+
+post_complex_u(Complex,noisy_wait,Code,LCode):-
+   ->
+   post_complex(Complex,Code,LCode).
+post_complex_u(Complex,_,Code,LCode):-
+   ->
+   LCode=[],
+   post_quiet_complex(Complex,Code).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%
+%%%%               Post unifications
+%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% compile_post_unifies
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+compile_post_unifies(U,Code,LCode):-
+   ->
+   Code=[Code1,Code2|Code3],
+   sort_post_unifies(U,VV,VC,Complex),
+   post_eq_two_vars(VV,Code1),
+   post_var_constant(VC,Code2),
+   post_complex(Complex,Code3,LCode).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% sort_post_unifies
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+sort_post_unifies([],U1,U2,U3):- ->U1=[],U2=[],U3=[].
+sort_post_unifies([U|Us],U1,U2,U3):-
+   U=eq(var(_),var(_))
+   ->
+   U1=[U|U1s],
+   sort_post_unifies(Us,U1s,U2,U3).
+sort_post_unifies([U|Us],U1,U2,U3):-
+   U=eq(var(_),list(_,_))
+   ->
+   U3=[U|U3s],
+   sort_post_unifies(Us,U1,U2,U3s).
+sort_post_unifies([U|Us],U1,U2,U3):-
+   U=eq(var(_),struct(_,_,_))
+   ->
+   U3=[U|U3s],
+   sort_post_unifies(Us,U1,U2,U3s).
+sort_post_unifies([U|Us],U1,U2,U3):-
+   ->
+   U2=[U|U2s],
+   sort_post_unifies(Us,U1,U2s,U3).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% post_eq_two_vars
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+post_eq_two_vars([],Code):- -> Code=[].
+post_eq_two_vars([eq(var(N1),var(N2))|Xs],Code):-
+   ->
+   Code=[process(P,RW)|Code1],
+   vvalloc(P,N1,N2,RW),
+   post_eq_two_vars(Xs,Code1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% post_var_constant
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+post_var_constant([],Code):-   -> Code=[].
+post_var_constant([eq(var(Name),Constant)|Xs],Code):-
+   ->
+   Code=[process(P,Pre),sub(Instr)|Code1],
+   post_alloc(P,Name,XY,Pre),
+   var_constant(XY,Instr,Constant),
+   post_var_constant(Xs,Code1).
+
+%%%%
+
+var_constant(x(XReg),Instr,atom(Atom)):- 
+   ->
+   Instr=match_reg_atom(XReg,Atom).
+var_constant(x(XReg),Instr,integer(Int)):- 
+   ->
+   Instr=match_reg_integer(XReg,Int).
+var_constant(x(XReg),Instr,nil):- 
+   ->
+   Instr=match_reg_nil(XReg).
+var_constant(y(YReg),Instr,atom(Atom)):- 
+   ->
+   Instr=match_yvar_atom(YReg,Atom).
+var_constant(y(YReg),Instr,integer(Int)):- 
+   ->
+   Instr=match_yvar_integer(YReg,Int).
+var_constant(y(YReg),Instr,nil):- 
+   ->
+   Instr=match_yvar_nil(YReg).
+   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% post_complex
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+post_complex([],Code,LCode):-   -> Code=[],LCode=[].
+post_complex([eq(var(Name),struct(F,A,Args))|Xs],Code,LCode):-
+   ->
+   Code=[process(P,Pre),Read|Code1],
+   LCode=[Write|LCode1],
+   post_alloc(P,Name,XY,Pre),
+   find_best_pos(Args,DeepId,Deep,Bef,Aft),
+   rw_reg_cont_struct(DeepId,F,A,Deep,Bef,Aft,0,0,XY,[],[],Read,Write),
+   post_complex(Xs,Code1,LCode1).
+post_complex([eq(var(Name),list(Head,Tail))|Xs],Code,LCode):-
+   ->
+   Code=[process(P,Pre),Read|Code1],
+   LCode=[Write|LCode1],
+   post_alloc(P,Name,XY,Pre),
+   find_pos_two(Head,Tail,Deepest),
+   rw_reg_cont_list(Deepest,Head,Tail,0,0,XY,[],[],Read,Write),
+   post_complex(Xs,Code1,LCode1).
+   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%     post_quiet_complex
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+post_quiet_complex([],Code):-   -> Code=[].
+post_quiet_complex([eq(var(Name),list(H,T))|Xs],Code):-
+   ->
+   Code=[process(P,Pre),Push,sub(Post),process(P2)|Code1],	
+   count_pushes(Push,Ct),
+   post_qalloc(P,Name,Ct,list,Pre,Post,Comm),
+   f_post_qalloc(P2,Name,Comm,[]),
+   push_list(H,T,Push),
+   post_quiet_complex(Xs,Code1).
+post_quiet_complex([eq(var(Name),struct(F,A,Args))|Xs],Code):-
+   ->
+   Code=[process(P,Pre),Push,sub(Post),process(P2)|Code1],	
+   count_pushes(Push,Ct),
+   post_qalloc(P,Name,Ct,struct,Pre,Post,Comm),
+   f_post_qalloc(P2,Name,Comm,[]),
+   Push=[push_functor(F,A)|Push1],
+   push_args(Args,Push1),
+   post_quiet_complex(Xs,Code1).
+
+
+

@@ -1,0 +1,1386 @@
+This is Info file agents-user, produced by Makeinfo version 1.67 from
+the input file user.texi.
+
+   This file documents AGENTS.
+
+   Copyright (C) 1990-1994 Swedish Institute of Computer Science
+
+   All rights reserved.
+
+
+File: agents-user,  Node: I/O Streams,  Next: Data I/O,  Up: Input and Output
+
+I/O Streams
+-----------
+
+   In AGENTS, ports play much the same role for input and output as
+"streams" in some other systems, e.g., most Prolog implementations.
+A port can be associated with a file or terminal, and messages can be
+sent to the port to obtain input or output operations.  The file or
+terminal is thus a "port object".  If you are not familiar with ports,
+please see *An Introduction to AKL*.  In the following, a port
+associated with a file or terminal will be referred to as a stream.
+Do not confuse such a stream, which is a port, with the list of
+messages that have been sent to a port, which is also known as a
+stream in some contexts.
+
+   Three streams are available when AGENTS starts, associated with
+the UNIX standard input, output, and error streams.  Additional
+streams can be created using `fopen/[3,4]'.
+
+   The following agents pertain to streams.
+
+`stdin(-STREAM)'
+`stdout(-STREAM)'
+`stderr(-STREAM)'
+     *synchronization:* Never suspends.
+
+     *behavior:* Unifies STREAM with a stream associated with the
+     UNIX standard input, output, or error stream.
+
+`fopen(+FILE, +TYPE, -STREAM)'
+`fopen(+FILE, +TYPE, -STREAM, -RESULT)'
+     *synchronization:* Suspends until FILE and TYPE are constrained.
+
+     *behavior:* Fails unless FILE is an atom, whose print
+     representation should be a valid file name, or an integer, which
+     should be a valid file descriptor.  Fails unless TYPE is an
+     atom, whose print representation should be a valid access type.
+     These agents are interfaces to the UNIX standard I/O library
+     functions `fopen()' and `fdopen()', so see the UNIX manual pages
+     for information about file names, file descriptors, and access
+     types.  Executes `fopen()' or `fdopen()' and unifies STREAM with
+     a stream associated with the resulting UNIX stream.  If
+     `fopen()' or `fdopen()' fails, `fopen/3' raises an exception,
+     whereas `fopen/4' unifies RESULT with `exception(errno(N))',
+     where N is as specified in the UNIX man pages; if all is well,
+     `fopen/4' unifies RESULT with `true'.
+
+   The following messages can be sent to a stream.  Except for
+`typeof/1', which is generic to "port objects", they correspond to
+the UNIX standard I/O library functions having their names, apart
+from `putd/[1,2]', `putf/[1,2]', `puts/[1,2]', and `putsq/[2,3]',
+which are simple extensions of `putc/[1,2]'.  If the UNIX standard
+I/O library function fails, the message without RESULT raises an
+exception, whereas the message with RESULT unifies it with
+`exception(errno(N))', where N is as specified in the UNIX man pages;
+if all is well, the message with RESULT unifies it with `true'.
+
+`typeof(-TYPE)'
+     *synchronization:* Never suspends.
+
+     *behavior:* Unifies TYPE with `stream'.
+
+`fclose'
+`fclose(-RESULT)'
+     *synchronization:* Never suspends.
+
+     *behavior:* Closes the stream.  Note that a stream to which
+     there is no reference will be closed automatically at some time.
+
+`fflush'
+`fflush(-RESULT)'
+     *synchronization:* Never suspends.
+
+     *behavior:* Flushes any internally buffered characters on the
+     stream, which should be an output stream.
+
+`getc(-CHAR)'
+`getc(-CHAR, -RESULT)'
+     *synchronization:* Never suspends.
+
+     *behavior:* Reads a character code from the stream, which should
+     be an input stream, and unifies it with CHAR.  If EOF is
+     encountered, unifies CHAR with `-1', and any subsequent attempt
+     to read from the stream fails, unless the stream is associated
+     with a terminal.
+
+`putc(+CHAR)'
+`putc(+CHAR, -RESULT)'
+     *synchronization:* Suspends until CHAR is constrained.
+
+     *behavior:* Fails unless CHAR is a character code.  Writes CHAR
+     to the stream, which should be an output stream.
+
+`putd(+INTEGER)'
+`putd(+INTEGER, -RESULT)'
+     *synchronization:* Suspends until INTEGER is constrained.
+
+     *behavior:* Fails unless INTEGER is an integer.  Writes INTEGER
+     to the stream, which should be an output stream.
+
+`putf(+FLOAT)'
+`putf(+FLOAT, -RESULT)'
+     *synchronization:* Suspends until FLOAT is constrained.
+
+     *behavior:* Fails unless FLOAT is a float.  Writes FLOAT to the
+     stream, which should be an output stream.
+
+`puts(+ATOM)'
+`puts(+ATOM, -RESULT)'
+     *synchronization:* Suspends until ATOM is constrained.
+
+     *behavior:* Fails unless ATOM is an atom.  Writes the print
+     representation of ATOM to the stream, which should be an output
+     stream.
+
+`putsq(+ATOM, +QUOTECHAR)'
+`putsq(+ATOM, +QUOTECHAR, -RESULT)'
+     *synchronization:* Suspends until ATOM and QUOTECHAR are
+     constrained.
+
+     *behavior:* Fails unless ATOM is an atom and QUOTECHAR is a
+     character code.  Writes QUOTECHAR followed by the print
+     representation of ATOM followed by QUOTECHAR to the stream,
+     which should be an output stream.  If the print representation
+     contains QUOTECHAR, the character is doubled in the output.
+
+   These are messages, *not* agents.  However, using the accumulator
+syntax, you can indicate the sending of a message to a stream in a
+style resembling the calling of an agent.  *Note Programs::.
+
+   Bear in mind that messages sent to a port appear in the list
+associated with the port in arbitrary order.  Because order is
+usually important in I/O, you will usually want to send messages to
+streams using "chains" of `send/3' constraints.  For example:
+
+     | ?- *stdout(S0),<return>
+     send(putc(0'f), S0, S1),<return>
+     send(putc(0'o), S1, S2),<return>
+     send(putc(0'o), S2, _).<return>*
+     foo
+     S0 = _0{stream: stdout},
+     S1 = _0{stream: stdout},
+     S2 = _0{stream: stdout} ?
+
+Use of `send/3' here assures the result `foo' instead of `ofo' or
+`oof', which would (in principle, if not in practice) be
+possibilities if `send/2' with the same stream were used for each
+character.  Using the accumulator syntax, you can indicate such
+"chains" easily.  *Note Programs::.
+
+
+File: agents-user,  Node: Data I/O,  Prev: I/O Streams,  Up: Input and Output
+
+Data I/O
+--------
+
+   Note that these agents, particularly `read/[1-4]' and
+`meta_read/[1-4]', may well be changed or replaced in future versions
+of AGENTS.
+
+   These agents read arbitrary trees and write arbitrary data.
+Moreover, they read and write variables.  For example:
+
+     | ?- *stdin(P), read(X, P, _).<return>
+     Y.<return>*
+     
+     P = _0{stream: stdin},
+     X = instance(_1) ?
+
+Similarly:
+
+     | ?- *stdout(P), write(X, P, _), X = foo.<return>*
+     _0
+     P = _1{stream: stdout},
+     X = foo ?
+
+Note that the semantics of AKL do not specify whether the `write/3'
+call should be executed before or after the binding of `X'.  Thus,
+the fact that `_0' is written instead of `foo' here is an artifact of
+the implementation upon which you should *not* depend.
+
+   It is impossible to read abstractions, which are created
+exclusively by compilation, or ports, which are created by
+`open_port' constraints and various built-in agents.  It *is*
+possible to write them; the representation of an abstraction thereby
+obtained is unlikely to be useful, but writing "port objects" can be
+informative.
+
+   <<<Discussion of notation for cyclic trees.>>>
+
+   For convenience, especially at the top level, the current
+implementation offers "implicit-stream" versions of these agents.
+Lacking stream arguments, they read and write the standard input and
+output streams.  In principle, the relative order of execution of
+calls to these versions is undefined.  In practice, they execute
+"left to right", but this is an artifact of the current
+implementation.  *Avoid writing programs that depend on this.*  It is
+possible that future versions of AGENTS will not preserve it.
+
+`read(-TREE)'
+`read(-TREE, -RESULT)'
+`read(-TREE, +STREAM, -STREAM)'
+`read(-TREE, -RESULT, +STREAM, -STREAM)'
+     *synchronization:* Suspends until STREAM is constrained.
+
+     *behavior:* Reads a tree, terminated by a full-stop (i.e., a `.'
+     followed by a space or a control character), from STREAM, which
+     should be an input stream, and unifies it with TREE.  If EOF is
+     encountered, unifies TREE with `end_of_file', and any subsequent
+     attempt to read from STREAM fails, unless STREAM is associated
+     with a terminal.  If the characters prior to the full-stop do
+     not represent a tree, `read/[1,3]' raises a syntax error, whereas
+     `read/[2,4]' unifies RESULT with
+     `exception(syntax_error(TOKENS))', where TOKENS is the list of
+     tokens read; if all is well, `read/[2,4]' unifies RESULT with
+     `true'.
+
+`meta_read(-METATREE)'
+`meta_read(-METATREE, -RESULT)'
+`meta_read(-METATREE, +STREAM, -STREAM)'
+`meta_read(-METATREE, -RESULT, +STREAM, -STREAM)'
+     *synchronization:* Suspends until STREAM is constrained.
+
+     *behavior:* Reads a tree, terminated by a full-stop (i.e., a `.'
+     followed by a space or a control character), from STREAM, which
+     should be an input stream, and unifies a meta-level
+     representation of it with METATREE.  If EOF is encountered,
+     unifies METATREE with `end_of_file', and any subsequent attempt
+     to read from STREAM fails, unless STREAM is associated with a
+     terminal.  If the characters prior to the full-stop do not
+     represent a tree, `meta_read/[1,3]' raises a syntax error,
+     whereas `meta_read/[2,4]' unifies RESULT with
+     `exception(syntax_error(TOKENS))', where TOKENS is the list of
+     tokens read; if all is well, `meta_read/[2,4]' unifies RESULT
+     with `true'.
+
+     The meta-level representation of a tree is a tree of the form
+
+          struct(NAME, ARITY, ARGS)
+
+     or
+
+          var(VARNAME)
+
+     where ARGS is a list and VARNAME is an atom.  Atomic trees are
+     considered structures with arity zero, and lists are considered
+     structures with functor `'.'/2'.
+
+`write(+DATUM)'
+`write(+DATUM, +STREAM, -STREAM)'
+     *synchronization:* Suspends until STREAM is constrained.
+
+     *behavior:* Writes DATUM to STREAM, which should be an output
+     stream.  Atoms and functor names are *not* quoted if necessary
+     to make the result acceptable as input to `read/[1-4]' or
+     `meta_read/[1-4]'.
+
+`writeq(+DATUM)'
+`writeq(+DATUM, +STREAM, -STREAM)'
+     *synchronization:* Suspends until STREAM is constrained.
+
+     *behavior:* Writes DATUM to STREAM, which should be an output
+     stream.  Atoms and functor names *are* quoted if necessary to
+     make the result acceptable as input to `read/[1-4]' or
+     `meta_read/[1-4]'.
+
+`nl'
+`nl(+STREAM, -STREAM)'
+     *synchronization:* Suspends until STREAM is constrained.
+
+     *behavior:* Writes a newline to STREAM, which should be an
+     output stream.
+
+     If STREAM is associated with a terminal, flushes any internally
+     buffered characters on the stream.
+
+`format(+FORMAT)'
+`format(+FORMAT, +ARGS)'
+`format(+FORMAT, +STREAM, -STREAM)'
+`format(+FORMAT, +ARGS, +STREAM, -STREAM))'
+     *synchronization:* Suspends until FORMAT, ARGS, and STREAM are
+     constrained.
+
+     *behavior:* Fails unless FORMAT is an atom and ARGS is a list.
+     Prints ARGS to STREAM, which should be an output stream,
+     according to FORMAT.  The print representation of FORMAT
+     consists of character codes, referred to in this context as
+     format characters.  ARGS is a list of items to print, possibly
+     empty.
+
+     `format/[1-4]' resemble the `format/[2,3]' of some Prolog
+     implementations (due to Quintus Prolog).  However, there are
+     differences.  FORMAT must be an atom, not a string.  ARGS must
+     be a list, even if there is only one item.
+
+     The default action on a format character is to print it.  The
+     character `~' introduces a control sequence.  To print a `~',
+     repeat it.  Example:
+
+          | ?- *format('Hello~~world!', []).<return>*
+          Hello~world!
+
+     The general format of a control sequence is `~NC'.  The
+     character C specifies the type of the control sequence.  N is an
+     optional numeric argument.  An alternative form of N is `*'.
+     `*' means the next argument in ARGS should be used as a numeric
+     argument in the control sequence.  Example:
+
+          | ?- *format('Hello~3cworld!', [0'x]).<return>*
+          Helloxxxworld!
+
+     is equivalent to
+
+          | ?- *format('Hello~*cworld!', [3, 0'x]).<return>*
+          Helloxxxworld!
+
+     A format may be spread over several lines.  The control sequence
+     `\c<return>' is interpreted as the empty string.  Example:
+
+          | ?- *format('Hello *\*c<return>
+          world!', []).<return>*
+          Hello world!
+
+     The following control sequences are recognized:
+
+    `~a'
+          The argument should be an atom.  The atom is printed without
+          quoting.  Example:
+
+               | ?- *format('Hello~aworld!', [' new ']).<return>*
+               Hello new world!
+
+    `~Nc'
+          The argument should be a character code.  N defaults to one
+          and is interpreted as the number of times to print the
+          character.  Example:
+
+               | ?- *format('Hello~3cworld!', [0'x]).<return>*
+               Helloxxxworld!
+
+    `~Ne'
+    `~NE'
+    `~Nf'
+    `~Ng'
+    `~NG'
+          The argument should be a float.  The float and N are passed
+          to the C standard I/O library function `printf()' as
+
+               printf('%.Ne', ARG)
+               printf('%.NE', ARG)
+               printf('%.Nf', ARG)
+               printf('%.Ng', ARG)
+               printf('%.NG', ARG)
+
+          respectively.
+
+          If N is not supplied the action defaults to
+
+               printf('%e', ARG)
+               printf('%E', ARG)
+               printf('%f', ARG)
+               printf('%g', ARG)
+               printf('%G', ARG)
+
+          respectively.
+
+    `~Nd'
+          The argument should be an integer.  N is interpreted as the
+          number of digits after the decimal point.  If N is 0 or
+          missing, no decimal point is printed.  Example:
+
+               | ?- *format('Hello ~1d world!', [43]).<return>*
+               Hello 4.3 world!
+
+    `~ND'
+          The argument should be an integer.  Identical to `~Nd'
+          except that `,' separates groups of three digits to the
+          left of the decimal point.  Example:
+
+               | ?- *format('Hello ~1D world!', [12345]).<return>*
+               Hello 1,234.5 world!
+
+    `~Nr'
+          The argument should be an integer.  N is interpreted as a
+          radix.  N should be >= 2 and <= 36.  If N is missing the
+          radix defaults to 8.  The letters `a'-`z' denote digits
+          larger than 9.  Example:
+
+               | ?- *format('Hello ~16r world!', [15]).<return>*
+               Hello f world!
+
+    `~NR'
+          The argument should be an integer.  Identical to `~Nr'
+          except that the letters `A'-`Z' denote digits larger than
+          9.  Example:
+
+               | ?- *format('Hello ~16R world!', [15]).<return>*
+               Hello F world!
+
+    `~Ns'
+          The argument should be a list of character codes.  Exactly
+          N characters are printed.  N defaults to the length of the
+          string.  Example:
+
+               | ?- *format('Hello ~4s ~4s!', ["new", "world"]).<return>*
+               Hello new  worl!
+
+    `~i'
+          The argument, which may be of any type, is ignored.
+          Example:
+
+               | ?- *format('Hello ~i~s world!', ["old", "new"]).<return>*
+               Hello new world!
+
+    `~q'
+          The argument, which may be of any type, is passed to
+          `writeq/3'.  Example:
+
+               | ?- *format('Hello ~q world!', [['A','B']]).<return>*
+               Hello ['A','B'] world!
+
+    `~w'
+          The argument, which may be of any type, is passed to
+          `write/3'.  Example:
+
+               | ?- *format('Hello ~w world!', [['A','B']]).<return>*
+               Hello [A,B] world!
+
+    `~~'
+          Takes no argument.  Prints `~'.  Example:
+
+               | ?- *format('Hello~~world!', []).<return>*
+               Hello~world!
+
+    `~Nn'
+          Takes no argument.  Prints N newlines.  N defaults to 1.
+          Example:
+
+               | ?- *format('Hello~2nworld!', []).<return>*
+               Hello
+               
+               world!
+
+
+File: agents-user,  Node: Interaction with UNIX,  Next: Compiling and Loading,  Prev: Input and Output,  Up: Built-in Agents
+
+Interaction with UNIX
+=====================
+
+   Apart from input and output, interaction with UNIX is provided by
+the following agent.
+
+`unix(+SELECTOR)'
+     *synchronization:* Suspends until SELECTOR is constrained.
+
+     *behavior:* Amounts to an agent schema, parameterized by
+     SELECTOR; fails unless SELECTOR is of one of the following forms.
+
+    `access(+PATH, +MODE)'
+          *synchronization:* Suspends until PATH and MODE are
+          constrained.
+
+          *behavior:* Fails unless PATH is an atom whose print
+          representation is a valid file name and MODE is an integer
+          that is a valid access type in this context.  This is an
+          interface to the UNIX library function `access(2)', so see
+          the UNIX man page for information about file names and
+          access types.  Checks PATH for accessibility according to
+          MODE, succeeding if it is accessible, else failing.
+
+    `argv(-ARGS)'
+          *synchronization:* Never suspends.
+
+          *behavior:* Unifies ARGS with a list of atoms whose print
+          representations are the command line arguments to the
+          AGENTS process.  E.g., if AGENTS were entered thus
+
+               % *agents hello world 2001<return>*
+
+          then ARGS would be unified with `[hello,world,'2001']'.
+
+    `cd'
+          *synchronization:* Never suspends.
+
+          *behavior:* Changes the current working directory of the
+          AGENTS process to the environment variable `$HOME'.
+
+    `cd(+PATH)'
+          *synchronization:* Suspends until PATH is constrained.
+
+          *behavior:* Fails unless PATH is an atom whose print
+          representation is a valid directory name.  Changes the
+          working directory of the AGENTS process to PATH.
+
+    `chmod(+PATH, -OLDMODE, +MODE)'
+          *synchronization:* Suspends until PATH and MODE are
+          constrained.
+
+          *behavior:* Fails unless PATH is an atom whose print
+          representation is a valid file name and MODE is an integer
+          that is a valid access type in this context.  This is an
+          interface to the UNIX library function `chmod(2)', so see
+          the UNIX man page for information about file names and
+          access types.  Changes the mode of PATH to MODE, unifying
+          OLDMODE with the old mode.
+
+    `exit(+STATUS)'
+          *synchronization:* Suspends until STATUS is constrained.
+
+          *behavior:* Fails unless STATUS is a 16-bit integer (an
+          integer between -32768 and 32767 inclusive).  Exits AGENTS,
+          returning status STATUS.
+
+    `mktemp(+TEMPLATE, -FILENAME)'
+          *synchronization:* Suspends until TEMPLATE is constrained.
+
+          *behavior:* Fails unless TEMPLATE is an atom whose print
+          representation is a prefix of a valid file name.  This is
+          an interface to the UNIX library function `mktemp(3)'.
+          TEMPLATE should be a file name with six trailing `X's.  A
+          unique file name is created from it, and FILENAME is
+          unified with this.  The file name is the template with the
+          six `X's replaced with a letter and the process id.
+
+    `shell'
+          *synchronization:* Never suspends.
+
+          *behavior:* Starts an interactive instance of the shell
+          specified by the environment variable `$SHELL'.  Control
+          returns to AGENTS on termination of the shell.
+
+    `shell(+COMMAND)'
+          *synchronization:* Suspends until COMMAND is constrained.
+
+          *behavior:* Fails unless COMMAND is an atom.  Starts a
+          noninteractive instance of the shell specified by the
+          environment variable `$SHELL' and passes it the print
+          representation of COMMAND.  Fails if the shell does not
+          execute the command successfully.
+
+    `shell(+COMMAND, -STATUS)'
+          *synchronization:* Suspends until COMMAND is constrained.
+
+          *behavior:* Fails unless COMMAND is an atom.  Starts a
+          noninteractive instance of the shell specified by the
+          environment variable `$SHELL' and passes it the print
+          representation of COMMAND.  Unifies STATUS with the return
+          status of the command.
+
+    `system(+COMMAND)'
+          *synchronization:* Suspends until COMMAND is constrained.
+
+          *behavior:* Fails unless COMMAND is an atom.  Starts a
+          noninteractive instance of the Bourne shell `sh' and passes
+          it the print representation of COMMAND.  Fails if the shell
+          does not execute the command successfully.
+
+    `system(+COMMAND, -STATUS)'
+          *synchronization:* Suspends until COMMAND is constrained.
+
+          *behavior:* Fails unless COMMAND is an atom.  Starts a
+          noninteractive instance of the Bourne shell `sh' and passes
+          it the print representation of COMMAND.  Unifies STATUS
+          with the return status of the command.
+
+    `umask(-OLDMASK, +MASK)'
+          *synchronization:* Suspends until MASK is constrained.
+
+          *behavior:* Fails unless MASK is an integer that is a valid
+          mask in this context.  This is an interface to the UNIX
+          library function `umask(2)', so see the UNIX man page for
+          information about masks.  Changes the file creation mask of
+          the AGENTS process to MASK, unifying OLDMASK with the old
+          mask, succeeding if this is possible, else failing.
+
+
+File: agents-user,  Node: Compiling and Loading,  Next: Exceptions,  Prev: Interaction with UNIX,  Up: Built-in Agents
+
+Compiling and Loading
+=====================
+
+   <<<INCOMPLETE>>>
+
+
+File: agents-user,  Node: Exceptions,  Next: Miscellaneous,  Prev: Compiling and Loading,  Up: Built-in Agents
+
+Exceptions
+==========
+
+   <<<INCOMPLETE>>>
+
+
+File: agents-user,  Node: Miscellaneous,  Prev: Exceptions,  Up: Built-in Agents
+
+Miscellaneous
+=============
+
+`dif(+X, +Y)'
+     *synchronization:* Suspends until it is known that X and Y must
+     be different data or are the same datum.
+
+     *behavior:* Constrains X and Y to be different data, i.e.,
+     succeeds if X and Y must be different data, else fails.
+
+`garbage_collect'
+     *synchronization:* Never suspends.
+
+     *behavior:* Garbage collect the global stack immediately.
+
+`statistics'
+     *synchronization:* Never suspends.
+
+     *behavior:* Prints execution statistics pertaining to run time
+     and memory usage.
+
+`statistics(+SELECTOR, ?STATISTIC)'
+     *synchronization:* Suspends until SELECTOR is constrained.
+
+     *behavior:* Amounts to an agent schema, parameterized by
+     SELECTOR; fails unless SELECTOR is of one of the following
+     forms, else unifies STATISTIC with an execution statistic as
+     follows:
+
+    `runtime'
+          `[TIME SINCE AGENTS START,TIME SINCE PREVIOUS STATISTICS]'
+
+    `copytime'
+          `[TIME SINCE AGENTS START,TIME SINCE PREVIOUS STATISTICS]'
+
+    `nondet'
+          `[NUMBER SINCE AGENTS START,NUMBER SINCE PREVIOUS
+          STATISTICS]'
+
+          This refers to nondeterminate promotions.
+
+    `garbage_collection'
+    `gctime'
+          `[NUMBER SINCE AGENTS START,BYTES FREED,TIME SPENT]'
+
+          This refers to garbage collections of the heap.
+
+    `program'
+          `[BYTES USED,0]'
+
+          This refers to memory allocated to compiled agents, symbol
+          tables, and the like.
+
+     Times are UNIX "user" times in milliseconds, sizes are in bytes.
+
+
+File: agents-user,  Node: Modules,  Next: Debugging,  Prev: Built-in Agents,  Up: Top
+
+Modules
+*******
+
+   <<<INCOMPLETE>>>
+
+
+File: agents-user,  Node: Debugging,  Next: Summary of Built-in Agents,  Prev: Modules,  Up: Top
+
+Debugging
+*********
+
+   <<<NEEDS WORK>>>
+
+   AGENTS includes a debugger reminiscent of the four-port ("Byrd
+box") debuggers of many Prolog implementations.  The main features of
+the debugging package are as follows:
+
+   * A *box model* of AKL execution.  Control flow is viewed both at
+     the agent level, and at the level of individual clauses.  The
+     ports correspond to steps in the AKL computation model.
+
+   * The ability to trace your program exhaustively or to set
+     *spy-points* selectively.  Spy-points allow you to nominate
+     interesting agents; upon calling such agents the program pauses
+     to allow you to interact with the debugger.
+
+   * The ability to trace execution threads.  When a traced thread
+     suspends the user can with *monitor* commands resume tracing
+     when the current thread is reactivated.
+
+   * A reasonable choice of control and information options available
+     during debugging.
+
+* Menu:
+
+* The AKL Box Model::
+* Basic Debugging Agents::
+* Tracing::
+* Spy-points::
+* Monitors and threads::
+* Format of Debugging Messages::
+* Options available during Debugging::
+* Port filter::
+
+
+File: agents-user,  Node: The AKL Box Model,  Next: Basic Debugging Agents,  Up: Debugging
+
+The AKL Box Model
+=================
+
+   During debugging AGENTS prints out a sequence of goals to show the
+state the program has reached in its execution.  However, in order to
+understand what is occurring it is necessary to understand when and
+why it prints out goals.
+
+   As in other programming languages, some points of interest are
+procedure entry and return, but in AKL there is the additional
+complexity of guard execution, which may fail, suspend, be promoted,
+or woken. Procedure calls themselves may also suspend and be resumed.
+
+   The box model of AKL execution views program control flow in terms
+of movement about the computation state, the *configuration*.  This
+model provides a basis for the debugging mechanism, and enables the
+user to view the behavior of the program in a consistent way.
+
+   There are 15 ports, divided into five types.
+
+   * Goal-related: Actions on atomic goals and the resulting
+     choice-boxes: Call, Exit, Suspend, Reenter, and Fail.
+
+   * Guard-related:  Actions on guards and the resulting and-boxes:
+     [Create], [Fail], [Suspend], and [Wake].
+
+   * Movement-related: Movement between and-boxes: [Up], [Down].
+
+   * Promotion-related: Promotion actions on guards that effect the
+     parent choice-box: [Promote], [Noisy Promote].
+
+   * Nondeterminism-related: Actions on and-boxes and choice-box that
+     effect several levls of the configuration: Nondet-Pre,
+     Nondet-Post
+
+   These ports have the following meaning.
+`Call'
+     The goal is about to be executed (unfolded).
+
+`Exit'
+     The goal was executed completely.
+
+`Suspend'
+     The goal suspended.
+
+`Reenter'
+     The suspended goal is to be retried.
+
+`Fail'
+     The goal failed.
+
+`[Create]'
+     A guard (and a corresponding AND-box) is created.
+
+`[Fail]'
+     The guard failed.
+
+`[Suspend]'
+     The guard suspended.
+
+`[Wake]'
+     The guard was woken.
+
+`[Up]'
+     The worker moves up to surrounding AND-box. This occurs,
+     typically after the current goal suspends.
+
+`[Down]'
+     The worker moves down through some child and-box  of some
+     choice-box in the current AND-box.  Typically a worker may have
+     to move down in order to reach a woken guard, or to perform
+     non-determinstic choice.
+
+`Nondet-Pre'
+     Nondeterminate choice is about to be applied, i.e one suspended
+     guard of a suspended goal is to be promoted in a partial copy of
+     the configuration.
+
+`Nondet-Post'
+     Nondeterminate choice has been applied.
+
+`[Promote]'
+     A guarded goal is about to be promoted.
+
+`[Noisy Promote]'
+     A guarded goal is about to be promoted due to noisy pruning.
+
+
+File: agents-user,  Node: Basic Debugging Agents,  Next: Tracing,  Prev: The AKL Box Model,  Up: Debugging
+
+Basic Debugging Agents
+======================
+
+   The system provides a range of commands for control of the
+debugging facilities.  The most basic are as follows:
+
+`debug'
+     Switches the debugger on.  (It is initially off.)  You can switch
+     debug mode on in the middle of execution from within your
+     program.
+
+`nodebug'
+     Switches the debugger off.  If there are any spy-points set then
+     they will be kept but disabled.
+
+`debugging'
+     Prints onto the terminal information about the current debugging
+     state.  This will show:
+
+        * Whether the debugger is switched on.
+
+        * What spy-points have been set (see below).
+
+`failcatch'
+     Turns on the failcatch flag. A set failcatch flag causes the
+     debugger to be switched on, breaking execution, when and if the
+     entire program execution is about to fail.  This allows the user
+     to inspect the execution state before the failure context is
+     destroyed by returning control to the user in the top-level loop.
+
+`nofailcatch'
+     Turns off the failcatch flag.
+
+
+File: agents-user,  Node: Tracing,  Next: Spy-points,  Prev: Basic Debugging Agents,  Up: Debugging
+
+Tracing
+=======
+
+   The following command may be used to commence an exhaustive trace
+of a program.
+
+`trace'
+     Switches the debugger on, if it is not on already, and ensures
+     that the next time control passes through a control port, a
+     message will be produced and you will be asked to interact.
+
+     At this point you have a number of options.  In particular, you
+     can just type RET (carriage-return) to *creep* (or single-step)
+     into your program.  If you continue to creep through your
+     program you will see every entry and exit to/from every
+     invocation box.  You will notice that execution stops at all
+     ports.
+
+`notrace'
+     Equivalent to `nodebug/0'.
+
+
+File: agents-user,  Node: Spy-points,  Next: Monitors and threads,  Prev: Tracing,  Up: Debugging
+
+Spy-points
+==========
+
+   For programs of any size, it is clearly impractical to creep
+through the entire program.  *Spy-points* make it possible to stop
+the program whenever it gets to a particular agent which is of
+interest.  Once there, one can set further spy-points in order to
+catch the control flow a bit further on, or one can start creeping.
+
+   Setting a spy-point on an agent indicates that you wish to see all
+control flow through the various ports.  When control passes through
+any port belonging to a procedure with a spy-point set on it, a
+message is output and the user is asked to interact.
+
+   Spy-points are set and removed by the following commands which are
+also standard operators:
+
+`spy +SPEC'
+     Sets spy-points on all the defintions given by Spec, which can
+     have the forms:
+
+    `NAME'
+          all definitions of that name no matter what arity
+
+    `NAME/ARITY'
+          the definition of that name and arity
+
+     You can place a spy-point on an undefined agent that is referred
+     to from existing code.  If you set some spy-points when the
+     debugger is switched off then it will be automatically switched
+     on.
+
+`nospy +SPEC'
+     This is similar to spy Spec except that all the definitions
+     given by Spec will have previously set spy-points removed from
+     them.
+
+`nospyall'
+     This removes all the spy-points that have been set.
+
+   The options available when the user arrives at a spy-point are the
+same as the options had the user stepped through the program to that
+point.
+
+
+File: agents-user,  Node: Monitors and threads,  Next: Format of Debugging Messages,  Prev: Spy-points,  Up: Debugging
+
+Monitors and threads
+====================
+
+   When an interesting goal is reached in a debugging session, it may
+be that the goal suspends, waiting for input that is generated by
+other goals yet to be run (or possibly nondeterminstic choice). The
+monitor option allows the user to specify that debugging is to be
+resumed when the current goal or thread is resumed, hiding the
+execution of the input-generating goals.
+
+   Making a monitor mark differs from a spypoint marking in that
+execution only pauses when one particular instance of a goal is
+reactivated rather than all goals with the same principal functor.
+
+   When modelling iterative processes it also convenient to monitor
+not only the goal but all its children ad infinitum. For instance, to
+trace the process p, defined below, a spypoint can be set to stop
+execution on the first call to p/3. The monitor children marking will
+then ensure that all recursive invocations of p will be trapped.
+
+     p([],O1,O2):- -> O1=[], O2=[].
+     p([X|Xs],O1,O2):- -> O1=[X|NO1], O2=[X|NO2], p(Xs,NO1,NO2).
+
+
+File: agents-user,  Node: Format of Debugging Messages,  Next: Options available during Debugging,  Prev: Monitors and threads,  Up: Debugging
+
+Format of Debugging Messages
+============================
+
+   A port is printed as follows.
+
+     Goal-related ports:              Info Port: Goal(Args) ?
+     Other ports:                     Info Port: ChoiceGoal ?
+
+   `Port' is the name of a port, `Goal(Args)' is the current (atomic)
+goal with its arguments, and `ChoiceGoal' is the atomic goal
+associated with the parent choice-box of the current and-box.
+
+   The `Info' field provides information about spypoints and monitors.
+In particular `+' indicates that the goal has an associated spypoint,
+and `*' indicates that the goal is monitored, and `**' indicates that
+the goal is children-monitored.  Also a goal may be both spied and
+monitored (`+*' and `+**').
+
+
+File: agents-user,  Node: Options available during Debugging,  Next: Port filter,  Prev: Format of Debugging Messages,  Up: Debugging
+
+Options available during Debugging
+==================================
+
+   This section describes the particular options that are available
+when the system prompts you after printing out a debugging message.
+All the options are one letter mnemonics (or carriage return).  Some
+options are not available at all ports.
+
+   The write options are useful when entire traces, or entire traces
+involving spied agents are printed, for later appraisal with an
+editor.  Currently, no means of piping this output to a file is
+implemented.  Output can be saved by running AGENTS from within Emacs.
+
+   The only option which you really have to remember is *h* (followed
+by <RET>).  This provides help in the form of the following list of
+available options (edited to remove those options not valid for the
+particular port).
+
+     Debugging options:
+        <cr>   creep            c      creep
+         s     skip             S      skip all
+         l     leap             m      monitor stop
+         u     unleash          U      unleash, show only spied
+         n     nodebug          a      abort
+         +     spy this         -      nospy this
+         *     monitor this     \      nomonitor this
+         !     monitor children |      nomonitor children
+         #     nomonitor andbox
+         x     manual update    f      filter
+         A     show andbox      D      show configuration
+         P     show path        E      show full configuration
+         w     write goal
+         ?     help             h      help
+
+`c'
+     *creep* causes AGENTS to single-step to the very next port and
+     print a debug message.
+
+`l'
+     *leap* causes the interpreter to resume running your program,
+     only stopping when a spy-point or monitor is reached (or when
+     the program terminates).  Leaping can thus be used to follow the
+     execution at a higher level than exhaustive tracing.  All you
+     need to do is to set spy-points on an evenly-spread set of
+     pertinent definitions, and then follow the control flow through
+     these by leaping from one to the other.
+
+`s'
+     *skip* is only valid for Call ports.  It skips over the entire
+     execution of the agent.  Control comes back to this agent (at
+     either the Exit port or the Fail port).  Skip is particularly
+     useful while creeping since it guarantees that control will be
+     returned after the (possibly complex) execution of the
+     procedure.  If you skip then no messages at all will appear
+     until a spy-point or monitor is reach or when control returns.
+     Execution will stop when control returns even if spy-points or
+     monitors were encountered during the execution of the goal.
+
+`S'
+     *skip all* differs from *skip* only in that spypoints are
+     ignored during the execution of the goal
+
+`m'
+     with *monitor stop* execution is stopped only upon resumption of
+     monitored goals
+
+`u'
+     with *unleash* execution continues to the end of the program but
+     the debug messages are printed out (currently only on the
+     terminal).  (Monitored goals are ignored).
+
+`U'
+     with *unleash (show spied)* execution continues to the end of the
+     program but the debug messages associated with spied goals are
+     printed out anyway. (Monitored goals are ignored).
+
+`n'
+     *nodebug* switches the debugger off.
+
+`+'
+     *spy this*.  Set a spy-point on the current goal. This is only
+     an option at                  goal-related and promotion-related
+     ports.
+
+`-'
+     *nospy this*.  Remove spy-point from the current goal. This is
+     only an option at                  goal-related and
+     promotion-related ports.
+
+`*'
+     *monitor this*.  Monitors current goal. Available only at the
+     Suspend port.
+
+`\'
+     *nomonitor this*.  Remove monitor. Available only at the Suspend
+     port
+
+`!'
+     *monitor children*.  Monitors current goal and all its children,
+     ad infinitum.  Not available at guard or movement-related ports.
+
+`|'
+     *nomonitor children*.  Remove monitor on current goal, and all
+     new children.  Already created children will still be monitored.
+     Not available at guard or movement-related ports.
+
+`#'
+     *nomonitor andbox*.  Remove monitor on current goal, and all new
+     children.  Also removes all monitors and all suspended goals
+     within the current and-box.  Not available at guard or
+     movement-related ports.
+
+`f'
+     *filter*.  Invoke the port filter (see next section).
+
+`A'
+     *show andbox*.  Shows the current and-box
+
+`D'
+     *show configuration*.  Shows the entire configuration
+
+`P'
+     *show path*.  Shows the full path, i.e full agent names of the
+     atomic goals that were unfolded to become the ancestor
+     choice-boxes.
+
+`x'
+     *manual update*.  Information about changes in the debugging
+     functions as compared to the last release of the manual.
+
+`w'
+     *write* goal in port without print-depth abbreviation.
+
+`?'
+     *help* displays the table of options given above.
+
+`h'
+     *help* as above.
+
+
+File: agents-user,  Node: Port filter,  Prev: Options available during Debugging,  Up: Debugging
+
+Port filter
+===========
+
+   The `f'-filter debugging option invokes the port filter, which
+allows the user to limit the ports at which execution will stop.
+Irrespective of whatever other command the debugger is given,
+execution can only pause at the ports within the limits set by the
+user. This is probably most useful in conjunction with the creep and
+write debugger options.
+
+   The port filter has its own help option invoked by <h> or <?>, and
+is self-explanatory.
+
+   The use of the port filter will be illustrated with two examples:
+
+   * Nondeterminism-related ports are set to on. All other ports are
+     off.  Using the creep debugger option the user can conveniently
+     step through all nondeterminstic steps.
+
+   * Reenter and Suspend ports are set to on. All other ports are off.
+     Using the write debugger option the user can conveniently
+     evaluate the co-routining aspects of an execution.
+
+
+File: agents-user,  Node: Summary of Built-in Agents,  Next: Standard Operators,  Prev: Debugging,  Up: Top
+
+Summary of Built-in Agents
+**************************
+
+   <<<INCOMPLETE>>>
+
+
+File: agents-user,  Node: Standard Operators,  Next: System Limits,  Prev: Summary of Built-in Agents,  Up: Top
+
+Standard Operators
+******************
+
+   <<<NEEDS WORK>>>
+
+     :- op( 1200, xfx, [ :-]).
+     :- op( 1200, xfx, [ :-, -->, := ]).
+     :- op( 1200,  fx, [ :-, ?- ]).
+     :- op( 1150,  fx, [ public ]).
+     :- op( 1100, xfy, [ ; ]).
+     :- op( 1050, xfy, [ ':' ]).
+     :- op( 1050, xfx, [ '|', ->, ?, ??, ! ]).
+     :- op( 1050,  fx, [ '|', ->, ?, ??, ! ]).
+     :- op( 1025, xfy, [ & ]).
+     :- op( 1000, xfy, [ ',' ]).      /* See note below */
+     :- op(  900, xfx, [ @ ]).
+     :- op(  900,  fy, [ \+, spy, nospy ]).
+     :- op(  700, xfx, [ =, is, =.., ==, \==, @<, @>, @=<, @>=,
+                                     =:=, =\=, <, >, =<, >= ]).
+     :- op(  500, xfx, [ \, \\]).
+     :- op(  500, yfx, [ +, -, #, /\, \/ ]).
+     :- op(  500,  fx, [ +, - ]).
+     :- op(  400, yfx, [ *, /, //, <<, >> ]).
+     :- op(  300, xfx, [ mod ]).
+     :- op(  200, xfy, [ ^ ]).
+     :- op(  100, yfx, [ $ ]).
+
+   Note that a comma written literally as a punctuation character can
+be used as though it were an infix operator of precedence 1000 and
+type `xfy', i.e.,
+
+     X,Y    ','(X,Y)
+
+represent the same compound term.
+
+
+File: agents-user,  Node: System Limits,  Next: Getting and Installing AGENTS,  Prev: Standard Operators,  Up: Top
+
+System Limits
+*************
+
+   <<<NEEDS WORK>>>
+
+Some limits:
+
+`Atoms'
+     An atom can have 255 characters in the name.
+
+`Integers'
+     AGENTS currently uses 26 bit integers. The range is `[-33554432,
+     33554431]'.
+
+`Floats'
+     The range of floats is the one provided by the C `double' type,
+     typically `[4.9e-324, 1.8e+308]' (plus or minus).
+
+`Structures'
+     You can have approximately 50000 arguments to a structure.
+
+`Calls'
+     There are 256 internal registers shared for argument passing and
+     local storage. This gives you the opportunity to have a large
+     number of arguments to a call.
+
+Most other memory consumers are limited by the memory available on
+the system.
+
+
+File: agents-user,  Node: Getting and Installing AGENTS,  Next: Index of Built-ins,  Prev: System Limits,  Up: Top
+
+Getting and Installing AGENTS
+*****************************
+
+* Menu:
+
+* Getting AGENTS::
+* Basic Installation::
+* Including GM::
+* Documentation::
+* GNU Emacs Modes::
+* Comments and Bug Reports::
+
+
+File: agents-user,  Node: Getting AGENTS,  Next: Basic Installation,  Up: Getting and Installing AGENTS
+
+Getting AGENTS
+==============
+
+   AGENTS, including source code, is free for educational and
+research purposes.
+
+   To get AGENTS or ask questions about it, send electronic mail to
+`agents-request@sics.se' or facsimile to +46-8-751-7230.
+
+
+File: agents-user,  Node: Basic Installation,  Next: Including GM,  Prev: Getting AGENTS,  Up: Getting and Installing AGENTS
+
+Basic Installation
+==================
+
+  1. You received the AGENTS distribution as a file or tape.  To
+     unload the file, type the following commands:
+
+          % *uncompress agents0.9.tar.Z<return>*
+          % *tar xf agents0.9.tar<return>*
+
+     Or to unload the tape, type the following command (substituting
+     for the device if necessary):
+
+          % *tar xf /dev/rst8<return>*
+
+     It does not matter where you unload the file or tape, except
+     that there should be at least about eight megabytes of disk
+     space available for building AGENTS.  After building AGENTS, you
+     can install it wherever you wish.
+
+  2. Go down to the AGENTS directory and configure and build AGENTS
+     by typing the following commands:
+
+          % *cd agents0.9<return>*
+          % *./configure<return>*
+          % *make<return>*
+
+     The *./configure* command recognizes various arguments, but
+     these are seldom necessary; see the file `README' in the AGENTS
+     directory for details.  Also, you can *make* various targets
+     besides the default target, which builds AGENTS; see `Makefile'
+     in the AGENTS directory for details.
+
+     These commands build AGENTS locally, i.e., you can now enter
+     AGENTS by typing the following command:
+
+          % *./agents<return>*
+
+     If you are not interested in installing AGENTS globally, there
+     is nothing more to do.
+
+  3. If you *are* interested in installing AGENTS globally, choose a
+     location for installation; we suggest `/usr/local'.  In the
+     following, this is known as *<prefix>*.
+
+     It does not matter where you install AGENTS, except that there
+     should be at least about six megabytes of disk space available.
+     If disk space is a concern, you can remove some of the
+     installation; see below for details.
+
+  4. Install AGENTS globally by typing the following command:
+
+          % *make install prefix=<prefix><return>*
+
+     If you do not specify *prefix=<prefix>*, installation will be in
+     `/usr/local'.
+
+     By default, pieces of AGENTS are installed as follows:
+
+        * the `agents' executable in `*<prefix>*/bin';
+
+        * the info files in `*<prefix>*/info';
+
+        * the man page in `*<prefix>*/man/man1';
+
+        * all else in `*<prefix>*/lib/agents0.9'.
+
+     You can override these on the *make* command line; see
+     `Makefile' in the AGENTS directory for details.
+
+     Note that after installing, the AGENTS directory is no longer
+     needed; an installed version is genuinely stand-alone.
+
+  5. To repeat the procedure for another machine of another type, log
+     onto that machine, go to the AGENTS directory, and type the
+     following commands:
+
+          % *./configure<return>*
+          % *make clean all<return>*
+
+     The `clean' target removes all files created by the first build.
+     The `all' target rebuilds AGENTS locally for the second machine.
+
+  6. To reclaim disk space, in either a local or an installed version
+     of AGENTS, you can compress or remove any of the demonstration
+     programs; *note Demonstration Programs::..
+
+
+File: agents-user,  Node: Including GM,  Next: Documentation,  Prev: Basic Installation,  Up: Getting and Installing AGENTS
+
+Including GM
+============
+
+   Except for the `Graphics Manager' package, the packages in the
+AGENTS Library can be loaded into a version of AGENTS created as
+explained in the preceding section.  This section explains how to
+create a version of AGENTS including the `Graphics Manager' package,
+hereafter known as GM.
+
+   With a local version of AGENTS, go to the AGENTS directory and
+type the following command:
+     % *./agents library/gm/procomm.c library/gm/procomm.fd \\<return>
+     library/gm.pam -o gmagents<return>*
+
+   With an installed version of AGENTS, first find out the library
+directory as follows:
+
+     | ?- *library_directory(X).<return>*
+     
+     X = '/usr/local/lib/agents0.9/library' ?
+
+   In the following, this is known as *<library>*.
+
+   Then type the following command:
+
+     % *agents <library>/gm/procomm.c <library>/gm/procomm.fd \<return>
+     <library>/gm.pam -o gmagents<return>*
+
+   In either case, three files are created in the current working
+directory: the driver `gmagents', the executable `gmagents.exe', and
+the boot file `gmagents.pam'.  Edit the driver in the obvious fashion
+if you wish to move the executable or the boot file elsewhere.
+
+   Note that GM is not well-supported and is likely to be superseded
+in future versions of AGENTS.
+
+
+File: agents-user,  Node: Documentation,  Next: GNU Emacs Modes,  Prev: Including GM,  Up: Getting and Installing AGENTS
+
+Documentation
+=============
+
+   This *AGENTS User Manual* and the *AGENTS Library Manual* are
+available on-line using the `GNU Emacs' `info' facility.  If you
+install AGENTS with an appropriate value of *<infodir>*, *note Basic
+Installation::., these will be available to anyone using `info'.
+Otherwise, go to the AGENTS directory, enter `GNU Emacs', and type
+the following commands:
+
+     C-x C-f doc/agents-user
+     M-x texinfo-format-buffer
+     C-x C-f doc/agents-library
+     M-x texinfo-format-buffer
+
+   To create PostScript versions of the manuals and *An Introduction
+to AKL*, go to the AGENTS directory and type the following command:
+
+     % *make ps<return>*
+
+   Three files are created in the `doc' subdirectory: `user.ps',
+`library.ps', and `aklintro.ps'.  Print these out or view them using
+a PostScript viewing program such as `ghostview'.
+
+   There is a man page for AGENTS.  If you install AGENTS with an
+appropriate value of *<mandir>*, *note Basic Installation::., it will
+be available to anyone using the `man' command.  Otherwise, go to the
+AGENTS directory and type the following command:
+
+     % *nroff -man agents.1 | more<return>*
+

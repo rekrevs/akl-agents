@@ -1,0 +1,6 @@
+$Id: meta_execution,v 1.1 1993/07/28 11:17:29 bd Exp $
+
+How do we perform meta-execution (of engines/reflections)
+without performance penalties for ordinary execution?
+
+E.g. we want to run at maximum speed when we are not debugging.

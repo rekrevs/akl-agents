@@ -1,0 +1,271 @@
+fd_init_environment(V, I) :- 
+	fd_init_environment(V, 0, I).
+
+fd_init_environment([], _, I) :- 
+    ->	I=[].
+fd_init_environment([V|R], N, I) :- 
+    ->	I = [(V, dummy, N)|I0],
+	N1 is N+1,
+	fd_init_environment(R, N1, I0).
+
+fd_element_environment(X, L, E) :-
+    ->	E=[(X, dom, 0), (L, int, 1)].
+
+update_arg([(Y,YI,YA)|R], Y, I, InfoO, Arg) :- 
+    ->	prop_table(YI, I, P),
+	Arg = YA,
+	InfoO = [(Y, P, YA)|R].
+update_arg([(Y,YI,YA)|R], X, I, InfoO, Arg) :- 
+    ->	InfoO = [(Y,YI,YA)|S],
+	update_arg(R, X, I, S, Arg).
+
+prop_table(dummy, X, Z) :- 
+    ->	Z=X.
+prop_table(X, X, Z) :- 
+    ->	Z = X.
+prop_table(min, max, Z) :- 
+    ->	Z = minmax.
+prop_table(max, min, Z) :- 
+    ->	Z = minmax.
+prop_table(dom, _, Z) :- 
+    ->	Z = dom.
+prop_table(_, dom, Z) :- 
+    ->	Z = dom.
+prop_table(int, _, Z) :- 
+    ->	Z = int.
+prop_table(_, int, Z) :- 
+    ->	Z = int.
+prop_table(minmax, _, Z) :- 
+    ->	Z = minmax.
+prop_table(_, minmax, Z) :- 
+    ->	Z = minmax.
+
+prop_code(dom, C) :- 
+    ->	C=0.
+prop_code(min, C) :- 
+    ->	C=1.
+prop_code(max, C) :- 
+    ->	C=2.
+prop_code(minmax, C) :- 
+    ->	C=3.
+prop_code(int, C) :- 
+    ->	C = -1.
+prop_code(dummy, C) :- 
+    ->	C = -2.
+
+extract_props([], Len, L, P) :- 
+    ->	P=[],
+	L=[],
+	Len=0.
+extract_props([(X,Prop,_)|R], Len, L, P) :-
+    ->	extract_props_0(Prop, X, R, Len, L, P).
+
+extract_props_0(int, _, R, Len, L, P) :-
+    ->	extract_props(R, Len, L, P).
+extract_props_0(dummy, _, R, Len, L, P) :-
+    ->	extract_props(R, Len, L, P).
+extract_props_0(Prop, X, R, Len, L, P) :-
+    ->	prop_code(Prop, C),
+	P = [struct(C,0,[])|P0],
+	L = [X|L0],
+	extract_props(R, Len0, L0, P0),
+	Len is Len0+1.
+
+extract_prop_info(I, D, P) :- 
+    ->	extract_props(I, N, L, PL),
+	D = struct(domains, N, L),
+	P = struct(prop, N, PL).
+
+val_instr(0, L, Lt) :-
+	-> L=[val_0|Lt].
+val_instr(1, L, Lt) :-
+	-> L=[val_1|Lt].
+val_instr(2, L, Lt) :-
+	-> L=[val_2|Lt].
+val_instr(N, L, Lt) :-
+	-> L=[val,N|Lt].
+
+dom_instr(0, L, Lt) :-
+	-> L=[dom_0|Lt].
+dom_instr(1, L, Lt) :-
+	-> L=[dom_1|Lt].
+dom_instr(2, L, Lt) :-
+	-> L=[dom_2|Lt].
+dom_instr(N, L, Lt) :-
+	-> L=[dom,N|Lt].
+
+dom_min_instr(0, L, Lt) :-
+	-> L=[dom_min_0|Lt].
+dom_min_instr(1, L, Lt) :-
+	-> L=[dom_min_1|Lt].
+dom_min_instr(2, L, Lt) :-
+	-> L=[dom_min_2|Lt].
+dom_min_instr(N, L, Lt) :-
+	-> L=[dom_min,N|Lt].
+
+dom_max_instr(0, L, Lt) :-
+	-> L=[dom_max_0|Lt].
+dom_max_instr(1, L, Lt) :-
+	-> L=[dom_max_1|Lt].
+dom_max_instr(2, L, Lt) :-
+	-> L=[dom_max_2|Lt].
+dom_max_instr(N, L, Lt) :-
+	-> L=[dom_max,N|Lt].
+
+parse_term(X, L, Lt, InfoI, InfoO) :- 
+	X = var(_)
+    ->	update_arg(InfoI, X, int, InfoO, NA),
+	val_instr(NA, L, Lt).
+parse_term(struct(max,0,[]), L, Lt, InfoI, InfoO) :- 
+    ->	InfoI = InfoO,
+	L = [max_elem|Lt].
+parse_term(struct(X,0,[]), L, Lt, InfoI, InfoO) :- 
+	integer(X) 
+    ->	InfoI = InfoO,
+	L=[const,X|Lt].
+parse_term(struct('+',2,[X,Y]), L, Lt, InfoI, InfoO) :- 
+    ->	parse_term(Y, L, L1, InfoI, InfoT),
+	parse_term(X, L1, [add|Lt], InfoT, InfoO).
+parse_term(struct('*',2,[X,Y]), L, Lt, InfoI, InfoO) :- 
+    ->	parse_term(Y, L, L1, InfoI, InfoT),
+	parse_term(X, L1, [mult|Lt], InfoT, InfoO).
+parse_term(struct('-',2,[X,Y]), L, Lt, InfoI, InfoO) :- 
+    ->	parse_term(Y, L, L1, InfoI, InfoT),
+	parse_term(X, L1, [sub|Lt], InfoT, InfoO).
+parse_term(struct('/',2,[X,Y]), L, Lt, InfoI, InfoO) :- 
+    ->	parse_term(Y, L, L1, InfoI, InfoT),
+	parse_term(X, L1, [divd|Lt], InfoT, InfoO).	
+parse_term(struct('//',2,[X,Y]), L, Lt, InfoI, InfoO) :- 
+    ->	parse_term(Y, L, L1, InfoI, InfoT),
+	parse_term(X, L1, [divu|Lt], InfoT, InfoO).	
+parse_term(struct(mod,2,[X,Y]), L, Lt, InfoI, InfoO) :- 
+    ->	parse_term(Y, L, L1, InfoI, InfoT),
+	parse_term(X, L1, [mod|Lt], InfoT, InfoO).
+parse_term(struct(min,1,[R]), L, Lt, InfoI, InfoO) :- 
+    ->	parse_range_min(R, L, Lt, InfoI, InfoO).
+parse_term(struct(max,1,[R]), L, Lt, InfoI, InfoO) :- 
+    ->	parse_range_max(R, L, Lt, InfoI, InfoO).
+
+parse_outer_range(X, Y, L, Lt, InfoI, InfoO) :-
+    ->	parse_term(Y, L, L1, InfoI, InfoT),
+	parse_term(X, L1, [outer_range|Lt], InfoT, InfoO).
+
+parse_range(struct('..',2,[X,Y]), L, Lt, InfoI, InfoO) :- 
+    ->	parse_outer_range(X, Y, L, Lt, InfoI, InfoO).
+parse_range(struct('...',1,[X]), L, Lt, InfoI, InfoO) :- 
+    ->	parse_outer_range(X, struct(max,0,[]), L, Lt, InfoI, InfoO).
+parse_range(X, L, Lt, InfoI, InfoO) :-
+	X = var(_)
+    ->	parse_outer_range(X, X, L, Lt, InfoI, InfoO).
+parse_range(X, L, Lt, InfoI, InfoO) :-
+	X = struct(max,0,[])
+    ->	parse_outer_range(X, X, L, Lt, InfoI, InfoO).
+parse_range(X, L, Lt, InfoI, InfoO) :-
+	X = struct(Y,0,[]),
+	integer(Y)
+    ->	parse_outer_range(X, X, L, Lt, InfoI, InfoO).
+parse_range(R, L, Lt, InfoI, InfoO) :-
+    ->	parse_range_0(R, L, Lt, InfoI, InfoO).
+
+parse_range_0(struct(dom,1,[X]), L, Lt, InfoI, InfoO) :- 
+    ->	update_arg(InfoI, X, dom, InfoO, XA),
+	dom_instr(XA, L, Lt).
+parse_range_0(struct('..',2,[X,Y]), L, Lt, InfoI, InfoO) :- 
+    ->	parse_term(Y, L, L1, InfoI, InfoT),
+	parse_term(X, L1, [range|Lt], InfoT, InfoO).
+parse_range_0(struct('...',1,[X]), L, Lt, InfoI, InfoO) :- 
+    ->	parse_range_0(struct('..',2,[X, struct(max,0,[])]), L, Lt, InfoI, InfoO).
+parse_range_0(struct('+',2,[R,X]), L, Lt, InfoI, InfoO) :- 
+    ->	parse_term(X, L, L1, InfoI, InfoT),
+	parse_range_0(R, L1, [setadd|Lt], InfoT, InfoO).	
+parse_range_0(struct('-',2,[R,X]), L, Lt, InfoI, InfoO) :- 
+    ->	parse_term(X, L, L1, InfoI, InfoT),
+	parse_range_0(R, L1, [setsub|Lt], InfoT, InfoO).
+parse_range_0(struct(mod,2,[R,X]), L, Lt, InfoI, InfoO) :- 
+    ->	parse_term(X, L, L1, InfoI, InfoT),
+	parse_range_0(R, L1, [setmod|Lt], InfoT, InfoO).
+parse_range_0(struct('-',1,[R]), L, Lt, InfoI, InfoO) :- 
+    ->	parse_range_0(R, L, [compl|Lt], InfoI, InfoO).
+parse_range_0(struct('\/',2,[R1,R2]), L, Lt, InfoI, InfoO) :- 
+    ->	parse_range_0(R2, L, L1, InfoI, InfoT),
+	parse_range_0(R1, L1, [union|Lt], InfoT, InfoO).
+parse_range_0(struct('/\',2,[R1,R2]), L, Lt, InfoI, InfoO) :- 
+    ->	parse_range_0(R2, L, L1, InfoI, InfoT),
+	parse_range_0(R1, L1, [inter|Lt], InfoT, InfoO).
+parse_range_0(struct('=>',2,[S,R]), L, Lt, InfoI, InfoO) :- 
+    ->	parse_range_0(S, L, [fd_check|L1], InfoI, InfoT),
+	parse_range_0(R, L1, [fd_label|Lt], InfoT, InfoO).
+parse_range_0(X, L, Lt, InfoI, InfoO) :-
+    ->	parse_range_0(struct('..',2,[X,X]), L, Lt, InfoI, InfoO).
+
+parse_range_min(X, L, Lt, InfoI, InfoO) :- 
+	X = var(_)
+    ->	update_arg(InfoI, X, min, InfoO, XA),
+	dom_min_instr(XA, L, Lt).
+parse_range_min(R, L, Lt, InfoI, InfoO) :- 
+    ->	parse_range_0(R, L, [min|Lt], InfoI, InfoO).
+
+parse_range_max(X, L, Lt, InfoI, InfoO) :- 
+	X = var(_)
+    ->	update_arg(InfoI, X, max, InfoO, XA),
+	dom_max_instr(XA, L, Lt).
+parse_range_max(R, L, Lt, InfoI, InfoO) :- 
+    ->	parse_range_0(R, L, [max|Lt], InfoI, InfoO).
+
+range_vars(R, V, N) :-
+	range_vars(R, [], V, 0, N).
+
+term_vars(X, V0, V, N0, N) :-
+	X = var(_)
+    ->	add_var(V0, X, V, N0, N).
+term_vars(struct(_,0,[]), V0, V, N0, N) :-
+    ->	V0=V,N0=N.
+term_vars(struct(_,1,[R]), V0, V, N0, N) :-
+    ->	range_minmax_vars(R, V0, V, N0, N).
+term_vars(struct(_,2,[X,Y]), V0, V, N0, N) :-
+    ->	term_vars(X, V0, V1, N0, N1),
+	term_vars(Y, V1, V, N1, N).
+
+arith_op('+').
+arith_op('-').
+arith_op('mod').
+
+set_op('/\').
+set_op('\/').
+set_op('=>').
+
+range_vars(struct(dom,1,[X]), V0, V, N0, N) :-
+    ->	add_var(V0, X, V, N0, N).
+range_vars(struct('..',2,[X,Y]), V0, V, N0, N) :-
+    ->	term_vars(X, V0, V1, N0, N1),
+	term_vars(Y, V1, V, N1, N).
+range_vars(struct('...',1,[X]), V0, V, N0, N) :-
+    ->	term_vars(X, V0, V, N0, N).
+range_vars(struct(AO,2,[R,X]), V0, V, N0, N) :-
+	arith_op(AO)
+    ->	range_vars(R, V0, V1, N0, N1),
+	term_vars(X, V1, V, N1, N).
+range_vars(struct('-',1,[R]), V0, V, N0, N) :-
+    ->	range_vars(R, V0, V, N0, N).
+range_vars(struct(SO,2,[R1,R2]), V0, V, N0, N) :-
+	set_op(SO)
+    ->	range_vars(R1, V0, V1, N0, N1),
+	range_vars(R2, V1, V, N1, N).
+range_vars(X, V0, V, N0, N) :-
+    -> range_vars(struct('..',2,[X,X]), V0, V, N0, N).
+
+range_minmax_vars(X, V0, V, N0, N) :-
+	X = var(_)
+    ->	add_var(V0, X, V, N0, N).
+range_minmax_vars(R, V0, V, N0, N) :-
+    ->	range_vars(R, V0, V, N0, N).
+
+add_var([], X, V, N0, N) :-
+    ->	V=[X],
+	N is N0+1.
+add_var([X|V0], X, V, N0, N) :-
+    ->	V=[X|V0],
+	N0 = N.
+add_var([Y|R0], X, V, N0, N) :-
+    ->	V=[Y|V0],
+	add_var(R0, X, V0, N0, N).

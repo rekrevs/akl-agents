@@ -1,0 +1,29 @@
+predicate('agents_version'/1
+	get_constant_x0('AGENTS --VERSION--')
+	proceed
+)
+
+predicate('agents_date'/1
+	get_constant_x0('--DATE--')
+	proceed
+)
+
+predicate('agents_copyright'/1
+	get_constant_x0('(C) 1990-1994 Swedish Institute of Computer Science')
+	proceed
+)
+
+predicate('agents_rights'/1
+	get_constant_x0('All rights reserved.')
+	proceed
+)
+
+predicate('demos_directory'/1
+	get_constant_x0('--DEMOSDIR--')
+	proceed
+)
+
+predicate('library_directory'/1
+	get_constant_x0('--LIBRARYDIR--')
+	proceed
+)

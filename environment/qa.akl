@@ -1,0 +1,261 @@
+% $Id: qa.akl,v 1.32 1994/04/14 14:49:10 rch Exp $
+
+main :-
+	innermost,
+	stdin(In),
+	stdout(Out),
+	main(In, _, Out, _).
+
+main-In-Out :-
+	agents_header-Out,
+	unprotectdef(library_directory, 1),
+	unprotectdef(term_expansion, 2),
+	agents_init-In-Out,
+	histempty(10, Hist),
+	qaloop(Hist)-In-Out,
+	agents_footer-Out.
+
+restart :-
+	stdin(In),
+	stdout(Out),
+	restart(In, _, Out, _).
+
+restart-In-Out :-
+	histempty(10, Hist),
+	format('{Computation aborted}~n')-Out,
+	qaloop(Hist)-In-Out,
+	agents_footer-Out.
+
+agents_init-_In-_Out :-
+	find_file('$HOME','aklini','.pam',true,Name,_)
+    ->	noprotection,
+	load_immediate(Name),
+	protection,
+	aklini.
+agents_init-_In-_Out :-
+    ->	true.
+
+aklini :- true.
+
+agents_header-Out :- 
+	agents_version(Version),
+	agents_features(Features),
+	agents_date(Date),
+	agents_copyright(Copyright),
+	agents_rights(Rights),
+	format('~w (~w): ~w~n~w~n~w~n',
+	       [Version,Features,Date,Copyright,Rights])-Out.
+
+agents_footer-Out :-
+	statistics(runtime,[T,_]),
+	format('~n{End of AGENTS execution, user time ~w}~n', [T])-Out.
+
+qaloop(Hist)-In-Out:-  
+	'$initialize_varname',
+	garbage_collect
+    ->	show_debugging_status-Out,
+	format('| ?- ')-Out, 
+	fflush@Out,
+	qacommand(Command)-In, 
+	qahandle(Command,Hist)-In-Out.
+
+show_debugging_status-Out :-
+	'$is_tracing'
+    ->  format('{trace}~n')-Out.
+show_debugging_status-Out :-
+	'$is_debugging'
+    ->  format('{debug}~n')-Out.
+show_debugging_status-_Out :-
+    ->	true.
+
+
+qahandle(halt, _Hist)-_In-_Out :-
+    ->	true.
+qahandle(error(Tokens), Hist)-In-Out :-
+    ->	format('{Warning: cannot parse: ')-Out,
+	write_tokens(Tokens)-Out,
+	format('}~n')-Out,
+	qaloop(Hist)-In-Out.
+qahandle(Command, Hist)-In-Out :-
+    ->	qaexec(Command, Hist)-In-Out.
+
+
+qaexec(struct(halt,0,[]), _Hist)-_In-_Out :-
+    ->	true.
+qaexec(struct(Int,0,_), Hist)-In-Out :-
+	integer(Int)
+    ->	histget(Int, Query, Hist, New),
+	qaquery(Query, New)-In-Out,
+	qaloop(New)-In-Out.
+qaexec(struct(h,0,_), Hist)-In-Out :-
+    -> 	histdispl(Hist)-Out,
+	qaloop(Hist)-In-Out.
+qaexec(Query, Hist)-In-Out :-
+    -> 	histadd(Query, Hist, New),
+	qaquery(Query, New)-In-Out,
+	qaloop(New)-In-Out.
+
+
+qaquery(Query, _Hist)-In-Out :-
+	sys_expand_query(Query, ExpQuery),
+	reflective_call(W, qacall(ExpQuery), S),
+	qareport(S, W)-In-Out.
+
+sys_expand_query(X, Z) :-
+	goal_synch_expansion(X, Y)
+    ->	Z = Y.
+sys_expand_query(X, Z) :-
+    ->  format('{Warning: accumulator syntax expansion fails: ~q}~n', [X]),
+	Z = X.
+
+qareport([fail|_], _W)-_In-Out :-
+	sys_notrace
+    ->	format('~nno ~n')-Out.
+qareport([suspended|_], W)-In-Out :-
+	sys_notrace
+    ->	qasuspended(W)-In-Out.
+qareport([solution(Vs)|R], W)-In-Out :- 
+	sys_notrace
+    ->	qaanswers(Vs, Next)-In-Out,
+	qamore(Next, R, W)-In-Out.
+
+qamore(err, _, _)-_In-Out :-
+    -> 	format('~n{Exception while reading}~n')-Out.
+qamore(no, _, _)-_In-Out :-
+    -> 	format('~nyes ~n')-Out.
+qamore(next, S, W)-In-Out :-
+    ->	reflective_next(W, W1),
+	qareport(S, W1)-In-Out.
+
+qacall(Query, Dict) :-
+	instance(Query, Goal, Dict0, _),
+	remove_generated_vars(Dict0, Dict),
+	main_call(Goal).
+
+remove_generated_vars([], L) :-
+    ->	L=[].
+remove_generated_vars([acc(_)=_|X], L) :-
+    ->	remove_generated_vars(X, L).
+remove_generated_vars([U|X], L) :-
+    ->	L=[U|L1],
+	remove_generated_vars(X, L1).
+
+main_call(Goal):- 
+	sys_check_trace
+    ->	call(Goal).
+
+qacommand(Next)-In :-
+	read_term(Term)-In,
+	qacheck(Term, Next)-In.
+
+
+qacheck(exception(end_of_file), Next)-_In :-
+    ->	Next = halt.
+qacheck(exception(Tokens), Next)-_In :-
+    ->	Next = error(Tokens).
+qacheck(term(Term), Next)-_In :-
+    ->	Next = Term.
+
+qasuspended(W)-_In-Out :-
+	format('~n{Computation suspended}')-Out,
+	reflective_print(W, _),
+	format('~nno ~n')-Out.
+
+
+histempty(Max,hist(0,0,Max,Tail,Tail)).
+
+histget(N,Query,hist(Last,Total,Max,Queries,Tail),Hist):- 
+	histdel((N,Q),Queries,Tail, Rest)
+    ->	Query = Q,
+	Tail = [(N,Q)|New],
+	Hist = hist(Last,Total,Max,Rest,New).
+histget(_N,Query,hist(Last,Total,Max,Queries,Tail),Hist):-
+    ->	Query = struct(true,0,[]),
+	Hist = hist(Last,Total,Max,Queries,Tail).
+
+histdel((_I,_Q),Tail,Tail,_Rest):-
+    |	fail.
+histdel((I,Q), [(I,Query)|Queries],_Tail,Rest):-
+    |	Q = Query,
+	Rest = Queries.
+histdel((I,Q), [(J,K)|Queries],Tail,Rest):- 
+	I =\= J
+    |	Rest = [(J,K)|R],
+	histdel((I,Q), Queries,Tail,R).
+
+histadd(Query,hist(Last,Total,Max,Queries,Tail),Hist):- 
+	histrem((N,Query),Queries,Tail, Rest)
+    ->	Tail = [(N,Query)|New],
+	Hist = hist(Last,Total,Max,Rest,New).
+histadd(Query,hist(Last,Max,Max,[_Q|Rest],Tail),Hist):-
+    -> 	L is Last + 1,
+	Tail = [(L,Query)|New],
+	Hist = hist(L,Max,Max,Rest,New).
+histadd(Query,hist(Last,Total,Max,Queries,Tail),Hist):-
+    -> 	L is Last + 1,
+	T is Total + 1,
+	Tail = [(L,Query)|New],
+	Hist = hist(L,T,Max,Queries,New).
+
+histrem((_I,_Q),Tail,Tail,_Rest):-
+    |	fail.
+histrem((I,Q), [(N,Q)|Queries],_Tail,Rest):-
+    |	I = N,
+	Rest = Queries.
+histrem((I,Q), [(J,K)|Queries],Tail,Rest):- 
+	hist_not_equal(Q, K)
+    |	Rest = [(J,K)|R], 
+	histrem((I,Q), Queries,Tail,R).
+
+hist_not_equal(X, Y) :- 
+	X = Y
+    ->	fail.
+hist_not_equal(_X, _Y) :-
+    ->	true.
+
+histdispl(hist(_Last,_Total,_Max,Queries,Tail))-Out :-
+	histdis(Queries,Tail)-Out.
+
+histdis(Tail,Tail)-_Out :-
+    |	true.
+histdis([(I,Query)|Queries],Tail)-Out :-
+    |	insterm(Query,Term),
+	format('~w : ~q~n', [I,Term])-Out,
+	histdis(Queries,Tail)-Out.
+
+qaanswers([], Next)-_In-_Out :-
+    ->	Next = no.
+qaanswers(Vs, Next)-In-Out :-
+    ->	fnl-Out,
+	qaanswer(Vs)-Out,
+	format(' ? ')-Out,
+	getc(C)@In,
+	qanext(C,Next)-In.
+
+qaanswer([V = T])-Out :-
+    ->	format('~w = ~q', [V,T])-Out.
+qaanswer([V = T|R])-Out :-
+    ->	qaanswer(R)-Out,
+	format(',~n~w = ~q', [V,T])-Out.
+
+qanext(_, Next, I0, I) :-
+	exception(_,S) = I0 ->
+	I  = S,
+	Next = err.
+qanext(10, Next)-_In :-
+    ->	Next = no.
+qanext(_, Next)-In :-
+    ->	getc(C)@In,
+	qarest(C, Next)-In.
+
+qanext(_, Next, I0, I) :-
+	exception(_,S) = I0 ->
+	I  = S,
+	Next = err.
+qarest(-1, Next)-_In :-
+    ->	Next = err.
+qarest(10, Next)-_In :-
+    ->	Next = next.
+qarest(_, Next)-In :-
+    ->	getc(C)@In,
+	qarest(C, Next)-In.

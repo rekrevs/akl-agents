@@ -1,0 +1,222 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+queens:- queens(8).
+
+queens(N):-
+  stdout(S0),
+  write(' N-Queens solver',S0, S1),fnl(S1,_),
+  statistics(runtime,_),
+  statistics(nondet,_),
+  queens(N,L) ->
+  statistics(runtime,[_,Time]),
+  statistics(nondet,[_,Steps]),
+  dqueens(N,N,L),
+  format('~nSolved in ~w msec using ~w nondeterministic steps~n', [Time,Steps]).
+
+
+queens(N,L) :-
+	board(N,L),
+	columns(L),
+	rows(L),
+	right_diagonals(L),
+	left_diagonals(L).
+
+board(N,B) :- make_rows(N,B),
+	      make_columns(1,N,B).
+
+make_rows(N,B) :- functor(B,r,N).
+
+
+make_columns(M,N,_) :- M>N ? true.
+make_columns(M,N,B) :- M=<N ?
+		  arg(M,B,A),
+		  functor(A,c,N),
+		  M1 is M+1,
+		  init(A,M,1,N),
+		  make_columns(M1,N,B).
+
+init(_,_,J,N) :-
+	J>N ? true.
+init(A,CN,J,N) :-
+	J=<N ?
+	arg(J,A,(_P,[CN,J])),
+	J1 is J+1,
+	init(A,CN,J1,N).
+
+columns(L) :-
+	functor(L,r,N),
+	columns(1,N,L).
+
+columns(M,N,_) :-
+	M>N ? true.
+columns(M,N,L) :-
+	M=<N ?
+	arg(M,L,C),
+	column_constraint(C),
+	M1 is M+1,
+	columns(M1,N,L).
+
+
+column_constraint(C) :-
+	functor(C,_,N),
+	c_elements_of(B,1,N,C),
+	exactly1(B).              % prolog loops otherwise
+
+c_elements_of([],M,N,_) :- M>N ? true.
+c_elements_of([A|As],M,N,C) :-
+	M=<N ?
+	arg(M,C,A),
+	M1 is M+1,
+	c_elements_of(As,M1,N,C).
+
+rows(L) :-
+	functor(L,_,N),
+	rows(1,N,L).
+
+rows(M,N,_) :-
+	M>N ? true.
+rows(I,N,L) :-
+	I=<N ?
+	row_constraint(I,N,L),
+	J is I+1,
+	rows(J,N,L).
+
+row_constraint(I,N,L) :-
+	r_elements_of(B,I,1,N,L),
+	exactly1(B).      % prolog loops if exactly1 is placed before
+
+
+r_elements_of([],_,M,N,_) :- M>N ? true.
+r_elements_of([A|As],J,M,N,L) :-
+	M=<N ?
+	arg(M,L,C),
+	arg(J,C,A),
+	M1 is M+1,
+	r_elements_of(As,J,M1,N,L).
+
+left_diagonals(L) :-
+	functor(L,_,N),
+	N1 is N-2,
+	N1neg is -N1,
+	left_diagonals(N1neg,N1,N,L).
+
+left_diagonals(I,N1,_N,_) :-
+	I > N1 ? true.
+left_diagonals(I,N1,N,L) :-
+	I =< N1 ?
+	left_constraint(I,N,L),
+	J is I+1,
+	left_diagonals(J,N1,N,L).
+
+left_constraint(I,N,L) :-
+	I < 0 ?
+	Y is 1-I,
+	left_elements(B,Y,1,N,L),
+	at_most1(B).
+left_constraint(I,N,L) :-
+	I >= 0 ?
+	X is 1+I,
+	left_elements(B,1,X,N,L),
+	at_most1(B).
+
+left_elements([],_,X,N,_) :- X>N ? true.
+left_elements([],Y,X,N,_) :- Y>N,X=<N ? true.
+left_elements([A|As],Y,X,N,L) :-
+	X=<N, Y=<N ?
+	arg(Y,L,C),
+	arg(X,C,A),
+	Y1 is Y+1,
+	X1 is X+1,
+	left_elements(As,Y1,X1,N,L).
+
+right_diagonals(L) :-
+	functor(L,_,N),
+	N1 is N-2,
+	N1neg is -N1,
+	right_diagonals(N1neg,N1,N,L).
+
+right_diagonals(I,N1,_N,_) :-
+	I > N1 ? true.
+right_diagonals(I,N1,N,L) :-
+	I =< N1 ?
+	right_constraint(I,N,L),
+	J is I+1,
+	right_diagonals(J,N1,N,L).
+
+right_constraint(I,N,L) :-
+	I < 0 ?
+	Y is N+I,
+	right_elements(B,Y,1,N,L),
+	at_most1(B).
+
+right_constraint(I,N,L) :-
+	I >= 0 ?
+	X is 1+I,
+	right_elements(B,N,X,N,L),
+	at_most1(B).
+
+right_elements([],_,X,N,_) :- X>N ? true.
+right_elements([],Y,X,N,_) :- Y<1,X=<N ? true. 
+right_elements([A|As],Y,X,N,L) :-
+	X=<N, Y>=1 ?
+	arg(Y,L,C),
+	arg(X,C,A),
+	Y1 is Y-1,
+	X1 is X+1,
+	right_elements(As,Y1,X1,N,L).
+
+
+exactly1(B) :- at_most1(B),at_least1(B).
+
+at_most1(B) :- le2(B,_V).
+
+
+
+le2([],_).
+le2([(Bi,I)|Bs],V) :-
+	bit_le1(Bi,I,V),
+	le2(Bs,V).
+
+
+bit_le1(1,V,V).
+bit_le1(0,_,_).
+
+at_least1([]).
+at_least1([(B1,_)|Bs]) :-
+	bit_ge1(B1,begin,R2),
+	ge2(Bs,R2).
+
+ge2([],end).
+ge2([(B,_)|Bs],R1) :-
+	bit_ge1(B,R1,R2),
+	ge2(Bs,R2).
+
+bit_ge1(1,_,_).
+bit_ge1(0,R,R).
+
+
+/* to display the board */
+
+dqueens(R,C,Rws):- ->
+	stdout(S0),
+	dqueens(R,C,Rws, S0, _S).
+
+dqueens(0,_,_,S0,S):- -> fnl(S0,S).
+dqueens(R,C,Rws, S0, S):- -> 
+	arg(R,Rws,Rw),
+	displr(C,Rw, S0, S1),
+	R1 is R - 1,
+	dqueens(R1,C,Rws, S1, S).
+
+displr(0,_, S0, S):- -> fnl(S0,S).
+displr(C,Rw, S0, S):- -> 
+	arg(C,Rw,P),
+	write('  ', S0, S1), 
+	displp(P, S1, S2),
+	C1 is C - 1,
+	displr(C1, Rw, S2,S).
+
+displp((0,_), S0, S):- write('_', S0, S).
+displp((1,_), S0, S):- write('Q', S0, S).
+
+

@@ -1,0 +1,907 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%			TOP LEVEL DEMO WINDOW
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Change this if running GM on other machine
+
+start_gm(G) :-
+    ->	gmstart(G).
+
+%start_gm(G) :-
+%    ->	gmstart(athena,G).
+
+% WARNING: Converted to accumulator syntax without testing!!! /SJ
+
+
+/* ?- dialog. */
+/* ?- draw. */
+/* ?- buttons. */
+/* ?- sliders. */
+/* ?- editor. */
+/* ?- triangle. */
+/* ?- ghc_queens(8, X). */
+/* ?- authors. */
+
+
+/* NOT READY
+gmdemo :-
+	start_gm(G),
+	B0 = button("Buttons",bounce,style(fancy)),
+	B1 = button("Dialog",dialog,style(fancy)),
+	B2 = button("Draw",draw,style(fancy)),
+	B3 = button("Sliders",slider,style(fancy)),
+	B4 = button("Editor",editor,style(fancy)),
+	B5 = button("Triangle",triangle,style(fancy)),
+	B6 = button("Queens",queens,style(fancy)),
+	B7 = button("Bounce",bounce,style(fancy)),
+	 = vbox([B1,B2,B3,B4]),
+	BOX = vbox([hbox([B0,B1,B2,B3]),hbox([B4,B5,B6,B7])]),
+	create(window("AKL GM DEMO",BOX),Window)@G,
+	message(open,Window)@G,
+	gmdemo_handle(Window, G).
+
+gmdemo_handle(Window, G):-
+	message(waitevent(E),Window)@G,
+	gmdemo_handle_event(E, Window, G).
+
+gmdemo_handle_event(button(_,ok), Window, G) :-
+    ->	message(close,Window)@G.
+gmdemo_handle_event(_, Window, G) :-
+    ->	gmdemo_handle(Window, G).
+*/
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%			SIMPLE DIALOG
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+dialog:-
+	start_gm(G),
+	create(view(200,200),View)@G,
+	message(setfont("*-times-bold-r-*-140-*"),View)@G,
+	message(setpattern(4),View)@G,
+	create(input("Some Text"),In)@G,
+	create(name(mywindow,window("GM-Dialog",vbox([scroller(View),
+			space,
+			output("Enter text:"),
+			space(frame(In)),
+			border,
+			space,
+			hbox([space,
+			      button("Draw",draw),
+			      space,
+			      button("Quit",quit),
+			      space]),
+			space]))),_)@G,
+	message(open,mywindow)@G,
+	handle(In,View,10, G).
+
+handle(In, View, N, G):-
+	message(waitevent(E),mywindow)@G,
+	handle_event(E, In, View, N, G).
+
+handle_event(button(_,draw), In, View, N, G) :-
+    ->	message(in(Text),In)@G,
+	message(fillcircle(N,N,10),View)@G,
+	N1 is N+10,
+	message(string(N1,N,Text),View)@G,
+	handle(In, View, N1, G).
+handle_event(_, _, _, _, G) :-
+    ->	message(close,mywindow)@G.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%			DRAW
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+draw:-
+	start_gm(G),
+	create(view(500,500),View)@G,
+	message(enable,View)@G,
+	create(menu(["1","3","5","Quit"],[1,3,5,quit]),Menu)@G,
+	message(setmenu(Menu),View)@G,
+	create(window("Gm-Draw",View),Window)@G,
+	message(open,Window)@G,
+	message(waitevent(Event),Window)@G,
+	draw_event(Event, View, Window, G).
+
+
+draw_event(down(_,_,X,Y), View, Window, G) :-
+    ->	draw(X, Y, View, Window, G).
+
+draw_event(menu(_,quit), _, Window, G) :- ->
+  	message(close,Window)@G.
+
+draw_event(menu(_,N), View, Window, G) :- 
+	integer(N) ->
+  	message(setbrush(0,N),View)@G,
+	message(waitevent(Event),Window)@G,
+	draw_event(Event, View, Window, G).
+
+draw_menu(one, N) :- | N = 1.
+draw_menu(three, N) :- | N = 3.
+draw_menu(five, N) :- | N = 5.
+
+
+draw(X1, Y1, View, Window, G):-
+	message(nextevent(E), Window)@G,
+	draw(E, X1, Y1, View, Window, G).
+
+draw(noevent, X1, Y1, View, Window, G) :-
+    ->	message(getcur(X2,Y2),View)@G,
+	message(line(X1,Y1,X2,Y2),View)@G,
+	draw(X2, Y2, View, Window, G).
+
+draw(Event, _, _, View, Window, G) :-
+    ->	draw_event(Event, View, Window, G).
+
+
+
+%% ------------------------------------------------- BUTTONS
+
+buttons:-
+	start_gm(G),
+	create(button("OK (free format stdfont)",ok),B1)@G,
+	create(button("Free format, font 12x24",b,font("12x24")),B2)@G,
+	create(button("400x70 pixels, stdfont",c,[w(400),h(70)]),B3)@G,
+	create(button("400x70 pixels, font 12x24",
+			d,[w(400),h(70),font("12x24")]),B4)@G,
+	create(button("Fancy, free format, stdfont",
+			e,style(fancy)),B11)@G,
+	create(button("Fancy, free format, font 12x24",
+			f,[style(fancy),font("12x24")]),B12)@G,
+	create(button("Fancy, 400x70 pixels, stdfont",
+			g,[style(fancy),w(400),h(70)]),B13)@G,
+	create(button("Fancy, 400x70 pixels, font 12x24",
+			h,[style(fancy),w(400),h(70),font("12x24")]),B14)@G,
+	create(button("Radio, stdfont",r(1),style(radio)),B21)@G,
+	create(button("Radio, font 12x24",
+			r(2),[style(radio),font("12x24")]),B22)@G,
+	create(button("Radio, 400x70 pixels, stdfont",
+			r(3),[style(radio),w(400),h(70)]),B23)@G,
+	create(button("Radio, 400x70 pixels, font 12x24",
+			r(4),[style(radio),w(400),h(70),font("12x24")]),B24)@G,
+	B = vbox([B1,B2,B3,B4]),
+	FB = vbox([B11,B12,B13,B14]),
+	RB = vbox([B21,B22,B23,B24]),
+	HB = vbox([space(B),space(FB),space(RB)]),
+	create(window(HB),Window)@G,
+	message(open,Window)@G,
+	button_handle(Window, G).
+
+button_handle(Window, G):-
+	message(waitevent(E),Window)@G,
+	button_handle_event(E, Window, G).
+
+button_handle_event(button(_,ok), Window, G) :-
+    ->	message(close,Window)@G.
+
+button_handle_event(_, Window, G) :-
+    ->	button_handle(Window, G).
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%			SLIDERS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+sliders:-
+	start_gm(G),
+	create(name(slider_view, view(300,300)),_)@G,
+	create(name(slider1,slider("X-value")),_)@G,
+	create(name(slider2,slider("Y-value")),_)@G,
+	create(name(slider3,slider("Size")),_)@G,
+	create(menu(["Black","Grey","White","Erase","Quit"],
+				[black,grey,white,clear,quit]),Menu)@G,
+	create(name(slider_window,
+		    window("Graphics",
+			hbox([vbox([scroller(slider_view),
+				    space(frame(slider1)),
+				    space(frame(slider2)),
+				    space(frame(slider3))]),
+			      border,
+			      space,
+			      vbox([space,
+				    button("Circle",circle,font(r24)),
+				    space,
+				    button("Square",square,font(r24)),
+				    space]),
+			      space]))),_)@G,
+	message(setmenu(Menu),slider_view)@G,
+	message(open,slider_window)@G,
+	message(waitevent(Event),slider_window)@G,
+	slider_event(Event, G).
+
+
+slider_event(menu(_,quit), G) :-
+    ->	message(close,slider_window)@G.
+
+slider_event(Event, G) :-
+    ->	message(value(X),slider1)@G,
+	message(value(Y),slider2)@G,
+	message(value(S),slider3)@G,
+	slider_event(Event, S, X, Y)-G,
+	message(waitevent(NewEvent),slider_window)@G,
+	slider_event(NewEvent, G).
+
+
+slider_event(button(_,circle), S, X, Y)-G :-
+    ->	R is S//5,
+	X1 is X//3,
+	Y1 is Y//3,
+	message(fillcircle(X1,Y1,R),slider_view)@G.
+
+slider_event(button(_,square), S, X, Y)-G :-
+    ->	X1 is (X-S)//3, Y1 is (Y-S)//3,
+	X2 is (X+S)//3, Y2 is (Y+S)//3,
+	message(fillrect(X1,Y1,X2,Y2),slider_view)@G.
+
+slider_event(menu(_,clear), _, _, _)-G :- 
+    ->	message(clear,slider_view)@G.
+
+slider_event(menu(_,black), _, _, _)-G :- 
+    ->	message(setpattern(0),slider_view)@G.
+
+slider_event(menu(_,grey), _, _, _)-G :- 
+    ->	message(setpattern(4),slider_view)@G.
+
+slider_event(menu(_,white), _, _, _)-G :- 
+    ->	message(setpattern(8),slider_view)@G.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%			EDITOR
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+editor:-
+	start_gm(G),
+	create(text(24,80,8),Text)@G,
+	create(input("0123456789"),Input)@G,
+	create(menu(["Insert text",
+	      "Delete Selection",
+	      "Delete next 5 characters",
+	      "Delete previous 5 characters",
+	      "Read selection",
+	      "Read all",
+	      "Read lines 2-4",
+	      "Selection to input",
+	      "Quit"],
+	     [insert,delete,delete5,delete5b,in_selection,in_all,
+	      read24,selection_to_input,quit]),Menu)@G,
+	message(setmenu(Menu),Text)@G,
+	create(vbox([scroller(Text),
+		     space,
+		     space(hbox([output("Text to be inserted:"),
+				 frame(Input)]))]),TotalBox)@G,
+	create(window("Simple editor",TotalBox),Window)@G,
+	message(open,Window)@G,
+	message(waitevent(Event),Window)@G,
+	editor_event(Event, Window, Text, Input, G).
+
+
+
+editor_event(menu(_,quit), Window, _, _, G) :-
+    ->	message(close,Window)@G.
+
+editor_event(Event, Window, Text, Input, G) :-
+    ->	editor_event0(Event, Text, Input)-G,
+	message(waitevent(NewEvent),Window)@G,
+	editor_event(NewEvent, Window, Text, Input, G).
+
+
+
+editor_event0(menu(_,insert), Text, Input)-G :-
+    ->	message(in(Q),Input)@G,
+	message(insert(Q),Text)@G.
+
+editor_event0(menu(_,delete), Text, _)-G :-
+    ->	message(delete,Text)@G.
+
+editor_event0(menu(_,delete5), Text, _)-G :-
+    ->	message(delete(5),Text)@G.
+
+editor_event0(menu(_,delete5b), Text, _)-G :-
+    ->	message(delete(-5),Text)@G.
+
+editor_event0(menu(_,in_all), Text, _)-G :-
+    ->	message(in(all,S),Text)@G,
+	sync(Sync)@G,
+	editor_format(Sync, 'Text: ~s~n', [S])-G.
+
+editor_event0(menu(_,in_selection), Text, _)-G :-
+    ->	message(in(selection,S),Text)@G,
+	sync(Sync)@G,
+	editor_format(Sync, 'Text: ~s~n', [S])-G.
+
+editor_event0(menu(_,read24), Text, _)-G :-
+    ->	message(in(line(2,4),S),Text)@G,
+	sync(Sync)@G,
+	editor_format(Sync, 'Text: ~s~n', [S])-G.
+
+editor_event0(menu(_,selection_to_input), Text, Input)-G :-
+    ->	message(in(selection,S),Text)@G,
+	message(out(S),Input)@G.
+
+editor_event0(return(_,_,L), Text, _)-G :-
+    ->	message(in(line(L,L),S),Text)@G,
+	sync(Sync)@G,
+	editor_format(Sync, 'Text: ~s~n', [S])-G.
+
+editor_event0(down(_,_,X,Y), Text, _)-G :-
+    ->	message(in(word,Word),Text)@G,
+	sync(Sync)@G,
+	editor_format(Sync, 'Line Pos: ~d ~d  ~s~n', [X, Y, Word])-G.
+
+editor_event0(menu(_,quit), _, _)-_G :-
+    ->	true.
+
+editor_format(Sync, Format, Data)-_G :-
+	data(Sync)
+    ->	format(Format, Data).
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%			TRIANGLE
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+triangle:-
+	start_gm(G),
+	create(view(500,500),View)@G,
+	create(window("Triangle",View),Window)@G,
+	message(open,Window)@G,
+	message(enable,View)@G,
+	create(menu(["Quit"],[quit]),Menu)@G,
+	message(setmenu(Menu),View)@G,
+	message(setcolors(cyan,white),View)@G,
+	message(setpattern(4),View)@G,
+	message(fillpolygon(Triangle,
+			[200,300,250],[200,200,300]),View)@G,
+	message(setbrush(solid,5),View)@G,
+	message(setcolors(red,white),View)@G,
+	message(polygon(Border,
+			[200,300,250],[200,200,300]),View)@G,
+	message(waitevent(Event),Window)@G,
+	triangle_event(Event, Window, View, Triangle, Border, G).
+
+
+triangle_event(menu(_,quit), Window, _, _, _, G) :-
+    ->	message(close,Window)@G.
+
+triangle_event(_Event, Window, View, Triangle, Border, G) :-
+    ->	message(rotate(Triangle,15),View)@G,
+	message(rotate(Border,15),View)@G,
+	message(waitevent(NewEvent),Window)@G,
+	triangle_event(NewEvent, Window, View, Triangle, Border, G).
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%			N-QUEENS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+/*
+queens :-
+	start_gm(G),
+	create(name(board, view(320,320)), BOARD)@G,
+	message(setfont("*-times-bold-r-*-240-*"),BOARD)@G,
+	message(enable,BOARD)@G,
+	VB = vbox([border,BOARD,hbox([space,button("Auto",auto),space])]),
+	create(name(window, window("Queens",VB),WINDOW))@G,
+	message(open,WINDOW)@G,
+	chess_board-G,
+	create_queens(0, 8, Queens)-G,
+	create(menu([next,quit],[next,quit]),MENU)@G,
+	message(setmenu(MENU),BOARD)@G,
+	handle_events(G,noevent).
+
+
+event1(menu(_,quit)) :- -> raise_exception(quit).
+% event1(button(_,auto)) :- -> (auto -> retract(auto); assert(auto)).
+event1(_):- -> true.
+	  
+handle_events(G, menu(_,quit)) :-
+    ->	message(close,window)@G.
+handle_events(G, E) :-
+	data(E),->
+	queens(_)-G,
+	waitevent(E1)@G,
+	handle_events2(G, E1).
+
+handle_events2(G, menu(_,next)) :- -> fail.
+handle_events2(G, E) :- ->
+%	event1(E),
+	handle_events(G, E).
+
+
+queens(Ylist)-G :-
+	sol(Ylist, [0,1,2,3,4,5,6,7],
+	    [-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7],
+	    [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14])-G.
+
+sol([], _, _, _)-_G :- -> true.
+sol([queen(X,Y,Q)|Ylist], Dy, Du, Dv)-G :-
+    ->	del(Y, Dy, Dy1),
+	place(X, Y, Q)-G,
+	U is X-Y,
+	del(U, Du, Du1),
+	V is X+Y,
+	del(V, Dv, Dv1),
+	sol(Ylist, Dy1, Du1, Dv1)-G.
+
+del(Y, [Y|Rest0], Rest) :- -> Rest0 = Rest.
+del(Y, [Y0|Rest1], [Y1|Rest2]) :- -> Y0 = Y1, del(Y, Rest1, Rest2).
+
+place(X, Y, Q)-G :-
+	Xc is X*40+4,
+	Yc is Y*40+4,
+	message(moveto(Q, Xc, Yc),board)@G,
+	waitevent(E),
+	event1(E).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%  Create queens
+
+create_queens(X, X, Queens)-_G :- -> 
+	Queens = [].
+
+create_queens(X, Max, Queens)-G :-
+    ->	Queens = [queen(X,_,Q)|Rest],
+	message(bitmap(Q,-40,0,library("../demos/gmbm/queens.bm")),board)@G,
+	X1 is X+1,
+	create_queens(X1, Max, Rest)-G.
+*/
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%			N-QUEENS (GHC)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Program:  N-Queens (candidates/noncandidates)
+% Author:   K. Kumon 
+% Modified: E. Tick
+%           Kent Boortz (for Akl Graphic Manager)
+% Date:     November 28 1991
+
+
+ghc_queens(N,M) :-
+	gminit(N,G),
+	gen(N,L)-G,
+	queen(L,[],[],X,[],1,S,[]),
+	gmhandlequeen(S,noevent,G),
+	count(X, M).
+
+queen([P|U], C, L, I0, I2, K, S0, S):-
+    ->	S0 = [insert(K,P)|S1],
+	P = queen(PN,_,_),
+	check(L, PN, 1, U,C, L, I0, I1, K, S1, S2),    
+	S2 = [delete(K,P)|S3],
+	queen(U, [P|C], L, I1, I2, K, S3, S).
+queen([], [], L, I, O, _, S0, S):-
+    ->	I = [L|O],
+	S0 = [solution(L)|S].
+queen([], [_|_], _, I, O, _, S0, S):-
+    ->	I = O,
+	S0 = S.
+
+check([], T, _D, U,C, B, I, O, K, S0, S):-
+    ->	append(U, C, N),
+	K1 is K+1,
+	queen(N, [], [T|B], I, O, K1, S0, S).
+check([P|R], T, D, U,C, B, I, O, K, S0, S):-
+	T1 is P+D,
+	T =\= T1,
+	T2 is P-D,
+	T =\= T2,
+	D1 is D+1
+    ->	check(R, T, D1, U,C, B, I, O, K, S0, S).
+check(_,_,_,_,_,_,I,O,_,S0,S) :-
+    ->	I=O,
+	S0=S.
+
+gen(N, X)-G :- 
+	N > 0,
+	M is N-1
+    ->	X = [queen(N,ObjB,ObjW)|Xs],
+	gmnewqueen(ObjB, ObjW)-G,
+	gen(M,Xs)-G.
+gen(N, X)-_G :-
+	N = 0
+    ->	X = [].
+
+append([A|X], Y, Z) :-
+    ->	Z = [A|Z1],
+	append(X,Y,Z1).
+append([], Y, Z) :-
+    ->	Z = Y.
+
+count(L,N) :- count(L,0,N).
+
+count([],M,N) :-
+    ->	M = N.
+count([_X|Xs],M,N) :-
+    ->	M1 is M+1,
+	count(Xs,M1,N).
+
+
+gminit(N,G) :-
+	start_gm(G),
+	VSize is N*40,
+	V = name(board, view(VSize,VSize)),
+	VB = vbox([V,border,hbox([
+		space,
+		button("Next solution",next),
+		space,
+		button("Quit",quit),
+		space])]),
+	create(window("Queens",VB),W)@G,
+	message(open,W)@G,
+	message(setcolors(black,white),board)@G,
+	create(menu(["Next","Quit"],[next,quit]), MENU)@G,
+	message(setmenu(MENU), board)@G,
+	chess_board(0, 0, N)-G.
+
+chess_board(N, _, N)-_G :- 
+    ->	true.
+chess_board(I, N, N)-G :-
+    ->	I1 is I+1,
+	chess_board(I1, 0, N)-G.
+chess_board(I, J, N)-G :-
+	J1 is J+1,
+	IJ is I+J,
+	1 is IJ mod 2
+    ->	X1 is I*40,
+	Y1 is J*40,
+	X2 is X1+40,
+	Y2 is Y1+40,
+	message(fillrect(X1,Y1,X2,Y2),board)@G,
+	chess_board(I, J1, N)-G.
+chess_board(I, J, N)-G :-
+    ->	J1 is J+1,
+	chess_board(I, J1, N)-G.
+
+
+gmnewqueen(ObjBlack, ObjWhite)-G :-
+	message(bitmap(ObjBlack,-40,0,
+			library("../demos/gmbm/queens.bm")),board)@G,
+	message(bitmap(ObjWhite,-40,0,
+			library("../demos/gmbm/queensi.bm")),board)@G.
+
+
+
+%% Update board and handle events
+
+gmhandlequeen([], _, _) :- -> true.
+gmhandlequeen(_, button(_,quit), _) :- -> true.
+gmhandlequeen(_, menu(_,quit), _) :- -> true.
+gmhandlequeen([H|T], E, G) :- 
+	data(E)
+    ->	gmhandlequeen(H, NewE)-G,
+	gmhandlequeen(T, NewE, G).
+
+gmhandlequeen(insert(X,queen(Y,ObjB,ObjW)), E)-G :-
+    ->	E = noevent,
+	Xc is (X-1)*40+4,
+	Yc is (Y-1)*40+4,
+	C is (X + Y) mod 2,
+	queenmove(C, Xc, Yc, ObjB, ObjW)-G.
+
+gmhandlequeen(delete(_,queen(_,ObjB,ObjW)), E)-G :-
+    ->	E = noevent,
+	message(moveto(ObjB, -40, -40),board)@G,
+	message(moveto(ObjW, -40, -40),board)@G.
+
+gmhandlequeen(solution(S), E)-G :-
+    ->	waitevent(E)@G,
+	stdout(Out0),
+	write(S,Out0,Out1),
+	fnl(Out1,_).
+
+queenmove(0, Xc, Yc, ObjB, _)-G :- |
+	message(moveto(ObjB, Xc, Yc),board)@G.
+queenmove(1, Xc, Yc, _, ObjW)-G :- |
+	message(moveto(ObjW, Xc, Yc),board)@G.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%			AUTHORS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+authors :-
+	start_gm(G),
+	create(view(768,575),View)@G,
+	message(disable,View)@G,
+
+	message(bitmap(0,0,library("../demos/gmbm/authors.xbm")),View)@G,
+	message(string(0,0,"  xxxxxxxxx"),View)@G,
+
+	Content = vbox([View,border,space(
+	      hbox([space,button("Seen enough",quit,font("12x24")),space]))]),
+	create(window("AKL/PS AUTHORS",Content),Window)@G,
+	message(open,Window)@G,
+	message(waitevent(E),Window)@G,
+	authors_event(E, Window, G).
+
+authors_event(button(_,quit), Window, G) :-
+	message(close,Window)@G.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%			BOUNCE
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+bounce :-
+	start_gm(G),
+	create(view(400,400),View)@G,
+	message(setcolors(rgb(65000,0,0),white),View)@G,
+	create(output(x),Xout)@G,
+	create(output(y),Yout)@G,
+	create(button("Bounce",bounce),Bounce)@G,
+	create(button("Quit",quit),Quit)@G,
+	create(hbox([vbox([Xout,Yout,Bounce,Quit]),View]),Box)@G,
+	create(window("Studsande boll",Box),Window)@G,
+	message(open,Window)@G,
+	message(rect(0,0,398,398),View)@G,
+	message(fillcircle(Circ,200,200,10),View)@G,
+	message(nextevent(E),Window)@G,
+	bounce_event(E, Window, View, Circ, Xout, 200,
+			Yout, 200, 5, 20, -5, 390, 390, G).
+
+bounce_event(noevent, Window, View, Obj, Xout, X,
+		Yout, Y, Xd, Yd, Ydd, Xlim, Ylim, G) :-
+    ->	message(moveto(Obj,X,Y),View)@G,
+	message(out(X),Xout)@G,
+	message(out(Y),Yout)@G,
+	X1 is X+Xd,
+	Y1 is Y+Yd,
+	calc_xd(X, Xd, Xd1, Xlim),
+	calc_yd(Y, Yd, Ydt, Y1, Yt1),
+	Yd1 is Ydt+Ydd,
+	message(nextevent(E),Window)@G,
+	bounce_event(E, Window, View, Obj, Xout, X1, Yout, Yt1, Xd1, Yd1,
+		       Ydd, Xlim, Ylim, G).
+bounce_event(button(_,bounce), Window, View, Obj, Xout, X,
+		Yout, Y, _, _, Ydd, Xlim, Ylim, G) :-
+    ->	stdout(Out0), write(bounce,Out0,Out1), fnl(Out1,_),
+	message(nextevent(E),Window)@G,
+	bounce_event(E, Window, View, Obj, Xout, X,
+			Yout, Y, 5, 20, Ydd, Xlim, Ylim, G).
+bounce_event(button(_,quit), Window, _, _, _, _, _, _, _, _, _, _, _, G) :-
+    ->	message(close,Window)@G.
+
+calc_xd(X, Xd, Xd1, _) :- 
+	X < 10
+    ->	Xd1 is abs(Xd).
+calc_xd(X, Xd, Xd1, Xlim) :- 
+	X > Xlim
+    ->	Xd1 is -abs(Xd).
+calc_xd(_, Xd, Xd1, _) :-
+    ->	Xd = Xd1.
+
+calc_yd(Y, Yd, Ydt, _, R) :-
+	Y < 10,
+	Y > 0
+    ->	R = 10,
+	Ydt = Yd.
+calc_yd(Y, Yd, Ydt, _, R) :-
+	Y < 10,
+	Yd >= 0
+    ->	R = 10,
+	Ydt is (-Yd*9)//10.
+calc_yd(_, Yd, Ydt, Y, R) :-
+    ->	Yd = Ydt,
+	Y = R.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%			TWO GM PROCESSES
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% You can't use two processes in a asynchronous way
+/* NOT READY
+two:-
+	start_gm(G),
+	start_gm(S),
+	BQ = button("Quit",quit),
+	W = window(vbox([button("Push",push),button("Quit",quit)])),
+	create(W, ID)@G,
+	create(W, SD)@S,
+	message(open, ID)@G,
+	message(open, SD)@S,
+	two_handle_events(G,S,noevent).
+
+
+two_handle(N, G):-
+	message(waitevent(E),mywindow)@G,
+	two_handle_event(E, G).
+
+two_handle_event(button(_,push), G) :- 
+	write('Pushed button on ~w~n',[Window])
+    ->	two_handle(In, View, N1, G).
+
+two_handle_event(_, _, _, _, G) :-
+    ->	message(close,mywindow)@G.
+*/
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%			NOT READY!!!!!!!
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% ---------------------------------------------- COLORS
+/*
+colors:-
+	start_gm(G),
+	create(view(500,500),View)@G,
+	create(menu(["Quit"],[quit]),Menu)@G,
+	message(setmenu(Menu),View)@G,
+	message(enable,View)@G,
+	create(input(0),Red)@G,
+	create(input(0),Green)@G,
+	create(input(0),Blue)@G,
+
+	Buttons = [button("red",mode(2),style(radio)),
+		   button("blue",mode(3),style(radio)),
+		   button("pale violet red",mode(4),style(radio)),
+		   button("forestgreen",mode(5),style(radio)),
+		   button("cornflowerblue",mode(6),style(radio))].
+	create(window("Colors",
+		frame(hbox([space(vbox([space,
+					output("Red:"),frame(Red),space,
+					output("Green:"),frame(Green),space,
+					output("Blue:"),frame(Blue),space,
+					button("Numerical",mode(1),style(radio)),
+					border,space | Buttons])),
+		   border,
+		   View]))),Window)@G,
+	create(buttonstate(mode(_),2),Mode)@G,
+	message(open,Window)@G,
+
+*** PROLOG ***
+
+	repeat,
+	waitevent(E),
+        ifdown(E, G),
+	message(close,Window)@G.
+
+ifdown(down(_,_,X,Y), G) -> 
+     message(getvalue(BSV),Mode)@G,
+     ifbsv(BSV,G),
+     message(fillcircle(X,Y,20),View)@G,
+     fail
+ifdown(E,G):- -> E = menue(_,quit).
+
+
+ifbsv(1,G):- 
+    ->	 message(in(RS), name(R, RS),Red)@G,
+	 message(in(GS), name(G, GS),Green)@G,
+	 message(in(BS), name(B, BS),Blue)@G,
+	 message(setcolors(rgb(R,G,B),white), View)@G.
+
+ifbsv(BSV,G):- ->
+         color_button(BSV, Color),
+	 message(setcolors(Color,white),View)@G.
+
+
+	   (  BSV = 1
+    ->	 message(in(RS), name(R, RS),Red)@G,
+	 message(in(GS), name(G, GS),Green)@G,
+	 message(in(BS), name(B, BS),Blue)@G,
+	 message(setcolors(rgb(R,G,B),white)View)@G,
+	   ;  color_button(BSV, Color),
+	 message(setcolors(Color,white)View)@G,
+	   ),
+
+
+%% ----------------------------------------------
+
+colors2:-
+	create(view(200,200),View1)@G,
+	create(view(200,200),View2)@G,
+	message(enable,View1)@G,
+	message(enable,View2)@G,
+	create(input("","*-new century schoolbook-*--14-*"),Color)@G,
+	create(output("0","*-new century schoolbook-*--14-*"),RO)@G,
+	create(output("0","*-new century schoolbook-*--14-*"),GO)@G,
+	create(output("0","*-new century schoolbook-*--14-*"),BO)@G,
+	create(slider("Red"),Red)@G,
+	create(slider("Green"),Green)@G,
+	create(slider("Blue"),Blue)@G,
+	create(window(frame(space(vbox([frame(View1),Window1,
+			output("Color:","*-new century schoolbook-*--14-*"),
+			frame(Color),
+			space(button("Quit",quit,font("*-new century schoolbook-*--14-*")))])))@G,
+	create(window(frame(space(vbox([frame(View2),hbox([space(frame(Red)),space(RO)]),Window2), G),
+			hbox([space(frame(Green)),space(GO)]),
+			hbox([space(frame(Blue)),space(BO)])]))))@G,
+	message(fillrect(r1,0,0,200,200),View1)@G,
+	message(fillrect(r2,0,0,200,200),View2)@G,
+	message(open(300,545),Window1)@G,
+	message(open(550,500),->Window2)@G,
+	repeat,
+	waitevent(E),
+	(  E = down(_,View1,_,_) ->
+		message(in(C),Color)@G,
+		message(setcolors(C,white),View1)@G,
+		message(remove(r1),View1)@G,
+		message(fillrect(r1,0,0,200,200),View1)@G,
+	   fail
+	;  E = down(_,View2,_,_) ->
+		message(value(R),Red)@G,
+		R1 is R*256,
+		message(out(R1),RO)@G,
+		message(value(G),Green)@G,
+		G1 is G*256,
+		message(out(G1),GO)@G,
+		message(value(B),Blue)@G,
+		B1 is B*256,
+		message(out(B1),BO)@G,
+		message(setcolors(rgb(R1,G1,B1),white),View2)@G,
+		message(remove(r2),View2)@G,
+		message(fillrect(r2,0,0,200,200),View2)@G,
+		fail
+	;  true
+	)
+    ->	message(close,Window1)@G,
+	message(close,Window2)@G.
+
+%% ---------------------------------------------- 
+
+rgbcube(D):-
+	create(view(700,700),View)@G,
+	message(enable,View)@G,
+	create(window(frame(View)),Window)@G,
+	message(open,Window)@G,
+	cwbm(View,D),
+	wymr(View,D),
+	gycw(View,D),
+	message(waitevent(_),Window)@G,
+	message(close,Window)@G.
+
+cwbm(View,D):-
+	between(8,255,D,R),
+	between(8,255,D,G),
+	B=255,
+	message(setcolors(rgb(R,G,B),white),View)@G,
+	X is R+100,
+	Y is G+100,
+	Rad is D//2,
+	message(fillcircle(X,Y,Rad),View)@G,
+	fail;
+	true.
+
+wymr(View,D):-
+	R=255,
+	between(8,255,D,G),
+	between(8,255,D,B),
+	message(setcolors(rgb(R,G,B),white),View)@G,
+	X is 355 +(255-B)//2,
+	Y is 100+G+(255-B)//2,
+	Rad is D/2,
+	message(fillcircle(X,Y,Rad),View)@G,
+	fail;
+	true.
+
+gycw(View,D):-
+	between(8,255,D,R),
+	G=255,
+	between(8,255,D,B),
+	message(setcolors(rgb(R,G,B),white),View)@G,
+	X is 100+R+(255-B)//2,
+	Y is 355 +(255-B)//2,
+	Rad is D/2,
+	message(fillcircle(X,Y,Rad),View)@G,
+	fail ;
+	true.
+
+between(I,J,_,I):-
+	I =< J.
+between(I,J,D,X):- 
+	I =< J,
+	I1 is I+D,
+	between(I1,J,D,X).
+*/
+	 
+

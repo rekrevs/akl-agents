@@ -1,0 +1,231 @@
+% ----------------------- Basic Term format -------------------------
+/*
+	DTERM1 ::= term(TERM1) | exception(EXCEPTION1)
+	EXCEPTION1 ::= end_of_file | ...
+	TERM1 ::= VAR1 | struct(NAME1,Integer,TERM1-list)
+	NAME1 ::= Atomic | VAR1
+	VAR1  ::= var(VNAME1)
+	VNAME1 ::= Atomic | noname(INTEGER)
+    	Note that not all variables with numbers are void. Sometimes 
+	the name of a variable is lost but we still want to be able to 
+	represent the term in the abstract syntax.
+*/
+
+:- public read_dterm1/3, read_dterms1/3, read_dterms1/2, read_terms1/3, 
+	read_terms1/2, write_dterm1/3, write_term1/3, write_dterms1/3,
+	write_terms1/3, write_dterms1/2, write_terms1/2,
+	term1_to_term/2.
+
+%--- I/O routines:
+
+%--- read_dterm1(-DTERM1,+Stream,-Stream) with warning printouts
+read_dterm1(T1,S0,S1) :-
+    ->	read_dterm0(T0,S0,S1),
+	dterm0_to_dterm1(T0,T1,Once,More),
+	stdout(Error),
+	dterm1_warnings(T1,Once,More,Error,_).
+
+dterm1_warnings(_T1,[],[],S0,S1) :-
+    -> 	S0=S1.
+dterm1_warnings(T1,Once,More,S0,S6) :-
+    ->	write('%--- read_dterm1, warning for ---: ',S0,S1),
+	write_dterm1(T1,S1,S2), 
+	nl(S2,S3),
+	warn_void_var_once(Once,S3,S4),
+	warn_void_var_more(More,S4,S5),
+	nl(S5,S6).
+
+warn_void_var_once([],S0,S1) :- -> S0=S1.
+warn_void_var_once([Once],S0,S1) :- 
+    ->	writenl('% -- Single occurrence of a non-void variable:'(Once),S0,S1).
+warn_void_var_once(Once,S0,S1) :-
+    ->	writenl('% -- Single occurrence of non-void variables:'(Once),S0,S1).
+
+warn_void_var_more([],S0,S1) :- 
+    ->	S0=S1.
+warn_void_var_more([More],S0,S1) :-
+    ->	writenl('% -- Named void variable with more than one occurrence:'(More),S0,S1).
+warn_void_var_more(More,S0,S1) :-
+    ->	writenl('% -- Named void variables with more than one occurrence:'(More),S0,S1).
+
+%--- read_dterms1(-DTERM1-list,+Stream,-Stream)
+read_dterms1(Terms,S0,S2) :-
+    ->  read_dterm1(Item,S0,S1),
+        read_dterms1(Item,Terms,S1,S2).
+
+read_dterms1(term(H),Terms1,S0,S1) :-
+    ->  Terms1=[term(H)|T],
+        read_dterms1(T,S0,S1).
+read_dterms1(exception(end_of_file),Terms1,S0,S1) :-
+    ->  Terms1 = [],
+	S0=S1.
+read_dterms1(exception(E),Terms1,S0,S1) :-
+    ->  Terms1 = [exception(E)],
+	S0=S1.
+
+%read_term1(-TERM,+Stream,-Stream)
+read_term1(T,S0,S1) :-
+    ->  read_dterm1(D,S0,S1),
+	x5(D,T).
+
+x5(term(T),T0) :- 
+    ->	T0=T.
+x5(exception(E),E0) :- 
+    ->	E0=exception(E).
+
+%--- read_dterms1(+Filename,-DTERM1-list)
+/*
+     which reads until an end_of_file is reached
+     (not returning the exception end_of_file and
+      stripping off the term(_) tag)
+*/
+read_dterms1(Infile,Terms) :- 
+    ->	fopen(Infile,read,S0),
+        read_dterms1(Terms,S0,S1),
+	send(fclose,S1,_S2).
+
+%--- read_terms1(-TERM1-list,+Stream,-Stream)
+read_terms1(Terms,S0,S2) :-
+    ->  read_term1(Item,S0,S1),
+        read_terms1(Item,Terms,S1,S2).
+
+read_terms1(H,Terms1,S0,S1) :-
+    ->  Terms1=[H|T],
+        read_terms1(T,S0,S1).
+read_terms1(exception(end_of_file),Terms1,S0,S1) :-
+    ->  Terms1 = [],
+	S0=S1.
+read_terms1(exception(E),Terms1,S0,S1) :-
+    ->  Terms1 = [exception(E)],
+	S0=S1.
+
+%----read_terms1(+Filename,-TERM1-list)
+read_terms1(Infile,Terms) :- 
+    ->	fopen(Infile,read,S0),
+        read_terms1(Terms,S0,S1),
+	send(fclose,S1,_S2).
+
+%--- write_dterm1(+DTERM1,+Stream,-Stream)
+write_dterm1(term(X),S0,S1) :-
+    ->  write_term1(X,S0,S1).
+write_dterm1(exception(E),S0,S2) :-
+    ->  writenl('---- Exception -----',S0,S1),
+	writenl(E,S1,S2).
+
+%--- write_term1(+TERM1,+Stream,-Stream)
+write_term1(T$A,S0,S2) :-
+    ->	writenl('%term_annotation'(A),S0,S1),
+	write_term1(T,S1,S2).
+write_term1(var(noname(I)),S0,S2) :-
+    ->  write0('_',S0,S1),
+	write0(I,S1,S2).
+write_term1(var(V),S0,S2) :- 
+	integer(V)
+    ->  write0('V',S0,S1),
+	write0(V,S1,S2).
+write_term1(var(V),S0,S1) :- 
+	atom(V)
+    ->  write0(V,S0,S1).
+write_term1(var((N,I)),S0,S2) :-
+    ->	write0(N,S0,S1),
+	write0(I,S1,S2).
+write_term1(var(t(V,D,C)),S0,S7) :- 
+	D=Dn/A
+    ->  write_term1(var(V),S0,S1),
+	write0('_',S1,S2),
+	write0(Dn,S2,S3),
+	write0('_',S3,S4),
+	write0(A,S4,S5),
+	write0('_',S5,S6),
+	write0(C,S6,S7).
+write_term1(var(acc(A)),S0,S2) :- 
+    ->  write0('Generated_Accumulator_Variable_',S0,S1),
+	write0(A,S1,S2).
+write_term1(arg(A),S0,S1) :- 
+    ->  write0(arg(A),S0,S1).
+write_term1(struct('.',2,[H,T]),S0,S3) :- 
+    ->  write0('[',S0,S1), 
+	write_term1(H,S1,S2),
+	write_rest1(T,S2,S3).
+write_term1(struct('=',2,[H,T]),S0,S5) :- 
+    ->  write0('(',S0,S1),
+	write_term1(H,S1,S2),
+	write0(' = ',S2,S3),
+	write_term1(T,S3,S4),
+	write0(')',S4,S5).
+write_term1(struct(N,_I,Ts),S0,S4) :- 
+ 	Ts=[_|_]
+    ->  write_name1(N,S0,S1), 
+	write0('(',S1,S2),
+	smapwr((X,Sa,Sb)\write_term1(X,Sa,Sb),Ts,S2,S3),
+	write0(')',S3,S4).
+write_term1(struct(N,_I,[]),S0,S3) :- 
+	current_op(_,_,N)
+    ->  write0('(',S0,S1),
+	write_name1(N,S1,S2),
+	write0(')',S2,S3).
+write_term1(struct(N,_I,[]),S0,S1) :- 
+    ->  write_name1(N,S0,S1).
+
+write_name1('.',S0,S3) :-
+    ->  write0('''',S0,S1), 
+	write0('.',S1,S2), 
+	write0('''',S2,S3).
+write_name1(X,S0,S3) :-
+	current_op(_,_,X)
+    ->  write0('''',S0,S1), 
+	write0(X,S1,S2),
+	write0('''',S2,S3).
+write_name1(X,S0,S1) :-
+    ->  writeq(X,S0,S1).
+
+write_rest1(struct([],0,[]),S0,S1) :-
+    ->  write0(']',S0,S1).
+write_rest1(struct('.',2,[H,struct([],0,[])]),S0,S3) :-
+    ->  write0(',',S0,S1),
+	write_term1(H,S1,S2),
+	write0(']',S2,S3).
+write_rest1(struct('.',2,[H,T]),S0,S3) :-
+    ->  write0(',',S0,S1),
+	write_term1(H,S1,S2),
+	write_rest1(T,S2,S3).
+write_rest1(T,S0,S3) :-
+    ->  write0((|),S0,S1),
+	write_term1(T,S1,S2),
+	write0(']',S2,S3).
+
+
+%--- write_dterms1(+DTERM1-list,+Stream,-Stream)
+write_dterms1(Ds,S0,S1) :-
+    ->  smapwr((X,Sa,Sb)\write_dterm1(X,Sa,Sb),Ds,S0,S1).
+
+%--- write_terms1(+TERM1-list,+Stream,-Stream)
+write_terms1(Ds,S0,S1) :-
+    ->  smapwr((X,Sa,Sb)\write_term1(X,Sa,Sb),Ds,S0,S1).
+
+%--- write_dterms1(+Filename,+DTERM1-list)
+write_dterms1(Filename,Ts) :- 
+    ->	fopen(Filename,write,S0),
+        smap((X,Sa,Sb)\write_dterm1(X,Sa,Sb),Ts,S0,S1),
+	send(fclose,S1,_S2).
+
+%--- write_terms1(+Filename,+TERM1-list)
+write_terms1(Filename,Ts) :- 
+    ->	fopen(Filename,write,S0),
+        smap((X,Sa,Sb)\write_term1(X,Sa,Sb),Ts,S0,S1),
+	send(fclose,S1,_S2).
+
+
+%--- term1_to_term(+TERM1,-T)
+term1_to_term(var(noname(I)),T) :-
+    ->  number_chars1(I,R),
+	atom_chars(T,[0'_|R]).
+term1_to_term(var(V),T) :- 
+    ->  T=V.
+term1_to_term(struct(N,_I,Ts),T) :- 
+	Ts=[_|_]
+    ->  T=..[N|As], 
+	map((X,A)\term1_to_term(X,A),Ts,As).
+term1_to_term(struct(N,_I,[]),T) :-
+    ->  T=N.
+

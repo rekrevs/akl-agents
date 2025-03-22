@@ -1,0 +1,365 @@
+% File: 	pack.akl
+% Author: 	Anders Andersson
+% Purpose:      Compacts representation of a DFA and of parser tables
+
+% Converts the Transitions to list representations of transition and base
+% arrays following Aho, Sethi, Ullman in the red dragon book.
+pack(AssocList, Trans, Base) :-
+    ->  find_def(AssocList, DefList),
+	arr_pack(DefList, Trans, Base).
+
+% As pack/3 except that each state in the transition array gets an extra dummy
+% entry at -2. This is exploited to put the base/default array inside the 
+% transition array to speed up the scan. It does cost some space though.
+fpack(AssocList, Trans, Base) :-
+    ->  find_def(AssocList, DefList),
+	arr_fpack(DefList, Trans, Base).
+
+% find_def(+AssocList, -PackList) takes an AssocList representation of a DFA 
+% and finds default states to pack the states. The entries in the PackList 
+% has the following format:  state(No, Default, Accept, Transitions) 
+% where an entry not in Transitions are taken from the Default state. 
+% States with no default have themselves as default.
+% The algorithm used is a simple heuristic one that runs quickly. It could
+% probably be done better but it is good enough to catch the common cases
+% of keywords and catch-all rules.  
+find_def(AssocList, PackList) :- 
+    ->	assoclist_to_array(AssocList, N, DFAarr),
+	new_array(N, DefTrans),
+	initialize_array(N, [])-DefTrans,
+	find_def_transes(AssocList)-DefTrans,
+	build_packed_states(N, DefTrans, DFAarr, UnOrdPackList),
+	sort(UnOrdPackList, PackList).
+
+% Finds the most used to-state for each state. The state is logged in the entry
+% for the to-state along with the number of occurences and the number of other
+% (non-default) transitions. This info is coded so that the biggest is the
+% ones where the default is done often, if they are equally common, the
+% ones with the fewest other transitions is selected.
+find_def_transes([No-TransList|Xs])-DefTrans :-
+    ->	ord_list_to_assoc([], EdgesCount),
+	count_edges(TransList)-EdgesCount,
+	assoc_to_list(EdgesCount, EdgesList),
+	max_value(EdgesList, No, 0, CommonState, NumEdges),
+	length(EdgesList, Length),
+	neg(Length, NegLength),
+	set(CommonState, Old, [No-(NumEdges-NegLength)|Old])@DefTrans,
+	find_def_transes(Xs)-DefTrans.
+find_def_transes([])-_Def :-
+    ->	true.
+
+% Builds an assoc that counts the number of times each edge is taken
+count_edges([_-State|Xs])-EdgesCount :-
+    ->	inc_assoc(State)-EdgesCount,
+	count_edges(Xs)-EdgesCount.
+count_edges([_|Xs])-EdgesCount :-
+    ->	count_edges(Xs)-EdgesCount.
+count_edges([])-_EdgesCount :-
+    ->	true.
+
+% build_packed_states(+N, +DefTrans, +DFAarr, -StateList)
+% Takes the DefTrans array as created by find_def_transes and compute the
+% defaulted version of all states that are listed in the first N to-state
+% entries, by chosing a likely candidate from each group of reversed default
+% edges and make the other ones in each group take this as default if 
+% possible. 
+build_packed_states(0, _, _, UnOrdPackList) :-
+    ->  UnOrdPackList = [].
+build_packed_states(N, DefTrans, DFAarr, StateList) :-
+    ->  dec(N, N1),
+	get(N1, FromList)@DefTrans,
+	build_packed_states1(FromList, N1, DefTrans, DFAarr, StateList).
+
+build_packed_states1([], N, DefTrans, DFAarr, StateList) :-
+    ->	build_packed_states(N, DefTrans, DFAarr, StateList).
+build_packed_states1(FromList, N, DefTrans, DFAarr, StateList) :-
+    ->	max_value(FromList, -1, -1-0, From, _),
+	get(From, Trans)@DFAarr,
+	separate(Trans, Action, CleanTrans),
+	StateList = [state(From, From, Action, CleanTrans)|StateList1],
+	make_dep_states(FromList, DFAarr, From, 
+	                CleanTrans, StateList1, StateList2),
+	build_packed_states(N, DefTrans, DFAarr, StateList2).
+
+% strip the Accept from the transition list
+separate([A|Rest], Accept, Trans) :-
+	A = accept(_,_,_,_)
+    ->  Accept = A,
+	Trans = Rest.
+separate(Rest, Accept, Trans) :-
+    ->  Accept = 'false', 
+	Trans = Rest.
+
+% Takes a list of states and a default state Def with transitions DTrans
+% and compute a list of the transitions that can be achived with Def
+% as the default state.
+make_dep_states([Def-_|Xs], DFAarr, Def, DTrans)-StateList :-
+    ->	make_dep_states(Xs, DFAarr, Def, DTrans)-StateList.
+make_dep_states([StateNo-_|Xs], DFAarr, Def, DTrans)-StateList :-
+    ->  get(StateNo, Trans)@DFAarr,
+	separate(Trans, Action, CleanTrans),
+	compressed_state(CleanTrans, StateNo, Action, Def, DTrans, State), 
+	[State]-StateList,
+	make_dep_states(Xs, DFAarr, Def, DTrans)-StateList.
+make_dep_states([], _, _, _)-_StateList :-
+    ->	true.
+
+% Takes a state and a proposed default and makes a new state that exploits
+% the default if possible
+compressed_state(Trans, StateNo, Action, Def, DTrans, State) :-
+	extract_keys(Trans, TransKeys),
+	extract_keys(DTrans, DTransKeys),
+	ord_subset(DTransKeys, TransKeys)
+    ->  ord_subtract(Trans, DTrans, NonDef),
+	State = state(StateNo, Def, Action, NonDef).
+compressed_state(Trans, StateNo, Action, _, _, State) :-
+    ->	State = state(StateNo, StateNo, Action, Trans).
+
+% Takes a list of transitions packed with the default scheme and build an
+% assoclist representation of the transition array and a list representation
+% of the base array.
+arr_pack(List, Mock, Base) :-
+    ->	arr_pack(List, Base, [], Mock).
+
+arr_pack([state(No, Def, Acc, Entries)|Xs], Base)-Mock :-
+    ->	insert_state(No, Entries, N)-Mock,
+	[state(No, Def, Acc, N)]-Base,
+	arr_pack(Xs, Base)-Mock.
+arr_pack([], Base)-_Mock :-
+    ->	Base = [].
+
+arr_fpack(List, Mock, Base) :-
+    ->	ord_list_to_assoc([], Taken),
+	ord_list_to_assoc([(-10)-(-42)], Free),
+	arr_fpack(List, Base, [], Mock)-Free-Taken.
+
+arr_fpack([state(No, Def, Acc, Entries)|Xs], Base)-Mock-Free-Taken :-
+    ->	insert_state(No, [-2-(Def-Acc)|Entries], N)-Mock-Free-Taken,
+	[No-(N-Acc)]-Base,
+	arr_fpack(Xs, Base)-Mock-Free-Taken.
+arr_fpack([], Base)-_Mock-_Free-_Taken :-
+    ->	Base = [].
+
+
+% Takes a assoclist representation of an array and fits the Entries into it.
+% N is the offset we fitted it with
+insert_state(No, Entries, N)-Mock-Free-Taken :-
+    ->	entry_mask(Entries, Mask),
+	first_fit(Mask, Free, Taken, 0, N),
+	insert_state_at(Entries, No, N)-Mock,
+	alloc_mask_blocks(Mask, N)-Free,
+	put_assoc(N, taken)-Taken.
+
+entry_mask([X-_|Xs], C) :-
+    ->  compact_mask(Xs, X, X, List),
+	keysort(List, C). % Improvement !?
+entry_mask([], C) :-
+    ->	C = [].
+
+compact_mask([X-_|Xs], Last, First, C) :-
+	inc(Last, X)
+    ->  compact_mask(Xs, X, First, C).
+compact_mask([X-_|Xs], Last, First, C) :-
+    ->  sub(Last, First, Diff),
+	[Diff-First]-C,
+	compact_mask(Xs, X, X, C).
+compact_mask([], Last, First, C) :-
+    ->  sub(Last, First, Diff),
+	C = [Diff-First].
+
+first_fit(Mask, Free, Taken, N, At) :-
+	get_assoc(N, _, Taken, _)
+    ->	inc-N,
+	first_fit(Mask, Free, Taken, N, At).
+first_fit(Mask, Free, _, N, At) :-
+	state_fit_at(Mask, N, Free)
+    ->  At = N.
+first_fit(Mask, Free, Taken, N, At) :-
+    ->	inc-N,
+	first_fit(Mask, Free, Taken, N, At).
+
+% Checks if the entries can be inserted into the array at a certain position
+state_fit_at([Diff-Start|Xs], Pos, Free) :-
+    	add(Start, Pos, First),
+	add(First, Diff, Last),
+	find_nearest_le(Free, First, Value),
+	fit_ok(Value, Last)
+    ->	state_fit_at(Xs, Pos, Free).
+state_fit_at([], _, _) :-
+    ->	true.	
+
+find_nearest_le(Free, Key, Value) :-
+	get_nearest_le_assoc(Key, Key2, Value2, Free, _),
+%	assoc_lookup(Free, Key, Free, t(Key2, Value2, _),
+	not_greater(Key2, Key)
+    ->  Value = Value2.
+/*
+assoc_lookup(Tree, Key, _, Result) :-
+	Tree = t(Key2, _, _, Right),
+	not_less(Key, Key2)
+    ->  assoc_lookup(Right, Key, Tree, Result).
+assoc_lookup(t(_, _, Left, _), Key, Ac, Result) :-
+    ->  assoc_lookup(Left, Key, Ac, Result).
+assoc_lookup(t, _, Ac, Result) :-
+    ->  Result = Ac.
+*/
+fit_ok(-42, _) :-
+    ->	true.
+fit_ok(Value, Last) :-
+    ->  not_less(Value, Last).
+
+alloc_block(First, Last)-Free :-
+    ->  get_nearest_le_assoc(First, Key, Value, Free, _),
+	dec-First,
+	inc-Last,
+	set_assoc(Key, _, First)-Free,
+	put_assoc(Last, Value)-Free.
+
+alloc_mask_blocks([Diff-Start|Xs], Pos)-Free :-
+    ->	add(Start, Pos, First),
+	add(First, Diff, Last),
+	alloc_block(First, Last)-Free,
+	alloc_mask_blocks(Xs, Pos)-Free.
+alloc_mask_blocks([], _)-_Free :-
+    ->	true.
+
+% Insert some entries starting at Pos, knowing this to be possible
+insert_state_at([Ch-NS|Xs], State, Pos, Mock0, Mock) :-
+    ->	add(Ch)-Pos,
+	insert_state_at1(Mock0, Pos, Ch, Xs, NS, State, Mock).
+insert_state_at([], _, _)-_Mock :-
+    ->	true.
+
+insert_state_at1([First-Val|Rest], Pos, Ch, Xs, NS, State, Mock) :-
+	less(First, Pos)
+    ->	[First-Val]-Mock,
+	insert_state_at1(Rest, Pos, Ch, Xs, NS, State, Mock).
+insert_state_at1(Mock0, Pos, Ch, Xs, NS, State, Mock) :-
+    ->  insert_state_at2(Xs, Pos, Ch, NS, State, Mock0, Mock).
+
+insert_state_at2([Ch2-NS2|Xs], Pos, Ch1, NS1, State, Mock0, Mock) :-
+    ->  [Pos-(State-NS1)]-Mock,
+	sub(Ch2, Ch1, Diff),
+	add(Pos, Diff, Pos1),
+	insert_state_at1(Mock0, Pos1, Ch2, Xs, NS2, State, Mock). 
+insert_state_at2([], Pos, _, NS, State, Mock0, Mock) :-
+    ->  Mock = [Pos-(State-NS)|Mock0].
+
+
+% Converts the Transitions to list representations of transition and base
+% arrays roughly following Aho, Sethi, Ullman in the dragon books.
+% No default state is used, but identical rows are given the same base
+pack_action(AssocList, Trans, Base) :-
+    ->  invert_assoclist-AssocList,
+	key_sort_set-AssocList,
+	ord_list_to_assoc([], Taken),
+	ord_list_to_assoc([(-10)-(-42)], Free),
+	pack_actions(AssocList, MessyBase, [], Trans)-Free-Taken,
+	keysort(MessyBase, Base).
+
+pack_actions([Row-States|Xs], BaseEntries)-Trans-Free-Taken :-
+    ->  insert_state(At, Row, At)-Trans-Free-Taken,
+	append_expanded(States, At)-BaseEntries,
+	pack_actions(Xs, BaseEntries)-Trans-Free-Taken.
+pack_actions([], BaseEntries)-_Trans-_Free-_Taken :-
+    ->  BaseEntries = [].
+
+pack_goto(AssocList, Trans, Base) :-
+    ->	transpose_assoclist-AssocList,
+	ord_list_to_assoc([], Taken),
+	ord_list_to_assoc([(-10)-(-42)], Free),
+	pack_gotos(AssocList, Base, [], Trans)-Free-Taken.
+
+pack_gotos([NonTerm-Row|Xs], Base)-Trans-Free-Taken :-
+    ->  insert_state(dummy, Row, At)-Trans-Free-Taken,
+	[NonTerm-At]-Base,
+	pack_gotos(Xs, Base)-Trans-Free-Taken.
+pack_gotos([], Base)-_T-_F-_O :-
+    ->	Base = [].
+
+transpose_assoclist(AssocList, Transpose_assoclist) :-
+    ->  transpose_assoclist1(AssocList, Transes),
+	key_sort_set(Transes, Transpose_assoclist).
+
+transpose_assoclist1([Key1-AssocList|Xs], T) :-
+    ->  transpose_assoclist2(AssocList, Key1)-T,
+	transpose_assoclist1(Xs, T).
+transpose_assoclist1([], T) :-
+    ->	T = [].
+
+transpose_assoclist2([Key2-Value|Xs], Key1)-T :-
+    ->	[Key2-(Key1-Value)]-T,
+	transpose_assoclist2(Xs, Key1)-T.
+transpose_assoclist2([], _)-_T :-
+    ->	true.
+
+
+repr_goto(AssocList, Table) :-
+    ->	fill_goto(AssocList, 0, FilledList),
+	list_to_tree([goto|FilledList], Table).         % DS
+%       length(FilledList, L),
+%       compound_construct(goto, L, FilledList, Table).
+
+fill_goto([At-(_-To)|Xs], Pos, FilledList) :-
+    ->  sub(At, Pos, Diff),
+	fill(Diff, 0)-FilledList,
+	inc-To,
+	[To]-FilledList,
+	inc-At,
+	fill_goto(Xs, At, FilledList).
+fill_goto([], _, FilledList) :-
+    ->  FilledList = [].
+
+repr_action(Base, Trans, TokenSetSize, BaseT, NextT, CheckT) :-
+    ->  max_value(Base, _, HighBase),
+	add(HighBase, TokenSetSize, UpTo),
+	extract_values(Base, BaseValues),
+	map(BaseValues, (X,Y)\add(X,2,Y), AdjustedBase),
+	list_to_tree([base|AdjustedBase], BaseT),       % DS
+%        length(Base, L),
+%        compound_construct(base, L, AdjustedBase, BaseT),
+	fill_action(Trans, -1, UpTo, NextL, CheckL),
+	list_to_tree([next|NextL], NextT),              % DS
+%        length(NextL, Ln),
+%        compound_construct(next, Ln, NextL, NextT),
+	list_to_tree([check|CheckL], CheckT).           % DS
+%        length(CheckL, Lc),
+%        compound_construct(check, Lc, CheckL, CheckT).
+
+fill_action([At-(Check-Next)|Xs], Pos, UpTo, NextL, CheckL) :-
+    ->  sub(At, Pos, Diff),
+	fill(Diff, 0)-NextL,
+	fill(Diff, 0)-CheckL,
+	xlt_nc-Next-Check,
+	[Next]-NextL,
+	[Check]-CheckL,
+	inc-At,
+	fill_action(Xs, At, UpTo, NextL, CheckL).
+fill_action([], Pos, UpTo, NextL, CheckL) :-
+    ->  sub(UpTo, Pos, Blks),
+	fill(Blks, 0, CheckL, []),
+	fill(Blks, 0, NextL, []).
+
+
+xlt_nc-Next-Check :-
+	integer(Next)
+    ->	inc-Next,
+	add(2)-Check.
+xlt_nc-_Next-Check :-
+    ->  sub(-2)-Check. % sic!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

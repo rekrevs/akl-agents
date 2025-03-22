@@ -1,0 +1,138 @@
+
+DEMO PROGRAMS
+=============
+
+PROLOG PROGRAMS
+---------------
+The quick-sort andb reverse programs are examples of programs
+that are also Prolog program. Timings are given to compare the
+speed of execution with that of Prolog
+
+list.akl		?- qsort(100).
+			?- nreverse(200).
+			?- reverse(200).
+
+LOCAL EXECUTION
+---------------
+
+ancestors.akl		A simple program for finding ancestors.  It
+			illustrates the ability of complete local execution.
+
+			?- anc(a,Y), anc(b,Y).
+
+sublist.akl		A simple program for finding common sublists.  It
+			illustrates the ability of partial local execution.
+
+			?- sub(X,[c,a,t,s]), sub(X,[l,a,s,t]).
+
+MERGERS
+-------
+
+merge.akl		A standard binary merger.
+
+			?- merge([1,2],[3,4],L). % => L=[1,2,3,4]
+
+mwmerge.akl		A constant delay multi-way merger.
+
+			?- merger([a|split([b,c],[d,e])],L). % => L=[a,b,d,c,e]
+
+SEARCH
+------
+
+The money and zebra puzzles demonstrate different techniques for 
+finite domain constraints.
+
+money.akl		The SEND+MORE=MONEY problem.
+
+			?- money.
+
+zebra.akl		The Zebra problem.
+
+			?- zebra.
+
+The queens program uses the short-circuit technique demonstrated
+in the money and zebra programs.
+
+queens.akl		The N-queens problem.
+
+			?- queens.
+
+The scanner program uses the controller technique demonstrated
+in the money and zebra programs. The program also demonstrates
+how local computation can improve a program.
+
+scanner.akl		"X-raying" a box to reveal its contents.
+
+			?- scanner.
+
+The cipher program shows how search can be guided by ordering
+goals in a conjunction.
+
+cipher.akl		Simple substitution ciphers problem.
+
+			?- cipher.
+
+The knights program 
+
+knights.akl		The knights tour.
+			
+			?- knights(5).
+
+
+NOISY CUT and QUIET WAIT
+------------------------
+
+lookup.akl		Show how lookup can be implemented.
+
+member.akl		Shows how  member can be implemented.
+
+
+META-INTERPRETERS
+-----------------
+
+prove.akl		One kind of meta-interpreter for the AKL.
+
+			?- prove(nreverse([1,2,3],Y)).
+
+orp.akl			An interpreter for pure Horn-clauses.
+
+			?- solve([ancestor(a,Y), ancestor(b,Y)]).
+
+
+COMMITTED CHOICE
+----------------
+
+ghcexamples.akl		Examples for the GHC in Prolog implementation.
+
+			?- twins(100).
+
+			?- fiblazy. % typein "more."* + "done."
+
+"These benchmarks were originally written by Evan Tick at ICOT in FGHC
+and then tranlated to Parlog by simple changes to the syntax.  Hence,
+all output unification is done explicitly rather than using mode
+declarations. The benchmark programs are described in [Tick 1989].
+
+Reference:
+E. Tick and J. Crammond, "Comparison of Two Shared-Memory Emulators
+for Flat Committed-Choice Logic Programs", forthcoming Technical Report, 1989."
+
+They have been translated to the AKL by simple changes to the syntax.
+
+cube.akl		?- go(N,A). % => N=48, A=<solutions>
+
+kkqueen.akl		?- go(N,A). % N=9 => M=352
+
+lsqueen.akl		- " -
+
+mastermind.akl		?- go(3,3,N). % => N=860
+
+pascal.akl		?- go(N,R). % N number of rows, R nth row
+
+puzzle.akl		?- go(N). % => N=65
+
+semigroup.akl		?- go(N). % => N=<no of elements>
+
+triangle.akl		?- go(N). % => N=133
+
+turtles.akl		?- go(N,A). % => N=4, A=<solutions>

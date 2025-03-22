@@ -1,0 +1,3730 @@
+% -*-texinfo-*-
+% LaTeX "sloppy"
+\tolerance=3000
+\hfuzz=.5pt
+\vfuzz=.5pt
+% Adjust \hoffset for !A4 paper
+\vsize 22.9cm
+\hsize 14.0cm
+%\pageheight=\vsize
+%\hoffset-0.125cm
+\raggedbottom
+\input texinfo
+@comment %**start of header (This is for running Texinfo on a region.)
+@setfilename agents-user
+@settitle AGENTS User Manual
+@setchapternewpage odd
+@comment %**end of header (This is for running Texinfo on a region.)
+@tex
+% Other paragraphs
+\global\parindent=0pt
+\global\parskip=6pt
+@end tex
+@finalout
+
+@ifinfo
+This file documents AGENTS.
+
+Copyright @copyright{} 1990-1994 Swedish Institute of
+Computer Science
+
+All rights reserved.
+@end ifinfo
+
+@titlepage
+@center @titlefont{AGENTS User Manual}
+@sp 3
+@center @today
+@sp 3
+@center Sverker Janson, Johan Montelius, Kent Boortz, Per Brand,
+@center Bj@"orn Carlson, Ralph Clarke Haygood, Bj@"orn Danielsson,
+@center and Seif Haridi
+@sp
+@center Concurrent Constraint Programming Group
+@center Swedish Institute of Computer Science
+@center Box 1263, S-164 28 KISTA, Sweden
+@sp 3
+@center This manual corresponds to AGENTS 0.9.
+@page
+@vskip 0pt plus 1fill
+Copyright @copyright{} 1994 Swedish Institute of Computer Science
+
+All rights reserved.
+@end titlepage
+
+@ifinfo
+@node Top, Introduction, (dir), (dir)
+@comment  node-name,  next,  previous,  up
+@chapter AGENTS
+
+The Agents Kernel Language (AKL) is a concurrent constraint
+programming language developed at the Swedish Institute of
+Computer Science (SICS).  In AKL, computation is performed
+by agents interacting through stores of constraints.  This
+notion accomodates multiple programming paradigms; in
+appropriate contexts, AKL agents may be thought of as
+processes, objects, functions, relations, or constraints.
+
+AGENTS is a system for programming in AKL.  It provides a
+complete implementation of AKL with equality constraints
+over rational trees, various ``finite domain'' constraints
+over integers, and ports, a novelty of AKL.  It also
+provides assorted built-in agents and other support.
+@end ifinfo
+
+@menu
+* Introduction::                
+* Getting Started::             
+* Syntax and (Informal) Semantics::  
+* Constraints::                 
+* Built-in Agents::             
+* Modules::                     
+* Debugging::                   
+* Summary of Built-in Agents::  
+* Standard Operators::          
+* System Limits::               
+* Getting and Installing AGENTS::  
+* Index of Built-ins::          
+* Index of Concepts::           
+@end menu
+
+@node Introduction, Getting Started, Top, Top
+@chapter Introduction
+
+The Agents Kernel Language (AKL) is a concurrent constraint
+programming language developed at the Swedish Institute of
+Computer Science (SICS).  In AKL, computation is performed
+by agents interacting through stores of constraints.  This
+notion accomodates multiple programming paradigms; in
+appropriate contexts, AKL agents may be thought of as
+processes, objects, functions, relations, or constraints.
+
+AGENTS is a system for programming in AKL.  It provides a
+complete implementation of AKL with equality constraints
+over rational trees, various ``finite domain'' constraints
+over integers, and ports, a novelty of AKL.  It also
+provides assorted built-in agents and other support.
+
+This @emph{AGENTS User Manual} explains how to get, install,
+and use AGENTS.  AKL is described in @emph{An Introduction
+to AKL}.  Libraries and tools distributed with AGENTS are
+described in the @emph{AGENTS Library Manual}.
+
+Parts of this manual are adapted with permission from the
+@emph{SICStus Prolog User's Manual} by Johan Andersson,
+Stefan Andersson, Kent Boortz, Mats Carlsson, Hans Nilsson,
+Thomas Sjoeland, and Johan Widen.
+
+
+@node Getting Started, Syntax and (Informal) Semantics, Introduction, Top
+@chapter Getting Started
+
+In the following sections, we will guide you through
+writing, compiling, loading, running, and debugging a tiny
+AKL program.  We will typographically distinguish
+@code{programs and computer output} from @emph{user input}.
+Hitting the return key is denoted by @emph{<return>}.
+
+@menu
+* AGENTS::                      
+* Entering AGENTS::             
+* An Example::                  
+* Compiling the Example::       
+* Running the Example::         
+* Debugging the Example::       
+* Exiting AGENTS::              
+* Top-Level Interaction::       
+* Demonstration Programs::      
+* Libraries::                   
+@end menu
+
+@node AGENTS, Entering AGENTS,  , Getting Started
+@section AGENTS
+@cindex AGENTS
+
+If you do not have AGENTS but would like to get it, or if
+you have AGENTS but have not installed it yet,
+@pxref{Getting and Installing AGENTS}.
+
+@node Entering AGENTS, An Example, AGENTS, Getting Started
+@section Entering AGENTS
+@cindex top-level interaction
+
+AGENTS is normally entered from one of the UNIX shells.  To
+enter AGENTS, type the user command @emph{agents}.
+
+@example
+% @emph{agents<return>}
+@end example
+
+@noindent
+AGENTS displays an identification message and the prompt
+@samp{| ?- } when it is ready for input.
+
+@example
+AGENTS 0.9: Thu Jan  6 16:36:33 MET 1994
+(C) 1990-1994 Swedish Institute of Computer Science
+All rights reserved.
+| ?-
+@end example
+
+You can now call built-in agents.
+
+@example
+| ?- @emph{X is Y+1, Y is 2*3.<return>}
+@end example
+
+@noindent
+AGENTS displays the bindings of the variables in the goal.
+
+@example
+X = 7,
+Y = 6 ?
+@end example
+
+@noindent
+Type @emph{<return>} at the @samp{? } prompt to obtain a new
+input prompt.
+
+@node An Example, Compiling the Example, Entering AGENTS, Getting Started
+@section An Example
+
+As a (really trivial) example of an AKL program, consider a
+program determining membership in a list.
+
+@example
+member(X, [X|_]).
+member(X, [_|R]) :- member(X, R).
+@end example
+
+@noindent
+Use your favorite editor to create this program in a file
+@code{example.akl}.
+
+@node Compiling the Example, Running the Example, An Example, Getting Started
+@section Compiling the Example
+
+You can compile the source code and load the executable code
+into AGENTS immediately.
+
+@example
+| ?- @emph{compile(example).<return>}
+@end example
+
+Note that the extension @file{.akl} may be omitted.
+Alternately, you can compile the source code to a file
+instead for subsequent loading.
+
+@example
+| ?- @emph{compilef(example).<return>}
+@{compiling /usr/boortz/akl/example.akl...@}
+@{/usr/boortz/akl/example.akl compiled, 55 ms@}
+
+yes 
+| ?-
+@end example
+
+@noindent
+The compiled form of the program is now stored in the file
+@file{example.pam}.  You can load it from the file.
+
+@example
+| ?- @emph{load(example).<return>}
+@{loading /usr/boortz/akl/example.pam...@}
+@{/usr/boortz/akl/example.pam loaded, 10 msec, 28 bytes@}
+
+yes 
+| ?-
+@end example
+
+@noindent
+Note that the extension @file{.pam} may be omitted.
+
+@node Running the Example, Debugging the Example, Compiling the Example, Getting Started
+@section Running the Example
+
+When you have loaded the program, you can run it.
+
+@example
+| ?- @emph{member(X, [a, b, c]).<return>}
+X = a ? @emph{;<return>}
+X = b ? @emph{;<return>}
+X = c ? @emph{;<return>}
+no
+| ?-
+@end example
+
+@noindent
+Typing @emph{;<return>} at the @samp{? } prompt gives the
+next solution, if any.
+
+@node Debugging the Example, Exiting AGENTS, Running the Example, Getting Started
+@section Debugging the Example
+
+You can step through the program in the debugger.  First
+turn on tracing.
+
+@example
+| ?- @emph{trace.<return>}
+@{The debugger will first creep -- showing everything (trace)@}
+    Exit: trace ? @emph{<return>}
+
+yes
+| ?-
+@end example
+
+@noindent
+Then run the program, stepping the execution with the return
+key.
+
+@example
+| ?- @emph{member(b, [a,b,c]).<return>}
+    Call: member(b, [a,b,c]) ? @emph{<return>}
+    [Create:1] :member ? @emph{<return>}
+    [Fail:1] :member ? @emph{<return>}
+    [Create:2] :member ? @emph{<return>}
+    [Promote:2] :member ? @emph{<return>}
+    Call: member(b, [b,c]) ? @emph{<return>}
+    [Create:1] :member ? @emph{<return>}
+    [Suspend:1] :member ? @emph{<return>}
+    [Create:2] :member ? @emph{<return>}
+    [Suspend:2] :member ? @emph{<return>}
+    Suspend: member(b, [b,c]) ? @emph{<return>}
+    [Up:  ] :Root ? @emph{<return>}
+    Exit: member(b, [a,b,c]) ? @emph{<return>}
+    Nondet-Pre : Mother=[ROOT], Cand=[member:1] ? @emph{<return>}
+    Nondet-Post: Mother=[ROOT], Cand=[member:1] ? @emph{<return>}
+    [Promote:1] :member ? @emph{<return>}
+    Exit: member(b, [b,c]) ? @emph{<return>}
+
+yes 
+@{trace@}
+| ?-
+@end example
+
+The debugger is described in @ref{Debugging}.
+
+@node Exiting AGENTS, Top-Level Interaction, Debugging the Example, Getting Started
+@section Exiting AGENTS
+
+To exit AGENTS and return to the shell, use the @code{halt}
+command.
+
+@example
+| ?- @emph{halt.<return>}
+@{ End of AGENTS execution, user time 5.190 @}
+%
+@end example
+
+You can also signal ``end-of-file'' with @key{C-d}
+(control-d) to achieve the same effect.
+
+@example
+| ?- @emph{^D}
+@{ End of AGENTS execution, user time 5.190 @}
+%
+@end example
+
+@node Top-Level Interaction, Demonstration Programs, Exiting AGENTS, Getting Started
+@section Top-Level Interaction
+@cindex top-level interaction
+
+At the top level, you type in goals for execution by AGENTS.
+If execution terminates (i.e., it is not trapped in endless
+recursion), the top level reports the results as follows:
+
+@table @code
+@item yes
+The goal was sucessful.  In this case, the top level also
+reports the bindings of the variables in the goal, if any.
+
+@item no
+The goal was unsucessful.  If this is because computation
+suspended, the top level reports the configuration.
+
+@end table
+
+There are several commands you can type in at the top level
+that are not goals (in the sense of calls to agents):
+
+@table @code
+@item halt
+Ends AGENTS execution.
+
+@item h
+@code{h} stands for ``history''.  Lists the goals given to
+the top level since it was started.  Each line is preceded
+by a number.  Identical goals share the same entry in the
+list.
+
+@item @var{N}
+Executes goal number @var{N} in the the history list.
+@end table
+
+From now on, in examples of top level interaction, we will
+usually omit the confirmation @code{yes} and the new input
+prompt following it.
+
+@node Demonstration Programs, Libraries, Top-Level Interaction, Getting Started
+@section Demonstration Programs
+@cindex demonstration programs
+
+AGENTS comes with demonstration programs.  By default, these
+are compiled during installation.  The default installation
+directory for both @file{.akl} and @file{.pam} files is
+@file{/usr/local/lib/agents0.9/demos}; in any case, you can
+find out the installation directory:
+
+@example
+| ?- @emph{demos_directory(X).<return>}
+
+X = '/usr/local/lib/agents0.9/demos' ?
+@end example
+
+See the @file{.akl} files for descriptions of the
+demonstration programs.
+
+Before running a demonstration program, you must load the
+appropriate @file{.pam} file.  For example, to load the
+@code{queens} demonstration program:
+
+@example
+| ?- @emph{load('/usr/local/lib/agents0.9/demos/queens').<return>}
+@{loading /usr/local/lib/agents0.9/demos/queens.pam...@}
+@{/usr/local/lib/agents0.9/demos/queens.pam loaded, 80 ms, 10352 bytes@}
+@end example
+
+@node Libraries,  , Demonstration Programs, Getting Started
+@section Libraries
+@cindex libraries, loading
+@cindex loading, libraries
+
+The AGENTS Library comprises a number of packages thought to
+be useful for various applications.  See the @emph{AGENTS
+Library Manual} for descriptions of the packages.
+
+Before using a package, you must load it.  For example, to
+load the @code{assoc} package:
+
+@example
+| ?- @emph{load(library(assoc)).<return>}
+@end example
+
+Note that the @code{Graphics Manager} package must be
+included in AGENTS in advance.  @xref{Including GM}.
+@cindex Graphics Manager
+
+
+@node Syntax and (Informal) Semantics, Constraints, Getting Started, Top
+@chapter Syntax and (Informal) Semantics
+@cindex syntax
+@cindex semantics
+
+<<<NEEDS WORK>>>
+
+In this chapter, we present the syntax of data and programs
+in AGENTS.  We also discuss their semantics informally.  See
+<<<References>>> for formal treatments of AKL semantics.
+
+We typographically distinguish @kbd{literal syntax} from
+other matter.
+
+@menu
+* Data::                        
+* Programs::                    
+@end menu
+
+@node Data, Programs,  , Syntax and (Informal) Semantics
+@section Data
+@cindex syntax, data
+@cindex semantics, data
+
+AGENTS data are represented by @dfn{terms}.  A term is
+either a @dfn{variable}, a @dfn{constant symbol}, or a
+@dfn{compound term} built from a @dfn{function symbol} and a
+sequence of other terms.  A term may be interpreted as
+representing an abstract object, on which computation is
+performed.  In the following, we discuss this interpretation
+of terms.
+@cindex terms
+@cindex variables
+@cindex constant symbols
+@cindex symbols, constant
+@cindex compound terms
+@cindex terms, compound
+@cindex function symbols
+@cindex symbols, function
+
+@menu
+* Variables::                   
+* Constant Symbols::            
+* Compound Terms::              
+@end menu
+
+@node Variables, Constant Symbols,  , Data
+@subsection Variables
+@cindex variables
+
+A variable is any sequence of letters, digits, and @kbd{_}
+beginning with an upper case letter or @kbd{_}.  For
+example:
+
+@example
+@kbd{Value   X   X1   _2   _zzz}
+@end example
+
+There is one special case.  In a compound term,
+(@pxref{Compound Terms}), a variable having exactly one
+occurrence may be an @dfn{anonymous} variable, denoted by
+the underline character @kbd{_}.  There may be multiple
+anonymous variables in a compound term, each constituting a
+distinct variable.
+@cindex compound terms
+@cindex terms, compound
+@cindex anonymous variables
+@cindex variables, anonymous
+
+In the context of a program execution, a variable may be
+thought of as representing a definite but unknown object.
+Alternatively, it is sometimes helpful to think of a
+variable as representing the (possibly infinite) set of
+objects consistent with the constraints on the variable in
+the constraint store (@pxref{Constraints}).
+@cindex variables, interpretation
+
+@node Constant Symbols, Compound Terms, Variables, Data
+@subsection Constant Symbols
+@cindex constant symbols
+
+Constant symbols, or @dfn{constants}, include
+@dfn{integers}.  For example:
+@cindex constants
+@cindex integers
+
+@example
+@kbd{0   42   2001   -512   -2}
+@end example
+
+These represent the obvious integers.  Besides the usual
+decimal, or base 10, notation, integers may be written in
+any base from 2 to 36, of which bases 2 (binary), 8 (octal),
+and 16 (hexadecimal) are probably the most useful.  Letters
+@kbd{A} through @kbd{Z}, upper or lower case, are used for
+bases greater than 10.  For example,
+@cindex integers, bases
+@cindex binary
+@cindex octal
+@cindex hexadecimal
+
+@example
+@kbd{15   2'1111   8'17   16'F   16'f}
+@end example
+
+@noindent
+all represent the integer fifteen.
+
+There is a special notation for (ASCII) character codes.
+For example,
+@cindex character codes
+
+@example
+@kbd{0'A}
+@end example
+
+@noindent
+is equivalent to @code{65}, because the character code for
+@kbd{A} is the integer sixty-five.
+
+Constants also include @dfn{floats}.  For example:
+@cindex floats
+
+@example
+@kbd{0.0   3.14   -4.2E1   0.123e+4   5.678e-09}
+@end example
+
+These represent the obvious floating point numbers.  Note
+that there must be a decimal point with at least one digit
+before and after it.
+
+Constants also include @dfn{atoms}.  For example:
+@cindex atoms
+
+@example
+@kbd{foo   barBaz   ++   'Algol-68'   []}
+@end example
+
+In detail, an atom is one of the following:
+
+@enumerate
+@item
+Any sequence of letters, digits, and @kbd{_} beginning with
+a lower case letter.
+
+@item
+Any sequence of @{ @kbd{+} @kbd{-} @kbd{*} @kbd{/} @kbd{\}
+@kbd{^} @kbd{<} @kbd{>} @kbd{=} @kbd{`} @kbd{~} @kbd{:}
+@kbd{.} @kbd{?} @kbd{@@} @kbd{#} @kbd{$} @kbd{&} @}, except
+for sequences beginning with @kbd{/*}, which is reserved to
+denote the beginning of a comment.
+
+@item
+One of @{ @kbd{!} @kbd{;} @kbd{[]} @kbd{@{@}} @}.  Note that
+@kbd{[]} and @kbd{@{@}} are atoms, but @kbd{[}, @kbd{]},
+@kbd{@{}, and @kbd{@}} are not.  However, note that with
+respect to compound terms (@pxref{Compound Terms}),
+@kbd{@{@var{X}@}} is equivalent to @kbd{@{@}(@var{X})}, and
+@kbd{[@var{X}]} is equivalent to @kbd{.(@var{X},[])}, where
+@kbd{@var{X}} is any term.
+@findex [] (atom)
+@findex @{@} (atom)
+
+@item
+Any sequence of characters delimited by single quotes.  To
+include a single quote in the sequence, write it twice in
+immediate succession, e.g., @kbd{'can''t'}.  If the sequence
+is an atom according to one of the preceding criteria, then
+quoting it does not yield a new atom, e.g., @kbd{'foo'} is
+equivalent to @kbd{foo}.
+@cindex single quotes
+@cindex quotes, single
+@end enumerate
+
+These may be thought of as representing elementary objects
+having no attributes.
+
+@node Compound Terms,  , Constant Symbols, Data
+@subsection Compound Terms
+@cindex compound terms
+
+A compound term is built from a function symbol, or
+@dfn{functor}, and a sequence of other terms, known as
+@dfn{arguments}.  The functor is characterized by its
+@dfn{name}, which is an atom, and its @dfn{arity}, which is
+the number of arguments.  The compound term is the name of
+the functor followed by the arguments, where the arguments
+are delimited by parentheses and separated by commas.  For
+example,
+@cindex function symbols
+@cindex functors
+@cindex name, of a functor
+@cindex arity, of a functor
+@cindex arguments, of a compound term
+
+@example
+@kbd{point(X, Y, Z)}
+@end example
+
+@noindent
+is the compound term whose functor has name @kbd{point} and
+arity three and whose arguments are @kbd{X}, @kbd{Y}, and
+@kbd{Z}.  Note that spaces are allowed between arguments and
+parentheses or commas, but no space is allowed between the
+name of the functor and the left parenthesis.
+
+Compound terms may be thought of as representing trees.
+For example, the compound term
+@cindex trees
+
+@example
+s(np(john),vp(v(likes),np(mary)))
+@end example
+
+@noindent
+may be thought of as representing the tree
+
+@smallexample
+       s
+     /   \
+  np       vp
+  |       /  \
+john     v     np
+         |     |
+       likes  mary
+@end smallexample
+
+<<<Discussion of operators.>>>
+
+A @dfn{list} is either the atom @kbd{[]} or a compound term
+of the form @kbd{.(@var{H}, @var{T})}, where @kbd{@var{H}}
+is any term and @kbd{@var{T}} is a list.  For example,
+@cindex lists
+
+@example
+@kbd{.(1,.(2,.(3,[])))}
+@end example
+
+@noindent
+is the list of the first three natural numbers;
+
+@smallexample
+  .
+ / \
+1    .
+    / \
+   2    .
+       / \
+      3   []
+@end smallexample
+
+@noindent
+is the tree it represents.
+
+There is a special notation for lists.  For example,
+@cindex lists
+
+@example
+@kbd{[1, 2, 3]}
+@end example
+
+@noindent
+is the usual list notation for the list of the first three
+natural numbers;
+
+@example
+@kbd{[1, 2, 3|[]]  [1|[2|[3|[]]]]  [1|[2|[3]]]  [1, 2|[3]]  [1|[2, 3]]}
+@end example
+
+@noindent
+are other possibilities.  List notation is usually more
+readable than standard compound term notation for lists.
+
+Some terms that are not lists may be written in list
+notation.  For example,
+
+@example
+@kbd{[foo|bar]}
+@end example
+
+@noindent
+which is equivalent to
+
+@example
+@kbd{.(foo, bar)}
+@end example
+
+@noindent
+is not a list, because @kbd{bar} is not a list.
+
+@kbd{[]} is known as the @dfn{empty list}, and @kbd{@var{H}}
+and @kbd{@var{T}} are known as the @dfn{head} and @dfn{tail}
+of @kbd{[@var{H}|@var{T}]}.  For example,
+@cindex empty list
+@cindex list, empty
+@cindex head, of list
+@cindex tail, of list
+
+@example
+@kbd{1   [2, 3]}
+@end example
+
+@noindent
+are the head and tail of the list of the first three natural
+numbers.
+
+There is a special notation for lists of character codes,
+known as @dfn{strings}.  For example,
+@cindex strings
+
+@example
+@kbd{"AGENTS"}
+@end example
+
+@noindent
+is equivalent to
+
+@example
+@kbd{[65, 71, 69, 78, 84, 83]}
+@end example
+
+<<<Explain meaning of "functor" for atomic trees.>>>
+
+<<<INCOMPLETE>>>
+
+@node Programs,  , Data, Syntax and (Informal) Semantics
+@section Programs
+@cindex syntax, programs
+@cindex semantics, programs
+
+<<<INCOMPLETE>>>
+
+<<<Discussion of accumulator syntax.>>>
+
+
+@node Constraints, Built-in Agents, Syntax and (Informal) Semantics, Top
+@chapter Constraints
+@cindex constraints
+
+<<<INCOMPLETE>>>
+
+<<<Discussion of variables.  Meaning of "constrained".>>>
+
+<<<Discussion of how certain built-in agents may be regarded
+as "ask-only" constraints associated with crude constraint
+solvers.>>>
+
+@menu
+* Trees::                       
+* Finite Domains::              
+* Ports::                       
+@end menu
+
+@node Trees, Finite Domains,  , Constraints
+@section Trees
+@cindex trees
+
+<<<INCOMPLETE>>>
+
+<<<Discussion of "constrained" and "ground".>>>
+
+@node Finite Domains, Ports, Trees, Constraints
+@section Finite Domains
+@cindex finite domains
+
+<<<INCOMPLETE>>>
+
+@node Ports,  , Finite Domains, Constraints
+@section Ports
+@cindex ports
+
+<<<NEEDS WORK>>>
+
+AKL provides @emph{ports} for communication.  A port is a
+constraint relating a bag (a multi-set) and a stream (a list).
+It simply states that the two contain the same elements.
+Messages (terms) are added to the bag and appear on the
+stream.  Any number of senders may add (send) messages on
+the same port.  When all references to the bag are dropped,
+the corresponding stream is closed.
+
+@table @code
+@item open_port(@var{-Port}, @var{-Stream})
+@findex open_port/2
+Open a port between a bag @var{Port} (which is usually
+referred to as a port) and a stream @var{Stream}.
+
+@item send(@var{+M}, @var{+Port})
+@findex send/2
+Add a message @var{M} to the bag/port @var{Port}. It will
+appear on the stream associated with the port.
+
+@item send(@var{+M}, @var{+Port}, @var{-NewPort})
+@findex send/3
+Add a message @var{M} to the bag/port @var{Port}. The port
+@var{NewPort} is equal to @var{Port}, but it is guaranteed
+that messages sent on @var{NewPort} will appear after
+@var{M} on the stream associated with @var{Port}.
+@end table
+
+
+@node Built-in Agents, Modules, Constraints, Top
+@chapter Built-in Agents
+@cindex built-in agents
+@cindex agents, built-in
+
+AGENTS provides assorted built-in agents in the following
+categories:
+
+@display
+Data Types
+Tree Mappings
+Tree Comparisons
+Arithmetic
+Arrays
+Hash Tables
+Input and Output
+    I/O Streams
+    Data I/O
+Interaction with UNIX
+Compiling and Loading
+Exceptions
+Miscellaneous
+@end display
+
+@noindent
+The descriptions of built-in agents follow these categories.
+
+The description of a built-in agent begins with a template
+such as
+
+@example
+tree_to_list(@var{+Tree}, @var{-List})
+@end example
+
+@noindent
+@var{Tree} and @var{List} are meta-variables; they name the
+arguments of @code{tree_to_list/2}.  The characters @var{+}
+and @var{-} are mode annotations; they mean the following:
+@cindex meta-variables
+@cindex mode annotations
+
+@table @var
+@item +
+@cindex + mode annotation
+This argument is an input.  Computation suspends until this
+argument is sufficiently constrained.
+
+@item -
+@cindex - mode annotation
+This argument is an output.  A datum is computed and unified
+with this argument.
+@end table
+
+@noindent
+The rest of the description consists of two parts, labeled
+``@emph{synchronization:}'' and ``@emph{behavior:}''.  The
+first part explains the meaning of ``sufficiently
+constrained'' in this context, and the second part explains
+the computation.
+@cindex synchronization
+@cindex behavior
+
+Two artifacts of the current implementation override the
+explanations of synchronization and behavior below.  First,
+a built-in agent evaluates its arguments from left to right.
+If an argument is insufficiently constrained, the agent
+suspends - it does @emph{not} evaluate the next argument to
+the right, if any.  Even if an argument to the right would
+make it fail, the agent suspends.
+
+Second, if an argument should be a tree, a built-in agent
+suspends until the functor is known.  In particular, if the
+argument is a port, the agent suspends rather than fails.
+Even though no subsequent operation could make the argument
+a tree, the agent suspends.
+
+These are artifacts of the current implementation.
+@emph{Avoid writing programs that depend on them.}  It is
+possible that future versions of AGENTS will not preserve
+them.  By contrast, the explanations of synchronization and
+behavior below are meant to be definitive.
+
+It is impossible to redefine a built-in agent.  An attempt
+to do so will raise an exception.  @xref{Summary of Built-in
+Agents}.
+
+@menu
+* Data Types::                  
+* Tree Mappings::               
+* Tree Comparisons::            
+* Arithmetic::                  
+* Arrays::                      
+* Hash Tables::                 
+* Input and Output::            
+* Interaction with UNIX::       
+* Compiling and Loading::       
+* Exceptions::                  
+* Miscellaneous::               
+@end menu
+
+@node Data Types, Tree Mappings,  , Built-in Agents
+@section Data Types
+@cindex data types
+@cindex types, data
+
+@xref{Data} regarding the classification of data into types.
+
+@table @code
+@item data(@var{+Datum})
+@findex data/1
+@emph{synchronization:} Suspends until @var{Datum} is
+constrained.
+
+@emph{behavior:} Succeeds when @var{Datum} is constrained.
+
+@item abstraction(@var{+Datum})
+@findex abstraction/1
+
+@emph{synchronization:} Suspends until @var{Datum} is
+constrained.
+
+@emph{behavior:} Succeeds when @var{Datum} is a abstraction;
+otherwise fails.
+
+@item port(@var{+Datum})
+@findex port/1
+
+@emph{synchronization:} Suspends until @var{Datum} is
+constrained.
+
+@emph{behavior:} Succeeds when @var{Datum} is a port;
+otherwise fails.
+
+@item tree(@var{+Datum})
+@findex tree/1
+
+@emph{synchronization:} Suspends until @var{Datum} is
+constrained.
+
+@emph{behavior:} Succeeds when @var{Datum} is a tree;
+otherwise fails.
+
+@item atom(@var{+Datum})
+@findex atom/1
+@emph{synchronization:} Suspends until @var{Datum} is
+constrained.
+
+@emph{behavior:} Succeeds when @var{Datum} is an atom;
+otherwise fails.
+
+@item integer(@var{+Datum})
+@findex integer/1
+@emph{synchronization:} Suspends until @var{Datum} is
+constrained.
+
+@emph{behavior:} Succeeds when @var{Datum} is an integer;
+otherwise fails.
+
+@item float(@var{+Datum})
+@findex float/1
+@emph{synchronization:} Suspends until @var{Datum} is
+constrained.
+
+@emph{behavior:} Succeeds when @var{Datum} is a float;
+otherwise fails.
+
+@item atomic(@var{+Datum})
+@findex atomic/1
+@emph{synchronization:} Suspends until @var{Datum} is
+constrained.
+
+@emph{behavior:} Succeeds when @var{Datum} is an atomic tree
+(atom, integer, or float); otherwise fails.
+
+@item compound(@var{+Datum})
+@findex compound/1
+@emph{synchronization:} Suspends until @var{Datum} is
+constrained.
+
+@emph{behavior:} Succeeds when @var{Datum} is a compound
+tree; otherwise fails.
+@end table
+
+@node Tree Mappings, Tree Comparisons, Data Types, Built-in Agents
+@section Tree Mappings
+@cindex trees, mappings
+
+There are some ``natural'' mappings among trees, e.g., from
+a compound tree to its arguments.  The following agents
+compute such mappings.
+
+Most Prolog implementations provide some of these mappings
+as ``bidirectional'' predicates such as @code{functor/3},
+@code{'=..'/2}, and @code{length/2}.  The AGENTS library
+package @emph{Prolog} provides agents resembling some of
+these.  See the @emph{AGENTS Library Manual} for specifics.
+@cindex Prolog library
+
+@table @code
+@item arg(@var{+ArgNo}, @var{+Tree}, @var{-Arg})
+@findex arg/3
+@emph{synchronization:} Suspends until @var{ArgNo} and
+@var{Tree} are constrained.
+
+@emph{behavior:} Fails unless @var{ArgNo} is an integer and
+@var{Tree} is a compound tree or if @var{ArgNo} is less than
+one or greater than the arity of @var{Tree}.  Unifies
+@var{Arg} with argument number @var{ArgNo} of @var{Tree}.
+
+@item tree_to_functor(@var{+Tree}, @var{-Name}, @var{-Arity})
+@findex tree_to_functor/3
+@emph{synchronization:} Suspends until @var{Tree} is
+constrained.
+
+@emph{behavior:} Fails unless @var{Tree} is a tree.  Unifies
+@var{Name} with the name and @var{Arity} with the arity of
+the functor of @var{Tree}.
+
+@item functor_to_tree(@var{+Name}, @var{+Arity}, @var{-Tree})
+@findex functor_to_tree/3
+@emph{synchronization:} Suspends until @var{Name} and
+@var{Arity} are constrained.
+
+@emph{behavior:} Fails unless @var{Name} is an atomic tree
+and @var{Arity} is a nonnegative integer.  If @var{Name} is
+not an atom, fails unless @var{Arity} is zero.  Unifies
+@var{Tree} with the least-constrained tree whose functor has
+name @var{Name} and arity @var{Arity}.
+
+@item tree_to_list(@var{+Tree}, @var{-List})
+@findex tree_to_list/2
+@emph{synchronization:} Suspends until @var{Tree} is
+constrained.
+
+@emph{behavior:} Fails unless @var{Tree} is a tree.  Unifies
+@var{List} with a list whose head is the name of the functor
+of @var{Tree} and whose tail is a list of the arguments of
+@var{Tree}.
+
+@item list_to_tree(@var{+List}, @var{-Tree})
+@findex list_to_tree/2
+@emph{synchronization:} Suspends until @var{List} is
+constrained.  If @var{List} is a list, suspends until the
+head of @var{List} is constrained.
+
+@emph{behavior:} Fails unless @var{List} is a nonempty list.
+Fails unless the head is an atomic tree, and if the head is
+not an atom, fails unless the tail is @code{[]}.  Unifies
+@var{Tree} with the tree having the head of @var{List} as
+the name of its functor and the elements of the tail of
+@var{List} as its arguments.
+
+@item list_to_length(@var{+List}, @var{-Length})
+@findex list_to_length/2
+@emph{synchronization:} Suspends until @var{List} is
+constrained.
+
+@emph{behavior:} Fails unless @var{List} is a list.  Unifies
+@var{Length} with the length of @var{List}.
+
+@item length_to_list(@var{+Length}, @var{-List})
+@findex length_to_list/2
+@emph{synchronization:} Suspends until @var{Length} is
+constrained.
+
+@emph{behavior:} Fails unless @var{Length} is a nonnegative
+integer.  Unifies @var{List} with the least-constrained list
+whose length is @var{Length}.
+
+@item atom_char(@var{+CharNo}, @var{+Atom}, @var{-Char})
+@findex atom_char/3
+@cindex atom, character from
+@cindex character, from atom
+@emph{synchronization:} Suspends until @var{CharNo} and
+@var{Atom} are constrained.
+
+@emph{behavior:} Fails unless @var{CharNo} is an integer and
+@var{Atom} is an atom or if @var{CharNo} is less than zero
+or greater than or equal to the length of the print
+representation of @var{Atom}.  Unifies @var{Char} with
+character number @var{CharNo} in the print representation of
+@var{Atom}, where characters are numbered from 0 (not 1).
+
+@item atom_to_chars(@var{+Atom}, @var{-Chars})
+@itemx integer_to_chars(@var{+Integer}, @var{-Chars})
+@itemx float_to_chars(@var{+Float}, @var{-Chars})
+@findex atom_to_chars/2
+@findex integer_to_chars/2
+@findex float_to_chars/2
+@emph{synchronization:} @code{atom_to_chars/2} suspends
+until @var{Atom} is constrained.
+
+@emph{behavior:} Fails unless @var{Atom} is an atom.
+Unifies @var{Chars} with the print represention of
+@var{Atom} (the ``name'' of @var{Atom}).
+
+@code{integer_to_chars/2} and @code{float_to_chars/2} are
+analogues for integers and floats.
+
+@item chars_to_atom(@var{+Chars}, @var{-Atom})
+@itemx chars_to_integer(@var{+Chars}, @var{-Integer})
+@itemx chars_to_float(@var{+Chars}, @var{-Float})
+@findex chars_to_atom/2
+@findex  chars_to_integer/2
+@findex  chars_to_float/2
+@emph{synchronization:} @code{chars_to_atom/2} suspends
+until @var{Chars} is constrained.
+
+@emph{behavior:} Fails unless @var{Chars} is a string.
+Unifies @var{Atom} with the atom whose print representation
+is @var{Chars}.
+
+@code{chars_to_integer/2} and @code{chars_to_float/2} are
+analogues for integers and floats.
+@end table
+
+@node Tree Comparisons, Arithmetic, Tree Mappings, Built-in Agents
+@section Tree Comparisons
+@cindex trees, comparisons
+@cindex comparisons
+@cindex standard order
+
+These agents refer to a @dfn{standard order} of trees:
+
+@itemize @bullet
+@item
+Floats, in numeric order (e.g., -1.0 is before 1.0).
+ 
+@item
+Integers, in numeric order (e.g., -1 is before 1).
+
+@item
+Atoms, in alphabetical (i.e., character code) order.
+
+@item
+Compound trees, ordered first by the arity, then by the name
+of the functor, and then by the arguments (in left-to-right
+order).  Recall that lists are equivalent to compound trees
+with functor @code{'.'/2}.
+@end itemize
+
+@noindent
+For example, here is a list of trees in standard order:
+
+@example
+[-1.0, -9, 1, fie, foe, X = Y, foe(0, 2), fie(1, 1, 1)]
+@end example
+
+Calling a tree comparison agent may be thought of as asking
+whether some ordering constraint holds among the arguments.
+For the sake of efficiency, the ``constraint solver''
+thereby invoked is incomplete for nonground trees.
+Concisely, comparing nonground trees suspends unless the
+ordering can be determined @emph{without reference to
+unconstrained (sub)trees}.  This is what is meant by
+``sufficiently constrained for comparison'' in the
+descriptions of these agents.  For example,
+
+@example
+f(@var{X}) \== g(a)
+@end example
+
+@noindent
+succeeds, because it is unnecessary to examine @var{X} to
+determine the relation.  However,
+
+@example
+f(a,@var{X}) \== f(@var{X},0)
+@end example
+
+@noindent
+suspends, even though it obviously ``should'' succeed,
+because the relation cannot be determined without reference
+to @var{X}.
+
+Note that for integer and float comparisons, there are other
+agents preferable to @code{== /2}, @code{\== /2}, @code{@@<
+/2}, @code{@@> /2}, @code{@@=< /2}, @code{@@>= /2}, and
+@code{compare/3}.  For example,
+
+@example
+1.0 @@< 0
+@end example
+
+@noindent
+succeeds, because floats precede integers in the standard
+order, but
+
+@example
+1.0 < 0
+@end example
+
+@noindent
+fails, because the arithmetic comparison agent @code{< /2}
+refers to numeric order.  @xref{Arithmetic}.
+
+@table @code
+@item @var{+Tree1} == @var{+Tree2}
+@findex == /2, tree equality
+@emph{synchronization:} Suspends until @var{Tree1} and
+@var{Tree2} are sufficiently constrained for comparison.
+
+@emph{behavior:} Succeeds when @var{Tree1} and @var{Tree2}
+are the same tree; otherwise fails.
+
+@item @var{+Tree1} \== @var{+Tree2}
+@findex \== /2, tree disequality
+@emph{synchronization:} Suspends until @var{Tree1} and
+@var{Tree2} are sufficiently constrained for comparison.
+
+@emph{behavior:} Succeeds when @var{Tree1} and @var{Tree2}
+are different trees; otherwise fails.
+
+@item @var{+Tree1} @@< @var{+Tree2}
+@findex @@< /2, tree less than
+@emph{synchronization:} Suspends until @var{Tree1} and
+@var{Tree2} are sufficiently constrained for comparison.
+
+@emph{behavior:} Succeeds when @var{Tree1} and @var{Tree2}
+are trees and @var{Tree1} is less than @var{Tree2} in the
+standard order; otherwise fails.
+
+@item @var{+Tree1} @@> @var{+Tree2}
+@findex @@> /2, tree greater than
+@emph{synchronization:} Suspends until @var{Tree1} and
+@var{Tree2} are sufficiently constrained for comparison.
+
+@emph{behavior:} Succeeds when @var{Tree1} and @var{Tree2}
+are trees and @var{Tree1} is greater than @var{Tree2} in the
+standard order; otherwise fails.
+
+@item @var{+Tree1} @@=< @var{+Tree2}
+@findex @@=< /2, tree less or equal
+@emph{synchronization:} Suspends until @var{Tree1} and
+@var{Tree2} are sufficiently constrained for comparison.
+
+@emph{behavior:} Succeeds when @var{Tree1} and @var{Tree2}
+are trees and @var{Tree1} is less than or equal to
+@var{Tree2} in the standard order; otherwise fails.
+
+@item @var{+Tree1} @@>= @var{+Tree2}
+@findex @@>= /2, tree greater or equal
+@emph{synchronization:} Suspends until @var{Tree1} and
+@var{Tree2} are sufficiently constrained for comparison.
+
+@emph{behavior:} Succeeds when @var{Tree1} and @var{Tree2}
+are trees and @var{Tree1} is greater than or equal to
+@var{Tree2} in the standard order; otherwise fails.
+
+@item compare(@var{-Op}, @var{+Tree1}, @var{+Tree2})
+@findex compare/3
+@emph{synchronization:} Suspends until @var{Tree1} and
+@var{Tree2} are sufficiently constrained for comparison.
+
+@emph{behavior:} Fails unless @var{Tree1} and @var{Tree2}
+are trees.  Unifies @var{Op} with @code{=}, @code{<}, or
+@code{>} according to whether @var{Tree1} is equal to, less
+than, or greater than @var{Tree2} in the standard order.
+
+@item sort(@var{+List1}, @var{-List2})
+@findex sort/2
+@emph{synchronization:} Suspends until @var{List1} is
+constrained.  If @var{List1} is a list, suspends until each
+member is sufficiently constrained for comparison (unless
+there is only one).
+
+@emph{behavior:} Fails unless @var{List1} is a list, where
+each member is a tree.  Sorts the members of @var{List1}
+according to the standard order, discarding duplicates, and
+unifies with @var{List2}.  (The time and space complexity of
+this operation is at worst @var{O(N log N)} where @var{N} is
+the length of @var{List1}.)
+
+Note that in the current implementation, if a member of
+@var{List1} is not a tree, the domain error message mentions
+@code{compare/3} rather than @code{sort/2}.
+@findex compare/3
+
+@item keysort(@var{+List1}, @var{-List2})
+@findex keysort/2
+@emph{synchronization:} Suspends until @var{List1} is
+constrained.  If @var{List1} is a list of
+@var{Key}-@var{Value} pairs, suspends until each @var{Key}
+is sufficiently constrained for comparison (unless there is
+only one).
+
+@emph{behavior:} Fails unless @var{List1} is a list of
+@var{Key}-@var{Value} pairs, where each @var{Key} is a tree.
+Sorts the members of @var{List1} by the @var{Key} trees
+according to the standard order and unifies with
+@var{List2}.  Duplicates are not discarded.  Moreover, the
+relative placement of members of @var{List1} having the same
+@var{Key} tree is preserved.  (The time and space complexity
+of this operation is at worst @var{O(N log N)} where @var{N}
+is the length of @var{List1}.)
+
+Note that in the current implementation, if a @var{Key} in
+@var{List1} is not a tree, the domain error message mentions
+@code{compare/3} rather than @code{keysort/2}.
+@findex compare/3
+@end table
+
+@node Arithmetic, Arrays, Tree Comparisons, Built-in Agents
+@section Arithmetic
+@cindex arithmetic
+
+These agents evaluate trees known as @dfn{arithmetic
+expressions} built from integers, floats, and certain
+functors, listed below.  Integers and floats evaluate to
+themselves, and compound trees evaluate to arithmetic
+functions of their arguments.  Evaluation fails unless the
+tree is a well-formed arithmetic expression.
+@cindex expressions, arithmetic
+
+Evaluation of a compound tree begins with evaluation of its
+arguments, from left to right.  If evaluation of an argument
+suspends, the whole evaluation suspends - it does @emph{not}
+continue with the next argument to the right, if any.  Even
+if an argument to the right would make it fail, the whole
+evaluation suspends.  Naturally, if evaluation of an
+argument fails, the whole evaluation fails.
+
+Only certain functors are recognized in arithmetic
+expressions.  These are listed below, along with
+descriptions of the arithmetic functions they represent.
+@var{X} and @var{Y} represent arithmetic expressions.
+Unless otherwise stated, these may evaluate to any numbers,
+and the value of the whole arithmetic expression is a float
+if any of its arguments evaluates to a float, otherwise an
+integer.
+@cindex functions, arithmetic
+
+@table @code
+@item +@var{X}
+@findex + /1, identity (arithmetic function)
+The value is @var{X}.
+
+@item -@var{X}
+@findex - /1, negation (arithmetic function)
+The value is the negative of @var{X}.
+
+@item @var{X}+@var{Y}
+@findex + /2, addition (arithmetic function)
+The value is the sum of @var{X} and @var{Y}.
+
+@item @var{X}-@var{Y}
+@findex - /2, subtraction (arithmetic function)
+The value is the difference of @var{X} and @var{Y}.
+
+@item @var{X}*@var{Y}
+@findex * /2, multiplication (arithmetic function)
+The value is the product of @var{X} and @var{Y}.
+
+@item @var{X}/@var{Y}
+@findex / /2, float division (arithmetic function)
+The value is the @emph{float} quotient of @var{X} and
+@var{Y}.
+
+@item @var{X}//@var{Y}
+@findex // /2, integer division (arithmetic function)
+The value is the @emph{integer} quotient of @var{X} and
+@var{Y}.
+
+@item @var{X} mod @var{Y}
+@findex mod/2, integer remainder (arithmetic function)
+The value is the @emph{integer} remainder after dividing
+@var{X} by @var{Y}, i.e.,
+@code{integer(@var{X})-integer(@var{Y})*(@var{X}//@var{Y})}.
+
+@item @var{X} min @var{Y}
+@findex min/2 (arithmetic function)
+The value is the minimum of @var{X} and @var{Y}.
+
+@item @var{X} max @var{Y}
+@findex max/2 (arithmetic function)
+The value is the maximum of @var{X} and @var{Y}.
+
+@item integer(@var{X})
+@findex integer/1 (arithmetic function)
+The value is the closest integer between @var{X} and 0, if
+@var{X} is a float, otherwise @var{X} itself.
+
+@item float(@var{X})
+@findex float/1 (arithmetic function)
+The value is the float equivalent of @var{X}, if @var{X} is
+an integer, otherwise @var{X} itself.
+
+@item @var{X}/\@var{Y}
+@findex /\ /2, bitwise conjunction (arithmetic function)
+The value is the bitwise conjunction of the integers @var{X}
+and @var{Y}.
+
+@item @var{X}\/@var{Y}
+@findex \/ /2, bitwise disjunction (arithmetic function)
+The value is the bitwise disjunction of the integers @var{X}
+and @var{Y}.
+
+@item @var{X}#@var{Y}
+@findex # /2, bitwise exclusive or (arithmetic function)
+The value is the bitwise exclusive or of the integers
+@var{X} and @var{Y}.
+
+@item \(@var{X})
+@findex \ /1, bitwise negation (arithmetic function)
+The value is the bitwise negation of the integer @var{X}.
+
+@item @var{X}<<@var{Y}
+@findex << /2, left shift (arithmetic function)
+The value is the integer @var{X} shifted left by @var{Y}
+places.
+
+@item @var{X}>>@var{Y}
+@findex >> /2, right shift (arithmetic function)
+The value is the integer @var{X} shifted right by @var{Y}
+places.
+
+@item acos(@var{X})
+@findex acos/1 (arithmetic function)
+@itemx acosh(@var{X})
+@findex acosh/1 (arithmetic function)
+@itemx asin(@var{X})
+@findex asin/1 (arithmetic function)
+@itemx asinh(@var{X})
+@findex asinh/1 (arithmetic function)
+@itemx atan(@var{X})
+@findex atan/1 (arithmetic function)
+@itemx atan2(@var{X},@var{Y})
+@findex atan2/2 (arithmetic function)
+@itemx atanh(@var{X})
+@findex atanh/1 (arithmetic function)
+@itemx ceil(@var{X})
+@findex ceil/1 (arithmetic function)
+@itemx cos(@var{X})
+@findex cos/1 (arithmetic function)
+@itemx cosh(@var{X})
+@findex cosh/1 (arithmetic function)
+@itemx exp(@var{X})
+@findex exp/1 (arithmetic function)
+@itemx fabs(@var{X})
+@findex fabs/1 (arithmetic function)
+@itemx floor(@var{X})
+@findex floor/1 (arithmetic function)
+@itemx log(@var{X})
+@findex log/1 (arithmetic function)
+@itemx log10(@var{X})
+@findex log10/1 (arithmetic function)
+@itemx pow(@var{X},@var{Y})
+@findex pow/2 (arithmetic function)
+@itemx sin(@var{X})
+@findex sin/1 (arithmetic function)
+@itemx sinh(@var{X})
+@findex sinh/1 (arithmetic function)
+@itemx sqrt(@var{X})
+@findex sqrt/1 (arithmetic function)
+@itemx tan(@var{X})
+@findex tan/1 (arithmetic function)
+@itemx tanh(@var{X})
+@findex tanh/1 (arithmetic function)
+Arithmetic operations from the UNIX math library.  See the
+UNIX manual pages.
+
+Annoyingly, some of these operations are unavailable on some
+types of host.  See the README file distributed with AGENTS
+for details.  Notes regarding unavailable operations are
+printed during configuration of AGENTS, and calls to them
+raise exceptions.
+@end table
+
+Arithmetic expressions are trees.  To evaluate one, you must
+pass it to one of the agents listed below.
+
+@table @code
+@item @var{Z} is @var{X}
+@findex is/2
+@emph{synchronization:} Suspends if evaluation of @var{X}
+suspends.
+
+@emph{behavior:} Evaluates @var{X}.  If this evaluation
+succeeds, unifies the result with @var{Z}; otherwise fails.
+
+@item @var{X} =:= @var{Y}
+@findex =:= /2, arithmetic equal
+@emph{synchronization:} Suspends if evaluation of @var{X} or
+@var{Y} suspends.
+
+@emph{behavior:} Evaluates @var{X} and @var{Y}.  If these
+evaluations succeed, succeeds if the results are numerically
+equal; otherwise fails.
+
+@item @var{X} =\= @var{Y}
+@findex =\= /2, arithmetic not equal
+@emph{synchronization:} Suspends if evaluation of @var{X} or
+@var{Y} suspends.
+
+@emph{behavior:} Evaluates @var{X} and @var{Y}.  If these
+evaluations succeed, succeeds if the results are numerically
+not equal; otherwise fails.
+
+@item @var{X} < @var{Y}
+@findex < /2, arithmetic less than
+@emph{synchronization:} Suspends if evaluation of @var{X} or
+@var{Y} suspends.
+
+@emph{behavior:} Evaluates @var{X} and @var{Y}.  If these
+evaluations succeed, succeeds if the result for @var{X} is
+numerically less than the result for @var{Y}; otherwise
+fails.
+
+@item @var{X} > @var{Y}
+@findex > /2, arithmetic greater than
+@emph{synchronization:} Suspends if evaluation of @var{X} or
+@var{Y} suspends.
+
+@emph{behavior:} Evaluates @var{X} and @var{Y}.  If these
+evaluations succeed, succeeds if the result for @var{X} is
+numerically greater than the result for @var{Y}; otherwise
+fails.
+
+@item @var{X} =< @var{Y}
+@findex =< /2, arithmetic less or equal
+@emph{synchronization:} Suspends if evaluation of @var{X} or
+@var{Y} suspends.
+
+@emph{behavior:} Evaluates @var{X} and @var{Y}.  If these
+evaluations succeed, succeeds if the result for @var{X} is
+numerically less than or equal to the result for @var{Y};
+otherwise fails.
+
+@item @var{X} >= @var{Y}
+@findex >= /2, arithmetic greater or equal
+@emph{synchronization:} Suspends if evaluation of @var{X} or
+@var{Y} suspends.
+
+@emph{behavior:} Evaluates @var{X} and @var{Y}.  If these
+evaluations succeed, succeeds if the result for @var{X} is
+numerically greater than or equal to the result for @var{Y};
+otherwise fails.
+@end table
+
+There are also the following agents, which may be compiled
+more efficiently than @code{is/2} etc. in a future version
+of AGENTS.  Their input arguments should be numbers,
+@emph{not} general arithmetic expressions.  With this
+understanding, their synchronization and behavior may be
+understood by analogy with @code{is/2} etc.  For example,
+
+@example
+neg(@var{X}, @var{Z})
+@end example
+
+@noindent
+is identical to
+@example
+@var{Z} is -@var{X}
+@end example
+
+@noindent
+assuming @var{X} is a number.  Similarly,
+
+@example
+equal(@var{X}, @var{Y})
+@end example
+
+@noindent
+is identical to
+@example
+@var{X} =:= @var{Y}
+@end example
+
+@noindent
+assuming @var{X} and @var{Y} are numbers.
+
+@table @code
+@item plus(@var{+X}, @var{-Y})
+@findex plus/2
+@var{Z} is @var{X}.
+
+@item neg(@var{+X}, @var{-Z})
+@findex neg/2
+@var{Z} is the negative of @var{X}.
+
+@item add(@var{+X}, @var{+Y}, @var{-Z})
+@findex add/3
+@var{Z} is the sum of @var{X} and @var{Y}.
+
+@item inc(@var{+X}, @var{-Z})
+@findex inc/2
+@var{Z} is the sum of @var{X} and @code{1}.
+
+@item sub(@var{+X}, @var{+Y}, @var{-Z})
+@findex sub/3
+@var{Z} is the difference of @var{X} and @var{Y}.
+
+@item dec(@var{+X}, @var{-Z})
+@findex dec/2
+@var{Z} is the difference of @var{X} and @code{1}.
+
+@item mul(@var{+X}, @var{+Y}, @var{-Z})
+@findex mul/3
+@var{Z} is the product of @var{X} and @var{Y}.
+
+@item div(@var{+X}, @var{+Y}, @var{-Z})
+@findex div/3
+@var{Z} is the @emph{float} quotient of @var{X} and @var{Y}.
+
+@item idiv(@var{+X}, @var{+Y}, @var{-Z})
+@findex idiv/3
+@var{Z} is the @emph{integer} quotient of @var{X} and
+@var{Y}.
+
+@item mod(@var{+X}, @var{+Y}, @var{-Z})
+@findex mod/3
+@var{Z} is the @emph{integer} remainder after dividing
+@var{X} by @var{Y}.
+
+@item min(@var{+X}, @var{+Y}, @var{-Z})
+@findex min/3
+@var{Z} is the minimum of @var{X} and @var{Y}.
+
+@item max(@var{+X}, @var{+Y}, @var{-Z})
+@findex max/3
+@var{Z} is the maximum of @var{X} and @var{Y}.
+
+@item integer(@var{+X}, @var{-Y})
+@findex integer/2
+@var{Y} is the closest integer between @var{X} and 0, if
+@var{X} is a float, otherwise @var{X} itself.
+
+@item float(@var{+X}, @var{-Y})
+@findex float/2
+@var{Y} is the float equivalent of @var{X}, if @var{X} is an
+integer, otherwise @var{X} itself.
+
+@item and(@var{+X}, @var{+Y}, @var{-Z})
+@findex and/3
+@var{Z} is the bitwise conjunction of the integers @var{X}
+and @var{Y}.
+
+@item or(@var{+X}, @var{+Y}, @var{-Z})
+@findex or/3
+@var{Z} is the bitwise disjunction of the integers @var{X}
+and @var{Y}.
+
+@item xor(@var{+X}, @var{Y}, @var{-Z})
+@findex xor/3
+@var{Z} is the bitwise exclusive or of the integers @var{X}
+and @var{Y}.
+
+@item com(@var{+X}, @var{-Z})
+@findex com/2
+@var{Z} is the bitwise negation of the integer @var{X}.
+
+@item shl(@var{+X}, @var{Y}, @var{-Z})
+@findex shl/3
+@var{Z} is the integer @var{X} shifted left by @var{Y}
+places.
+
+@item shr(@var{+X}, @var{Y}, @var{-Z})
+@findex shr/3
+@var{Z} is the integer @var{X} shifted right by @var{Y}
+places.
+
+@item acos(@var{+X}, @var{-Y})
+@findex acos/2
+@itemx acosh(@var{+X}, @var{-Y})
+@findex acosh/2
+@itemx asin(@var{+X}, @var{-Y})
+@findex asin/2
+@itemx asinh(@var{+X}, @var{-Y})
+@findex asinh/2
+@itemx atan(@var{+X}, @var{-Y})
+@findex atan/2
+@itemx atan2(@var{+X}, @var{+Y}, @var{-Z})
+@findex atan2/3
+@itemx atanh(@var{+X}, @var{-Y})
+@findex atanh/2
+@itemx ceil(@var{+X}, @var{-Y})
+@findex ceil/2
+@itemx cos(@var{+X}, @var{-Y})
+@findex cos/2
+@itemx cosh(@var{+X}, @var{-Y})
+@findex cosh/2
+@itemx exp(@var{+X}, @var{-Y})
+@findex exp/2
+@itemx fabs(@var{+X}, @var{-Y})
+@findex fabs/2
+@itemx floor(@var{+X}, @var{-Y})
+@findex floor/2
+@itemx log(@var{+X}, @var{-Y})
+@findex log/2
+@itemx log10(@var{+X}, @var{-Y})
+@findex log10/2
+@itemx pow(@var{+X}, @var{+Y}, @var{-Z})
+@findex pow/3
+@itemx sin(@var{+X}, @var{-Y})
+@findex sin/2
+@itemx sinh(@var{+X}, @var{-Y})
+@findex sinh/2
+@itemx sqrt(@var{+X}, @var{-Y})
+@findex sqrt/2
+@itemx tan(@var{+X}, @var{-Y})
+@findex tan/2
+@itemx tanh(@var{+X}, @var{-Y})
+@findex tanh/2
+Arithmetic operations from the UNIX math library.  See the
+UNIX manual pages.
+
+Annoyingly, some of these operations are unavailable on some
+types of host.  See the README file distributed with AGENTS
+for details.  Notes regarding unavailable operations are
+printed during configuration of AGENTS, and calls to them
+raise exceptions.
+@end table
+
+@table @code
+@item equal(@var{+X}, @var{+Y})
+@findex equal/2
+@var{X} and @var{Y} are numerically equal.
+
+@item not_equal(@var{+X}, @var{+Y})
+@findex not_equal/2
+@var{X} and @var{Y} are numerically not equal.
+
+@item less(@var{+X}, @var{+Y})
+@findex less/2
+@var{X} is numerically less than @var{Y}.
+
+@item greater(@var{+X}, @var{+Y})
+@findex greater/2
+@var{X} is numerically greater than @var{Y}.
+
+@item not_greater(@var{+X}, @var{+Y})
+@findex not_greater/2
+@var{X} is numerically less than or equal to @var{Y}.
+
+@item not_less(@var{+X}, @var{+Y})
+@findex not_less/2
+@var{X} is numerically greater than or equal to @var{Y}.
+@end table
+
+@node Arrays, Hash Tables, Arithmetic, Built-in Agents
+@section Arrays
+@cindex arrays
+
+In AGENTS, arrays are ``port objects'', i.e., there are
+ports to which messages can be sent to obtain array
+operations - the streams associated with these ports are
+consumed by agents maintaining states supporting these
+operations efficiently.  If you are not familiar with ports,
+please see @emph{An Introduction to AKL}.  In the following,
+a port referring to an array will be identified with the
+array.
+
+The following agents create arrays.
+
+@table @code
+@item new_array(@var{+Size}, @var{-Array})
+@itemx new_array(@var{+Size}, @var{+Start}, @var{-Array})
+@findex new_array/[2-3]
+@cindex arrays, creating
+
+@emph{synchronization:} Suspends until @var{Size} and
+@var{Start} are constrained.
+
+@emph{behavior:} Fails unless @var{Size} is a positive
+integer and @var{Start} is an integer.  Unifies @var{Array}
+with a new array having size @var{Size} and starting index
+@var{Start} - if @var{Start} is omitted, the starting index
+is @code{0}.  The indices of the array run from the starting
+index to the starting index plus the size minus one.  The
+elements of the array are initialized to @code{[]}.
+
+Some examples:
+
+@example
+| ?- @emph{new_array(5, A0),<return>
+new_array(5, 1, A1),<return>
+new_array(5, -5, A2).<return>}
+
+A0 = _0@{array[0..4]: [],[],[],[],[]@},
+A1 = _1@{array[1..5]: [],[],[],[],[]@},
+A2 = _2@{array[-5..-1]: [],[],[],[],[]@} ?
+@end example
+@end table
+
+The following messages can be sent to an array.
+
+@table @code
+@item typeof(@var{-Type})
+@findex typeof/1 (array message)
+@emph{synchronization:} Never suspends.
+
+@emph{behavior:} Unifies @var{Type} with @code{array}.
+
+@item sizeof(@var{-Size})
+@findex sizeof/1 (array message)
+@emph{synchronization:} Never suspends.
+
+@emph{behavior:} Unifies @var{Size} with the size of the
+array.
+
+@item get(@var{+Index}, @var{-Value})
+@findex get/2 (array message)
+@emph{synchronization:} Suspends until @var{Index} is
+constrained.
+
+@emph{behavior:} Fails unless @var{Index} is an integer
+within the index range of the array.  Unifies @var{Value}
+with value of the element of the array whose index is
+@var{Index}.
+
+@item set(@var{+Index}, @var{+Value})
+@itemx set(@var{+Index}, @var{-OldValue}, @var{+Value})
+@findex set/[2,3] (array message)
+@emph{synchronization:} Suspends until @var{Index} is
+constrained.
+
+@emph{behavior:} Fails unless @var{Index} is an integer
+within the index range of the array.  Assigns @var{Value} to
+the element of the array whose index is @var{Index}.
+@code{set/3} unifies @var{OldValue} with the old value.
+
+@item subarray(@var{+Index}, @var{+Size}, @var{-Subarray})
+@itemx subarray(@var{+Index}, @var{+Size}, @var{+Start}, @var{-Subarray})
+@itemx subarray(@var{+Index}, @var{+Size}, @var{+Start}, @var{+Scale}, @var{-Subarray})
+@findex subarray/[3-5] (array message)
+@emph{synchronization:} Suspends until @var{Index},
+@var{Size}, @var{Start}, and @var{Scale} are constrained.
+
+@emph{behavior:} Fails unless @var{Index} is an integer
+within the index range of the original array, @var{Size} is
+a positive integer, @var{Start} is an integer, and
+@var{Scale} is a nonzero integer.  Unifies @var{Subarray}
+with a subarray of the original array having size @var{Size}
+and starting index @var{Start} - if @var{Start} is omitted,
+the starting index is that of the original array.  The
+indices of the array run from the starting index to the
+starting index plus the size minus one.  Element @var{Start}
+of the subarray is element @var{Index} of the original
+array, element @var{Start}+1 of the subarray is element
+@var{Index}+@var{Scale} of the original array, element
+@var{Start}+2 of the subarray is element
+@var{Index}+(@var{Scale}*2) of the original array, etc. - if
+@var{Scale} is omitted, the scale is @code{1}.  Subarray
+creation fails if any subarray index would be out of bounds
+with respect to the original array.
+
+Some examples:
+
+@example
+| ?- @emph{new_array(10, A),<return>
+subarray(0, 5, 0, 2, SA)@@A,<return>
+set(2, foo)@@SA.<return>}
+
+A = _0@{array[0..9]: [],[],[],[],foo,[],[],[],[],[]@},
+SA = _1@{array[0..4]: [],[],foo,[],[]@} ? @emph{<return>}
+
+yes 
+| ?- @emph{new_array(7, 1, A),<return>
+subarray(7, 4, 1, -2, SA)@@A,<return>
+set(1, foo)@@SA.<return>}
+
+A = _0@{array[1..7]: [],[],[],[],[],[],foo@},
+SA = _1@{array[1..4]: foo,[],[],[]@} ? @emph{<return>}
+
+yes 
+| ?- @emph{new_array(12, A),<return>
+subarray(3, 2, 1, 3, SA)@@A,<return>
+set(6, foo)@@A.<return>}
+
+A = _0@{array[0..11]: [],[],[],[],[],[],foo,[],[],[],[],[]@},
+SA = _1@{array[1..2]: [],foo@} ? @emph{<return>}
+
+yes 
+| ?-
+@end example
+@end table
+
+@node Hash Tables, Input and Output, Arrays, Built-in Agents
+@section Hash Tables
+@cindex hash tables
+
+In AGENTS, hash tables are ``port objects'', i.e., there are
+ports to which messages can be sent to obtain hash table
+operations - the streams associated with these ports are
+consumed by agents maintaining states supporting these
+operations efficiently.  If you are not familiar with ports,
+please see @emph{An Introduction to AKL}.  In the following,
+a port referring to a hash table will be identified with the
+hash table.
+
+The following agents create hash tables.
+
+@table @code
+@item new_hash_table(@var{-HashTable})
+@itemx new_hash_table(@var{+Size}, @var{-HashTable})
+@findex new_hash_table/[1,2]
+@cindex hash tables, creating
+
+@emph{synchronization:} Suspends until @var{Size} is
+constrained.
+
+@emph{behavior:} Fails unless @var{Size} is a positive
+integer.  Unifies @var{HashTable} with a new hash table
+having space for @var{Size} elements initially; the hash
+table automatically expands to accomodate further elements.
+@end table
+
+A hash table key must be constrained to a @emph{ground}
+tree.  This is what is meant by ``sufficiently constrained''
+in the descriptions of hash table messages.  Each key is
+associated with a unique value, which may be any datum.
+
+The following messages can be sent to a hash table.
+
+@table @code
+@item typeof(@var{-Type})
+@findex typeof/1 (hash table message)
+@emph{synchronization:} Never suspends.
+
+@emph{behavior:} Unifies @var{Type} with @code{hash_table}.
+
+@item sizeof(@var{-Size})
+@findex sizeof/1 (hash table message)
+@emph{synchronization:} Never suspends.
+
+@emph{behavior:} Unifies @var{Size} with the size of the
+hash table.
+
+@item indomain(@var{+Key}, @var{-YesOrNo})
+@findex indomain/2 (hash table message)
+@emph{synchronization:} Suspends until @var{Key} is
+sufficiently constrained.
+
+@emph{behavior:} Fails unless @var{Key} is a tree.  Unifies
+@var{YesOrNo} with @code{yes} or @code{no}, depending on
+whether the hash table associates a value with the key
+@var{Key}.
+
+@item get(@var{+Key}, @var{-Value})
+@findex get/2 (hash table message)
+@emph{synchronization:} Suspends until @var{Key} is
+sufficiently constrained.
+
+@emph{behavior:} Fails unless @var{Key} is a tree.  If the
+hash table associates a value with the key @var{Key},
+unifies @var{Value} with it, else fails.
+
+@item set(@var{+Key}, @var{+Value})
+@itemx set(@var{+Key}, @var{-OldValue}, @var{+Value})
+@findex set/[2,3] (hash table message)
+@emph{synchronization:} Suspends until @var{Key} is
+sufficiently constrained.
+
+@emph{behavior:} Fails unless @var{Key} is a tree.  Causes
+the hash table to associate the value @var{Value} with the
+key @var{Key}.  If there is an old value, @code{set/3}
+unifies @var{OldValue} with it, else fails.
+
+@item delete(@var{+Key})
+@itemx delete(@var{+Key}, @var{-OldValue})
+@findex delete/[1,2] (hash table message)
+@emph{synchronization:} Suspends until @var{Key} is
+sufficiently constrained.
+
+@emph{behavior:} Fails unless @var{Key} is a tree. If the
+hash table associates a value with the key @var{Key}, causes
+the hash table to do so no longer, else fails.
+@code{delete/2} unifies @var{OldValue} with the old value.
+
+Note that in the current implementation, the memory occupied
+by the value is not freed, merely marked for possible reuse;
+this is a potential memory leak.
+
+@item  attributes(@var{-Attributes})
+@itemx domain(@var{-Domain})
+@itemx range(@var{-Range})
+@findex attribute/1 (hash table message)
+@findex domain/1 (hash table message)
+@findex range/1 (hash table message)
+@emph{synchronization:} Never suspends.
+
+@emph{behavior:} Unifies @var{Attributes}, @var{Domain}, or
+@var{Range} with the attributes, domain, or range,
+respectively, of the hash table; @var{Attributes} is a list
+of all key-value pairs @code{(@var{Key},@var{Value})},
+@var{Domain} is a list of all keys, and @var{Range} is a
+list of all values.
+@end table
+
+@node Input and Output, Interaction with UNIX, Hash Tables, Built-in Agents
+@section Input and Output
+@cindex input
+@cindex output
+@cindex I/O
+
+@menu
+* I/O Streams::                 
+* Data I/O::                    
+@end menu
+
+@node I/O Streams, Data I/O,  , Input and Output
+@subsection I/O Streams
+@cindex I/O streams
+@cindex streams, I/O
+
+In AGENTS, ports play much the same role for input and
+output as ``streams'' in some other systems, e.g., most
+Prolog implementations.  A port can be associated with a
+file or terminal, and messages can be sent to the port to
+obtain input or output operations.  The file or terminal is
+thus a ``port object''.  If you are not familiar with ports,
+please see @emph{An Introduction to AKL}.  In the following,
+a port associated with a file or terminal will be referred
+to as a stream.  Do not confuse such a stream, which is a
+port, with the list of messages that have been sent to a
+port, which is also known as a stream in some contexts.
+
+Three streams are available when AGENTS starts, associated
+with the UNIX standard input, output, and error streams.
+Additional streams can be created using @code{fopen/[3,4]}.
+
+The following agents pertain to streams.
+
+@table @code
+@item stdin(@var{-Stream})
+@item stdout(@var{-Stream})
+@item stderr(@var{-Stream})
+@findex stdin/1
+@findex stdout/1
+@findex stderr/1
+@emph{synchronization:} Never suspends.
+
+@emph{behavior:} Unifies @var{Stream} with a stream
+associated with the UNIX standard input, output, or error
+stream.
+
+@item fopen(@var{+File}, @var{+Type}, @var{-Stream})
+@item fopen(@var{+File}, @var{+Type}, @var{-Stream}, @var{-Result})
+@findex fopen/[3,4]
+@cindex opening files
+@cindex files, opening
+@emph{synchronization:} Suspends until @var{File} and
+@var{Type} are constrained.
+
+@emph{behavior:} Fails unless @var{File} is an atom, whose
+print representation should be a valid file name, or an
+integer, which should be a valid file descriptor.  Fails
+unless @var{Type} is an atom, whose print representation
+should be a valid access type.  These agents are interfaces
+to the UNIX standard I/O library functions @code{fopen()}
+and @code{fdopen()}, so see the UNIX manual pages for
+information about file names, file descriptors, and access
+types.  Executes @code{fopen()} or @code{fdopen()} and
+unifies @var{Stream} with a stream associated with the
+resulting UNIX stream.  If @code{fopen()} or @code{fdopen()}
+fails, @code{fopen/3} raises an exception, whereas
+@code{fopen/4} unifies @var{Result} with
+@code{exception(errno(@var{N}))}, where @var{N} is as
+specified in the UNIX man pages; if all is well,
+@code{fopen/4} unifies @var{Result} with @code{true}.
+@end table
+
+The following messages can be sent to a stream.  Except for
+@code{typeof/1}, which is generic to ``port objects'', they
+correspond to the UNIX standard I/O library functions having
+their names, apart from @code{putd/[1,2]},
+@code{putf/[1,2]}, @code{puts/[1,2]}, and
+@code{putsq/[2,3]}, which are simple extensions of
+@code{putc/[1,2]}.  If the UNIX standard I/O library
+function fails, the message without @var{Result} raises an
+exception, whereas the message with @var{Result} unifies it
+with @code{exception(errno(@var{N}))}, where @var{N} is as
+specified in the UNIX man pages; if all is well, the message
+with @var{Result} unifies it with @code{true}.
+
+@table @code
+@item typeof(@var{-Type})
+@findex typeof/1 (I/O stream message)
+@emph{synchronization:} Never suspends.
+
+@emph{behavior:} Unifies @var{Type} with @code{stream}.
+
+@item fclose
+@itemx fclose(@var{-Result})
+@findex fclose/[0,1] (I/O stream message)
+@emph{synchronization:} Never suspends.
+
+@emph{behavior:} Closes the stream.  Note that a stream to
+which there is no reference will be closed automatically at
+some time.
+
+@item fflush
+@itemx fflush(@var{-Result})
+@findex fflush/[0,1] (I/O stream message)
+@emph{synchronization:} Never suspends.
+
+@emph{behavior:} Flushes any internally buffered characters
+on the stream, which should be an output stream.
+
+@item getc(@var{-Char})
+@itemx getc(@var{-Char}, @var{-Result})
+@findex getc/[1,2] (I/O stream message)
+@emph{synchronization:} Never suspends.
+
+@emph{behavior:} Reads a character code from the stream,
+which should be an input stream, and unifies it with
+@var{Char}.  If EOF is encountered, unifies @var{Char} with
+@code{-1}, and any subsequent attempt to read from the
+stream fails, unless the stream is associated with a
+terminal.
+
+@item putc(@var{+Char})
+@itemx putc(@var{+Char}, @var{-Result})
+@findex putc/[1,2] (I/O stream message)
+@emph{synchronization:} Suspends until @var{Char} is
+constrained.
+
+@emph{behavior:} Fails unless @var{Char} is a character
+code.  Writes @var{Char} to the stream, which should be an
+output stream.
+
+@item putd(@var{+Integer})
+@itemx putd(@var{+Integer}, @var{-Result})
+@findex putd/[1,2] (I/O stream message)
+@emph{synchronization:} Suspends until @var{Integer} is
+constrained.
+
+@emph{behavior:} Fails unless @var{Integer} is an integer.
+Writes @var{Integer} to the stream, which should be an
+output stream.
+
+@item putf(@var{+Float})
+@itemx putf(@var{+Float}, @var{-Result})
+@findex putf/[1,2] (I/O stream message)
+@emph{synchronization:} Suspends until @var{Float} is
+constrained.
+
+@emph{behavior:} Fails unless @var{Float} is a float.
+Writes @var{Float} to the stream, which should be an output
+stream.
+
+@item puts(@var{+Atom})
+@itemx puts(@var{+Atom}, @var{-Result})
+@findex puts/[1,2] (I/O stream message)
+@emph{synchronization:} Suspends until @var{Atom} is
+constrained.
+
+@emph{behavior:} Fails unless @var{Atom} is an atom.  Writes
+the print representation of @var{Atom} to the stream, which
+should be an output stream.
+
+@item putsq(@var{+Atom}, @var{+QuoteChar})
+@itemx putsq(@var{+Atom}, @var{+QuoteChar}, @var{-Result})
+@findex putsq/[2,3] (I/O stream message)
+@emph{synchronization:} Suspends until @var{Atom} and
+@var{QuoteChar} are constrained.
+
+@emph{behavior:} Fails unless @var{Atom} is an atom and
+@var{QuoteChar} is a character code.  Writes @var{QuoteChar}
+followed by the print representation of @var{Atom} followed
+by @var{QuoteChar} to the stream, which should be an output
+stream.  If the print representation contains
+@var{QuoteChar}, the character is doubled in the output.
+@end table
+
+These are messages, @emph{not} agents.  However, using the
+accumulator syntax, you can indicate the sending of a
+message to a stream in a style resembling the calling of an
+agent.  @xref{Programs}.
+
+Bear in mind that messages sent to a port appear in the list
+associated with the port in arbitrary order.  Because order
+is usually important in I/O, you will usually want to send
+messages to streams using ``chains'' of @code{send/3}
+constraints.  For example:
+
+@example
+| ?- @emph{stdout(@var{S0}),<return>
+send(putc(0'f), @var{S0}, @var{S1}),<return>
+send(putc(0'o), @var{S1}, @var{S2}),<return>
+send(putc(0'o), @var{S2}, @var{_}).<return>}
+foo
+S0 = _0@{stream: stdout@},
+S1 = _0@{stream: stdout@},
+S2 = _0@{stream: stdout@} ?
+@end example
+
+@noindent
+Use of @code{send/3} here assures the result @code{foo}
+instead of @code{ofo} or @code{oof}, which would (in
+principle, if not in practice) be possibilities if
+@code{send/2} with the same stream were used for each
+character.  Using the accumulator syntax, you can indicate
+such ``chains'' easily.  @xref{Programs}.
+
+@node Data I/O,  , I/O Streams, Input and Output
+@subsection Data I/O
+@cindex I/O, data
+@cindex data, I/O
+
+Note that these agents, particularly @code{read/[1-4]} and
+@code{meta_read/[1-4]}, may well be changed or replaced in
+future versions of AGENTS.
+
+These agents read arbitrary trees and write arbitrary data.
+Moreover, they read and write variables.  For example:
+
+@example
+| ?- @emph{stdin(P), read(X, P, _).<return>
+Y.<return>}
+
+P = _0@{stream: stdin@},
+X = instance(_1) ? 
+@end example
+
+@noindent
+Similarly:
+
+@example
+| ?- @emph{stdout(P), write(X, P, _), X = foo.<return>}
+_0
+P = _1@{stream: stdout@},
+X = foo ? 
+@end example
+
+@noindent
+Note that the semantics of AKL do not specify whether the
+@code{write/3} call should be executed before or after the
+binding of @code{@var{X}}.  Thus, the fact that @code{_0} is
+written instead of @code{foo} here is an artifact of the
+implementation upon which you should @emph{not} depend.
+
+It is impossible to read abstractions, which are created
+exclusively by compilation, or ports, which are created by
+@code{open_port} constraints and various built-in agents.
+It @emph{is} possible to write them; the representation of
+an abstraction thereby obtained is unlikely to be useful,
+but writing ``port objects'' can be informative.
+
+<<<Discussion of notation for cyclic trees.>>>
+
+For convenience, especially at the top level, the current
+implementation offers ``implicit-stream'' versions of these
+agents.  Lacking stream arguments, they read and write the
+standard input and output streams.  In principle, the
+relative order of execution of calls to these versions is
+undefined.  In practice, they execute ``left to right'', but
+this is an artifact of the current implementation.
+@emph{Avoid writing programs that depend on this.}  It is
+possible that future versions of AGENTS will not preserve
+it.
+
+@table @code
+@item read(@var{-Tree})
+@itemx read(@var{-Tree}, @var{-Result})
+@itemx read(@var{-Tree}, @var{+Stream}, @var{-Stream})
+@itemx read(@var{-Tree}, @var{-Result}, @var{+Stream}, @var{-Stream})
+@findex read/[1-4]
+@emph{synchronization:} Suspends until @var{Stream} is
+constrained.
+
+@emph{behavior:} Reads a tree, terminated by a full-stop
+(i.e., a @kbd{.} followed by a space or a control
+character), from @var{Stream}, which should be an input
+stream, and unifies it with @var{Tree}.  If EOF is
+encountered, unifies @var{Tree} with @code{end_of_file}, and
+any subsequent attempt to read from @var{Stream} fails,
+unless @var{Stream} is associated with a terminal.  If the
+characters prior to the full-stop do not represent a tree,
+@code{read/[1,3]} raises a syntax error, whereas
+@code{read/[2,4]} unifies @var{Result} with
+@code{exception(syntax_error(@var{Tokens}))}, where
+@var{Tokens} is the list of tokens read; if all is well,
+@code{read/[2,4]} unifies @var{Result} with @code{true}.
+
+@item meta_read(@var{-MetaTree})
+@itemx meta_read(@var{-MetaTree}, @var{-Result})
+@itemx meta_read(@var{-MetaTree}, @var{+Stream}, @var{-Stream})
+@itemx meta_read(@var{-MetaTree}, @var{-Result}, @var{+Stream}, @var{-Stream})
+@findex meta_read/[1-4]
+@emph{synchronization:} Suspends until @var{Stream} is
+constrained.
+
+@emph{behavior:} Reads a tree, terminated by a full-stop
+(i.e., a @kbd{.} followed by a space or a control
+character), from @var{Stream}, which should be an input
+stream, and unifies a meta-level representation of it with
+@var{MetaTree}.  If EOF is encountered, unifies
+@var{MetaTree} with @code{end_of_file}, and any subsequent
+attempt to read from @var{Stream} fails, unless @var{Stream}
+is associated with a terminal.  If the characters prior to
+the full-stop do not represent a tree,
+@code{meta_read/[1,3]} raises a syntax error, whereas
+@code{meta_read/[2,4]} unifies @var{Result} with
+@code{exception(syntax_error(@var{Tokens}))}, where
+@var{Tokens} is the list of tokens read; if all is well,
+@code{meta_read/[2,4]} unifies @var{Result} with
+@code{true}.
+
+The meta-level representation of a tree is a tree of the
+form
+
+@example
+struct(@var{Name}, @var{Arity}, @var{Args})
+@end example
+
+@noindent
+or
+
+@example
+var(@var{VarName})
+@end example
+
+@noindent
+where @var{Args} is a list and @var{VarName} is an atom.
+Atomic trees are considered structures with arity zero, and
+lists are considered structures with functor @code{'.'/2}.
+
+@item write(@var{+Datum})
+@itemx write(@var{+Datum}, @var{+Stream}, @var{-Stream})
+@findex write/[1,3]
+@emph{synchronization:} Suspends until @var{Stream} is
+constrained.
+
+@emph{behavior:} Writes @var{Datum} to @var{Stream}, which
+should be an output stream.  Atoms and functor names are
+@emph{not} quoted if necessary to make the result acceptable
+as input to @code{read/[1-4]} or @code{meta_read/[1-4]}.
+
+@item writeq(@var{+Datum})
+@itemx writeq(@var{+Datum}, @var{+Stream}, @var{-Stream})
+@findex writeq/[1,3]
+@emph{synchronization:} Suspends until @var{Stream} is
+constrained.
+
+@emph{behavior:} Writes @var{Datum} to @var{Stream}, which
+should be an output stream.  Atoms and functor names
+@emph{are} quoted if necessary to make the result acceptable
+as input to @code{read/[1-4]} or @code{meta_read/[1-4]}.
+
+@item nl
+@itemx nl(@var{+Stream}, @var{-Stream})
+@findex nl/[0,2]
+@emph{synchronization:} Suspends until @var{Stream} is
+constrained.
+
+@emph{behavior:} Writes a newline to @var{Stream}, which
+should be an output stream.
+
+If @var{Stream} is associated with a terminal, flushes any
+internally buffered characters on the stream.
+
+@item  format(@var{+Format})
+@itemx format(@var{+Format}, @var{+Args})
+@itemx format(@var{+Format}, @var{+Stream}, @var{-Stream})
+@itemx format(@var{+Format}, @var{+Args}, @var{+Stream}, @var{-Stream}))
+@findex format/[1-4]
+
+@emph{synchronization:} Suspends until @var{Format},
+@var{Args}, and @var{Stream} are constrained.
+
+@emph{behavior:} Fails unless @var{Format} is an atom and
+@var{Args} is a list.  Prints @var{Args} to @var{Stream},
+which should be an output stream, according to @var{Format}.
+The print representation of @var{Format} consists of
+character codes, referred to in this context as format
+characters.  @var{Args} is a list of items to print,
+possibly empty.
+
+@code{format/[1-4]} resemble the @code{format/[2,3]} of some
+Prolog implementations (due to Quintus Prolog).  However,
+there are differences.  @var{Format} must be an atom, not a
+string.  @var{Args} must be a list, even if there is only
+one item.
+
+The default action on a format character is to print it.
+The character @kbd{~} introduces a control sequence.  To
+print a @kbd{~}, repeat it.  Example:
+
+@example
+| ?- @emph{format('Hello~~world!', []).<return>}
+Hello~world!
+@end example
+
+The general format of a control sequence is
+@code{~@var{N}@var{C}}.  The character @var{C} specifies the
+type of the control sequence.  @var{N} is an optional
+numeric argument.  An alternative form of @var{N} is
+@code{*}.  @code{*} means the next argument in @var{Args}
+should be used as a numeric argument in the control
+sequence.  Example:
+
+@example
+| ?- @emph{format('Hello~3cworld!', [0'x]).<return>}
+Helloxxxworld!
+@end example
+
+@noindent
+is equivalent to
+
+@example
+| ?- @emph{format('Hello~*cworld!', [3, 0'x]).<return>}
+Helloxxxworld!
+@end example
+
+A format may be spread over several lines.  The control
+sequence @kbd{\c<return>} is interpreted as the empty
+string.  Example:
+
+@example
+| ?- @emph{format('Hello }\@emph{c<return>
+world!', []).<return>}
+Hello world!
+@end example
+
+The following control sequences are recognized:
+
+@table @code
+@item ~a
+The argument should be an atom.  The atom is printed without
+quoting.  Example:
+
+@example
+| ?- @emph{format('Hello~aworld!', [' new ']).<return>}
+Hello new world!
+@end example
+
+@item ~@var{N}c
+The argument should be a character code.  @var{N} defaults
+to one and is interpreted as the number of times to print
+the character.  Example:
+
+@example
+| ?- @emph{format('Hello~3cworld!', [0'x]).<return>}
+Helloxxxworld!
+@end example
+
+@item ~@var{N}e
+@itemx ~@var{N}E
+@itemx ~@var{N}f
+@itemx ~@var{N}g
+@itemx ~@var{N}G
+The argument should be a float.  The float and @var{N} are
+passed to the C standard I/O library function
+@code{printf()} as
+
+@example
+printf('%.@var{N}e', @var{Arg})
+printf('%.@var{N}E', @var{Arg})
+printf('%.@var{N}f', @var{Arg})
+printf('%.@var{N}g', @var{Arg})
+printf('%.@var{N}G', @var{Arg})
+@end example
+
+@noindent
+respectively.
+
+If @var{N} is not supplied the action defaults to
+
+@example
+printf('%e', @var{Arg})
+printf('%E', @var{Arg})
+printf('%f', @var{Arg})
+printf('%g', @var{Arg})
+printf('%G', @var{Arg})
+@end example
+
+@noindent
+respectively.
+
+@item ~@var{N}d
+The argument should be an integer.  @var{N} is interpreted
+as the number of digits after the decimal point.  If @var{N}
+is 0 or missing, no decimal point is printed.  Example:
+
+@example
+| ?- @emph{format('Hello ~1d world!', [43]).<return>}
+Hello 4.3 world!
+@end example
+
+@item ~@var{N}D
+The argument should be an integer.  Identical to
+@code{~@var{N}d} except that @code{,} separates groups of
+three digits to the left of the decimal point.  Example:
+
+@example
+| ?- @emph{format('Hello ~1D world!', [12345]).<return>}
+Hello 1,234.5 world!
+@end example
+
+@item ~@var{N}r
+The argument should be an integer.  @var{N} is interpreted
+as a radix.  @var{N} should be >= 2 and <= 36.  If @var{N}
+is missing the radix defaults to 8.  The letters
+@code{a}-@code{z} denote digits larger than 9.  Example:
+
+@example
+| ?- @emph{format('Hello ~16r world!', [15]).<return>}
+Hello f world!
+@end example
+
+@item ~@var{N}R
+The argument should be an integer.  Identical to
+@code{~@var{N}r} except that the letters @code{A}-@code{Z}
+denote digits larger than 9.  Example:
+
+@example
+| ?- @emph{format('Hello ~16R world!', [15]).<return>}
+Hello F world!
+@end example
+
+@item ~@var{N}s
+The argument should be a list of character codes.  Exactly
+@var{N} characters are printed.  @var{N} defaults to the
+length of the string.  Example:
+
+@example
+| ?- @emph{format('Hello ~4s ~4s!', ["new", "world"]).<return>}
+Hello new  worl!
+@end example
+
+@item ~i
+The argument, which may be of any type, is ignored.
+Example:
+
+@example
+| ?- @emph{format('Hello ~i~s world!', ["old", "new"]).<return>}
+Hello new world!
+@end example
+@comment 
+@comment @item ~k
+@comment The argument, which may be of any type, is passed to
+@comment @code{write_canonical/3}.  Example:
+@comment 
+@comment @example
+@comment | ?- @emph{format('Hello ~k world!', [[a,b,c]]).<return>}
+@comment Hello .(a,.(b,.(c,[]))) world!
+@comment @end example
+@comment 
+@comment @item ~p
+@comment The argument, which may be of any type, is passed to
+@comment @code{print/3}.  Example:
+@comment 
+@comment @example
+@comment | ?- @emph{assert((portray([X|Y]) :- print(cons(X,Y)))).<return>}
+@comment | ?- @emph{format('Hello ~p world!', [[a,b,c]]).<return>}
+@comment Hello cons(a,cons(b,cons(c,[]))) world!
+@comment @end example
+
+@item ~q
+The argument, which may be of any type, is passed to
+@code{writeq/3}.  Example:
+
+@example
+| ?- @emph{format('Hello ~q world!', [['A','B']]).<return>}
+Hello ['A','B'] world!
+@end example
+
+@item ~w
+The argument, which may be of any type, is passed to
+@code{write/3}.  Example:
+
+@example
+| ?- @emph{format('Hello ~w world!', [['A','B']]).<return>}
+Hello [A,B] world!
+@end example
+
+@item ~~
+Takes no argument.  Prints @code{~}.  Example:
+
+@example
+| ?- @emph{format('Hello~~world!', []).<return>}
+Hello~world!
+@end example
+
+@item ~@var{N}n
+Takes no argument.  Prints @var{N} newlines.  @var{N}
+defaults to 1.  Example:
+
+@example
+| ?- @emph{format('Hello~2nworld!', []).<return>}
+Hello
+
+world!
+@end example
+@comment 
+@comment @item ~N
+@comment Takes no argument.  Prints a newline if not at the beginning
+@comment of a line.  Example:
+@comment 
+@comment @example
+@comment | ?- @emph{format('~NHello~Nworld!', []).<return>}
+@comment Hello
+@comment world!
+@comment @end example
+@end table
+@end table
+
+@node Interaction with UNIX, Compiling and Loading, Input and Output, Built-in Agents
+@section Interaction with UNIX
+@cindex interaction with UNIX
+@cindex UNIX, interaction with
+
+Apart from input and output, interaction with UNIX is
+provided by the following agent.
+
+@table @code
+@item unix(@var{+Selector})
+@findex unix/1
+@emph{synchronization:} Suspends until @var{Selector} is
+constrained.
+
+@emph{behavior:} Amounts to an agent schema, parameterized
+by @var{Selector}; fails unless @var{Selector} is of one of
+the following forms.
+
+@table @code
+@item access(@var{+Path}, @var{+Mode})
+@findex access/2 (unix/1 selector)
+@emph{synchronization:} Suspends until @var{Path} and
+@var{Mode} are constrained.
+
+@emph{behavior:} Fails unless @var{Path} is an atom whose
+print representation is a valid file name and @var{Mode} is
+an integer that is a valid access type in this context.
+This is an interface to the UNIX library function
+@code{access(2)}, so see the UNIX man page for information
+about file names and access types.  Checks @var{Path} for
+accessibility according to @var{Mode}, succeeding if it is
+accessible, else failing.
+
+@item argv(@var{-Args})
+@findex argv/1 (unix/1 selector)
+@emph{synchronization:} Never suspends.
+
+@emph{behavior:} Unifies @var{Args} with a list of atoms
+whose print representations are the command line arguments
+to the AGENTS process.  E.g., if AGENTS were entered thus
+
+@example
+% @emph{agents hello world 2001<return>}
+@end example
+
+@noindent
+then @var{Args} would be unified with
+@code{[hello,world,'2001']}.
+
+@item cd
+@findex cd/0 (unix/1 selector)
+@emph{synchronization:} Never suspends.
+
+@emph{behavior:} Changes the current working directory of
+the AGENTS process to the environment variable @code{$HOME}.
+
+@item cd(@var{+Path})
+@findex cd/1 (unix/1 selector)
+@emph{synchronization:} Suspends until @var{Path} is
+constrained.
+
+@emph{behavior:} Fails unless @var{Path} is an atom whose
+print representation is a valid directory name.  Changes the
+working directory of the AGENTS process to @var{Path}.
+
+@item chmod(@var{+Path}, @var{-OldMode}, @var{+Mode})
+@findex chmod/3 (unix/1 selector)
+@emph{synchronization:} Suspends until @var{Path} and
+@var{Mode} are constrained.
+
+@emph{behavior:} Fails unless @var{Path} is an atom whose
+print representation is a valid file name and @var{Mode} is
+an integer that is a valid access type in this context.
+This is an interface to the UNIX library function
+@code{chmod(2)}, so see the UNIX man page for information
+about file names and access types.  Changes the mode of
+@var{Path} to @var{Mode}, unifying @var{OldMode} with the
+old mode.
+
+@item exit(@var{+Status})
+@findex exit/1 (unix/1 selector)
+@emph{synchronization:} Suspends until @var{Status} is
+constrained.
+
+@emph{behavior:} Fails unless @var{Status} is a 16-bit
+integer (an integer between -32768 and 32767 inclusive).
+Exits AGENTS, returning status @var{Status}.
+
+@item mktemp(@var{+Template}, @var{-FileName})
+@findex mktemp/2 (unix/1 selector)
+@emph{synchronization:} Suspends until @var{Template} is
+constrained.
+
+@emph{behavior:} Fails unless @var{Template} is an atom
+whose print representation is a prefix of a valid file name.
+This is an interface to the UNIX library function
+@code{mktemp(3)}.  @var{Template} should be a file name with
+six trailing @kbd{X}s.  A unique file name is created from
+it, and @var{FileName} is unified with this.  The file name
+is the template with the six @kbd{X}s replaced with a letter
+and the process id.
+
+@item shell
+@findex shell/0 (unix/1 selector)
+@emph{synchronization:} Never suspends.
+
+@emph{behavior:} Starts an interactive instance of the shell
+specified by the environment variable @code{$SHELL}.
+Control returns to AGENTS on termination of the shell.
+
+@item shell(@var{+Command})
+@findex shell/1 (unix/1 selector)
+@emph{synchronization:} Suspends until @var{Command} is
+constrained.
+
+@emph{behavior:} Fails unless @var{Command} is an atom.
+Starts a noninteractive instance of the shell specified by
+the environment variable @code{$SHELL} and passes it the
+print representation of @var{Command}.  Fails if the shell
+does not execute the command successfully.
+
+@item shell(@var{+Command}, @var{-Status})
+@findex shell/2 (unix/1 selector)
+@emph{synchronization:} Suspends until @var{Command} is
+constrained.
+
+@emph{behavior:} Fails unless @var{Command} is an atom.
+Starts a noninteractive instance of the shell specified by
+the environment variable @code{$SHELL} and passes it the
+print representation of @var{Command}.  Unifies @var{Status}
+with the return status of the command.
+
+@item system(@var{+Command})
+@findex system/1 (unix/1 selector)
+@emph{synchronization:} Suspends until @var{Command} is
+constrained.
+
+@emph{behavior:} Fails unless @var{Command} is an atom.
+Starts a noninteractive instance of the Bourne shell
+@code{sh} and passes it the print representation of
+@var{Command}.  Fails if the shell does not execute the
+command successfully.
+
+@item system(@var{+Command}, @var{-Status})
+@findex system/2 (unix/1 selector)
+@emph{synchronization:} Suspends until @var{Command} is
+constrained.
+
+@emph{behavior:} Fails unless @var{Command} is an atom.
+Starts a noninteractive instance of the Bourne shell
+@code{sh} and passes it the print representation of
+@var{Command}.  Unifies @var{Status} with the return status
+of the command.
+
+@item umask(@var{-OldMask}, @var{+Mask})
+@findex umask/2 (unix/1 selector)
+@emph{synchronization:} Suspends until @var{Mask} is
+constrained.
+
+@emph{behavior:} Fails unless @var{Mask} is an integer that
+is a valid mask in this context.  This is an interface to
+the UNIX library function @code{umask(2)}, so see the UNIX
+man page for information about masks.  Changes the file
+creation mask of the AGENTS process to @var{Mask}, unifying
+@var{OldMask} with the old mask, succeeding if this is
+possible, else failing.
+@end table
+@end table
+
+@node Compiling and Loading, Exceptions, Interaction with UNIX, Built-in Agents
+@section Compiling and Loading
+@cindex compiling
+@cindex loading
+
+<<<INCOMPLETE>>>
+
+@node Exceptions, Miscellaneous, Compiling and Loading, Built-in Agents
+@section Exceptions
+@cindex exceptions
+
+<<<INCOMPLETE>>>
+
+@node Miscellaneous,  , Exceptions, Built-in Agents
+@section Miscellaneous
+
+@table @code
+@item dif(@var{+X}, @var{+Y})
+@findex dif/2
+@emph{synchronization:} Suspends until it is known that
+@var{X} and @var{Y} must be different data or are the same
+datum.
+
+@emph{behavior:} Constrains @var{X} and @var{Y} to be
+different data, i.e., succeeds if @var{X} and @var{Y} must
+be different data, else fails.
+
+@item garbage_collect
+@findex garbage_collect/0
+@emph{synchronization:} Never suspends.
+
+@emph{behavior:} Garbage collect the global stack
+immediately.
+
+@item statistics
+@findex statistics/0
+@emph{synchronization:} Never suspends.
+
+@emph{behavior:} Prints execution statistics pertaining to
+run time and memory usage.
+
+@item statistics(@var{+Selector}, @var{?Statistic})
+@findex statistics/2
+@emph{synchronization:} Suspends until @var{Selector} is
+constrained.
+
+@emph{behavior:} Amounts to an agent schema, parameterized
+by @var{Selector}; fails unless @var{Selector} is of one of
+the following forms, else unifies @var{Statistic} with an
+execution statistic as follows:
+
+@table @code
+@item runtime
+@findex runtime (statistics/2 selector)
+@code{[@var{time since AGENTS start},@var{time since previous statistics}]}
+
+@item copytime
+@findex copytime (statistics/2 selector)
+@code{[@var{time since AGENTS start},@var{time since previous statistics}]}
+
+@item nondet
+@findex nondet (statistics/2 selector)
+@code{[@var{number since AGENTS start},@var{number since previous statistics}]}
+
+This refers to nondeterminate promotions.
+
+@item garbage_collection
+@itemx gctime
+@findex garbage_collection (statistics/2 selector)
+@findex gctime (statistics/2 selector)
+@code{[@var{number since AGENTS start},@var{bytes freed},@var{time spent}]}
+
+This refers to garbage collections of the heap.
+
+@item program
+@findex program (statistics/2 selector)
+@code{[@var{bytes used},0]}
+
+This refers to memory allocated to compiled agents, symbol
+tables, and the like.
+@end table
+
+@noindent
+Times are UNIX ``user'' times in milliseconds, sizes are in
+bytes.
+@end table
+
+
+@node Modules, Debugging, Built-in Agents, Top
+@chapter Modules
+@cindex modules
+
+<<<INCOMPLETE>>>
+
+
+@node Debugging, Summary of Built-in Agents, Modules, Top
+@chapter Debugging
+@cindex debugging
+
+<<<NEEDS WORK>>>
+
+AGENTS includes a debugger reminiscent of the four-port
+(``Byrd box'') debuggers of many Prolog implementations.
+The main features of the debugging package are as follows:
+
+@itemize @bullet
+@item
+A @emph{box model} of AKL execution.  Control flow is viewed both at
+the agent level, and at the level of individual clauses.  The ports
+correspond to steps in the AKL computation model.
+@item
+The ability to trace your program exhaustively or to set
+@emph{spy-points} selectively.  Spy-points allow you to nominate
+interesting agents; upon calling such agents the program pauses to
+allow you to interact with the debugger.
+@item
+The ability to trace execution threads.  When a traced thread suspends
+the user can with @emph{monitor} commands resume tracing when the
+current thread is reactivated.
+@item
+A reasonable choice of control and information options available
+during debugging.
+@end itemize
+
+@menu
+* The AKL Box Model::           
+* Basic Debugging Agents::      
+* Tracing::                     
+* Spy-points::                  
+* Monitors and threads::        
+* Format of Debugging Messages::  
+* Options available during Debugging::  
+* Port filter::                 
+@end menu
+
+@node The AKL Box Model, Basic Debugging Agents,  , Debugging
+@section The AKL Box Model
+
+During debugging AGENTS prints out a sequence of goals to show the
+state the program has reached in its execution.  However, in order to
+understand what is occurring it is necessary to understand when and
+why it prints out goals.
+
+As in other programming languages, some points of interest are
+procedure entry and return, but in AKL there is the additional
+complexity of guard execution, which may fail, suspend, be promoted, or
+woken. Procedure calls themselves may also suspend and be resumed.
+
+The box model of AKL execution views program control flow in terms of
+movement about the computation state, the @emph{configuration}.  This
+model provides a basis for the debugging mechanism, and enables the
+user to view the behavior of the program in a consistent way.
+
+There are 15 ports, divided into five types. 
+
+@itemize @bullet
+@item
+Goal-related: Actions on atomic goals and the resulting choice-boxes: 
+Call, Exit, Suspend, Reenter, and Fail.
+
+@item
+Guard-related:  Actions on guards and the resulting and-boxes:
+[Create], [Fail], [Suspend], and [Wake].
+
+@item
+Movement-related: Movement between and-boxes: 
+[Up], [Down].
+
+@item
+Promotion-related: Promotion actions on guards that effect the parent
+choice-box: [Promote], [Noisy Promote].
+
+@item
+Nondeterminism-related: Actions on and-boxes and choice-box that effect
+several levls of the configuration: Nondet-Pre, Nondet-Post
+
+@end itemize
+
+
+These ports have the following meaning.
+@table @code
+@item Call 
+The goal is about to be executed (unfolded). 
+
+@item Exit  
+The goal was executed completely.
+
+@item Suspend 
+The goal suspended. 
+
+@item Reenter
+The suspended goal is to be retried.
+
+@item Fail 
+The goal failed. 
+
+@item [Create] 
+A guard (and a corresponding AND-box) is created. 
+
+@item [Fail] 
+The guard failed.
+
+@item [Suspend] 
+The guard suspended.
+
+@item [Wake] 
+The guard was woken.
+
+@item [Up] 
+The worker moves up to surrounding AND-box. This occurs, typically after the current goal suspends.
+
+@item [Down] 
+The worker moves down through some child and-box  of some choice-box in the current AND-box. 
+Typically a worker may have to move down in order to reach a woken guard, or to perform
+non-determinstic choice.
+
+@item Nondet-Pre
+Nondeterminate choice is about to be applied, i.e one suspended guard of a suspended goal
+is to be promoted in a partial copy of the configuration.
+
+@item Nondet-Post
+Nondeterminate choice has been applied.
+
+@item [Promote]
+A guarded goal is about to be promoted.
+
+@item [Noisy Promote]
+A guarded goal is about to be promoted due to noisy pruning.
+
+
+@end table
+
+@node Basic Debugging Agents, Tracing, The AKL Box Model, Debugging
+@section Basic Debugging Agents
+
+The system provides a range of commands for control of the debugging
+facilities.  The most basic are as follows:
+
+@table @code
+
+@item debug
+@findex debug/0
+Switches the debugger on.  (It is initially off.)  You can switch
+debug mode on in the middle of execution from within your
+program.
+@comment or after a control-C \bf [NYI: ctrl-C].
+
+@item nodebug
+@findex nodebug/0
+Switches the debugger off.  If there are any spy-points set then they
+will be kept but disabled.
+
+@item debugging
+@findex debugging/0
+Prints onto the terminal information about the current debugging
+state.  This will show:
+
+@itemize @bullet
+@item
+Whether the debugger is switched on.
+@item
+What spy-points have been set (see below).
+@end itemize
+
+@item failcatch
+@findex failcatch/0
+Turns on the failcatch flag. A set failcatch flag causes the debugger to
+be switched on, breaking execution, when and if the entire program
+execution is about to fail.  This allows the user to inspect the
+execution state before the failure context is destroyed by returning
+control to the user in the top-level loop.
+
+@item nofailcatch
+@findex nofailcatch/0
+Turns off the failcatch flag.
+
+@end table
+
+@node Tracing, Spy-points, Basic Debugging Agents, Debugging
+@section Tracing
+
+The following command may be used to commence an exhaustive
+trace of a program.
+
+@table @code
+@item trace
+@findex trace/0
+Switches the debugger on, if it is not on already, and ensures that the
+next time control passes through a control port, a message will be
+produced and you will be asked to interact.
+@comment The effect of trace can also be achieved
+@comment by typing @key{t} after a control-C interruption of a program.
+
+At this point you have a number of options.  In particular, you can
+just type RET (carriage-return) to @emph{creep} (or single-step) into
+your program.  If you continue to creep through your program you will
+see every entry and exit to/from every invocation box.  You will
+notice that execution stops at all ports.
+
+@item notrace
+@findex notrace/0
+Equivalent to @code{nodebug/0}.
+@end table
+
+@node Spy-points, Monitors and threads, Tracing, Debugging
+@section Spy-points
+
+For programs of any size, it is clearly impractical to creep through the
+entire program.  @emph{Spy-points} make it possible to stop the program
+whenever it gets to a particular agent which is of interest.  Once
+there, one can set further spy-points in order to catch the control flow
+a bit further on, or one can start creeping.
+
+Setting a spy-point on an agent indicates that you wish to see all
+control flow through the various ports.  When control passes through
+any port belonging to a procedure with a spy-point set on it, a
+message is output and the user is asked to interact.
+
+Spy-points are set and removed by the following commands which
+are also standard operators:
+
+@table @code
+@item spy @var{+Spec}
+@findex spy/1
+Sets spy-points on all the defintions given by Spec, which can
+have the forms:
+
+@table @code
+@item @var{Name}
+all definitions of that name no matter what arity 
+@item @var{Name/Arity}
+the definition of that name and arity
+@end table
+
+You can place a spy-point on an undefined agent that is referred
+to from existing code.  If you set some spy-points when the debugger
+is switched off then it will be automatically switched on.
+
+@item nospy @var{+Spec}
+@findex nospy/1
+This is similar to spy Spec except that all the definitions given by
+Spec will have previously set spy-points removed from them.
+
+@item nospyall
+@findex nospyall/0
+This removes all the spy-points that have been set.  @refill
+@end table
+
+The options available when the user arrives at a spy-point are the same as the options had
+the user stepped through the program to that point.
+
+@node Monitors and threads, Format of Debugging Messages, Spy-points, Debugging
+@section Monitors and threads
+
+When an interesting goal is reached in a debugging session, it may be
+that the goal suspends, waiting for input that is generated by other
+goals yet to be run (or possibly nondeterminstic choice). The monitor
+option allows the user to specify that debugging is to be resumed when
+the current goal or thread is resumed, hiding the execution of the
+input-generating goals.
+
+Making a monitor mark differs from a spypoint marking in that execution
+only pauses when one particular instance of a goal is reactivated rather
+than all goals with the same principal functor.
+
+When modelling iterative processes it also convenient to monitor not
+only the goal but all its children ad infinitum. For instance, to trace
+the process p, defined below, a spypoint can be set to stop execution on
+the first call to p/3. The monitor children marking will then ensure
+that all recursive invocations of p will be trapped.
+
+@example
+p([],O1,O2):- -> O1=[], O2=[].
+p([X|Xs],O1,O2):- -> O1=[X|NO1], O2=[X|NO2], p(Xs,NO1,NO2).
+@end example
+
+@node Format of Debugging Messages, Options available during Debugging, Monitors and threads, Debugging
+@section Format of Debugging Messages
+
+A port is printed as follows.
+
+@example
+Goal-related ports:              Info Port: Goal(Args) ?
+Other ports:                     Info Port: ChoiceGoal ?
+@end example
+
+@code{Port} is the name of a port, @code{Goal(Args)} is the current
+(atomic) goal with its arguments, and @code{ChoiceGoal} is the atomic
+goal associated with the parent choice-box of the current and-box.
+
+The @code{Info} field provides information about spypoints and monitors.
+In particular @code{+} indicates that the goal has an associated
+spypoint, and @code{*} indicates that the goal is monitored, and
+@code{**} indicates that the goal is children-monitored.  Also a goal
+may be both spied and monitored (@code{+*} and @code{+**}).
+
+
+@node Options available during Debugging, Port filter, Format of Debugging Messages, Debugging
+@section Options available during Debugging
+
+This section describes the particular options that are available when
+the system prompts you after printing out a debugging message.  All
+the options are one letter mnemonics (or carriage return). 
+Some options are not available at all ports. 
+
+The write options are useful when entire traces, or entire traces
+involving spied agents are printed, for later appraisal with an
+editor.  Currently, no means of piping this output to a file is
+implemented.  Output can be saved by running AGENTS from within Emacs.
+
+The only option which you really have to remember is @emph{h} (followed
+by @key{RET}).  This provides help in the form of the following list of
+available options (edited to remove those options not valid for the
+particular port).
+
+@example
+Debugging options:
+   <cr>   creep            c      creep
+    s     skip             S      skip all
+    l     leap             m      monitor stop
+    u     unleash          U      unleash, show only spied
+    n     nodebug          a      abort
+    +     spy this         -      nospy this
+    *     monitor this     \      nomonitor this
+    !     monitor children |      nomonitor children
+    #     nomonitor andbox
+    x     manual update    f      filter
+    A     show andbox      D      show configuration
+    P     show path        E      show full configuration
+    w     write goal
+    ?     help             h      help
+@end example
+
+@table @code
+@item c
+@emph{creep} causes AGENTS to single-step to the very next port and
+print a debug message.
+@item l
+@emph{leap} causes the interpreter to resume running your program, only
+stopping when a spy-point or monitor is reached (or when the program
+terminates).  Leaping can thus be used to follow the execution at a
+higher level than exhaustive tracing.  All you need to do is to set
+spy-points on an evenly-spread set of pertinent definitions, and then
+follow the control flow through these by leaping from one to the other.
+@item s
+@emph{skip} is only valid for Call ports.  It skips over the entire
+execution of the agent.  Control comes back to this agent (at either the
+Exit port or the Fail port).  Skip is particularly
+useful while creeping since it guarantees that control will be returned
+after the (possibly complex) execution of the procedure.  If you skip
+then no messages at all will appear until a spy-point or monitor is
+reach or when control returns. Execution will stop when control returns
+even if spy-points or monitors were encountered during the execution of
+the goal.
+@item S
+@emph{skip all} differs from @emph{skip} only in that spypoints are ignored during
+the execution of the goal
+@item m
+with @emph{monitor stop} execution is stopped only upon resumption of monitored goals
+@item u
+with @emph{unleash} execution continues to the end of the program but
+the debug messages are printed out (currently only on the terminal).
+(Monitored goals are ignored).
+@item U
+with @emph{unleash (show spied)} execution continues to the end of the
+program but the debug messages associated with spied goals are printed
+out anyway. (Monitored goals are ignored).
+@item n
+@emph{nodebug} switches the debugger off.
+@item +
+@emph{spy this}.  Set a spy-point on the current goal. This is only an option at
+                 goal-related and promotion-related ports.
+@item -
+@emph{nospy this}.  Remove spy-point from the current goal. This is only an option at
+                 goal-related and promotion-related ports.
+@item *
+@emph{monitor this}.  Monitors current goal. Available only at the Suspend port.
+@item \
+@emph{nomonitor this}.  Remove monitor. Available only at the Suspend port
+@item !
+@emph{monitor children}.  Monitors current goal and all its children, ad
+infinitum.  Not available at guard or movement-related ports.
+@item |
+@emph{nomonitor children}.  Remove monitor on current goal, and all new
+children.  Already created children will still be monitored.  Not
+available at guard or movement-related ports.
+@item #
+@emph{nomonitor andbox}.  Remove monitor on current goal, and all new
+children.  Also removes all monitors and all suspended goals within the
+current and-box.  Not available at guard or movement-related ports.
+@item f
+@emph{filter}.  Invoke the port filter (see next section).
+@item A
+@emph{show andbox}.  Shows the current and-box
+@item D
+@emph{show configuration}.  Shows the entire configuration
+@item P
+@emph{show path}.  Shows the full path, i.e full agent names of the atomic goals that
+were unfolded to become the ancestor choice-boxes.
+@item x
+@emph{manual update}.  Information about changes in the debugging
+functions as compared to the last release of the manual.
+@item w
+@emph{write} goal in port without print-depth abbreviation.
+@item ?
+@emph{help} displays the table of options given above.
+@item h
+@emph{help} as above.
+@end table
+
+
+@node Port filter,  , Options available during Debugging, Debugging
+@section Port filter
+
+The @code{f}-filter debugging option invokes the port filter, which
+allows the user to limit the ports at which execution will
+stop. Irrespective of whatever other command the debugger is given,
+execution can only pause at the ports within the limits set by the
+user. This is probably most useful in conjunction with the creep and
+write debugger options.
+
+The port filter has its own help option invoked by @key{h} or @key{?},
+and is self-explanatory.
+
+The use of the port filter will be illustrated with two examples:
+
+@itemize @bullet
+@item
+Nondeterminism-related ports are set to on. All other ports are off.
+Using the creep debugger option the user can conveniently step through all 
+nondeterminstic steps.
+
+@item
+Reenter and Suspend ports are set to on. All other ports are off.
+Using the write debugger option the user can conveniently evaluate the
+co-routining aspects of an execution.
+@end itemize
+
+
+@node Summary of Built-in Agents, Standard Operators, Debugging, Top
+@chapter Summary of Built-in Agents
+@cindex built-in agents
+@cindex agents, built-in
+
+<<<INCOMPLETE>>>
+
+
+@node Standard Operators, System Limits, Summary of Built-in Agents, Top
+@chapter Standard Operators
+@cindex operators, standard
+
+<<<NEEDS WORK>>>
+
+@example
+:- op( 1200, xfx, [ :-]).
+:- op( 1200, xfx, [ :-, -->, := ]).
+:- op( 1200,  fx, [ :-, ?- ]).
+:- op( 1150,  fx, [ public ]).
+:- op( 1100, xfy, [ ; ]).
+:- op( 1050, xfy, [ ':' ]).
+:- op( 1050, xfx, [ '|', ->, ?, ??, ! ]).
+:- op( 1050,  fx, [ '|', ->, ?, ??, ! ]).
+:- op( 1025, xfy, [ & ]).
+:- op( 1000, xfy, [ ',' ]).      /* See note below */
+:- op(  900, xfx, [ @@ ]).
+:- op(  900,  fy, [ \+, spy, nospy ]).
+:- op(  700, xfx, [ =, is, =.., ==, \==, @@<, @@>, @@=<, @@>=,
+                                =:=, =\=, <, >, =<, >= ]).
+:- op(  500, xfx, [ \, \\]).
+:- op(  500, yfx, [ +, -, #, /\, \/ ]).
+:- op(  500,  fx, [ +, - ]).
+:- op(  400, yfx, [ *, /, //, <<, >> ]).
+:- op(  300, xfx, [ mod ]).
+:- op(  200, xfy, [ ^ ]).
+:- op(  100, yfx, [ $ ]).
+@end example
+
+Note that a comma written literally as a punctuation character can be
+used as though it were an infix operator of precedence 1000 and type
+@code{xfy}, i.e., @refill
+
+@example
+X,Y    ','(X,Y)
+@end example
+
+
+@noindent
+represent the same compound term.
+
+
+@node System Limits, Getting and Installing AGENTS, Standard Operators, Top
+@chapter System Limits
+
+<<<NEEDS WORK>>>
+
+
+@noindent
+Some limits:
+
+@table @code
+@item Atoms
+An atom can have 255 characters in the name.
+
+@item Integers
+AGENTS currently uses 26 bit integers. The range is 
+@code{[-33554432, 33554431]}.
+
+@item Floats
+The range of floats is the one provided by the C @code{double} type,
+typically @code{[4.9e-324, 1.8e+308]} (plus or minus).
+
+@item Structures
+You can have approximately 50000 arguments to a structure.
+
+@item Calls
+There are 256 internal registers shared for argument passing and local
+storage. This gives you the opportunity to have a large number of
+arguments to a call.
+
+@end table
+
+@noindent
+Most other memory consumers are limited by the memory available on the system.
+
+
+@node Getting and Installing AGENTS, Index of Built-ins, System Limits, Top
+@chapter Getting and Installing AGENTS
+
+@menu
+* Getting AGENTS::              
+* Basic Installation::          
+* Including GM::                
+* Documentation::               
+* GNU Emacs Modes::             
+* Comments and Bug Reports::    
+@end menu
+
+@node Getting AGENTS, Basic Installation,  , Getting and Installing AGENTS
+@section Getting AGENTS
+@cindex AGENTS, getting
+
+AGENTS, including source code, is free for educational and
+research purposes.
+
+To get AGENTS or ask questions about it, send electronic
+mail to @code{agents-request@@sics.se} or facsimile to
++46-8-751-7230.
+
+@node Basic Installation, Including GM, Getting AGENTS, Getting and Installing AGENTS
+@section Basic Installation
+@cindex installation, basic
+
+@enumerate
+@item
+You received the AGENTS distribution as a file or tape.  To
+unload the file, type the following commands:
+
+@example
+% @emph{uncompress agents0.9.tar.Z<return>}
+% @emph{tar xf agents0.9.tar<return>}
+@end example
+
+Or to unload the tape, type the following command
+(substituting for the device if necessary):
+
+@example
+% @emph{tar xf /dev/rst8<return>}
+@end example
+
+It does not matter where you unload the file or tape, except
+that there should be at least about eight megabytes of disk
+space available for building AGENTS.  After building AGENTS,
+you can install it wherever you wish.
+
+@item
+Go down to the AGENTS directory and configure and build
+AGENTS by typing the following commands:
+
+@example
+% @emph{cd agents0.9<return>}
+% @emph{./configure<return>}
+% @emph{make<return>}
+@end example
+
+The @emph{./configure} command recognizes various arguments,
+but these are seldom necessary; see the file @file{README}
+in the AGENTS directory for details.  Also, you can
+@emph{make} various targets besides the default target,
+which builds AGENTS; see @file{Makefile} in the AGENTS
+directory for details.
+
+These commands build AGENTS locally, i.e., you can now enter
+AGENTS by typing the following command:
+
+@example
+% @emph{./agents<return>}
+@end example
+
+If you are not interested in installing AGENTS globally,
+there is nothing more to do.
+
+@item
+If you @emph{are} interested in installing AGENTS globally,
+choose a location for installation; we suggest
+@file{/usr/local}.  In the following, this is known as
+@emph{<prefix>}.
+
+It does not matter where you install AGENTS, except that
+there should be at least about six megabytes of disk space
+available.  If disk space is a concern, you can remove some
+of the installation; see below for details.
+
+@item
+Install AGENTS globally by typing the following command:
+
+@example
+% @emph{make install prefix=<prefix><return>}
+@end example
+
+If you do not specify @emph{prefix=<prefix>}, installation
+will be in @file{/usr/local}.
+
+By default, pieces of AGENTS are installed as follows:
+
+@itemize @bullet
+@item
+the @file{agents} executable in @file{@emph{<prefix>}/bin};
+
+@item
+the info files in @file{@emph{<prefix>}/info};
+
+@item
+the man page in @file{@emph{<prefix>}/man/man1};
+
+@item
+all else in @file{@emph{<prefix>}/lib/agents0.9}.
+@end itemize
+
+You can override these on the @emph{make} command line; see
+@file{Makefile} in the AGENTS directory for details.
+
+Note that after installing, the AGENTS directory is no
+longer needed; an installed version is genuinely
+stand-alone.
+
+@item
+To repeat the procedure for another machine of another type,
+log onto that machine, go to the AGENTS directory, and type
+the following commands:
+
+@example
+% @emph{./configure<return>}
+% @emph{make clean all<return>}
+@end example
+
+The @code{clean} target removes all files created by the
+first build.  The @code{all} target rebuilds AGENTS locally
+for the second machine.
+
+@item
+To reclaim disk space, in either a local or an installed
+version of AGENTS, you can compress or remove any of the
+demonstration programs; @pxref{Demonstration Programs}.
+@end enumerate
+
+@node Including GM, Documentation, Basic Installation, Getting and Installing AGENTS
+@section Including GM
+@cindex installation, GM
+@cindex Graphics Manager
+
+Except for the @code{Graphics Manager} package, the packages
+in the AGENTS Library can be loaded into a version of AGENTS
+created as explained in the preceding section.  This section
+explains how to create a version of AGENTS including the
+@code{Graphics Manager} package, hereafter known as GM.
+
+With a local version of AGENTS, go to the AGENTS directory
+and type the following command:
+@example
+% @emph{./agents library/gm/procomm.c library/gm/procomm.fd \\<return>
+library/gm.pam -o gmagents<return>}
+@end example
+
+With an installed version of AGENTS, first find out the
+library directory as follows:
+
+@example
+| ?- @emph{library_directory(X).<return>}
+
+X = '/usr/local/lib/agents0.9/library' ?
+@end example
+ 
+In the following, this is known as @emph{<library>}.
+
+Then type the following command:
+
+@example
+% @emph{agents <library>/gm/procomm.c <library>/gm/procomm.fd \<return>
+<library>/gm.pam -o gmagents<return>}
+@end example
+
+In either case, three files are created in the current
+working directory: the driver @file{gmagents}, the
+executable @file{gmagents.exe}, and the boot file
+@file{gmagents.pam}.  Edit the driver in the obvious fashion
+if you wish to move the executable or the boot file
+elsewhere.
+
+Note that GM is not well-supported and is likely to be
+superseded in future versions of AGENTS.
+
+@node Documentation, GNU Emacs Modes, Including GM, Getting and Installing AGENTS
+@section Documentation
+@cindex documentation
+
+This @emph{AGENTS User Manual} and the @emph{AGENTS Library
+Manual} are available on-line using the @code{GNU Emacs}
+@code{info} facility.  If you install AGENTS with an
+appropriate value of @emph{<infodir>}, @pxref{Basic
+Installation}, these will be available to anyone using
+@code{info}.  Otherwise, go to the AGENTS directory, enter
+@code{GNU Emacs}, and type the following commands:
+
+@example
+C-x C-f doc/agents-user
+M-x texinfo-format-buffer
+C-x C-f doc/agents-library
+M-x texinfo-format-buffer
+@end example
+
+To create PostScript versions of the manuals and @emph{An
+Introduction to AKL}, go to the AGENTS directory and type
+the following command:
+
+@example
+% @emph{make ps<return>}
+@end example
+
+Three files are created in the @file{doc} subdirectory:
+@file{user.ps}, @file{library.ps}, and @file{aklintro.ps}.
+Print these out or view them using a PostScript viewing
+program such as @code{ghostview}.
+
+There is a man page for AGENTS.  If you install AGENTS with
+an appropriate value of @emph{<mandir>}, @pxref{Basic
+Installation}, it will be available to anyone using the
+@code{man} command.  Otherwise, go to the AGENTS directory
+and type the following command:
+
+@example
+% @emph{nroff -man agents.1 | more<return>}
+@end example
+
+@node GNU Emacs Modes, Comments and Bug Reports, Documentation, Getting and Installing AGENTS
+@section GNU Emacs Modes
+@cindex GNU Emacs modes
+@cindex AKL mode (GNU Emacs)
+@cindex AGENTS mode (GNU Emacs)
+
+Two @code{GNU Emacs} modes, ``AGENTS Mode'' and ``AKL
+Mode'', are supported by @file{akl.el}, included in the
+AGENTS distribution.  Add the following lines (substituting
+for the path if necessary) to your @file{~/.emacs} to make
+the modes available and to make @code{GNU Emacs} use ``AKL
+Mode'' automatically when editing files with a @file{.akl}
+extension:
+
+@example
+(setq load-path (cons "/usr/local/lib/agents0.9" load-path))
+(autoload 'run-agents "akl"
+        "Start an AGENTS subprocess." t)
+(autoload 'akl-mode "akl"
+        "Major mode for editing AKL programs." t)
+(setq auto-mode-alist (nconc '(("\\.akl$" . akl-mode)) auto-mode-alist))
+@end example
+
+``AGENTS Mode'' is for interacting with an inferior AGENTS
+process.  To enter it, do
+
+@example
+M-x run-agents
+@end example
+
+If the environment variable @code{AGENTSSYSTEM} is set, then
+``AGENTS Mode'' uses its value as a shell command to enter
+AGENTS; otherwise, it uses @code{agents}.
+
+``AKL Mode'' is for editing AKL programs.  Besides automatic
+formatting of the clause syntax, the mode supports
+compilation of the definition around point, of the region,
+or of the entire buffer.  If you invoke one of these
+functions, an inferior AGENTS process is started if one is
+not running already.
+
+For details of ``AGENTS Mode'' (commands available, key
+mappings, etc.), do
+
+@example
+C-h f agents-mode
+@end example
+
+@noindent
+For details of ``AKL Mode'', do
+
+@example
+C-h f akl-mode
+@end example
+
+The modes require the comint package by Olin Shivers, which
+is not part of the standard @code{GNU Emacs} distribution.
+Neither the modes nor the comint package is part of AGENTS
+proper, but both are included in the AGENTS distribution.
+
+@node Comments and Bug Reports,  , GNU Emacs Modes, Getting and Installing AGENTS
+@section Comments and Bug Reports
+@cindex comments, sending
+@cindex bug reports, sending
+
+AGENTS is a new and rapidly evolving system.  There are
+obviously many things that need to be added to it, and many
+other things that need to be refined.  Please send us your
+comments and bug reports, the former to
+@code{agents-comment@@sics.se} and the latter to
+@code{agents-bug@@sics.se}.
+
+Bugs tend actually to be fixed if they can be isolated, so
+it is in your interest to report them in such a way that
+they can be easily reproduced.
+
+
+@node Index of Built-ins, Index of Concepts, Getting and Installing AGENTS, Top
+@unnumbered Index of Built-ins
+@printindex fn
+
+
+@node Index of Concepts,  , Index of Built-ins, Top
+@unnumbered Index of Concepts
+@printindex cp
+
+
+@contents
+
+
+@bye

@@ -1,0 +1,735 @@
+% PREDICATE COMPILER
+
+pred_compile(Cl,Mode,A,Code):-
+   ground_clauses(Cl)
+   ->
+   Code=[label(_)|Code1],
+   extract_indexing(Cl,I),
+   list_swap(I,Ans),
+   gen_definitions(Cl,A,Defs),
+   main_gen_t_tree(Ans,Tree,Defs),
+   arginfo_initialize(A,ArgInfo),
+   dec_code(Mode,Tree,Code1,Defs,ArgInfo,first(excl)).   
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% dec_code_fin
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dec_code_fin(Mode,Code,Defs,ArgInfo):-		
+   dec_inter_dump
+   ->
+   dec_fin_spec(Mode,Code,Defs,ArgInfo).
+dec_code_fin(Mode,Code,Defs,ArgInfo):-
+   decision_dump
+   ->
+   decision_abort(Mode,Defs,ArgInfo,Code).
+dec_code_fin(Mode,Code,Defs,ArgInfo):-
+   ->
+   defs_end(Defs,Cls),
+   dec_code_fin2(Mode,Code,Cls,ArgInfo).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dec_code_fin2(Mode,Code,[Clause],ArgInfo):-
+   at_guard_op(Clause)
+   ->
+   dec_fin_one_flat(Mode,Code,Clause,ArgInfo).
+dec_code_fin2(Mode,Code,[Clause],ArgInfo):-
+   -> 
+   dec_fin_one_deep(Mode,Code,Clause,ArgInfo).
+dec_code_fin2(Mode,Code,Clauses,ArgInfo):-
+   guard_op(Mode,quiet_cut)
+   ->
+   dec_fin_many_quiet_cut(Mode,Code,Clauses,ArgInfo).
+dec_code_fin2(Mode,Code,Clauses,ArgInfo):-
+   guard_op(Mode,quiet_commit)
+   ->
+   dec_fin_many_quiet_commit(Mode,Code,Clauses,ArgInfo).
+dec_code_fin2(Mode,Code,Clauses,ArgInfo):-
+   guard_op(Mode,noisy_wait)
+   ->
+   dec_fin_many_noisy_wait(Mode,Code,Clauses,ArgInfo).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% dec_fin_many_quiet_cut
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dec_fin_many_quiet_cut(Mode,Code,Clauses,ArgInfo):-
+   ->
+   remove_and_warn_quiet_cut(Mode,Clauses,Clauses1),
+   dec_fin_many_quiet_cut2(Mode,Code,Clauses1,ArgInfo).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dec_fin_many_quiet_cut2(Mode,Code,[Clause],ArgInfo):-
+   at_guard_op(Clause)
+   ->
+   dec_fin_one_flat(Mode,Code,Clause,ArgInfo).
+dec_fin_many_quiet_cut2(Mode,Code,[Clause],ArgInfo):-
+   ->
+   dec_fin_one_deep(Mode,Code,Clause,ArgInfo).
+dec_fin_many_quiet_cut2(_Mode,Code,Clauses,ArgInfo):-
+   ->
+   arginfo_live_regs(ArgInfo,Live), 
+   Code=[choice_quiet_cut,TryCode,ClauseCode],
+   dec_fin_many(Clauses,TryCode,ClauseCode,Live,quiet_cut).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+   
+remove_and_warn_quiet_cut(_Mode,[Clause],NClauses):-   -> NClauses=[Clause].
+remove_and_warn_quiet_cut(_Mode,[Cl|_Clauses],_NClauses):-
+   at_guard_op(Cl)
+   ->
+   not_implemented(warning(unreachable_clause(Cl))).
+remove_and_warn_quiet_cut(Mode,[Cl|Clauses],NClauses):-
+   ->
+   NClauses=[Cl|NClauses1],
+   remove_and_warn_quiet_cut(Mode,Clauses,NClauses1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% dec_fin_many_quiet_commit
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dec_fin_many_quiet_commit(Mode,Code,Clauses,ArgInfo):-
+   ->
+   flat_clauses(1,Clauses,Flats),
+   remove_and_warn_quiet_commit(Flats,Mode,Clauses,Clauses1),
+   dec_fin_many_quiet_commit2(Mode,Code,Clauses1,ArgInfo).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dec_fin_many_quiet_commit2(Mode,Code,[Clause],ArgInfo):-
+   at_guard_op(Clause)
+   ->
+   dec_fin_one_flat(Mode,Code,Clause,ArgInfo).
+dec_fin_many_quiet_commit2(Mode,Code,[Clause],ArgInfo):-
+   ->
+   dec_fin_one_deep(Mode,Code,Clause,ArgInfo).
+dec_fin_many_quiet_commit2(_Mode,Code,Clauses,ArgInfo):-
+   ->
+   arginfo_live_regs(ArgInfo,Live), 
+   Code=[choice_quiet_commit,TryCode,ClauseCode],
+   dec_fin_many(Clauses,TryCode,ClauseCode,Live,quiet_commit).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+remove_and_warn_quiet_commit([],_Mode,Clauses,NClauses):-   
+   -> 
+   Clauses=NClauses.
+remove_and_warn_quiet_commit(Flats,_Mode,_Clauses,_NClauses):-   
+   -> 
+   not_implemented(warning(quiet_commit,Flats)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+flat_clauses(_Ct,[],Flats):- -> Flats=[].
+flat_clauses(Ct,[Clause|Clauses],Flats):-
+   at_guard_op(Clause)
+   ->
+   inc(Ct,Ct1),
+   Flats=[p(Ct,Clause)|Flats1],
+   flat_clauses(Ct1,Clauses,Flats1).
+flat_clauses(Ct,[_|Clauses],Flats):-
+   ->
+   inc(Ct,Ct1),
+   flat_clauses(Ct1,Clauses,Flats).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% dec_fin_many_noisy_wait
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dec_fin_many_noisy_wait(_Mode,Code,Clauses,ArgInfo):-
+   ->
+   flat_clauses(1,Clauses,Flats),
+   def_fin_many_noisy_wait2(Flats,Code,Clauses,ArgInfo).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dec_fin_many_noisy_wait2([_,_|_],Code,Clauses,ArgInfo):-
+   ->
+   arginfo_live_regs(ArgInfo,Live), 
+   Code=[choice_noisy_wait_nondet,TryCode|ClauseCode],
+   dec_fin_many(Clauses,TryCode,ClauseCode,Live,noisy_wait).
+dec_fin_many_noisy_wait2(_,Code,Clauses,ArgInfo):-
+   ->
+   arginfo_live_regs(ArgInfo,Live),
+   Code=[choice_noisy_wait,TryCode|ClauseCode],
+   dec_fin_many(Clauses,TryCode,ClauseCode,Live,noisy_wait).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% dec_fin_many
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dec_fin_many([Clause],TryCode,ClauseCode,Live,GOp):-
+   at_guard_op(Clause)
+   ->
+   TryCode=[gen_trust(Live),F|Code1],
+   flat_guard_instr(GOp,Live,F),
+   ClauseCode=[],
+   b_compile_clause(Clause,Code1,GOp).
+dec_fin_many([Clause],TryCode,ClauseCode,Live,GOp):-
+   ->
+   ClauseCode=[],
+   TryCode=[gen_trust(Live)|Code1],
+   b_compile_clause(Clause,Code1,GOp).
+dec_fin_many([Clause|Clauses],TryCode,ClauseCode,Live,GOp):-
+   at_guard_op(Clause)
+   ->
+   TryCode=[gen_try(l(Label),Live)|TryCode1],
+   flat_guard_instr(GOp,Live,F),
+   ClauseCode=[label(Label),F,Code1|ClauseCode1],
+   b_compile_clause(Clause,Code1,GOp),
+   dec_fin_many(Clauses,TryCode1,ClauseCode1,Live,GOp).
+dec_fin_many([Clause|Clauses],TryCode,ClauseCode,Live,GOp):-
+   ->
+   TryCode=[gen_try(l(Label),Live)|TryCode1],
+   ClauseCode=[label(Label),Code1|ClauseCode1],
+   b_compile_clause(Clause,Code1,GOp),
+   dec_fin_many(Clauses,TryCode1,ClauseCode1,Live,GOp).
+
+flat_guard_instr(quiet_cut,Live,Code):-    -> Code=flat_quiet_cut(Live).
+flat_guard_instr(quiet_commit,Live,Code):- -> Code=flat_quiet_commit(Live).
+flat_guard_instr(quiet_cut,Live,Code):-    -> Code=flat__noisy_wait(Live).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% dec_fin_one_flat
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dec_fin_one_flat(Mode,Code,Clause,ArgInfo):-
+   guard_op(Mode,quiet_cut)
+   ->
+   arginfo_live_regs(ArgInfo,Live),
+   Code=[flat_quiet_cut(Live)|Code1],
+   b_compile_clause(Clause,Code1,quiet_cut).
+dec_fin_one_flat(Mode,Code,Clause,ArgInfo):-
+   guard_op(Mode,noisy_wait)
+   ->
+   arginfo_live_regs(ArgInfo,Live),
+   Code=[flat_noisy_wait(Live)|Code1],
+   b_compile_clause(Clause,Code1,noisy_wait).
+dec_fin_one_flat(Mode,Code,Clause,ArgInfo):-
+   guard_op(Mode,quiet_commit)
+   ->
+   arginfo_live_regs(ArgInfo,Live),
+   Code=[flat_quiet_commit(Live)|Code1],
+   b_compile_clause(Clause,Code1,quiet_commit).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% dec_fin_one_deep
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dec_fin_one_deep(Mode,Code,Clause,ArgInfo):-
+   guard_op(Mode,quiet_cut)
+   ->
+   arginfo_live_regs(ArgInfo,Live),
+   Code=[choice_single_quiet_cut(Live)|Code1],
+   b_compile_clause(Clause,Code1,quiet_cut).
+dec_fin_one_deep(Mode,Code,Clause,ArgInfo):-
+   guard_op(Mode,quiet_commit)
+   ->
+   arginfo_live_regs(ArgInfo,Live),
+   Code=[choice_single_quiet_commit(Live)|Code1],
+   b_compile_clause(Clause,Code1,quiet_commit).
+dec_fin_one_deep(Mode,Code,Clause,ArgInfo):-
+   guard_op(Mode,noisy_wait)
+   ->
+   arginfo_live_regs(ArgInfo,Live),
+   Code=[choice_single_noisy_wait(Live)|Code1],
+   b_compile_clause(Clause,Code1,noisy_wait).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+at_guard_op(Clause):-
+   ->
+   Clause=clause(I,[],_,_),
+   I=index(Args,[],[]),
+   all_var_args(Args).
+
+all_var_args([]):- -> true.
+all_var_args([X|Xs]):- flat_member(X,[var(_),unnamed]) -> all_var_args(Xs).
+
+%%%%%%%%%%%%%%%%   DEBUG   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+decision_abort(_Mode,Defs,ArgInfo,Code):-
+   ->
+   defs_close_db(Defs),
+   defs_find_clno(Defs,ClSet),
+   Code=[decision_abort(ClSet),arginfo(ArgInfo),def(Defs)].
+
+%%%%%%%%%%%%%%%%   DEBUG   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dec_fin_spec(Mode,Code,[D],ArgInfo):-
+   guard_op(Mode,noisy_wait)
+   ->
+   def_end(D,ArgInfo,_,_),
+   arg(1,D,ClNo),
+   arginfo_live_regs(ArgInfo,Live),
+   Code=[alt_noisy_wait(ClNo,Live)].
+dec_fin_spec(Mode,Code,[D],ArgInfo):-
+   guard_op(Mode,quiet_cut)
+   ->
+   arginfo_live_regs(ArgInfo,Live),
+   def_end(D,ArgInfo,_,_),
+   arg(1,D,ClNo),
+   Code=[alt_quiet_cut(ClNo,Live)].
+
+defs_close_db([]):- -> true.
+defs_close_db([D|Defs]):- 
+   -> 
+   def_find_clause(D,clause(_,_,_,[])),
+   defs_close_db(Defs).
+
+defs_find_clno([],Out):- -> Out=[].
+defs_find_clno([D|Defs],Out):- 
+   -> 
+   Out=[ClNo|Out1],
+   def_find_clno(D,ClNo),
+   defs_find_clno(Defs,Out1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% calc_mode        DUMMY  ATTENTION
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+calc_mode(GoP,_Decl,mode(GoP,ordered,not_used)).
+
+guard_op(mode(GOp,_,_),GOp).
+
+can_reorder_mode(mode(_,unordered,_)).
+
+quiet_mode(mode(GOp,_,_)):- -> member(GOp,[quiet_cut,quiet_commit,quiet_wait]).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%     DEUB GONLY
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+ground_clauses([]):- -> true.
+ground_clauses([X|Xs]):- 
+  ->
+  ground_clause(X),
+  ground_clauses(Xs).
+
+ground_clause(clause(I,G,B,_)):-
+  ->
+  ground(I),  ground(G),  ground(B).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%   choosing best decision path
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% analyze
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+analyze(Flag,Tree,Ret):-
+   ->
+   analyze_next(Tree,Flag,no,no,Ret).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+analyze_check(TryArg,TryN,Tree,Flag,_SoFar,SoFarN,Ret):-
+   better_dec(TryN,SoFarN)
+   ->
+   analyze_next(Tree,Flag,TryArg,TryN,Ret).
+analyze_check(_TryArg,_TryN,Tree,Flag,SoFar,SoFarN,Ret):-
+   ->
+   analyze_next(Tree,Flag,SoFar,SoFarN,Ret).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+better_dec(_,no):- -> true.
+better_dec(Try,SoFar):- integer(Try),integer(SoFar),Try>SoFar -> true.
+better_dec(p(Try,_),SoFar):- integer(SoFar),Try>SoFar -> true.
+better_dec(p(Try,_),p(SoFar,_)):- Try>SoFar -> true.
+better_dec(Try,p(SoFar,_)):- integer(Try),Try>SoFar -> true.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+analyze_next([],_Flag,SoFar,p(_,Limit),Ret):-          ->   Ret=split(Limit,SoFar).
+analyze_next([],_Flag,SoFar,_SoFarN,Ret):-              ->   Ret=SoFar.
+analyze_next([X|Tree],Flag,SoFar,SoFarN,Ret):-
+   X=p(_,T)
+   ->
+   main_analyze_arg(T,Flag,N),
+   analyze_check(X,N,Tree,Flag,SoFar,SoFarN,Ret).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% analyze_internal
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+analyze_internal(Flag,Tree,BestArgNo,BestArg,NTree):-
+   ->
+   analyze(Flag,Tree,Entry),
+   analyze_internal1(Entry,BestArgNo,BestArg,Tree,NTree).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+analyze_internal1(no,_,_,_,_):- -> error(analyze_internal).
+analyze_internal1(p(ArgNo,Arg),ArgNo1,Arg1,Tree,NTree):-
+   ->
+   ArgNo1=ArgNo,Arg=Arg1,
+   delete_in_plist(ArgNo,Tree,NTree).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% main_analyze_arg
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+main_analyze_arg(T,Flag,Out):- 
+   -> 
+   analyze_arg(T,Flag,B,[],infinity,Limit),
+   arg(1,Flag,F),
+   main_analyze_arg2(F,Limit,B,Out).
+
+main_analyze_arg2(_,0,_B,Out):-                                  -> Out=no.
+main_analyze_arg2(_,infinity,B,Out):-                           -> length_list(B,Out).
+main_analyze_arg2(any2,Limit,B,Out):-       
+    ->
+    length_list(B,Length),
+    Out=p(Length,Limit).
+main_analyze_arg2(_,Limit,B,Out):-       
+    ->
+    limit_edit(Limit,B,B1),
+    length_list(B1,L),
+    Out=p(L,Limit).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%  analyze_arg
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+analyze_arg([],_Flag,B,E,Limit,R):- -> B=E,R=Limit.
+analyze_arg(t(A,I,F,N,L,S,[]),Flag,B,E,Limit,LimitX):-
+   ->
+   no_distinct_simple(Flag,A,Try,B1,Limit,Limit1),
+   no_distinct_simple(Flag,I,B1,B2,Limit1,Limit2),
+   no_distinct_z(F,B2,B3),
+   no_distinct_z(N,B3,B4),
+   no_distinct_list(Flag,L,B4,B5,Limit2,Limit3),
+   no_distinct_struct(Flag,S,B5,TryEnd,Limit3,Limit4),
+   produce_p_g_l(Try,TryEnd,Limit4,List),
+   analyze_arg_fin(LimitX,Try,TryEnd,B,E),
+   analyze_arg2(List,Limit4,LimitX).
+analyze_arg(t(_,_,_,_,_,_,_),Flag,B,E,_Limit,LimitX):-
+   arg(1,Flag,excl)
+   ->
+   LimitX=0,B=E.
+analyze_arg(t(A,I,F,N,L,S,V),Flag,B,E,Limit,LimitX):-
+   ->
+   no_distinct_simple(Flag,A,Try,B1,Limit,Limit1),
+   no_distinct_simple(Flag,I,B1,B2,Limit1,Limit2),
+   no_distinct_z(F,B2,B3),
+   no_distinct_z(N,B3,B4),
+   no_distinct_list(Flag,L,B4,B5,Limit2,Limit3),
+   no_distinct_struct(Flag,S,B5,B6,Limit3,Limit4),
+   B6=[g(AllV)|TryEnd],
+   extract_all_clno(V,AllV),
+   greatest_element_list(AllV,G),
+   analyze_min(Limit4,G,NLimit),
+   produce_p_g_l(Try,TryEnd,NLimit,List),
+   analyze_arg2(List,NLimit,LimitX),
+   analyze_arg_fin(LimitX,Try,TryEnd,B,E).
+
+analyze_arg_fin(X,Try,TryEnd,B,E):- data(X)-> Try=TryEnd,B=E.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+analyze_min(infinity,X,Y):- -> Y=X.
+analyze_min(X,infinity,Y):- -> Y=X.
+analyze_min(X,Z,Y):- -> min(X,Z,Y).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+produce_p_g_l(Try,TryEnd,Limit,List):-
+   ->
+   p_p_g_l(Try,TryEnd,List1),
+   limit_edit(Limit,List1,List).
+
+p_p_g_l([g(Cl)|Rest],E,List):-
+   |
+   List=[t(L,G,Cl)|List1],
+   least_element_list(Cl,L),
+   greatest_element_list(Cl,G),
+   p_p_g_l(Rest,E,List1).
+p_p_g_l(E,E,List):-
+   |
+   List=[].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+limit_edit(infinity,List,Out):- -> Out=List.
+limit_edit(_,[],Out):- -> Out=[].
+limit_edit(Limit,[t(L,_G,_Cl)|Rest],Out):-
+   L>Limit
+   ->
+   limit_edit(Limit,Rest,Out).
+limit_edit(Limit,[E|Rest],Out):-
+   E=t(_,G,_),G=<Limit
+   ->
+   Out=[E|Out1],
+   limit_edit(Limit,Rest,Out1).
+limit_edit(Limit,[t(L,_G,Cl)|Rest],Out):-
+   ->
+   rem_elem_greater_than(Cl,Limit,Cl1),
+   Out=[t(L,End,Cl1)|Out1],
+   find_end_list(Cl1,End),
+   limit_edit(Limit,Rest,Out1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+analyze_arg2([],Limit,Limit1):- -> Limit=Limit1.
+analyze_arg2([t(L,G,Cl)|Rest],Limit,Limit1):-
+   maybe_new_limit(L,G,Cl,Rest,Limit,NLimit)
+   ->
+   limit_edit(NLimit,[t(L,G,Cl)|Rest],List),
+   analyze_arg2(List,NLimit,Limit1).
+analyze_arg2([t(_,_,_)|Rest],Limit,NLimit):-
+   ->
+   analyze_arg2(Rest,Limit,NLimit).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+maybe_new_limit(L,G,Cl,[t(L1,_G1,_)|Rest],Limit,Flag):-
+   G<L1
+   ->
+   maybe_new_limit(L,G,Cl,Rest,Limit,Flag).
+maybe_new_limit(L,G,Cl,[t(_L1,G1,_)|Rest],Limit,NLimit):-
+   L>G1
+   ->
+   maybe_new_limit(L,G,Cl,Rest,Limit,NLimit).
+maybe_new_limit(L,G,_Cl,[t(L1,_G1,_Cl1)|_Rest],_Limit,NLimit):-
+   L<L1
+   ->
+   NLimit=G.
+maybe_new_limit(L,_G,_Cl,[t(L1,G1,_Cl1)|_Rest],_Limit,NLimit):-
+   L1<L
+   ->
+   NLimit=G1.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%% no_distinct_simple
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+no_distinct_simple(_Flag,[],B,E,Limit,Limit1):- -> B=E,Limit=Limit1.
+no_distinct_simple(Flag,CV,B,E,Limit,Limit1):- 
+   functor(Flag,first,_),CV=cv(_,_)
+   ->
+   B=[g(All)|E],Limit=Limit1,
+   extract_all_clno(CV,All).
+no_distinct_simple(Flag,cv(_,_),B,E,_Limit,Limit1):- 
+   functor(Flag,second,_),arg(Flag,1,excl)
+   -> 
+   Limit1=0,B=E.
+no_distinct_simple(Flag,cv(Cs,Vs),B,E,Limit,Limit1):- 
+   functor(Flag,second,_),arg(Flag,1,F),
+   flat_member(F,[any1,any2])
+   -> 
+   B1=[g(All)|E],
+   extract_all_clno(Vs,All),
+   greatest_element_list(All,G),
+   analyze_min(Limit,G,Limit1),
+   no_distinct_simple_con(Cs,B,B1).
+no_distinct_simple(_Flag,c(Cs),B,E,Limit,Limit1):-  
+   -> 
+   Limit=Limit1,
+   no_distinct_simple_con(Cs,B,E).
+no_distinct_simple(_Flag,v(Vs),B,E,Limit,Limit1):- 
+   -> 
+   Limit=Limit1,B=[g(All)|E],
+   extract_all_clno(Vs,All).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+no_distinct_simple_con([],B,E):- -> B=E.
+no_distinct_simple_con([ce(_,cl(Cl))|Xs],B,E):-
+   ->
+   B=[g(Cl)|B1],
+   no_distinct_simple_con(Xs,B1,E).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%% no_distinct_z
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+no_distinct_z([],B,E):- -> B=E.
+no_distinct_z(cl(Cl),B,E):-  -> B=[g(Cl)|E].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%% no_distinct_list
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+no_distinct_list(_Flag,[],B,E,Limit,Limit1):- -> B=E,Limit=Limit1.
+no_distinct_list(Flag,list(Car,Cdr),B,E,Limit,Limit2):-
+   ->
+   analyze_arg(Car,Flag,B1,[],Limit,Limit1),
+   analyze_arg(Cdr,Flag,B2,[],Limit1,Limit2),
+   combine_nodes(B1,B2,B,E).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% combine_nodes
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+combine_nodes([g(ClNo)|G1],G2,B,E):-
+   ->
+   div_according_to(ClNo,G2,B,B1),
+   combine_nodes(G1,G2,B1,E).
+combine_nodes([],_G2,B,E):-
+   ->
+   B=E.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+div_according_to([],_,B,E):- -> B=E.
+div_according_to(ClNo,[],B,E):- -> B=[g(ClNo)|E].
+div_according_to(ClNo,[g(Cl)|G],B,E):-
+   ->
+   intersection_with_rem(ClNo,Cl,I,Rem),
+   div_according_to1(I,Rem,G,B,E).
+
+div_according_to1([],ClNo,G,B,E):-
+   ->
+   div_according_to(ClNo,G,B,E).
+div_according_to1(I,Rem,G,B,E):-
+   ->
+   div_according_to(I,G,B,B1),
+   div_according_to(Rem,G,B1,E).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% no_distinct_struct
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+no_distinct_struct(_,[],B,E,Limit,Limit1):- -> B=E,Limit=Limit1.
+no_distinct_struct(Flag,FV,B,E,Limit,Limit1):- 
+   functor(Flag,first,_),FV=fv(_,_)
+   -> 
+   B=[g(All)|E],Limit=Limit1,
+   extract_all_clno(FV,All).
+no_distinct_struct(Flag,fv(_,_),B,E,_Limit,Limit1):- 
+    functor(Flag,second,_),arg(Flag,1,excl)
+    ->
+    Limit1=0,B=E.
+no_distinct_struct(Flag,fv(SList,Vs),B,E,Limit,Limit1):- 
+    functor(Flag,second,_),arg(Flag,1,F),
+    flat_member(F,[any1,any2])
+    ->
+    extract_all_clno(Vs,All),
+    greatest_element_list(All,G),
+    analyze_min(G,Limit,Limit2),
+    no_distinct_struct1(Flag,SList,B,E,Limit2,Limit1).
+no_distinct_struct(Flag,f(SList),B,E,Limit,Limit1):- 
+    ->
+    no_distinct_struct1(Flag,SList,B,E,Limit,Limit1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+no_distinct_struct1(_,[],B,E,Limit,Limit1):- -> B=E,Limit=Limit1.
+no_distinct_struct1(Flag,[s(_,_,Args)|Rest],B,E,Limit,Limit2):-
+    ->
+    no_distinct_struct2(Flag,Args,B,B1,Limit,Limit1),
+    no_distinct_struct1(Flag,Rest,B1,E,Limit1,Limit2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+no_distinct_struct2(Flag,[Arg],B,E,Limit,Limit1):-
+    ->
+   analyze_arg(Arg,Flag,B,E,Limit,Limit1).
+no_distinct_struct2(Flag,[Arg|Args],B,E,Limit,Limit2):-
+   ->
+   analyze_arg(Arg,Flag,N,[],Limit,Limit1),
+   no_distinct_struct3(Flag,Args,N,B,E,Limit1,Limit2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+no_distinct_struct3(_Flag,[],Acc,B,E,Limit1,Limit2):-  
+   ->
+   Limit2=Limit1,
+   copy_with_var_end(Acc,B,E).
+no_distinct_struct3(Flag,[Arg|Args],Acc,B,E,Limit,Limit2):-  
+   ->
+   analyze_arg(Arg,Flag,N,[],Limit,Limit1),
+   combine_nodes(N,Acc,Acc1,[]),
+   no_distinct_struct3(Flag,Args,Acc1,B,E,Limit1,Limit2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%       Diverse
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% preparation
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+extract_indexing([],Index):- ->Index=[].
+extract_indexing([fail|Cl],Index):-
+   ->
+   extract_indexing(Cl,Index).
+extract_indexing([clause(I,_,_,_)|Cl],Index):-
+   I=index(Args,_,_)
+   ->
+   Index=[Args|RestIndex],
+   extract_indexing(Cl,RestIndex).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% MISC
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%   Special compiler  List handling predicates
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+flatten_list_label(List,Ct,NewList,CtOut):-    
+   -> 
+   flatten_list_rem_nil(List,List1,[]),
+   list_label1(List1,Ct,NewList,CtOut,[]).
+
+%%%%
+
+list_label1([],Ct,NewList,CtOut,End):-      
+   -> 
+   NewList=End,CtOut=Ct.
+list_label1([X|Xs],Ct,NewList,CtOut,End):-
+   X=label(Label)
+   ->
+   Label=Ct,NewList=[X|L],
+   inc(Ct,Ct1),
+   dupl_label(Xs,Rest,Ct),
+   list_label1(Rest,Ct1,L,CtOut,End).
+list_label1([X|Xs],Ct,NewList,CtOut,End):-
+   X=block(label(L),instr,_)
+   ->
+   L=Ct,inc(Ct,Ct1),NewList=[X|NL],
+   list_label1(Xs,Ct1,NL,CtOut,End).
+list_label1([block(label(L),Arg,Block)|Xs],Ct,NewList,CtOut,End):-
+   ->
+   L=Ct,NewList=[block(label(L),Arg,Block2)|NewList1],
+   flatten_list_rem_nil(Block,Block1,[]),
+   inc(Ct,Ct1),
+   list_label1(Block1,Ct1,Block2,Ct2,[]),
+   list_label1(Xs,Ct2,NewList1,CtOut,End).
+list_label1([X|Xs],Ct,NewList,CtOut,End):-
+   ->
+   NewList=[X|NL],
+   list_label1(Xs,Ct,NL,CtOut,End).
+
+
+%%%%
+
+dupl_label([label(Label)|Xs],Rest,Ct):- 
+   -> 
+   Label=Ct,
+   dupl_label(Xs,Rest,Ct).
+dupl_label(Xs,Rest,_):- 
+   ->
+   Xs=Rest.
+

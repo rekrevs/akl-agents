@@ -1,0 +1,5 @@
+This is a compiler for the general deep guard scheme.  It
+replaces the previous version, formerly a Prolog program.
+This version is a pure AKL program.  Allocation of
+y-registers has been improved.  Allocation of x-registers is
+still very naive.

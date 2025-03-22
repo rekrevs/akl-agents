@@ -1,0 +1,41 @@
+%$Id: bignum.akl,v 1.3 1993/05/28 07:37:28 bd Exp $
+%
+
+benchfact(N,Int):- 
+	integer(N),
+	N > 0,
+	integer(Int),
+	Int >= 0
+    ->	int_to_big(Int, Bignum),
+	int_to_big(0, Zero),
+	int_to_big(1, One),
+	statistics(runtime,_), 
+	many_empty(N, Zero, Bignum, One),
+	statistics(runtime,[_,T0]),
+	many_fact(N, Zero, Bignum, One),
+	statistics(runtime,[_,T1]),
+	sub(T1, T0, T),
+	format('Solved in ~w msec. ~n', [T]).
+
+
+many_empty(0, _Z, _B, _O) :-
+    ->	true.
+many_empty(N, Z, B, O) :-
+    ->	sub(N, 1, NN),
+	many_empty(NN, Z, B, O).
+
+
+many_fact(0, _Z, _B, _O) :-
+    ->	true.
+many_fact(N, Z, B, O) :-
+    ->	sub(N, 1, NN),
+	fact(Z, B, O, _Result),
+	many_fact(NN, Z, B, O).
+	
+
+fact(Z, Z, O, OO) :- 
+    ->	O = OO.
+fact(Z, N, O, R) :-
+    ->	big_sub(N, O, NN),
+	fact(Z, NN, O, RR),
+	big_mul(N, RR, R).

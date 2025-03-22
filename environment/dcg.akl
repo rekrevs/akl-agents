@@ -1,0 +1,89 @@
+% $Id: dcg.akl,v 1.4 1992/11/22 19:39:42 sverker Exp $
+% SICStus Prolog: Portable versions of phrase/2 and expand_term/2.
+% Adapted for the Andorra Kernel Language by Sverker Janson.
+
+phrase(P, L) :- phrase(P, L, []).
+
+phrase(P, L, R) :-
+	dcg_translate_dcg(P, P1, L, R) -> call(P1).
+
+expand_term(T1, T3) :-			% must be steadfast
+        expand_term_internal(T1, T2),
+	T2 = T3.
+
+expand_term_internal(T1, T2) :-
+	call_user_def(term_expansion(T1, T)) -> T2 = T.
+expand_term_internal(T1, T2) :-
+	dcg_expansion(T1, T) -> T2 = T.
+expand_term_internal(T1, T2) :- ->
+	T1=T2.
+
+call_user_def(X) :- fail. % temporary ***
+
+dcg_expansion((H,List-->B), New) :- ->
+	New = (H1:-B1,B2),
+	dcg_translate_dcg_atom(H, H1, S0, S1),
+	dcg_translate_dcg(List, B2, S1, S),
+	dcg_translate_dcg(B, B1, S0, S).
+dcg_expansion((H-->B), New) :- ->
+	New = (H1:-B1),
+	dcg_translate_dcg_atom(H, H1, S0, S),
+	dcg_translate_dcg(B, B1, S0, S).
+
+dcg_translate_dcg(X, Y, S0, S) :- var(X) ->
+	Y=phrase(X,S0,S).
+dcg_translate_dcg([], Y, S0, S) :- -> Y = (S0 = S).
+dcg_translate_dcg([X|Y], XandY, S0, S) :- ->
+	dcg_translate_dcg(Y, Y1, S1, S),
+	dcg_and('C'(S0,X,S1), Y1, XandY).
+dcg_translate_dcg(\+X, New, S0, S) :- ->
+	New = (\+X1),
+	dcg_translate_dcg(X, X1, S0, S).
+dcg_translate_dcg((X,Y), XandY, S0, S) :- ->
+	dcg_translate_dcg(X, X1, S0, S1),
+	dcg_translate_dcg(Y, Y1, S1, S),
+	dcg_and(X1, Y1, XandY).
+dcg_translate_dcg((X;Y), New, S0, S) :- ->
+	New = (X1;Y1),
+	dcg_translate_dcg_cond(X, X1, S0, S),
+	dcg_translate_dcg_cond(Y, Y1, S0, S).
+dcg_translate_dcg(X, X1, S0, S) :- ->
+	dcg_translate_dcg_atom(X, X1, S0, S).
+
+dcg_and(X, Y, Z) :- X==true -> Z=Y.
+dcg_and(X, Y, Z) :- Y==true -> Z=X.
+dcg_and(X, Y, Z) :- -> Z = (X,Y).
+
+dcg_translate_dcg_atom(X, X1, S0, S) :- |
+	compound_extract(X, F, A),
+	A1 is A+1,
+	A2 is A+2,
+	compound_construct(F, A2, X1),
+	arg(A1, X1, S0),
+	arg(A2, X1, S),
+	dcg_copy_args(A, X, X1).
+
+dcg_copy_args(0, _, _) :-
+	-> true.
+dcg_copy_args(I, F1, F2) :- ->
+	arg(I, F1, X),
+	arg(I, F2, X),
+	I1 is I-1,
+	dcg_copy_args(I1, F1, F2).
+
+'C'([T|S], T, S).
+
+dcg_translate_dcg_cond(X, Y, S0, S) :- var(X) ->
+	Y=phrase(X,S0,S).
+dcg_translate_dcg_cond((If->Then), Result, S0, S) :- ->
+	Result = (If1->Then1),
+	dcg_translate_dcg(If, If0, S1, S2),
+	dcg_translate_dcg(Then, Then1, S2, S),
+	(   S1 \== S -> S0=S1, If0=If1
+	;   dcg_and(S0=S1, If0, If1)
+	).
+dcg_translate_dcg_cond(X, Y, S0, S) :- ->
+	dcg_translate_dcg(X, Y0, S1, S),
+	(   S1 \== S -> S0=S1, Y=Y0
+	;   dcg_and(S0=S1, Y0, Y)
+	).

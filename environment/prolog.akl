@@ -1,0 +1,233 @@
+/* $Id: prolog.akl,v 1.23 1994/03/30 13:43:34 rch Exp $ */
+
+%%%
+%%% TERM MANIPULATION
+%%%
+
+name(Atomic, List) :-
+	atom(Atomic)
+    |	atom_to_chars(Atomic, List).
+name(Atomic, List) :-
+	integer(Atomic)
+    |	integer_to_chars(Atomic, List).
+name(Atomic, List) :-
+	float(Atomic)
+    |	float_to_chars(Atomic, List).
+name(Atomic, List) :-
+	atomic(Atomic)
+    |	atomic_to_chars(Atomic, List).
+name(Atomic, List) :-
+	'$islist'(List)
+    |	chars_to_atomic(List, Atomic).
+
+chars_to_atomic(C, L) :-
+	chars_to_atom(L, A)
+    ->	C = A.
+chars_to_atomic(C, L) :-
+	chars_to_integer(L, I)
+    ->	C = I.
+chars_to_atomic(C, L) :-
+	chars_to_float(L, F)
+    ->	C = F.
+
+
+%%%
+%%% STREAMS - TERMINAL I/O
+%%%
+
+open(File,Mode,Stream):-
+	open_stream(File, Mode, S)
+    ->	Stream = S.
+
+open_stream(File, read, Stream) :- 
+    ->	fopen(File, r, Stream).
+
+open_stream(File, write, Stream) :-
+    ->	fopen(File, w, Stream).
+
+open_stream(File, append, Stream) :-
+    ->	fopen(File, a, Stream).
+
+/* ---------------------------------------------------------------------- */
+
+ttyput(E) :- -> stderr(S), put(S, E).
+ttyskip(E) :- -> stderr(S), skip(S, E).
+ttytab(E) :- -> stderr(S), tab(S, E).
+ttynl :- -> stderr(S), nl(S).
+ttyflush :- -> stderr(S), flush_output(S).
+ttyget0(N) :- -> stderr(S), get0(S, N).
+ttyget(N) :- -> stderr(S), get(S, N).
+
+/* ---------------------------------------------------------------------- */
+
+%    do { i = getc(currin);
+%     } while( i < (int)' '  && i ->= EOF);
+
+get(C) :-
+    ->	stdin(S),
+	get(S, C, _).
+get(S, C) :-
+    ->	get(S, C, _).
+
+get(S0, C, S) :-
+    ->	send(getc(C0), S0, S1),
+	get_loop(C0, C, S1, S).
+
+get_loop(C0, C, S0, S) :-
+	C0 > 32,
+	C0 =\= -1
+    ->
+	C0 = C,
+	S0 = S.
+get_loop(_C0, C, S0, S) :-
+    ->	send(getc(C0), S0, S1),
+	get_loop(C0, C, S1, S).
+
+/* ---------------------------------------------------------------------- */
+
+get0(E) :-
+    ->	stdin(S),
+	send(getc(E), S).
+get0(S, C) :- 
+    ->	send(getc(C), S).
+get0(S0, C, S) :-
+    ->	send(getc(C), S0, S).
+
+/* ---------------------------------------------------------------------- */
+
+put(E) :-
+    ->	stdout(S),
+	put(S, E, _).
+put(S, E) :-
+    ->	put(S, E, _).
+put(S0, E, S) :-
+    ->	N is E,
+	send(putc(N), S0, S).
+
+
+skip(E) :-
+    ->	stdin(S),
+	skip(S, E, _).
+skip(S, E) :-
+    ->	skip(E, S, _).
+skip(S0, E, S) :-
+    ->	C is E,
+	send(getc(N), S0, S1),
+	'$skip'(N, C, S1, S).
+
+'$skip'(-1, _, S0, S) :-
+    ->	S0 = S.					% end of file
+'$skip'(C, C, S0, S) :-
+    ->	S0 = S.					% character match
+'$skip'(_, C, S0, S) :-
+    ->	send(getc(N), S0, S1),
+	'$skip'(N, C, S1, S).
+
+
+tab(E) :- -> stdout(S), tab(S, E, _).
+tab(S0, E) :- -> tab(S0, E, _).
+tab(S0, E, S) :-
+    ->	N is E,
+	'$tab'(N, S0, S).
+
+'$tab'(0, S0, S) :-
+    ->	S0 = S.
+'$tab'(N, S0, S) :-
+	N > 0
+    ->	NN is N - 1,
+	send(putc(0' ), S0, S1),			% output one space
+	'$tab'(NN, S1, S).
+
+nl :-  -> stdout(S), fnl(S, _).
+nl(S) :- -> fnl(S, _).
+nl(S0, S) :- -> fnl(S0, S).
+
+
+%%%
+%%%	OTHERS
+%%%
+
+nonvar(X) :- not(var(X)).
+
+number(X) :- integer(X) -> true.
+number(X) :- float(X) -> true.
+
+atom_chars(A, L) :-
+	atom(A),
+	'$islist'(L),
+	atom_chars_aux(A, L).
+
+atom_chars_aux(A, L) :- atom_to_chars(A, LL) | L = LL.
+atom_chars_aux(A, L) :- chars_to_atom(L, AA) | A = AA.
+
+number_chars(N, L) :-
+	number(N),
+	'$islist'(L),
+	number_chars_aux(N, L).
+
+number_chars_aux(I, L) :- integer_to_chars(I, LL) | L = LL.
+number_chars_aux(F, L) :- float_to_chars(F, LL) | L = LL.
+number_chars_aux(I, L) :- chars_to_integer(II, L) | I = II.
+number_chars_aux(F, L) :- chars_to_float(FF, L) | F = FF.
+
+%
+
+numbervars(X, N0, N) :-
+	integer(N0) ->
+	numbervars1(X, N0, N).
+
+numbervars1(V, N0, N) :- '$var'(V) -> V = '$VAR'(N0), N is N0+1.
+numbervars1(X, N0, N) :- atomic(X) -> N0=N.
+numbervars1([X|Xs], N0, N) :- ->
+	numbervars1(X, N0, N1),
+	numbervars1(Xs, N1, N).
+numbervars1(X, N0, N) :- ->
+	term_to_functor(X, _, A),
+	numbervars1(0, A, X, N0, N).
+
+numbervars1(A, A, _, N0, N) :- -> N0=N.
+numbervars1(A0, A, X, N0, N) :- ->
+	A1 is A0+1,
+	arg(A1, X, X1),
+	numbervars1(X1, N0, N1),
+	numbervars1(A1, A, X, N1, N).
+
+
+copy_term(X,Y) :- ->
+	copy_term(X,Y,[],_).
+
+copy_term(X,Y,Vs0,Vs) :-
+	'$var'(X) ->
+	copy_var(X,Y,Vs0,Vs).
+copy_term(X,Y,Vs0,Vs) :-
+	atomic(X) ->
+	Y = X, Vs = Vs0.
+copy_term(X,Y,Vs0,Vs) :-
+	compound(X) ->
+	term_to_functor(X,F,N),
+	functor_to_term(F,N,Y),
+	copy_term_args(N,X,Y,Vs0,Vs).
+
+copy_term_args(0,_X,_Y,Vs0,Vs) :- ->
+	Vs = Vs0.
+copy_term_args(N,X,Y,Vs0,Vs) :- ->
+	arg(N,X,AX),
+	copy_term(AX,AY,Vs0,Vs1),
+	arg(N,Y,AY),
+	N1 is N-1,
+	copy_term_args(N1,X,Y,Vs1,Vs).
+
+copy_var(X,Y,Vs0,Vs) :-
+	lookup(X,Y1,Vs0) ->
+	Y = Y1, Vs = Vs0.
+copy_var(X,Y,Vs0,Vs) :- ->
+	Y = NewVar,
+	Vs = [X = NewVar|Vs0].
+
+% wrong but used here....
+
+lookup(X,Y,[X1=Y1|_]) :- 
+    '$eq'(X, X1)
+    ->  Y = Y1. % ERROR /KB
+lookup(X,Y,[_|R]) :-
+    -> lookup(X,Y,R).

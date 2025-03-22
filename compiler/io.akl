@@ -1,0 +1,166 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% INPUT
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+bam_compile(FileName,OptFlags):-
+   ->
+   add_akl(FileName,BaseName,AklName),
+   bam_compile2(AklName,BaseName,OptFlags).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+bam_compile2(AklName,BaseName,OptFlags):-
+   fopen(AklName,r,InStream) 
+   ->
+   read_in_file(InStream,List),
+   main_compile(List,OptFlags,Pred),
+   compiled_file(Pred,BaseName).
+bam_compile2(_,FileName):-
+   ->
+   error(could_not_open_file(FileName)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+read_in_file(exception(_),_List):-
+   ->
+   error(read_in_file).
+read_in_file(InStream,List):-
+   ->
+   akl_read_clause(L,InStream,S1),
+   read_in_file1(L,S1,List,_).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+read_in_file1(exception(end_of_file),_,List,_):- -> List=[].
+read_in_file1(exception(Tokens),S,List,Sx):-
+   ->
+   stdout(T0),
+   write_atom('{ Warning: could not parse: ',T0,T1),
+   write_tokens(Tokens,T1,T2),
+   write_atom(' }',T2,T3),
+   fnl(T3,_),
+   akl_read_clause(L,S,S1),
+   read_in_file1(L,S1,List,Sx).
+read_in_file1(term(Term),S,List,Sx):-
+   ->
+   List=[Term|List1],
+   akl_read_clause(L,S,S1),
+   read_in_file1(L,S1,List1,Sx).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+add_akl(FileName,BaseName,AklName):-
+   ->
+   atom_chars('.akl',Akl),
+   atom_chars(FileName,Chars),
+   add_akl_1(Chars,Akl,Chars1,Chars2),
+   atom_chars(BaseName,Chars1),
+   atom_chars(AklName,Chars2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+add_akl_1(List,List,Chars,Chars2):-
+   ->
+   Chars=[],Chars2=List.
+add_akl_1([X|Xs],Akl,Chars,Chars2):-
+   ->
+   Chars=[X|Chars1],
+   Chars2=[X|Chars3],
+   add_akl_1(Xs,Akl,Chars1,Chars3).
+add_akl_1([],Akl,Chars,Chars2):-
+   ->
+   Chars=[],
+   Chars2=Akl.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+m_read_terms(List):-
+   read_term(T1) 
+   -> 
+   m_read_terms2(List,T1).
+m_read_terms(T):-
+   -> 
+   error(syntax_error(T)).
+
+m_read_terms2(T,atom(end_of_file)):-  ->    T=[].
+m_read_terms2(Terms,Term):-           ->    Terms=[Term|Rest],m_read_terms(Rest).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% OUTPUT
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+compiled_file(Pred,Name):-
+    to_file
+    ->
+    atom_chars(Name,Chars),
+    copy_with_var_end(Chars,Chars1,End),
+    atom_chars('.bam',End),
+    atom_chars(Bam,Chars1),
+    fopen(Bam,w,S),
+    pred_out(S,Pred,S1),
+    fclose(S1,_).
+compiled_file(_Pred,_Name):-
+    ->
+    true.
+
+pred_out(S,[pred(F,A,_,Code)|MorePred],Sx):-
+    ->
+    pred_out1(F,A,Code,S,S1),
+    pred_out(S1,MorePred,Sx).
+pred_out(S,[],Sx):-
+    ->
+    S=Sx.
+    
+pred_out1(F,A,Code,S,Sx):-
+    data(F),data(A)
+    ->
+    write(predicate,S,S1),
+    write('(''',S1,S2),
+    write(F,S2,S3),
+    write('''/',S3,S4),write(A,S4,S5),
+    nl(S5,S6),
+    pred_out2(S6,Code,S7),
+    write(')',S7,S8),nl(S8,S9),nl(S9,Sx).
+
+pred_out2(S,[],S1):- ->    S=S1.
+pred_out2(S,[X|Xs],Sx):- 
+    ->
+    write_i(S,X,S1),
+    pred_out2(S1,Xs,Sx).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% UTILITY
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+write_i(S,L,Sx):-
+    L=label(I),data(I)
+    ->
+    write_indent(S,S1),
+    write(L,S1,S2),
+    nl(S2,Sx).
+write_i(S,I,Sx):-
+    data(I)
+    ->
+    write_indent(S,S1),
+    write_indent(S1,S2),
+    write(I,S2,S3),
+    nl(S3,Sx).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+write_indent(S,S1):- write('    ',S,S1).
+
+
+
+
+
+
+    
+
+    

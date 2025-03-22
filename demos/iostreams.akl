@@ -1,0 +1,27 @@
+% instream and outstream for GHC-examples
+
+instream(S) :- |, io(S).
+
+outstream(S) :- |, io(S).
+
+io([]).
+io([Req|S]) :- |, do_io(Req, S).
+
+
+do_io(read(X),   S) :- read(Y), !, X = Y, io(S).
+do_io(write(X),  S) :- ground_write(X), !, io(S).  
+do_io(nl,        S) :- nl, !, io(S).
+
+ground_write(X) :- ground(X), |, write(X).
+
+ground(X) :- atomic(X), |, true.
+ground(X) :- compound(X), |,
+	functor(X,F,N),
+	ground_args(N,X).
+
+ground_args(0,X) :- !.
+ground_args(N,X) :-
+	arg(N, X, A),
+	ground(A),
+	minus(N,1,N1),
+	ground_args(N1,X).

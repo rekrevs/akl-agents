@@ -1,0 +1,31 @@
+$Id: TODO,v 1.2 1992/12/12 09:56:46 sverker Exp $
+
+High Priority Queue
+===================
+
+control_c
+flat_guards
+tagged_pointers
+constraint_interface
+cyclic_terms
+memory_management
+
+Long Term
+=========
+
+arrays
+dif_constraints
+fd_constraints
+feature_constraints
+foreign_functions
+mp_numbers
+super_suspension
+syntax
+
+Miscellaneous
+=============
+
+switch_on_constant
+
+Done
+====

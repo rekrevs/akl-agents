@@ -1,0 +1,17 @@
+May 28, 1993
+
+This compiler is upon request made available for group members to peruse. The compiler is still
+under development and will not reach the prototype stage for some time.
+
+Don't expect the compiler to do anything useful other than with the examples in the examples
+subdirectory. 
+
+Don't report bugs at this time (I have more than enough as is).
+
+
+To compile the file FileName.akl  the query is q(FileName)? with the compiled code output to
+	FileName.bam
+
+
+	
+

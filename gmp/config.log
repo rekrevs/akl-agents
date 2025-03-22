@@ -1,0 +1,266 @@
+This file contains any messages produced by compilers while
+running configure, to aid debugging if configure makes a mistake.
+
+It was created by configure version 2.14a, executed with
+ > ./configure 
+
+configure:636: checking host system type
+configure:672: checking target system type
+configure:707: checking build system type
+configure:778: checking for a BSD compatible install
+configure:835: checking whether build environment is sane
+configure:906: checking for mawk
+configure:906: checking for gawk
+configure:939: checking whether make sets ${MAKE}
+configure:1029: checking whether to enable maintainer-specific portions of Makefiles
+configure:1352: checking for BSD-compatible nm
+configure:1418: checking for gcc
+configure:1498: checking if the C compiler (gcc) works with flags -g -O2 -Wa,-xarch=v8plus
+configure:1508: gcc -o conftest -g -O2 -Wa,-xarch=v8plus   conftest.c  1>&5
+configure:1583: checking if the C compiler (gcc) works with flags -g -O2 -m64 -mptr64 -Wa,-xarch=v9 -mcpu=v9
+configure:1593: gcc -o conftest -g -O2 -m64 -mptr64 -Wa,-xarch=v9 -mcpu=v9   conftest.c  1>&5
+cc1: -m64 is not supported by this configuration
+configure: failed program was:
+
+#line 1588 "configure"
+#include "confdefs.h"
+
+int main(){return(0);}
+configure:1418: checking for cc
+configure:1498: checking if the C compiler (cc) works with flags -xtarget=native -xarch=v8 -xO4
+configure:1508: cc -o conftest -xtarget=native -xarch=v8 -xO4   conftest.c  1>&5
+configure:1583: checking if the C compiler (cc) works with flags -xtarget=native -xarch=v9 -xO4
+configure:1593: cc -o conftest -xtarget=native -xarch=v9 -xO4   conftest.c  1>&5
+cg: assertion failed in file ../src/codegen/procgen.cc at line 965
+cg: make_entry: no IR_ENTRY - v9 abi calling requires it
+cg: 1 errors
+configure: failed program was:
+
+#line 1588 "configure"
+#include "confdefs.h"
+
+int main(){return(0);}
+configure:1814: checking whether gcc accepts -mcpu=v9
+configure:1829: gcc -o conftest -g -O2 -Wa,-xarch=v8plus -mcpu=v9   conftest.c  1>&5
+configure:1868: checking whether the C compiler (gcc -g -O2 -Wa,-xarch=v8plus -mcpu=v9  ) works
+configure:1884: gcc -o conftest -g -O2 -Wa,-xarch=v8plus -mcpu=v9   conftest.c  1>&5
+configure:1910: checking whether the C compiler (gcc -g -O2 -Wa,-xarch=v8plus -mcpu=v9  ) is a cross-compiler
+configure:1915: checking whether we are using GNU C
+configure:1924: gcc -E conftest.c
+configure:1956: checking how to run the C preprocessor
+configure:1978: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:2050: checking for a BSD compatible install
+configure:2107: checking whether ln -s works
+configure:2128: checking for suitable m4
+trying m4
+good
+configure:2178: checking for ar
+configure:2216: checking how to switch to text section
+configure:2235: checking how to switch to data section
+configure:2253: checking how to export a symbol
+configure:2267: checking what assembly label suffix to use
+configure:2281: checking how the .type assembly directive should be used
+configure:2288: gcc -c -g -O2 -Wa,-xarch=v8plus -mcpu=v9 conftest.s 1>&5
+/usr/ccs/bin/as: "conftest.s", line 1: error: invalid character (0x40)
+configure:2288: gcc -c -g -O2 -Wa,-xarch=v8plus -mcpu=v9 conftest.s 1>&5
+configure:2302: checking if the .size assembly directive works
+configure:2308: gcc -c -g -O2 -Wa,-xarch=v8plus -mcpu=v9 conftest.s 1>&5
+configure:2319: checking what prefix to use for a local label
+configure:2335: gcc -c -g -O2 -Wa,-xarch=v8plus -mcpu=v9 conftest.s 1>&5
+configure:2335: gcc -c -g -O2 -Wa,-xarch=v8plus -mcpu=v9 conftest.s 1>&5
+configure:2359: checking how to [define] a 32-bit word
+configure:2388: gcc -c -g -O2 -Wa,-xarch=v8plus -mcpu=v9 conftest.s 1>&5
+configure:2412: checking if symbols are prefixed by underscore
+configure:2422: gcc -c -g -O2 -Wa,-xarch=v8plus -mcpu=v9  conftest.c 1>&5
+configure:2449: checking if .align assembly directive is logarithmic
+configure:2467: gcc -c -g -O2 -Wa,-xarch=v8plus -mcpu=v9 conftest.s 1>&5
+configure:2822: checking for Cygwin environment
+configure:2841: gcc -c -g -O2 -Wa,-xarch=v8plus -mcpu=v9  conftest.c 1>&5
+configure: In function `main':
+configure:2835: `__CYGWIN32__' undeclared (first use in this function)
+configure:2835: (Each undeclared identifier is reported only once
+configure:2835: for each function it appears in.)
+configure: failed program was:
+#line 2827 "configure"
+#include "confdefs.h"
+
+int
+main ()
+{
+#ifndef __CYGWIN__
+# define __CYGWIN__ __CYGWIN32__
+#endif
+return __CYGWIN__;
+  ;
+  return 0;
+}
+configure:2856: checking for mingw32 environment
+configure:2872: gcc -c -g -O2 -Wa,-xarch=v8plus -mcpu=v9  conftest.c 1>&5
+configure: In function `main':
+configure:2866: `__MINGW32__' undeclared (first use in this function)
+configure:2866: (Each undeclared identifier is reported only once
+configure:2866: for each function it appears in.)
+configure: failed program was:
+#line 2861 "configure"
+#include "confdefs.h"
+
+int
+main ()
+{
+return __MINGW32__;
+  ;
+  return 0;
+}
+configure:2887: checking for EMX OS/2 environment
+configure:2903: gcc -c -g -O2 -Wa,-xarch=v8plus -mcpu=v9  conftest.c 1>&5
+configure: In function `main':
+configure:2897: `__EMX__' undeclared (first use in this function)
+configure:2897: (Each undeclared identifier is reported only once
+configure:2897: for each function it appears in.)
+configure: failed program was:
+#line 2892 "configure"
+#include "confdefs.h"
+
+int
+main ()
+{
+return __EMX__;
+  ;
+  return 0;
+}
+configure:2919: checking for executable suffix
+configure:2929: gcc -o conftest -g -O2 -Wa,-xarch=v8plus -mcpu=v9   conftest.c  1>&5
+configure:2950: checking for object suffix
+configure:2956: gcc -c -g -O2 -Wa,-xarch=v8plus -mcpu=v9  conftest.c 1>&5
+configure:3044: checking build system type
+configure:3090: checking for ld used by GCC
+configure:3158: checking if the linker (/usr/ccs/bin/ld) is GNU ld
+configure:3173: checking for /usr/ccs/bin/ld option to reload object files
+configure:3184: checking how to recognise dependant libraries
+configure:3446: checking for ranlib
+configure:3518: checking for strip
+ltconfig:563:checking for gcc option to produce PIC
+ltconfig:693:checking that gcc PIC flag -fPIC works.
+ltconfig:702: gcc -c -g -O2 -Wa,-xarch=v8plus -mcpu=v9 -fPIC -DPIC  conftest.c 1>&5
+ltconfig:754: checking if gcc static flag -static works
+ltconfig:762: gcc -o conftest -g -O2 -Wa,-xarch=v8plus -mcpu=v9   -static conftest.c  1>&5
+ltconfig:799: checking if gcc supports -c -o file.o
+ltconfig:800: gcc -c -g -O2 -Wa,-xarch=v8plus -mcpu=v9 -o out/conftest2.o  conftest.c 1>&5
+ltconfig:832: checking if gcc supports -c -o file.lo
+ltconfig:833: gcc -c -g -O2 -Wa,-xarch=v8plus -mcpu=v9 -c -o conftest.lo  conftest.c 1>&5
+ltconfig:884: checking if gcc supports -fno-rtti -fno-exceptions
+ltconfig:885: gcc -c -g -O2 -Wa,-xarch=v8plus -mcpu=v9 -fno-rtti -fno-exceptions -c conftest.c  conftest.c 1>&5
+ltconfig:1867: checking if global_symbol_pipe works
+ltconfig:1868: gcc -c -g -O2 -Wa,-xarch=v8plus -mcpu=v9  conftest.c 1>&5
+ltconfig:1871: eval "/usr/ccs/bin/nm -p conftest.o | sed -n -e 's/^.*[ 	]\([BDT]\)[ 	][ 	]*\(\)\([_A-Za-z][_A-Za-z0-9]*\)$/\1 \2\3 \3/p' > conftest.nm"
+ltconfig:1923: gcc -o conftest -g -O2 -Wa,-xarch=v8plus -mcpu=v9 -fno-builtin -fno-rtti -fno-exceptions   conftest.c conftstm.o 1>&5
+configure:3769: checking whether optarg is declared
+configure:3788: gcc -c -g -O2 -Wa,-xarch=v8plus -mcpu=v9  conftest.c 1>&5
+configure:3813: checking for ANSI C header files
+configure:3828: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:3913: gcc -o conftest -g -O2 -Wa,-xarch=v8plus -mcpu=v9   conftest.c  1>&5
+configure:3940: checking for getopt.h
+configure:3952: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:3947: getopt.h: No such file or directory
+configure: failed program was:
+#line 3946 "configure"
+#include "confdefs.h"
+#include <getopt.h>
+
+configure:3940: checking for unistd.h
+configure:3952: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:3940: checking for sys/sysctl.h
+configure:3952: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:3947: sys/sysctl.h: No such file or directory
+configure: failed program was:
+#line 3946 "configure"
+#include "confdefs.h"
+#include <sys/sysctl.h>
+
+configure:3940: checking for sys/time.h
+configure:3952: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:3976: checking for void
+configure:3995: gcc -c -g -O2 -Wa,-xarch=v8plus -mcpu=v9  conftest.c 1>&5
+configure:4015: checking for preprocessor stringizing operator
+configure:4053: checking for getopt_long
+configure:4086: gcc -o conftest -g -O2 -Wa,-xarch=v8plus -mcpu=v9   conftest.c  1>&5
+Undefined			first referenced
+ symbol  			    in file
+getopt_long                         /var/tmp/ccQnOgwA.o
+ld: fatal: Symbol referencing errors. No output written to conftest
+collect2: ld returned 1 exit status
+configure: failed program was:
+#line 4058 "configure"
+#include "confdefs.h"
+/* System header to define __stub macros and hopefully few prototypes,
+    which can conflict with char getopt_long(); below.  */
+#include <assert.h>
+/* Override any gcc2 internal prototype to avoid an error.  */
+/* We use char because int might match the return type of a gcc2
+    builtin and then its argument prototype would still apply.  */
+char getopt_long();
+char (*f)();
+
+int
+main()
+{
+
+/* The GNU C library defines this for functions which it implements
+    to always fail with ENOSYS.  Some functions are actually named
+    something starting with __ and the normal name is an alias.  */
+#if defined (__stub_getopt_long) || defined (__stub___getopt_long)
+choke me
+#else
+f = getopt_long;
+#endif
+
+  ;
+  return 0;
+}
+configure:4053: checking for getpagesize
+configure:4086: gcc -o conftest -g -O2 -Wa,-xarch=v8plus -mcpu=v9   conftest.c  1>&5
+configure:4053: checking for popen
+configure:4086: gcc -o conftest -g -O2 -Wa,-xarch=v8plus -mcpu=v9   conftest.c  1>&5
+configure:4053: checking for processor_info
+configure:4086: gcc -o conftest -g -O2 -Wa,-xarch=v8plus -mcpu=v9   conftest.c  1>&5
+configure:4053: checking for strtoul
+configure:4086: gcc -o conftest -g -O2 -Wa,-xarch=v8plus -mcpu=v9   conftest.c  1>&5
+configure:4053: checking for sysconf
+configure:4086: gcc -o conftest -g -O2 -Wa,-xarch=v8plus -mcpu=v9   conftest.c  1>&5
+configure:4053: checking for sysctlbyname
+configure:4086: gcc -o conftest -g -O2 -Wa,-xarch=v8plus -mcpu=v9   conftest.c  1>&5
+Undefined			first referenced
+ symbol  			    in file
+sysctlbyname                        /var/tmp/ccAqlbWw.o
+ld: fatal: Symbol referencing errors. No output written to conftest
+collect2: ld returned 1 exit status
+configure: failed program was:
+#line 4058 "configure"
+#include "confdefs.h"
+/* System header to define __stub macros and hopefully few prototypes,
+    which can conflict with char sysctlbyname(); below.  */
+#include <assert.h>
+/* Override any gcc2 internal prototype to avoid an error.  */
+/* We use char because int might match the return type of a gcc2
+    builtin and then its argument prototype would still apply.  */
+char sysctlbyname();
+char (*f)();
+
+int
+main()
+{
+
+/* The GNU C library defines this for functions which it implements
+    to always fail with ENOSYS.  Some functions are actually named
+    something starting with __ and the normal name is an alias.  */
+#if defined (__stub_sysctlbyname) || defined (__stub___sysctlbyname)
+choke me
+#else
+f = sysctlbyname;
+#endif
+
+  ;
+  return 0;
+}
+configure:4108: checking if ansi2knr should be used
+configure:4115: gcc -c -g -O2 -Wa,-xarch=v8plus -mcpu=v9  conftest.c 1>&5

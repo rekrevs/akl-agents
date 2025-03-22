@@ -1,0 +1,157 @@
+% ----------------------- Primitive Term format --------------------
+/*
+	DTERM0 ::= term(TERM0) | exception(EXCEPTION0)
+	EXCEPTION0 ::= end_of_file | ...
+	TERM0 ::= VAR0 | struct(NAME0,Integer,TERM0-list) 
+	NAME0 ::= Atom | VAR0
+	VAR0  ::= var(VNAME0)
+	VNAME0 ::= Atom
+
+   	An 'Atom' in var(Atom) is the name of the variable, which 
+	may be '_' but not an integer. The syntax covers the prior 
+	meta syntax F(A) where F  is a variable.
+*/
+
+:- public read_dterm0/3, read_dterms0/3, read_dterms0/2.
+:- public write_dterm0/3, write_term0/3.
+
+%--- read_dterm0(-DTERM0,+Stream,-Stream)-----------
+read_dterm0(DTERM0,S0,S1) :-
+   ->	read_term(T,S0,S1), 
+	x0(T,DTERM0).
+
+x0(exception(E),E0) :-
+   ->  E0=exception(E).
+x0(term(T),T0) :- 
+       is_term0(T)
+   ->  T0=term(T).
+x0(E,E0) :-
+   ->  E0=exception(error(E)).
+
+is_term0(T) :-
+        is_var(T)
+    ->  true.
+
+is_term0(struct(N,I,Ts)) :- 
+        is_name0(N)
+    ->	integer(I), 
+	map(X\is_term0(X),Ts).
+
+is_name0(N) :- 
+	is_var(N) 
+    ->  true.
+is_name0(N) :- 
+	atomic(N) 
+    ->  true.
+
+is_var(var(V)) :- 
+	is_vname(V)
+    ->  true.
+
+is_vname(V) :- 
+	atom(V) 
+    ->  true.
+
+%--- read_dterms0(-TERM0-list,+Stream,-Stream)
+read_dterms0(Terms,S0,S2) :-
+    ->  read_dterm0(Item,S0,S1),
+        read_dterms0(Item,Terms,S1,S2).
+
+read_dterms0(term(H),Terms0,S0,S1) :-
+    ->  Terms0=[term(H)|T],
+        read_dterms0(T,S0,S1).
+read_dterms0(exception(end_of_file),Terms0,S0,S1) :-
+    ->  Terms0 = [],
+	S0=S1.
+read_dterms0(exception(E),Terms0,S0,S1) :-
+    ->  Terms0 = [exception(E)],
+	S0=S1.
+
+%--- read_dterms0(+Filename,-DTERM1-list)
+read_dterms0(Infile,Terms) :- 
+    ->	fopen(Infile,read,S0), 
+    	read_dterms0(Terms,S0,S1),
+	send(fclose,S1,_S2).
+
+
+
+
+
+
+
+%--- write_dterm0(+DTERM0,+Stream,-Stream)-----------------
+write_dterm0(term(T),S0,S1) :-
+    ->  write_term0(T,S0,S1).
+write_dterm0(exception(E),S0,S2) :-
+    ->  writenl('-------- Exception -----------',S0,S1),
+	writenl(E,S1,S2).
+%--- write_term0(+TERM0,+Stream,-Stream)-------------------
+write_term0(var(t(V,D,C)),S0,S7) :- 
+	D=Dn/A
+    ->  write_term0(var(V),S0,S1),
+	write0('_',S1,S2),
+	write0(Dn,S2,S3),
+	write0('_',S3,S4),
+	write0(A,S4,S5),
+	write0('_',S5,S6),
+	write0(C,S6,S7).
+write_term0(var(V),S0,S1) :- 
+    ->  write0(V,S0,S1).
+write_term0(struct(N,_I,Ts),S0,S4) :- 
+ 	Ts=[_|_]
+    ->  write0(N,S0,S1), 
+	write0('(',S1,S2),
+	smapwr((X,Sa,Sb)\write_term0(X,Sa,Sb),Ts,S2,S3),
+	write0(')',S3,S4).
+write_term0(struct('.',2,[H,T]),S0,S3) :- 
+    ->  write0('[',S0,S1), 
+	write_term0(H,S1,S2),
+	write_rest0(T,S2,S3).
+write_term0(struct('=',2,[H,T]),S0,S5) :- 
+    ->  write0('(',S0,S1),
+	write_term0(H,S1,S2),
+	write0(' = ',S2,S3),
+	write_term0(T,S3,S4),
+	write0(')',S4,S5).
+write_term0(struct(N,_I,Ts),S0,S4) :- 
+ 	Ts=[_|_]
+    ->  write_name0(N,S0,S1), 
+	write0('(',S1,S2),
+	smapwr((X,Sa,Sb)\write_term0(X,Sa,Sb),Ts,S2,S3),
+	write0(')',S3,S4).
+write_term0(struct(N,_I,[]),S0,S3) :- 
+	current_op(_,_,N)
+    ->  write0('(',S0,S1),
+	write_name0(N,S1,S2),
+	write0(')',S2,S3).
+write_term0(struct(N,_I,[]),S0,S1) :- 
+    ->  write_name0(N,S0,S1).
+
+write_name0('.',S0,S3) :-
+    ->  write0('''',S0,S1), 
+	write0('.',S1,S2), 
+	write0('''',S2,S3).
+write_name0(X,S0,S3) :-
+	current_op(_,_,X)
+    ->  write0('''',S0,S1), 
+	write0(X,S1,S2),
+	write0('''',S2,S3).
+write_name0(X,S0,S1) :-
+    ->  writeq(X,S0,S1).
+
+write_rest0(struct([],0,[]),S0,S1) :-
+    ->  write0(']',S0,S1).
+write_rest0(struct('.',2,[H,struct([],0,[])]),S0,S3) :-
+    ->  write0(',',S0,S1),
+	write_term0(H,S1,S2),
+	write0(']',S2,S3).
+write_rest0(struct('.',2,[H,T]),S0,S3) :-
+    ->  write0(',',S0,S1),
+	write_term0(H,S1,S2),
+	write_rest0(T,S2,S3).
+write_rest0(T,S0,S3) :-
+    ->  write0((|),S0,S1),
+	write_term0(T,S1,S2),
+	write0(']',S2,S3).
+
+

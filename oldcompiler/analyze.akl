@@ -1,0 +1,63 @@
+% $Id: analyze.akl,v 1.4 1993/11/18 12:15:48 sverker Exp $
+
+% This is currently called after code generation.
+% It would be better to collect and analyze this
+% information in advance.
+
+% vi(GoalNumber, Occurrence, Register)
+% ri(Occurrence, Register)
+%
+% Occurrence ::= void | first | middle | last
+% Register ::= none | x(I) | y(I)
+
+
+% main entry point
+
+analyze_varinfo(VI) :-
+	keysort_and_group(VI, VG),
+	analyze_grouped(VG).
+
+analyze_grouped([]) :-
+    ->  true.
+analyze_grouped([X|Rest]) :-
+    ->  X = _-Occ,
+	analyze_group(Occ),
+	analyze_grouped(Rest).
+
+analyze_group([V]) :-
+    ->  V = vi(_,void,none).
+analyze_group(VI0) :-
+    ->	VI0 = [vi(N,first,R)|VI],
+	analyze_multiple(VI, N, R).
+
+analyze_multiple([V], N, R) :-
+	V = vi(N,_,_)
+    ->  R = x(_),
+	V = vi(_,last,R).
+analyze_multiple([V|VI], N, R) :-
+	V = vi(N,_,_)
+    ->  V = vi(_,middle,R),
+	analyze_multiple(VI, N, R).
+analyze_multiple(VI, _, R) :-
+    ->  R = y(_),
+	analyze_permanent(VI, R).
+
+analyze_permanent([V], R) :-
+    ->  V = vi(_,last,R).
+analyze_permanent([V|VI], R) :-
+    ->  V = vi(_,middle,R),
+	analyze_permanent(VI, R).
+
+
+
+% used by code generation
+
+occurrence(arg(N), RI, _C, VI0, VI) :- % should also be analyzed, really
+    ->	RI = N,
+	VI = VI0.
+occurrence('_', RI, _C, VI0, VI) :-
+    ->	RI = ri(void,none),
+	VI = VI0.
+occurrence(V, RI, C, VI0, VI) :-
+    ->	RI = ri(W,R),
+	VI0 = [V-vi(C,W,R)|VI].

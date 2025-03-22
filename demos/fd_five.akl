@@ -1,0 +1,46 @@
+five(Lab) :-
+	five(Lab,_).
+
+five(Lab,L):-
+            L=[N1,N2,N3,N4,N5,
+            C1,C2,C3,C4,C5,
+            P1,P2,P3,P4,P5,
+            A1,A2,A3,A4,A5,
+            D1,D2,D3,D4,D5],
+            domain(L,1,5),
+            N5=1,
+            D5=3,
+            fd_all_different([C1,C2,C3,C4,C5]),
+            fd_all_different([P1,P2,P3,P4,P5]),
+            fd_all_different([N1,N2,N3,N4,N5]),
+            fd_all_different([A1,A2,A3,A4,A5]),
+            fd_all_different([D1,D2,D3,D4,D5]),
+	    fd(
+	    N1 = C2,
+            N2 = A1,
+            N3 = P1,
+            N4 = D3,
+            P3 = D1,
+            C1 = D4,
+            P5 = A4,
+            P2 = C3,
+            C1 = C5+1
+            ),
+            p_or_m(A3,P4,1),
+            p_or_m(A5,P2,1),
+            p_or_m(N5,C4,1),
+            lab(Lab,[C1,C2,C3,C4,C5,
+                     P1,P2,P3,P4,P5,
+                     N1,N2,N3,N4,N5,
+                     A1,A2,A3,A4,A5,
+                     D1,D2,D3,D4,D5]).
+
+plus_or_minus(X,Y,Z) :-
+	? fd( X = Y+Z ).
+plus_or_minus(X,Y,Z) :-
+	? fd( X+Z = Y ).
+
+p_or_m(X,Y,Z) :-
+	fd( X in (min(Y)+min(Z) .. max(Y)+max(Z)) \/ (min(Y)-max(Z) .. max(Y)-min(Z)),
+            Y in (min(X)+min(Z) .. max(X)+max(Z)) \/ (min(X)-max(Z) .. max(X)-min(Z)),
+            Z in (min(Y)-max(X) .. max(Y)-min(X)) \/ (min(X)-max(Y) .. max(X)-min(Y)) ).

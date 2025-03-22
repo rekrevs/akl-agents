@@ -1,0 +1,177 @@
+% -*-texinfo-*-
+% LaTeX "sloppy"
+\tolerance=3000
+\hfuzz=.5pt
+\vfuzz=.5pt
+% Adjust \hoffset for !A4 paper
+\vsize 22.9cm
+\hsize 14.0cm
+%\pageheight=\vsize
+%\hoffset-0.125cm
+\raggedbottom
+\input texinfo
+@comment %**start of header (This is for running Texinfo on a region.)
+@setfilename agents-library
+@settitle AGENTS Library Manual
+@setchapternewpage odd
+@comment %**end of header (This is for running Texinfo on a region.)
+@tex
+\global\parindent=0pt
+\global\parskip=6pt
+@end tex
+@finalout
+
+@ifinfo
+This file documents AGENTS.
+
+Copyright @copyright{} 1990-1994 Swedish Institute of
+Computer Science
+
+All rights reserved.
+@end ifinfo
+
+@titlepage
+@center @titlefont{AGENTS Library Manual}
+@sp 3
+@center @today
+@sp 3
+@center Sverker Janson, Johan Montelius, Kent Boortz, Per Brand,
+@center Bj@"orn Carlson, Ralph Clarke Haygood, Bj@"orn Danielsson,
+@center Seif Haridi, Dan Sahlin, and Thomas Sj@"oland
+@sp
+@center Concurrent Constraint Programming Group
+@center Swedish Institute of Computer Science
+@center Box 1263, S-164 28 KISTA, Sweden
+@sp 3
+@center This manual corresponds to AGENTS 0.9.
+@page
+@vskip 0pt plus 1fill
+Copyright @copyright{} 1994 Swedish Institute of Computer Science
+
+All rights reserved.
+@end titlepage
+
+@ifinfo
+@node Top, Introduction, (dir), (dir)
+@comment  node-name,  next,  previous,  up
+@chapter AGENTS
+
+The Agents Kernel Language (AKL) is a concurrent constraint
+programming language developed at the Swedish Institute of
+Computer Science (SICS).  In AKL, computation is performed
+by agents interacting through stores of constraints.  This
+notion accomodates multiple programming paradigms; in
+appropriate contexts, AKL agents may be thought of as
+processes, objects, functions, relations, or constraints.
+
+AGENTS is a system for programming in AKL.  It provides a
+complete implementation of AKL with equality constraints
+over rational trees, various ``finite domain'' constraints
+over integers, and ports, a novelty of AKL.  It also
+provides assorted built-in agents and other support.
+@end ifinfo
+
+@menu
+* Introduction::                
+* Assoc::                       
+* GM::                          
+* Lists::                       
+* Ordsets::                     
+* Prolog::                      
+* Random::                      
+* Reader::                      
+* SAGA::                        
+* UGraphs::                     
+* Index of Built-ins::          
+* Index of Concepts::           
+@end menu
+
+@node Introduction, Assoc, Top, Top
+@chapter Introduction
+
+The Agents Kernel Language (AKL) is a concurrent constraint
+programming language developed at the Swedish Institute of
+Computer Science (SICS).  In AKL, computation is performed
+by agents interacting through stores of constraints.  This
+notion accomodates multiple programming paradigms; in
+appropriate contexts, AKL agents may be thought of as
+processes, objects, functions, relations, or constraints.
+
+AGENTS is a system for programming in AKL.  It provides a
+complete implementation of AKL with equality constraints
+over rational trees, various ``finite domain'' constraints
+over integers, and ports, a novelty of AKL.  It also
+provides assorted built-in agents and other support.
+
+This @emph{AGENTS Library Manual} describes libraries and
+tools distributed with AGENTS.  AKL is described in @emph{An
+Introduction to AKL}.  The @emph{AGENTS User Manual}
+explains how to get, install, and use AGENTS.
+
+The following library packages are described in this manual:
+
+@table @code
+@item assoc
+provides operations on ``association lists'', i.e.,
+extendable finite mappings from terms to terms.
+
+@item gm
+supports interactive graphics in the context of X Windows
+using InterViews 2.6.
+
+@item lists
+provides operations on lists.
+
+@item ordsets
+provides operations on sets of trees, represented by lists
+of the elements in standard order.
+
+@item prolog
+is a collection of agents resembling predicates built into
+many Prolog implementations.
+
+@item random
+provides random numbers.
+
+@item reader
+supports reading, writing, and manipulating programs using a
+ground representation.
+
+@item map
+contains routines that are useful for schema-based ("higher-order")
+programming, like map(Def,List) which applies Def to each element of
+the list List.
+
+@item utilities
+contains routines that are not easily classified, but which are 
+generally useful.
+
+@item sagaruntime
+is the run-time library of the SAGA (Syntax Analyzer
+Generator in AGENTS) tool.
+
+@item ugraphs
+provides operations on graphs with unlabeled edges.
+@end table
+
+To load library package @var{Package}:
+
+@example
+| ?- @emph{load(library(@var{Package})).<return>}
+@end example
+
+Conventions in examples of top-level interaction in this
+manual are the same as in the @emph{AGENTS User Manual}: we
+typographically distinguish @code{programs and computer
+output} from @emph{user input}; hitting the return key is
+written @emph{<return>}; and we usually omit the
+confirmation @code{yes} and the following input prompt.
+
+Several library packages are adapted from SICStus Prolog:
+gm, lists, ordsets, and ugraphs.
+
+@ assoc
+@ gm
+@comment lists.texi should be included here
+
+@ reader

@@ -1,0 +1,255 @@
+% File: 	main.akl
+% Author: 	Anders Andersson
+% Purpose:	Front end driver
+% Version:	0.9
+
+% libraries used: lists, ugraphs, ordsets, assoc
+
+% Takes a SAGA input file and generate a AKL program
+saga(Infile, Prefix, Outfile) :- 
+	saga_saga(SAGA),
+	fopen(Infile, r, InStream),
+	empty_symbol_table(Empty),
+	saga_parse(SAGA, [Empty,-1,[],10,1], InStream, Result),
+	saga_if_ok(Result, Prefix, Outfile).
+
+% if the input parsed OK, start semantic phase, else stop
+saga_if_ok(accept((Lx, P, F), [Table, Exp,Ext|_]), 
+		Prefix, Outfile) :-
+    ->	max(0)-Exp,
+	fix_table(Table, true, Prec, Terms, NTerms, N, Start, LexRs, 
+		Reds, Stat),
+	saga_if_ok1(Stat, Lx, P, F, Exp, Ext, Prefix, Outfile, Prec, Terms,
+	             NTerms, N, Start, LexRs, Reds).
+saga_if_ok(error(Semantic, [Table,_,_,_,LineNo]),_,_) :-
+    ->	fix_table(Table, false, _, _, _, _, _, _, _, _),	
+	format('ERROR. Parse error before "~s" on line ~w~n',
+		[Semantic,LineNo]),
+	format('~nSYNTAX ERRORS IN GRAMMAR FILE - GENERATION ABORTED~n~n').
+
+% if the symbol table info checks out, start generating
+saga_if_ok1(false, Lx, P, F, Exp, Ext, Prefix, Outfile, Prec, Terms,
+	             NTerms, N, Start, LexRs, Reds) :-
+    ->  atom_to_chars(Outfile, Name),
+	fappend(Name,".akl",DottedName),
+	chars_to_atom(DottedName, NameDotAKL),
+	fopen(NameDotAKL, w, Stream),
+	create_compound(external, none, Ext, ExtStr),
+	fappend(LexRs, Lx, LexRules),
+	saga_lexer(LexRules, Prefix)-Stream,
+	saga_filter(F, ExtStr, Prefix, Terms, N, FilterT)-Stream,
+	saga_parser(P,Prefix,Exp,ExtStr,Terms,NTerms,N,Start,Reds,
+	             Prec, FilterT)-Stream,
+	format('~ssaga(Lexer-Parser) :- ~sdfa(Lexer), ~sparser(Parser).~n',
+		[Prefix,Prefix,Prefix])-Stream,
+	fclose@Stream.
+saga_if_ok1(_,_,_,_,_,_,_,_,_,_,_,_,_,_,_) :-
+    ->	format('~nSEMANTIC ERRORS IN GRAMMAR FILE - GENERATION ABORTED~n~n').
+
+% Just a convenient version of compound_construct, 2nd arg is for 0-arity
+create_compound(_, A, [], Str) :-
+    ->	Str = A.
+create_compound(F, _, List, Str) :-
+    ->  list_to_tree([F|List], Str).    %DS
+%   ->  length(List, L),
+%       compound_construct(F, L, List, Str).
+
+% Generate and output the lexer stuff
+saga_lexer(Rules, Prefix)-Stream :-
+    ->	statistics,
+	format('Building DFA...~n',[]),
+	dfa(Rules, DFA, ActList),
+	statistics,
+	format('Packing tables...~n', []),
+	fpack(DFA, T, B),
+	statistics,
+	format('Writing generated code...~n',[]),
+	dump_code(B, T, ActList, Prefix, none)-Stream,
+	statistics.
+
+% Generate and output the parser stuff
+saga_parser(Rules, Prefix, Exp, Ext, Terms, NTerms, N, Start, Reds,
+	     Prec, FilterT)-Stream :-
+    ->	format('Building LALR(1) items...~n',[]),
+	saga_rules_to_internal(Rules, Prefix, Ext, Grammar, Actions, Code),
+	lalr(Grammar, Actions, Start, accept, Prec, Status, Action, Goto),
+	statistics,
+	format('Packing tables...~n',[]),
+	pack_action(Action, Ta, Ba),
+	pack_goto(Goto, Tg, Bg),
+	bind_gotos(Bg, Reds),
+	repr_action(Ba, Ta, N, BaseT, NextT, CheckT),
+	repr_goto(Tg, GotoT),
+	lambdaize("(X1,X2,X3,X4,X5,X6,X7,X8)")-NextT,
+	lambdaize("(X1,X2,X3,X4,X5,X6,X7,X8)")-FilterT,
+	statistics,
+	format('Writing generated code...~n',[]),
+	saga_dump_parser_code(FilterT, BaseT, CheckT, NextT, GotoT, Code, 
+	                       Prefix)-Stream,
+	print_problem_report(Status, Actions, Prec, Exp, NTerms, Terms),
+	statistics.
+
+% Convert from the rule format to code, action spec and internal grammar
+saga_rules_to_internal(RuleList, Prefix, Ext, StriGrammar, Actions, Code) :-
+    ->	saga_rules_to_internal1(RuleList, Prefix, Ext, 0, 
+                           Prods, Reductions, Code),
+	key_sort_set(Prods, Grammar),
+	extract_values(Grammar, StriGrammar),
+	keysort(Reductions, Actions).
+
+saga_rules_to_internal1([rule(Head, Prod, Prec-Action)|Xs],P,E,N,G,A,C) :-
+    ->  saga_split_head(Head, NonTerm, DoubleDollar, Red),
+	saga_split_prod(Prod, PureProd, Grabber),
+	[NonTerm-PureProd]-G,
+	build_code(P, E, N, Red, Action, DoubleDollar, Grabber, Name, Clause),
+	[(NonTerm-PureProd)-(Prec-Name)]-A,
+	[Clause]-C,
+	inc-N,
+	saga_rules_to_internal1(Xs, P, E, N, G, A, C).
+saga_rules_to_internal1([code(Action)|Xs],P,E,N,G,A,C) :-
+    ->	[Action]-C,
+	saga_rules_to_internal1(Xs, P, E, N, G, A, C).
+saga_rules_to_internal1([], _, _, _, G, A, C) :-
+    ->  G = [],
+	A = [],
+	C = [].
+
+% Extract the non-terminal and the attribute variable from the head of a clause
+saga_split_head((No-Link)-Variable, NonTerm, DD, Red) :-
+    ->  NonTerm = No,
+	Red = Link,
+	DD = Variable.
+saga_split_head(No-Link, NonTerm, DD, Red) :-
+    ->  NonTerm = No,
+	Red = Link,
+	DD = '_'.
+
+% Extract the non-terminal and the attribute variable from a grammar symbol
+saga_split_symbol(t(X)-Var, Term, Dollar) :-
+    ->	Term = t(X),
+	Dollar = Var.
+saga_split_symbol(t(X), Term, Dollar) :-
+    ->	Term = t(X),
+	Dollar = '_'.
+saga_split_symbol(X, Term, Dollar) :-
+    ->	saga_split_head(X, Term, Dollar, _).
+
+% Split the body of a production into symbols and attributes
+saga_split_prod([], Pure, Grabber) :-
+    ->  Pure = [],
+	Grabber = 'SAGA__stack'.
+saga_split_prod(Prod, Pure, Grabber) :-
+    ->  saga_split_prod1(Prod, Pure, [_|RevGrab]),
+	reverse(RevGrab, Grab),
+	fappend(Grab, 'SAGA__stack', Grabber).
+
+saga_split_prod1([X|Xs], Pure, Grabber) :-
+    ->	saga_split_symbol(X, NT, Var),
+	[NT]-Pure,
+	['_',Var]-Grabber,
+	saga_split_prod1(Xs, Pure, Grabber).
+saga_split_prod1([], Pure, Grabber) :-
+    ->  Pure = [],
+	Grabber = [].
+
+% output the code for the parser
+saga_dump_parser_code(FilterT,BaseT,CheckT,NextT,GotoT,Code,Prefix)-Stream :-
+	data(FilterT),
+	data(BaseT),
+	data(CheckT),
+	data(NextT),
+	data(GotoT)
+    ->	fappend(Prefix, "parser", ParserName),
+	chars_to_atom(ParserName, ParserAtom),
+	list_to_tree([ParserAtom, parser(FilterT,
+		BaseT,CheckT,NextT,GotoT)], Fact),      % DS
+%       compound_construct(ParserAtom, 1,
+%            [parser(FilterT, BaseT,CheckT,NextT,GotoT)], Fact),
+	dump_clauses([Fact|Code])-Stream.
+
+% construct the filter table and output code for the filter calls
+saga_filter(F, Ext, Prefix, Terms, N, FilterT)-Stream :-
+    ->	assoc_to_list(Terms, TL),
+	invert_assoclist(TL, ITL),
+	list_to_assoc(ITL, TermAssoc),
+	saga_filter1(F, Ext, Prefix, TermAssoc, 0, FilterList, Code),
+	key_sort_set-FilterList,
+	extract_unique_keys(FilterList, CleanFilterList, Errors),
+	report_filter_errors(Errors),
+	fill_filter_list(CleanFilterList, -1, N, Filled),
+	create_compound(filter, _, Filled, FilterT),
+	dump_clauses(Code)-Stream.
+	
+saga_filter1([filter(Name, PL, APL, TN)|Xs], Ext, Prefix, Terms, N, List,
+	Code) :-
+    ->	preprocess_parms(PL, Terms, PL1),
+	Parms = ['SAGA__T','SAGA__S','SAGA__Ts','SAGA__Ss'|PL1],
+	create_compound(Name, _, Parms, Head),
+	filter_augment(APL)-Head,
+	numbered_atom(Prefix, "fltr_", N, Atom),
+	inc-N,
+	append_expanded(TN, Atom)-List,
+	list_to_tree([Atom, 'SAGA__T','SAGA__S','SAGA__Ts','SAGA__Ss',
+				     Ext,'SAGA__U'], GenHead),  % DS
+%       compound_construct(Atom, 6, ['SAGA__T','SAGA__S','SAGA__Ts','SAGA__Ss',
+%                                    Ext,'SAGA__U'], GenHead),
+	[(GenHead-'Lex' :- Head, ('SAGA__U' = Ext),'Lex'='Lex')]-Code,
+	saga_filter1(Xs, Ext, Prefix, Terms, N, List, Code).
+saga_filter1([],_,_,_,_,List, Code) :-
+    ->	List = [],
+	Code = [].
+
+% In case some terminals have more than one filter, pick one and report others
+extract_unique_keys([Key-[Unique]|Xs], Uniques, Others) :-
+    ->	[Key-Unique]-Uniques,
+	extract_unique_keys(Xs, Uniques, Others).
+extract_unique_keys([Key-[One|Other]|Xs], Uniques, Others) :-
+    ->	[Key-[One|Other]]-Others,
+	[Key-One]-Uniques,
+	extract_unique_keys(Xs, Uniques, Others).
+extract_unique_keys([], Uniques, Others) :-
+    ->	Uniques = [],
+	Others = [].
+
+% Fill blanks in the list of filters with the default
+fill_filter_list([], N, N, Filled) :-
+    ->	Filled = [].
+fill_filter_list([t(N)-F|Xs], N, L, Filled) :-
+    ->	[F]-Filled,
+	inc-N,
+	fill_filter_list(Xs, N, L, Filled).
+fill_filter_list(Xs, N, L, Filled) :-
+    ->	['the_SAGA_default_filter']-Filled,
+	inc-N,
+	fill_filter_list(Xs, N, L, Filled).
+
+% inform user of misuse of filter declarations (more than one filter for some
+% terminal)
+report_filter_errors([]) :-
+    ->	true.
+report_filter_errors(L) :-
+    ->	length(L, N),
+	format('ERROR. ~w tokens belong to several filters~n',[N]).
+
+% Substitute token names for their values in the filter parameter list  
+preprocess_parms([X|Xs], Terms, List) :-
+	get_assoc(X, N, Terms, _)
+    ->	[N]-List,
+	preprocess_parms(Xs, Terms, List).
+preprocess_parms([X|Xs], Terms, List) :-
+    ->	[X]-List,
+	preprocess_parms(Xs, Terms, List).
+preprocess_parms([], _, List) :-
+    ->	List = [].
+
+% Add the accumulator arguments to the filter call
+filter_augment([X|Xs], Head, Head2) :-
+    ->	filter_augment(Xs, Head-X, Head2).
+filter_augment([])-_Head :-
+    ->	true.
+
+
+
+
+
+

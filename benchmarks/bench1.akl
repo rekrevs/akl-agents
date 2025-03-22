@@ -1,0 +1,165 @@
+benchmark:-
+	format('~n~w~n~w~n~w~n~w~n~w~n~w~n~w~n~w~n~w~n', [
+'A set of benchmark programs, grouped in different categories.',
+'The first is a set of Prolog programs that operate on lists.',
+'The second set is from benchmark suite provided by Evan Tick.',
+'It tests the flat part of the language. All agents are determinstic,',
+'the programs can be executed by commited choice languages. The third',
+'set of programs use the andorra model to solve search problems some',
+'but not all of the programs can be executed in Andorra-I.',
+'Use "bench" to get everything on stdout or "bench(S0,S)"',
+'for the stream of your choice.'
+	]).
+
+bench:-
+	stdout(S0),
+	bench(S0,_).
+
+bench-S :-
+	bench1-S,
+	bench2-S,
+	bench3-S,
+	bench4-S,
+	bench5-S.
+
+
+bench1-S :- 
+	load_quietly('../demos/lists.pam'),
+	load_quietly('../demos/qsort_data.pam')
+    ->  format('~n~nList operations:~n~n')-S,
+	bench(nrev(300,10),    'nreverse, 300 * 10                ')-S,
+	bench(nrev(100,100),   'nreverse, 100 * 100               ')-S,
+	bench(nrev(30,1000),   'nreverse,  30 * 1000              ')-S,
+	bench(qs(maxi,1),      'qsort,  11000 * 1                 ')-S,
+        bench(qs(mini,200),    'qsort,    200 * 200               ')-S,
+	bench(qs(micro,1000),  'qsort,     40 * 1000              ')-S.
+bench1-S :- 
+    ->	format('failed to load list benchmarks', [])-S.
+
+bench2-S :- 
+    ->  format('~n~nDeterministic agents:~n~n')-S,
+	bench('../demos/puzzle', puzzle,        'A 5x4x3 puzzle                     ')-S,
+        bench('../demos/turtles', turtles,      'Turtles                            ')-S,
+	bench('../demos/mastermind', mastermind,'Mastermind                         ')-S,
+	bench('../demos/kkqueen', kkqueen,      '12-Queens (candidate/nocandidate)  ')-S,
+	bench('../demos/pascal', pascal,        'Pascals triangle                   ')-S,
+	bench('../demos/triangle', triangle,    'Triangle                           ')-S,
+	bench('../demos/cube', cube,            'Cube                               ')-S,
+	bench('../demos/lsqueen', lsqueen,      '12-Queens (layerd streams)         ')-S.
+
+bench3-S :-
+    ->	format('~n~nNon-deterministic agents:~n~n'),
+	bench('../demos/money', mo1,            'Send+More=Money dif                 ')-S,
+	bench(                  mo2,            'Send+More=Money ctr                 ')-S,
+	bench(                  mo3,            'Send+More=Money cir                 ')-S,
+	bench('../demos/zebra', ze1,            'Zebra puzzle dif                    ')-S,
+	bench(                  ze2,            'Zebra puzzle ctr                    ')-S,
+	bench(                  ze3,            'Zebra puzzle cir                    ')-S,
+	bench('../demos/cipher', ci1,           'Cipher substitution                 ')-S,
+	bench(                   ci2,           'Cipher frequency                    ')-S,
+	bench('../demos/queens', qu,            '12-Queens (short-circuiting)        ')-S.
+
+bench4-S :-
+    ->	format('~n~nConcurrent Deterministic agents:~n~n'),
+	bench('../demos/waves', wa,           'Waves (10 x 6)                      ')-S,
+	bench('../demos/life',  li,           'The game of life  (100 40x40)       ')-S.
+
+bench5-S :-
+    ->	format('~n~nConcurrent Non-deterministic agents:~n~n'),
+	bench('../demos/knights', kn,           'Touring knight, 8x8                 ')-S,
+	bench('../demos/scanner', sc,           'The scanner                         ')-S.
+
+
+
+bench(Bench, Descr)-S :- 
+        bench_garbage_collect,
+        statistics(runtime,_),
+	statistics(gctime,_),
+	statistics(copytime,_),
+	call(Bench) 
+    ->  statistics(runtime,[_,R]),
+	statistics(gctime,[_,G]),
+	statistics(copytime,[_,C]),
+        ratio_time(R, G, G1),
+	ratio_time(R, C, C1),
+	format('~w: runtime ~w, gc ~w%, copy ~w%~n', [Descr,R,G1, C1])-S.
+bench(_Bench, Descr)-S :- 
+    ->	format('~w: failed to execute ~n', [Descr])-S.
+
+bench(File, Bench,Descr)-S :- 
+	load_quietly(File),
+        bench_garbage_collect,
+        statistics(runtime,_),
+	statistics(gctime,_),
+	statistics(copytime,_),
+	call(Bench) 
+    ->  statistics(runtime,[_,R]),
+	statistics(gctime,[_,G]),
+	statistics(copytime,[_,C]),
+        ratio_time(R,G,G1),
+	ratio_time(R,C, C1),
+	format('~w: runtime ~w, gc ~w%, copy ~w%~n', [Descr,R,G1, C1])-S.
+bench(_File, _Bench,Descr)-S :- 
+    ->  format('~w: failed to load or execute~n', [Descr])-S.
+
+ratio_time(R, T0, T):- 
+	mul(T0, 100, T1),
+	idiv(T1, R, T).
+
+bloop(N,Goal):-
+	N >0
+    ->	Goal,
+	dec(N,N1),
+	bloop(N1,Goal).
+bloop(0,_):-
+    ->	true.
+
+bench_garbage_collect:- garbage_collect -> true.
+
+/* interface to programs */
+
+nrev(N,M):-
+	list(N,L),
+	bloop(M,nreverse(L,_)).
+
+qs(maxi,N):- maxidata(L), bloop(N, qsort(L,_,[])).
+qs(mini,N):- minidata(L), bloop(N, qsort(L,_,[])).
+qs(micro,N):- microdata(L), bloop(N, qsort(L,_,[])).
+
+puzzle:- go(_).
+
+turtles:- go(_,_).
+
+mastermind:- go(2,3,_).
+
+kkqueen:- go(9,_).
+
+pascal:- go(200,_).
+
+triangle:- go(_).
+
+cube:- go(_,_).
+
+lsqueen:- go(9,_).
+
+mo1:- money(_,_,_,_,_,_,_,_,dif).
+mo2:- money(_,_,_,_,_,_,_,_,ctr).
+mo3:- money(_,_,_,_,_,_,_,_,cir).
+
+ze1:- zebra(_,_,_,_,_,_,_,dif).
+ze2:- zebra(_,_,_,_,_,_,_,ctr).
+ze3:- zebra(_,_,_,_,_,_,_,cir).
+
+ci1:- substitution(1,_).
+ci2:- frequency(1,_).
+
+qu:- queens(12,_).
+
+kn:- knights(8,_).
+
+sc:- sample(many,R,C,D1,D2), scanner(proc,R,C,D1,D2,_).
+
+
+wa:- go(10,6,_).
+
+li:- life(100,40,40,_).

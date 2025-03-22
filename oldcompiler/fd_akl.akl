@@ -1,0 +1,83 @@
+% :- load(fd_arith_compile).
+% :- load(fd).
+% :- load(fd_mon).
+% :- load(body).
+
+indexical_goals([], _, _)-_C-_T-_S-_V-_P :- 
+    ->	true.
+indexical_goals([struct(In,2,[X,Y])|List], E, AT)-C-T-S-V-P :- 
+    ->	indexical_goals_aux(In,X,Y,List,E,AT)-C-T-S-V-P. 
+indexical_goals([struct(element,3,[I,L,X])|List], E, AT)-C-T-S-V-P :- 
+    ->	element_aux(I,L,X,E,AT)-C-T-S-V-P,
+	indexical_goals(List, E, AT)-C-T-S-V-P.
+
+indexical_goals_aux(in,X,R,List,E,AT)-C-T-S-V-P :-
+    ->	range_vars(R, [], Vars, 0, N),
+	fd_init_environment(Vars, I0),
+	parse_range(R, Code, [], I0, I),
+	extract_prop_info(I, DV, Prop),
+	fd_mon(R, DT),
+    	fd_get_l(LV)-T,
+	inc-T,
+	fd_occurrence(LV, UI)-C-V,
+	[fd_code(UI,Code)]-S,
+	goal_code(struct(akl_in,8,
+                         [X,var(LV),E,struct(args,N,Vars),Prop,DT,AT,DV])
+                  )-C-T-S-V-P,
+	indexical_goals(List, E, AT)-C-T-S-V-P.
+indexical_goals_aux(Rel,X,Y,List,E,AT)-C-T-S-V-P :-
+	AT=struct(1,_,_)
+    ->	fd_tell_expression(X, Y, Rel, Gs)-T,
+	body_code(Gs)-C-T-S-V-P,
+	indexical_goals(List, E, AT)-C-T-S-V-P.
+indexical_goals_aux(Rel,X,Y,List,E,AT)-C-T-S-V-P :-
+	AT=struct(0,_,_)
+    ->	fd_ask_expression(X, Y, Rel, Gs),
+	body_code(Gs)-C-T-S-V-P,
+	indexical_goals(List, E, AT)-C-T-S-V-P.
+
+fd_code(List, AT)-C-T-S-V-P :-
+    ->	fd_get_e(E)-T,
+	inc-T,
+	indexical_goals(List, var(E), AT)-C-T-S-V-P.
+
+ask_or_tell([struct(ask,_,_)|I0], AT, I) :- 
+    ->	AT=struct(0,0,[]),
+	I=I0.
+ask_or_tell(I0, AT, I) :- 
+    ->	AT=struct(1,0,[]),
+	I=I0.
+
+fd_get_e(E, T0, T) :-
+    ->	E=env_tmp(T0),
+	T=T0.
+
+fd_get_l(L, T0, T) :-
+    ->	L=label_tmp(T0),
+	T=T0.
+
+fd_occurrence(X, UI, C0, C)-V :-
+    ->	occurrence(X, UI, C0)-V,
+	C0=C.
+
+element_aux(I,L,X,E,AT)-C-T-S-V-P :-
+    ->	fd_element_environment(I, L, EX),
+	extract_prop_info(EX, DVX, PX),
+	fd_element_mon(I, DTX),
+    	fd_get_l(LVX)-T,
+	inc-T,
+	fd_occurrence(LVX, UIX)-C-V,
+	[fd_code(UIX,[element_x])]-S,
+	goal_code(struct(akl_in,8,
+                         [X,var(LVX),E,struct(args,2,[I,L]),PX,DTX,AT,DVX])
+                  )-C-T-S-V-P,
+        fd_element_environment(X, L, EI),
+	extract_prop_info(EI, DVI, PI),
+	fd_element_mon(X, DTI),
+    	fd_get_l(LVI)-T,
+	inc-T,
+	fd_occurrence(LVI, UII)-C-V,
+	[fd_code(UII,[element_i])]-S,
+	goal_code(struct(akl_in,8,
+                         [I,var(LVI),E,struct(args,2,[X,L]),PI,DTI,AT,DVI])
+		 )-C-T-S-V-P.

@@ -1,0 +1,531 @@
+%$Id: write.akl,v 1.25 1994/05/05 10:45:29 secher Exp $					
+%   File   : WRITE.PL
+%   Author : Richard A. O'Keefe.
+%   Updated: 22 October 1984
+%   Purpose: Portable definition of write/1 and friends.
+
+% Modified for the Andorra Kernel Language by Sverker Janson
+
+/*  WARNING!
+    This file was written to assist portability and to help people
+    get a decent set of output routines off the ground fast.  It is
+    not particularly efficient.  Information about atom names and
+    properties should be precomputed and fetched as directly as
+    possible, and strings should not be created as lists!
+
+    The four output routines differ in the following respects:
+    [a] display doesn't use operator information or handle {X} or
+	[H|T] specially.  The others do.
+    [b] print calls portray/1 to give the user a chance to do
+	something different.  The others don't.
+    [c] writeq puts quotes around atoms that can't be read back.
+	The others don't.
+    Since they have such a lot in common, we just pass around a
+    single Style argument to say what to do.
+
+    In a Prolog which supports strings;
+	write(<string>) should just write the text of the string, this so
+	that write("Beware bandersnatch") can be used.  The other output
+	commands should quote the string.
+
+    listing(Preds) is supposed to write the predicates out so that they
+    can be read back in exactly as they are now, provided the operator
+    declarations haven't changed.  So it has to use writeq.  $VAR(X)
+    will write the atom X without quotes, this so that you can write
+    out a clause in a readable way by binding each input variable to
+    its name.
+*/
+
+
+display(Term) :-
+	stdout(S),
+	display(Term)-S.
+
+display(Term)-S :-
+	write_out(Term, display)-S.
+
+
+print(Term) :-
+	stdout(S),
+	print(Term)-S.
+
+print(Term)-S :-
+	write_out(Term, print)-S.
+
+
+write(Term) :-
+	stdout(S),
+	write(Term)-S.
+
+write(Term)-S :-
+	write_out(Term, write)-S.
+
+
+writeq(Term) :-
+	stdout(S),
+	writeq(Term)-S.
+
+writeq(Term, S) :-
+	writeq(Term)-S.
+
+writeq(Term)-S :-
+	write_out(Term, writeq)-S.
+
+
+%   maybe_paren(P, Prio, Char, Ci, Co)
+%   writes a parenthesis if the context demands it.
+
+maybe_paren(P, Prio, Char, _/prefix_op, Co)-S :-
+	P > Prio
+    ->	Co = punct,
+	putc(0' )@S, putc(Char)@S.
+maybe_paren(_, _, _, C/prefix_op, C1)-_S :-
+    ->	C = C1.
+maybe_paren(P, Prio, Char, _, Co)-S :-
+	P > Prio
+    ->	Co = punct,
+	putc(Char)@S.
+maybe_paren(_, _, _, C, C1)-_S :-
+    ->	C = C1.
+
+
+
+%   maybe_space(LeftContext, TypeOfToken)
+%   generates spaces as needed to ensure that two successive
+%   tokens won't run into each other.
+
+maybe_space(Ci/prefix_op, Co)-S :-
+    ->	maybe_space(Ci, Co)-S.
+maybe_space(punct, _)-_S :-
+    ->	true.
+maybe_space(X, X)-S :-
+    ->	putc(32)@S.
+maybe_space(quote, alpha)-S :-
+    ->	putc(32)@S.
+maybe_space(_, _)-_S :-
+    ->	true.
+
+
+%   put_string(S)
+%   writes a list of character codes.
+
+put_string([])-_S :-
+    ->	true.
+put_string([H|T])-S :-
+    ->	putc(H)@S,
+	put_string(T)-S.
+
+
+%   put_string(S, Q)
+%   writes a quoted list of character codes, where the first
+%   quote has already been written.  Instances of Q in S are doubled.
+%   The terminated quote is not written.
+
+put_string([], _)-_S :-
+    ->	true.
+put_string([Q|T], Q)-S :-
+    ->	putc(Q)@S,
+	putc(Q)@S,
+	put_string(T, Q)-S.
+put_string([H|T], Q)-S :-
+    ->	putc(H)@S,
+	put_string(T, Q)-S.
+
+
+write_out(Term, Style)-S :-
+    ->	write_out(Term, Style, 1200, punct, _)-S.
+
+
+%   write_out(Term, Style, Priority, Ci, Co)
+%   writes out a Term in a given Style (display,write,writeq,print)
+%   in a context of priority Priority (that is, operators with
+%   greater priority have to be quoted), where the last token to be
+%   written was of type Ci, and reports that the last token it wrote
+%   was of type Co.
+
+write_out(Term, _, _, Ci, Co)-S :-
+	'$var'(Term)
+    ->	maybe_space(Ci, alpha)-S,
+	Co = alpha,
+	write_variable(Term)-S.
+write_out('$VAR'(N), Style, _, Ci, Co)-S :-
+    ->	write_VAR(N, Style, Ci, Co)-S.
+write_out(Gen, _, _, Ci, Co)-S:-
+	sys_generic(Gen)
+    ->	maybe_space(Ci,alpha)-S,
+	Co = alpha,
+	write_generic(Gen)@S.
+write_out(N, _, _, Ci, Co)-S :-
+	integer(N)
+    ->	write_out_aux_1(N, Ci)-S,
+	Co = alpha,
+	write_integer(N)-S.
+write_out(N, _, _, Ci, Co)-S :-
+	float(N)
+    ->	write_out_aux_1(N, Ci)-S,
+	Co = alpha,
+	write_float(N)-S.
+write_out(Term, print, _, _Ci, Co)-S :-
+        portayable(Term)
+    ->	portray(Term)-S,
+	Co = alpha.
+write_out(Atom, Style, Prio, _, Co)-S :-
+	atom(Atom),
+	internal_current_op(Atom, P, _),
+	P > Prio
+    ->	Co = punct,
+	putc(40)@S,
+	write_out_aux_2(Atom, Style)-S,
+	putc(41)@S.
+write_out(Atom, Style, _, Ci, Co)-S :-
+	atom(Atom)
+    ->	write_atom(Atom, Style, Ci, Co)-S.
+write_out(Term, Style, Prio, Ci, Co)-S :-
+    ->	'$lookup_dict'(Term, Dist)@S,
+	write_out1(Term, Dist, Style, Prio, Ci, Co)-S.
+
+
+write_out1(_, Dist, _Style, _Prio, _Ci, Co)-S :-
+	Dist > 0
+    ->	Co = punct,
+	write_cycle_marker(Dist)-S.
+write_out1(Term, _, display, _, Ci, Co)-S :-
+    ->	Co = punct,
+	tree_to_functor(Term,Fsymbol,Arity),
+	write_atom(Fsymbol, display, Ci, _)-S,
+	'$push_dict'(Term)@S,
+	write_args(0, Arity, Term, 40, display)-S,
+	'$pop_dict'(Term)@S.
+write_out1(Obj, _, Style, _, _, Co)-S :-
+	Obj = {Term}
+    ->	Co = punct,
+	putc(123)@S,
+	'$push_dict'(Obj)@S,
+	write_out(Term, Style, 1200, punct, _)-S,
+	'$pop_dict'(Obj)@S,
+	putc(125)@S.
+write_out1(Obj, _, Style, _, _, Co)-S :-
+	Obj = [Head|Tail]
+    ->	Co = punct,
+	putc(91)@S,
+	'$push_dict'(Obj)@S,
+	write_out(Head, Style, 999, punct, _)-S,
+	write_tail(Tail, Style)-S,
+	'$pop_dict'(Obj)@S.
+write_out1(Obj, _, Style, Prio, Ci, Co)-S :-
+	Obj = (A,B)
+    ->	%  This clause stops writeq quoting commas.
+	maybe_paren(1000, Prio, 40, Ci, C1)-S,
+	'$push_dict'(Obj)@S,
+	write_out(A, Style, 999, C1, _)-S,
+	putc(44)@S,
+	write_out(B, Style, 1000, punct, C2)-S,
+	'$pop_dict'(Obj)@S,
+	maybe_paren(1000, Prio, 41, C2, Co)-S.
+write_out1(Term, _, Style, Prio, Ci, Co)-S :-
+    ->	tree_to_functor(Term, F,N),
+	'$push_dict'(Term)@S,
+	write_out(N, F, Term, Style, Prio, Ci, Co)-S,
+	'$pop_dict'(Term)@S.
+
+
+write_cycle_marker(Dist)-S :-
+    ->	write_atom('^')-S,
+	write_integer(Dist)-S.
+
+write_out_aux_1(N, Ci)-S :- 
+	N < 0
+    ->	maybe_space(Ci, other)-S.
+write_out_aux_1(_N, Ci)-S :-
+    ->	maybe_space(Ci, alpha)-S.
+
+write_out_aux_2(Atom, Style)-S :- Style = writeq
+    ->	write_atom(Atom, Style, punct, _)-S.
+write_out_aux_2(Atom, _Style)-S :-
+    ->	atom_to_chars(Atom, String), put_string(String)-S.
+
+
+write_out(1, F, Term, Style, Prio, Ci, Co)-S :-
+	write_out_aux_3(F, O, P) -> % ???
+	maybe_paren(O, Prio, 40, Ci, C1)-S,
+	write_atom(F, Style, C1, C2)-S,
+	arg(1, Term, A),
+	write_out(A, Style, P, C2/prefix_op, C3)-S,
+	maybe_paren(O, Prio, 41, C3, Co)-S.
+write_out(1, F, Term, Style, Prio, Ci, Co)-S :-
+	write_out_aux_4(F, O, P)
+    ->	maybe_paren(O, Prio, 40, Ci, C1)-S,
+	arg(1, Term, A),
+	write_out(A, Style, P, C1, C2)-S,
+	write_atom(F, Style, C2, C3)-S,
+	maybe_paren(O, Prio, 41, C3, Co)-S.
+write_out(2, F, Term, Style, Prio, Ci, Co)-S :-
+	write_out_aux_5(F, O, P, Q)
+    ->	maybe_paren(O, Prio, 40, Ci, C1)-S,
+	arg(1, Term, A),
+	write_out(A, Style, P, C1, C2)-S,
+	write_oper(F, O, Style, C2, C3)-S,
+	arg(2, Term, B),
+	write_out(B, Style, Q, C3, C4)-S,
+	maybe_paren(O, Prio, 41, C4, Co)-S.
+write_out(N, F, Term, Style, _Prio, Ci, Co)-S :-
+    ->	Co = punct,
+	write_atom(F, Style, Ci, _)-S,
+	write_args(0, N, Term, 40, Style)-S.
+
+
+write_out_aux_3(F, O, P) :-
+	internal_current_op(F, O1, fx)
+    ->	P is O1-1,
+	O = O1.
+write_out_aux_3(F, O, P) :-
+	internal_current_op(F, O1, fy)
+    ->	P = O1,
+	O = O1.
+
+write_out_aux_4(F, O, P) :-
+	internal_current_op(F, O1, xf)
+    ->	P is O1-1,
+	O = O1.
+write_out_aux_4(F, O, P) :-
+	internal_current_op(F, O1, yf)
+    ->	P = O1,
+	O = O1.
+
+write_out_aux_5(F, O, P, Q) :-
+	internal_current_op(F, O1, xfy)
+    ->	P is O1-1,
+	O = O1,
+	Q = O.
+write_out_aux_5(F, O, P, Q) :-
+	internal_current_op(F, O1, xfx)
+    ->	P is O1-1,
+	O = O1,
+	Q = P.
+write_out_aux_5(F, O, P, Q) :-
+	internal_current_op(F, O1, yfx)
+    ->	Q is O1-1,
+	O = O1,
+	P = O.
+
+
+write_oper(Op, Prio, Style, Ci, Co)-S :-
+	Prio < 700
+    ->	write_atom(Op, Style, Ci, Co)-S.
+write_oper(Op, _, Style, _Ci, Co)-S :-
+    ->	Co = punct,
+	putc(32)@S,
+	write_atom(Op, Style, punct, _)-S,
+	putc(32)@S.
+
+
+write_VAR(N, _Style, Ci, Co)-S :-
+	integer(N), 
+	N >= 0
+    ->	Co = alpha,
+	maybe_space(Ci, alpha)-S,
+	Letter is mod(N, 26) + 65,
+	putc(Letter)@S,
+	write_VAR_aux(N)-S.
+write_VAR(A, _Style, Ci, Co)-S :-
+	atom(A)
+    ->	write_atom(A, write, Ci, Co)-S.
+write_VAR(X, Style, Ci, Co)-S :-
+    ->	Co = punct,
+	write_atom('$VAR', Style, Ci, _)-S,
+	write_args(0, 1, '$VAR'(X), 40, Style)-S.
+
+write_VAR_aux(N)-_S :- 
+	N < 26
+    ->	true.
+write_VAR_aux(N)-S :-
+    ->	Rest is N//26,
+	write_integer(Rest)-S.
+
+
+write_atom(('!'), _, _, Co)-S :-
+    ->	Co = punct,
+	putc(33)@S.
+write_atom((';'), _, _, Co)-S :-
+    ->	Co = punct,
+	putc(59)@S.
+write_atom([], _, _, Co)-S :-
+    ->	Co = punct,
+	putc(91)@S,
+	putc(93)@S.
+write_atom({}, _, _, Co)-S :-
+    ->	Co = punct,
+	putc(123)@S,
+	putc(125)@S.
+write_atom(Atom, Style, Ci, Co)-S :-
+    ->	atom_to_chars(Atom, String),
+	write_atom_aux(Atom, String, Style, Ci, Co)-S.
+
+write_atom_aux(_Atom, String, _Style, Ci, Co)-S :-
+	classify_name(String, Co1)
+    ->	Co1 = Co,
+	maybe_space(Ci, Co1)-S,
+	put_string(String)-S.
+write_atom_aux(_Atom, String, Style, Ci, Co)-S :-
+	Style = writeq
+    ->	Co = quote,
+	maybe_space(Ci, quote)-S,
+	putc(39)@S,
+	put_string(String, 39)-S,
+	putc(39)@S.
+write_atom_aux(_Atom, String, _Style, _Ci, Co)-S :-
+    ->	Co = alpha,
+	put_string(String)-S.
+
+
+%   classify_name(String, Co)
+%   says whether a String is an alphabetic identifier starting
+%   with a lower case letter (Co=alpha) or a string of symbol characters
+%   like ++/=? (Co=other).  If it is neither of these, it fails.  That
+%   means that the name needs quoting.  The special atoms ! ; [] {} are
+%   handled directly in write_atom.  In a basic Prolog system with no
+%   way of changing the character classes this information can be
+%   calculated when an atom is created, and just looked up.  This has to
+%   be as fast as you can make it.
+
+classify_name([H|T], Co) :-
+	H >= 97,
+	H =< 122
+    ->	Co = alpha,
+	classify_alpha_tail(T).
+classify_name([H|T], Co) :-
+	special_symbol_char(H)
+    ->	Co = other,
+	classify_other_tail(T).
+
+classify_alpha_tail([]) :-
+    ->	true.
+classify_alpha_tail([H|T]) :-
+    ->	is_alpha(H),
+	classify_alpha_tail(T).
+
+is_alpha(H) :-
+	H >= 97,
+	H =< 122
+    ->	true.
+is_alpha(H) :-
+	H >= 65,
+	H =< 90
+    ->	true.
+is_alpha(H) :-
+	H >= 48,
+	H =< 57
+    ->	true.
+is_alpha(H) :-
+	H = 95
+    ->	true.
+
+
+classify_other_tail([]) :-
+    ->	true.
+classify_other_tail([H|T]) :-
+    ->	special_symbol_char(H),
+	classify_other_tail(T).
+
+
+%   write_args(DoneSoFar, Arity, Term, Separator, Style)
+%   writes the remaining arguments of a Term with Arity arguments
+%   all told in Style, given that DoneSoFar have already been written.
+%   Separator is 0'(initially and later 0', .
+
+
+% Check if term has features with atom names.
+% In that case write out arguments with feature:value,..
+
+write_args(_I,_N, Term, C, Style)-S :-
+    	tree_to_functor(Term,Functor),
+	functor_features(Functor,F),
+	F > 0
+    ->	functor_arity(Functor,Features),
+	write_feature_args(Features,Term,Functor,C,Style)-S.
+write_args(I, N, Term, C, Style)-S :-
+    ->	write_normal_args(I,N,Term,C,Style)-S.
+
+%%% The normal write_args
+write_normal_args(N, N, _, _, _)-S :-
+    ->	putc(41)@S.
+write_normal_args(I, N, Term, C, Style)-S :-
+    ->	putc(C)@S,
+	J is I+1,
+	arg(J, Term, A),
+	write_out(A, Style, 999, punct, _)-S,
+	write_normal_args(J, N, Term, 44, Style)-S.
+
+
+write_feature_args([], _, _, _, _)-S :-
+    ->	putc(41)@S.
+write_feature_args([Feature|R], Term, Functor, C, Style)-S :-
+    ->	putc(C)@S,
+	arg(Feature, Term, A),
+	write_out(Feature, Style, 999, punct, _)-S,
+    	putc(58)@S, 				%':'
+	write_out(A, Style, 999, punct, _)-S,
+	write_feature_args(R, Term, Functor, 44, Style)-S.
+
+
+
+%   write_tail(Tail, Style)
+%   writes the tail of a list of a given style.
+
+write_tail(Var, _)-S :-				%  |var]
+	'$var'(Var)
+    ->	putc(124)@S,
+	write_variable(Var)-S,
+	putc(93)@S.
+write_tail([], _)-S :-				%  ]
+    ->	putc(93)@S.
+write_tail(Term, Style)-S :-
+    ->	'$lookup_dict'(Term, Dist)@S,
+	write_tail1(Term, Dist, Style)-S.
+
+write_tail1(_, Dist, _Style)-S :-
+	Dist > 0
+    ->	putc(124)@S,
+	write_cycle_marker(Dist)-S,
+	putc(93)@S.
+write_tail1(Obj, _, Style)-S :-			%  ,Head tail
+	Obj = [Head|Tail]
+    ->	putc(44)@S,
+	'$push_dict'(Obj)@S,
+	write_out(Head, Style, 999, punct, _)-S,
+	write_tail(Tail, Style)-S,
+	'$pop_dict'(Obj)@S.
+write_tail1(Other, _, Style)-S :-			%  |junk]
+    ->	putc(124)@S,
+	write_out(Other, Style, 999, punct, _)-S,
+	putc(93)@S.
+
+/*
+ * WRITE FOR SPECIFIC DATA-TYPES
+ *
+ */
+
+write_variable(Var)-S :-
+	'$lookup_dict'(Var,Dist)@S,
+	write_variable1(Dist, Var)-S.
+
+write_variable1(Dist, _)-S :-
+	Dist > 0
+    ->	write_cycle_marker(Dist)-S.
+write_variable1(_, Var)-S :-
+    ->	'$var_descriptor'(Var, D),
+	putc(0'_)@S,
+	putd(D)@S,
+	write_constraint(Var)@S.
+
+write_integer(Int)-S :-
+	putd(Int)@S.
+
+write_float(Float)-S :-
+	putf(Float)@S.
+
+write_atom(Atom)-S :-
+	puts(Atom)@S.
+
+writeq_atom(Atom)-S :-
+	putsq(Atom, 0'')@S.

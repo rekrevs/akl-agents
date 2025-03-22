@@ -1,0 +1,131 @@
+mem(A, [B|_]) :-
+	A=B
+    ->	true.
+mem(A, [_|R]) :-
+    ->	mem(A, R).
+
+union([], Y, Z) :- 
+    ->	Z=Y.
+union([A|R], Y, Z) :-
+	mem(A, Y)
+    ->	union(R, Y, Z).
+union([A|R], Y, Z) :-
+    ->	Z=[A|Z0],
+	union(R, Y, Z0).
+
+mon_term(X, S, G) :-
+	X=var(_)
+    ->	S = [X],
+	G = [X].
+mon_term(struct(max,0,[]), S, G) :-
+    ->	S = [],
+	G = [].
+mon_term(struct(X,0,[]), S, G) :- 
+	integer(X)
+    ->	S = [],
+	G = [].
+mon_term(struct('+',2,[X,Y]), S, G) :-
+    ->	mon_term(X, S1, G1),
+	mon_term(Y, S2, G2),
+	union(S1, S2, S),
+	union(G1, G2, G).
+mon_term(struct('*',2,[X,Y]), S, G) :-
+    ->	mon_term(X, S1, G1),
+	mon_term(Y, S2, G2),
+	union(S1, S2, S),
+	union(G1, G2, G).
+mon_term(struct('-',2,[X,Y]), S, G) :-
+    ->	mon_term(X, S1, G1),
+	mon_term(Y, S2, G2),
+	union(S1, G2, S),
+	union(G1, S2, G).
+mon_term(struct('//',2,[X,Y]), S, G) :-
+    ->	mon_term(X, S1, G1),
+	mon_term(Y, S2, G2),
+	union(S1, G2, S),
+	union(G1, S2, G).
+mon_term(struct('/',2,[X,Y]), S, G) :-
+    ->	mon_term(X, S1, G1),
+	mon_term(Y, S2, G2),
+	union(S1, G2, S),
+	union(G1, S2, G).
+mon_term(struct(mod,2,[X,Y]), S, G) :-
+    ->	mon_term(X, S1, G1),
+	mon_term(Y, S2, G2),
+	union(S1, C, S),
+	union(G1, C, G),
+	union(S2, G2, C).
+mon_term(struct(min,1,[R]), S, G) :-
+    ->	mon_range_min(R, S, G).
+mon_term(struct(max,1,[R]), S, G) :-
+    ->	mon_range_max(R, S, G).
+
+% mon_range(R, M, AM) computes a decision set of variables that have to
+% turn constant to make R monotone, M, and a set of variables that have to
+% turn constant to make R anti-monotone, AM.
+mon_range(struct(dom,1,D), M, AM) :-
+    ->	M=[],
+	AM=D.
+mon_range(struct('..',2,[X,Y]), M, AM) :-
+    ->	mon_term(X, S1, G1),
+	mon_term(Y, S2, G2),
+	union(G1, S2, M),
+	union(S1, G2, AM).
+mon_range(struct('...',1,[X]), M, AM) :-
+    ->	mon_range(struct('..',2,[X,struct(max,0,[])]), M, AM).
+mon_range(struct('+',2,[R,_]), M, AM) :-
+    ->	mon_range(R, M, AM).
+mon_range(struct('-',2,[R,_]), M, AM) :-
+    ->	mon_range(R, M, AM).
+mon_range(struct(mod,2,[R,_]), M, AM) :-
+    ->	mon_range(R, M, AM).
+mon_range(struct('-',1,[R]), M, AM) :-
+    ->	mon_range(R, AM, M).
+mon_range(struct('\/',2,[R1,R2]), M, AM) :-
+    ->	mon_range(R1, M1, AM1),
+	mon_range(R2, M2, AM2),
+	union(M1, M2, M),
+	union(AM1, AM2, AM).
+mon_range(struct('/\',2,[R1,R2]), M, AM) :-
+    ->	mon_range(R1, M1, AM1),
+	mon_range(R2, M2, AM2),
+	union(M1, M2, M),
+	union(AM1, AM2, AM).
+mon_range(struct('=>',2,[S,R]), M, AM) :-
+    ->	mon_range(S, M1, AM1),
+	mon_range(R, M2, AM2),
+	union(M1, M2, M),
+	union(AM1, AM2, AM).
+mon_range(X, M, AM) :-
+    ->	mon_range(struct('..',2,[X, X]), M, AM).
+
+mon_range_min(X, S, G) :- 
+	X=var(_)
+    ->	S = [X],
+	G = [].
+mon_range_min(R, S, G) :-
+    ->	mon_range(R, G, S).
+
+mon_range_max(X, S, G) :- 
+	X=var(_) 
+    ->	S = [],
+	G = [X].
+mon_range_max(R, S, G) :-
+    ->	mon_range(R, S, G).
+
+parse_list([], P) :-
+    ->	P=struct([],0,[]).
+parse_list([A|R], P) :-
+    ->	P=struct('.',2,[A,P0]),
+	parse_list(R, P0).
+
+fd_mon(R, DT) :-
+    ->	mon_range(R, M, AM),
+	parse_list(M, MP),
+	parse_list(AM, AMP),
+	DT = struct(dec,2,[MP,AMP]).
+
+fd_element_mon(X, DT) :-
+    ->	parse_list([], MP),
+	parse_list([X], AMP),
+	DT = struct(dec,2,[MP,AMP]).

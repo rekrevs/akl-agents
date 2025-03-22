@@ -1,0 +1,2996 @@
+% -*-texinfo-*-
+% LaTeX "sloppy"
+\tolerance=3000
+\hfuzz=.5pt
+\vfuzz=.5pt
+% Adjust \hoffset for !A4 paper
+\vsize 22.9cm
+\hsize 14.0cm
+%\pageheight=\vsize
+%\hoffset-0.125cm
+\raggedbottom
+\input texinfo
+@comment %**start of header (This is for running Texinfo on a region.)
+@setfilename agents-library
+@settitle AGENTS Library Manual
+@setchapternewpage odd
+@comment %**end of header (This is for running Texinfo on a region.)
+@tex
+\global\parindent=0pt
+\global\parskip=6pt
+@end tex
+@finalout
+
+@ifinfo
+This file documents AGENTS.
+
+Copyright @copyright{} 1990-1994 Swedish Institute of
+Computer Science
+
+All rights reserved.
+@end ifinfo
+
+@titlepage
+@center @titlefont{AGENTS Library Manual}
+@sp 3
+@center @today
+@sp 3
+@center Sverker Janson, Johan Montelius, Kent Boortz, Per Brand,
+@center Bj@"orn Carlson, Ralph Clarke Haygood, Bj@"orn Danielsson,
+@center Seif Haridi, Dan Sahlin, and Thomas Sj@"oland
+@sp
+@center Concurrent Constraint Programming Group
+@center Swedish Institute of Computer Science
+@center Box 1263, S-164 28 KISTA, Sweden
+@sp 3
+@center This manual corresponds to AGENTS 0.9.
+@page
+@vskip 0pt plus 1fill
+Copyright @copyright{} 1994 Swedish Institute of Computer Science
+
+All rights reserved.
+@end titlepage
+
+@ifinfo
+@node Top, Introduction, (dir), (dir)
+@comment  node-name,  next,  previous,  up
+@chapter AGENTS
+
+The Agents Kernel Language (AKL) is a concurrent constraint
+programming language developed at the Swedish Institute of
+Computer Science (SICS).  In AKL, computation is performed
+by agents interacting through stores of constraints.  This
+notion accomodates multiple programming paradigms; in
+appropriate contexts, AKL agents may be thought of as
+processes, objects, functions, relations, or constraints.
+
+AGENTS is a system for programming in AKL.  It provides a
+complete implementation of AKL with equality constraints
+over rational trees, various ``finite domain'' constraints
+over integers, and ports, a novelty of AKL.  It also
+provides assorted built-in agents and other support.
+@end ifinfo
+
+@menu
+* Introduction::                
+* Assoc::                       
+* GM::                          
+* Lists::                       
+* Ordsets::                     
+* Prolog::                      
+* Random::                      
+* Reader::                      
+* SAGA::                        
+* UGraphs::                     
+* Index of Built-ins::          
+* Index of Concepts::           
+@end menu
+
+@node Introduction, Assoc, Top, Top
+@chapter Introduction
+
+The Agents Kernel Language (AKL) is a concurrent constraint
+programming language developed at the Swedish Institute of
+Computer Science (SICS).  In AKL, computation is performed
+by agents interacting through stores of constraints.  This
+notion accomodates multiple programming paradigms; in
+appropriate contexts, AKL agents may be thought of as
+processes, objects, functions, relations, or constraints.
+
+AGENTS is a system for programming in AKL.  It provides a
+complete implementation of AKL with equality constraints
+over rational trees, various ``finite domain'' constraints
+over integers, and ports, a novelty of AKL.  It also
+provides assorted built-in agents and other support.
+
+This @emph{AGENTS Library Manual} describes libraries and
+tools distributed with AGENTS.  AKL is described in @emph{An
+Introduction to AKL}.  The @emph{AGENTS User Manual}
+explains how to get, install, and use AGENTS.
+
+The following library packages are described in this manual:
+
+@table @code
+@item assoc
+provides operations on ``association lists'', i.e.,
+extendable finite mappings from terms to terms.
+
+@item gm
+supports interactive graphics in the context of X Windows
+using InterViews 2.6.
+
+@item lists
+provides operations on lists.
+
+@item ordsets
+provides operations on sets of trees, represented by lists
+of the elements in standard order.
+
+@item prolog
+is a collection of agents resembling predicates built into
+many Prolog implementations.
+
+@item random
+provides random numbers.
+
+@item reader
+supports reading, writing, and manipulating programs using a
+ground representation.
+
+@item map
+contains routines that are useful for schema-based ("higher-order")
+programming, like map(Def,List) which applies Def to each element of
+the list List.
+
+@item utilities
+contains routines that are not easily classified, but which are 
+generally useful.
+
+@item sagaruntime
+is the run-time library of the SAGA (Syntax Analyzer
+Generator in AGENTS) tool.
+
+@item ugraphs
+provides operations on graphs with unlabeled edges.
+@end table
+
+To load library package @var{Package}:
+
+@example
+| ?- @emph{load(library(@var{Package})).<return>}
+@end example
+
+Conventions in examples of top-level interaction in this
+manual are the same as in the @emph{AGENTS User Manual}: we
+typographically distinguish @code{programs and computer
+output} from @emph{user input}; hitting the return key is
+written @emph{<return>}; and we usually omit the
+confirmation @code{yes} and the following input prompt.
+
+Several library packages are adapted from SICStus Prolog:
+gm, lists, ordsets, and ugraphs.
+
+@ assoc
+@ gm
+@comment lists.texi should be included here
+
+@ reader
+@node Assoc, GM, Introduction, Top
+@chapter Association Lists
+@cindex association lists
+@cindex lists, association
+
+This package uses 2-3 trees to implement ``association lists'', i.e.
+extendible finite mappings from terms to terms.  To load the package,
+enter the query
+
+@example
+| ?- load(library(assoc)).
+@end example
+@table @code
+@item empty_assoc(@var{-Assoc})
+@findex empty_assoc/1
+is true if @var{Assoc} is the empty association tree.
+@item get_assoc(@var{+Key}, @var{-Value}, @var{+Assoc}, @var{-OutAssoc})
+@findex get_assoc/4
+is true when @var{Key} is associated with @var{Value} in the association
+tree @var{Assoc}. The @var{OutAssoc} returned is identical to the input 
+@var{Assoc} and is used only for synchronization (and compatibility with 
+the array package).
+@item get_def_assoc(@var{+Key}, @var{-Default}, @var{-Value}, @var{+Assoc}, @var{-OutAssoc})
+@findex get_def_assoc/5
+If @var{Assoc} associates a value with @var{Key}, that value is
+@var{OldValue}. If @var{OldAssoc} did not associate any value at all with
+@var{Key} then @var{OldValue} is unified with @var{Default}. 
+The @var{OutAssoc} returned is identical to the input 
+@var{Assoc} and is used only for synchronization (and compatibility with 
+the array package).
+@item get_nearest_le_assoc(@var{+SearchKey}, @var{-Key}, @var{-Value}, @var{+Assoc}, @var{-OutAssoc})
+@findex get_nearest_le_assoc/5
+is true if there exists a key in the association tree @var{Assoc} less than
+or equal to @var{SearchKey}, and the largest such key is @var{Key} and is
+associated with @var{Value}. 
+The @var{OutAssoc} returned is identical to the input @var{Assoc} and is
+used only for synchronization (and compatibility with the array package).
+@item get_min_assoc(@var{-Key}, @var{-Value}, @var{+Assoc}, @var{-OutAssoc})
+@findex get_min_assoc/4
+is true if @var{Key} unifies with the smallest key in the non-empty 
+association tree @var{Assoc} and @var{Value} unifies with the associated 
+value. 
+The @var{OutAssoc} returned is identical to the input @var{Assoc} and is
+used only for synchronization (and compatibility with the array package).
+@item get_max_assoc(@var{-Key}, @var{-Value}, @var{+Assoc}, @var{-OutAssoc})
+@findex get_max_assoc/4
+is true if @var{Key} unifies with the largest key in the non-empty
+association tree @var{Assoc} and @var{Value} unifies with the associated 
+value. 
+The @var{OutAssoc} returned is identical to the input @var{Assoc} and is
+used only for synchronization (and compatibility with the array package).
+@item set_assoc(@var{+Key}, @var{-OldValue}, @var{-NewValue}, @var{+OldAssoc}, @var{-NewAssoc})
+@findex set_assoc/5
+is true when @var{OldAssoc} and @var{NewAssoc} are association trees of
+the same shape having the same elements except that the value for
+@var{Key} in @var{OldAssoc} is @var{OldValue} and the value for
+@var{Key} in @var{NewAssoc} is @var{NewValue}.
+@item set_def_assoc(@var{+Key}, @var{-Default}, @var{-OldValue}, @var{-NewValue}, @var{+OldAssoc}, @var{-NewAssoc})
+@findex set_def_assoc/6
+is true when @var{OldAssoc} and @var{NewAssoc} define the same finite
+function, except that @var{NewAssoc} associates @var{Val} with @var{Key}.
+If @var{OldAssoc} associated a value with @var{Key}, that value is
+@var{OldValue}. If @var{OldAssoc} did not associate any value at all with
+@var{Key} then @var{OldValue} is unified with @var{Default}. 
+@item put_assoc(@var{+Key}, @var{-Val}, @var{+OldAssoc}, @var{-NewAssoc})
+@findex put_assoc/4
+is true when @var{OldAssoc} and @var{NewAssoc} define the same finite
+function, except that @var{NewAssoc} associates @var{Val} with @var{Key}.
+@var{OldAssoc} need not have associated any value at all with @var{Key}.
+@item delete_assoc(@var{+Key}, @var{-Val}, @var{+OldAssoc}, @var{-NewAssoc})
+@findex delete_assoc/4
+is true when @var{OldAssoc} and @var{NewAssoc} define the same finite
+function, except that while @var{OldAssoc} associated @var{Val} with 
+@var{Key}, @var{NewAssoc} does not associate any value at all with @var{Key}.
+@item delete_def_assoc(@var{+Key}, @var{-Default}, @var{-Val}, @var{+OldAssoc}, @var{-NewAssoc})
+@findex delete_def_assoc/5
+is true when @var{OldAssoc} and @var{NewAssoc} define the same finite
+function, except that @var{NewAssoc} does not associate any value at all 
+with @var{Key}. 
+If @var{OldAssoc} associated a value with @var{Key}, that value is
+@var{OldValue}. If @var{OldAssoc} did not associate any value at all with
+@var{Key} then @var{OldValue} is unified with @var{Default}. 
+@item delete_min_assoc(@var{-Key}, @var{-Val}, @var{+OldAssoc}, @var{-NewAssoc})
+@findex delete_min_assoc/4
+is true when @var{OldAssoc} and @var{NewAssoc} define the same finite
+function, except that while @var{OldAssoc} associated @var{Val} with 
+@var{Key}, which was the smallest key in @var{OldAssoc}, @var{NewAssoc} 
+does not associate any value at all with @var{Key}.
+@item delete_max_assoc(@var{-Key}, @var{-Val}, @var{+OldAssoc}, @var{-NewAssoc})
+@findex delete_max_assoc/4
+is true when @var{OldAssoc} and @var{NewAssoc} define the same finite
+function, except that while @var{OldAssoc} associated @var{Val} with 
+@var{Key}, which was the largest key in @var{OldAssoc}, @var{NewAssoc} 
+does not associate any value at all with @var{Key}.
+@item gen_assoc(@var{-Key}, @var{+Assoc}, @var{-Value})
+@findex gen_assoc/3
+is true when @var{Key} is associated with @var{Value} in the association
+tree @var{Assoc}.  Can be used to enumerate all @var{Values} by
+ascending @var{Keys}.
+@item map_assoc(@var{:Pred}, @var{-OldAssoc}, @var{-NewAssoc})
+@findex map_assoc/3
+is true when @var{OldAssoc} and @var{NewAssoc} are association trees of
+the same shape, and for each @var{Key}, if @var{Key} is associated with
+@var{Old} in @var{OldAssoc} and with @var{New} in @var{NewAssoc},
+@var{Pred(Old,New)} is true.
+@item assoc_to_list(@var{+Assoc}, @var{-List})
+@findex assoc_to_list/3
+is true when @var{List} is a list of @var{Key-Value} pairs in ascending
+order with no duplicate @var{Keys} specifying the same finite function
+as the association tree @var{Assoc}.  Use this to convert an association
+tree to a list.
+@item list_to_assoc(@var{+List}, @var{-Assoc})
+@findex list_to_assoc/2
+is true when @var{List} is a proper list of @var{Key-Value} pairs (in
+any order) and @var{Assoc} is an association tree specifying the same
+finite function from @var{Keys} to @var{Values}.
+@item ord_list_to_assoc(@var{+List}, @var{-Assoc})
+@findex ord_list_to_assoc/2
+is true when @var{List} is a proper list of @var{Key-Value} pairs
+(keysorted) and @var{Assoc} is an association tree specifying the same
+finite function from @var{Keys} to @var{Values}.
+@end table
+@node GM, Lists, Assoc, Top
+@chapter Graphics Manager
+@cindex graphics manager
+@cindex X-Windows
+@cindex InterViews
+
+<<<NEEDS WORK>>>
+
+The Graphics Manager (GM) is currently a straight port of the GM
+included in the SICStus Prolog library.
+
+The GM is a package for graphics and interaction in
+the X-Windows environment. It is a separate process, started and
+completely controlled from AKL. It communicates with AKL using
+unix sockets. GM is written using the InterViews system (Copyright (c)
+1987, 1988, 1989 Stanford University).
+
+With GM, you are able to construct and open windows with complex
+contents, like views for drawing and structured text displaying,
+buttons, menus and text input. You are also able to wait for events from
+the constructed windows and later process them in AKL.
+
+For the construction of the window contents we have chosen an object
+oriented approach. This means that you first create the objects you
+need, then put them together in a window, and finally open the window.
+The object in the window(s) can later be accessed and manipulated by
+sending them messages.
+
+@noindent
+GM supports 11 different object classes:
+
+@table @code
+@item window
+for window construction
+@item view
+for graphic output
+@item text
+for structured text display
+@item output
+for simple text output
+@item input
+for text input to AKL
+@item button
+for clickable button construction
+@item slider
+for slider construction
+@item menu
+for menu specification
+@item hbox
+for tiling objects horizontally
+@item vbox
+for tiling objects vertically
+@end table
+
+@noindent
+You create an instance of an object class by using the object
+constructor, e.g.
+
+@example
+send(@var{GM0}, create(view(200,200),@var{MyView}), @var{GM1})
+@end example
+
+@noindent
+or the equivalent
+
+@example
+create(view(200,200),@var{MyView})@@@var{GM}
+@end example
+
+
+This call will return a reference to the created instance of the view class 
+in the variable @var{MyView}. If you want to, you can give names to 
+to instance references as well and be able to access the object
+globally.
+
+@table @code
+ @item name(myview,create(view(200,200),_))@@@var{GM}
+@end table
+@findex name/2
+
+You send a message to an object with the send method, e.g.
+
+@table @code
+ @item message(circle(100,50,50),@var{MyView})@@@var{GM}
+@end table
+@findex message/2
+
+
+@menu
+* Starting GM::                 
+* GM Data::                     
+* Object Construction and Messages::  
+* Windows::                     
+* Views::                       
+* Cursor Handling::             
+* Boxes::                       
+* Menus::                       
+* Outputs::                     
+* Inputs::                      
+* Buttons::                     
+* Textbrowsers::                
+* Sliders::                     
+* Get Event::                   
+* Event Format::                
+* Error Report::                
+@end menu
+
+@node Starting GM, GM Data, GM, GM
+@section Starting and terminating the graphics manager
+
+
+Starting is done by the command @code{gmstart}. This agent starts
+the graphics manager process and sets up the socket connection. Any
+object constructor agent will fail if you forget to start. Any
+message sending agent will also fail if the object does not exist.
+The agent @code{gmstart} will return a port.
+
+@noindent
+Command:
+
+@table @code
+@item gmstart(@var{-Port})
+@findex gmstart/1
+Starts the GM locally
+
+@item gmstart(@var{+Host,-Port})
+@findex gmstart/2
+Starts GM on some other host
+
+@item gmstart(@var{+Host,+UserName,-Port})
+@findex gmstart/3
+Starts GM on some other host where you have another username
+
+@end table
+
+There are two important things to remember when running AKL and GM on
+different hosts. First, all the graphics output is sent to the display
+matching the @code{DISPLAY} environment variable (in the shell where you
+started AKL). Second, if you run AKL and GM on different hosts
+with different usernames, be sure that both hosts have the line
+
+@example
+otherhostname otherusername
+@end example
+
+@noindent
+in the @file{.rhosts} files in your home directory.
+
+The GM process is terminated when the port is no longer used, i.e.
+there are no references to the port any longer. This
+kills the GM process and closes the socket connection. Any non-closed
+windows are terminated as well.
+
+
+@node GM Data, Object Construction and Messages, Starting GM, GM
+@section Input data for the graphics manager
+
+Here follow some general rules for input data to the graphics manager.
+
+Sizes and coordinates are integers. They are
+interpreted as pixels if nothing else is stated.
+
+A text item may be specified as follows:
+
+@itemize @bullet
+@item
+A AKL string (double-quoted).
+@item
+A term @code{format(@var{FormatString, Args})} which gives the same
+result as is printed by the agent @code{format/2}.
+@item
+Any other term which will give the same result as if the term were
+printed using @code{write/1}.
+@end itemize
+
+@cindex font
+A @dfn{font} is a text item, specifying the font name.  Valid
+fontnames are found by the @code{xlsfonts} command. Specifying a
+non-valid font results in a small standard font.
+
+
+
+@node Object Construction and Messages, Windows, GM Data, GM
+@section Object construction and message sending
+@cindex graphic object construction
+
+The general syntax for object construction and message sending is:
+@table @code
+@item create(@var{constructor}(@var{+Arguments}...),@var{-ObjRef})@@@var{GM}
+@findex create/2
+Creates an object. @var{ObjRef} is instantiated to a structure 
+representing the object.
+
+@item message(@var{message}(@var{+Arguments}...),@var{-ObjRef})@@@var{GM}
+@findex send/2
+Sends a message to an object. @var{ObjRef} gives you a reference to the object.
+
+@item name(@var{+MyName},create(@var{+ObjectDef},@var{-MyRef}))@@@var{-GM}
+@findex name/2
+Gives an object a name. @var{+MyName} should be an atom. Some messages to
+a view will also create objects and could be given names the same way.
+@end table
+
+
+@node Windows, Views, Object Construction and Messages, GM
+@section Windows
+@cindex windows
+
+Anything that you want to have displayed on the screen has to be put
+inside a window. The normal way to construct a window is to create all
+the contents of the window---buttons, views etc.---and then construct a
+window with these contents. You may construct and open as many windows
+as you want.
+
+@noindent
+Window constructors:
+
+@table @code
+@item window(@var{+Name},@var{+Content})
+@itemx window(@var{+Content})
+@kindex window/1 (constructor)
+@kindex window/2 (constructor)
+Constructs a window with contents.
+@var{Contents} is specified directly in terms of hboxes/vboxes or a single box
+element (e.g. @code{scroller(@var{MyView})}) as explained below.
+@var{Name} should be a text item and, if specified, is displayed in the title 
+bar of the window.  
+
+@end table
+
+@noindent
+Window messages:
+
+@table @code
+@item open
+@kindex open/0
+Opens an earlier constructed window
+
+@item open(@var{+X},@var{+Y})
+@kindex open/2
+Opens a window at screen position (@var{X},@var{Y})
+
+@item close
+@kindex close/0
+Closes and destroys a window
+
+@item raise
+@kindex raise/0
+Brings a window in front of the others
+
+@item lower
+@kindex lower/0
+Pushes a window to the back of the others
+
+@item iconify
+@kindex iconify/0
+Iconifies a window
+
+@item deiconify
+@kindex deiconify/0
+Deiconifies a window
+
+@end table
+
+
+@node Views, Cursor Handling, Windows, GM
+@section Views
+@cindex view
+@cindex graphics
+
+Views are used for any graphic output. They accept messages like
+@code{circle}, @code{line} and @code{rect}. The view can be
+grab-scrolled (grab the drawing paper with the mouse and drag it) with
+the right mouse button and rate-scrolled (a motor driven paper dragger)
+when the control key also is pressed (even if no scrollers are
+attached).
+
+@noindent
+@i{View constructor}
+
+@table @code
+@item view(@var{+Xsize},@var{+Ysize})
+@kindex view/2 (constructor)
+Constructs a view for graphic output with the initial size
+(@var{Xsize},@var{Ysize}).
+@end table
+
+@noindent
+@i{View messages for drawing}
+
+@table @code
+@item line(@var{+X1},@var{+Y1},@var{+X2},@var{+Y2})
+@kindex line/4
+Draws a line in the view.
+
+@item line(@var{-Ref},@var{+X1},@var{+Y1},@var{+X2},@var{+Y2})
+@kindex line/5
+Same as @code{line/4}, but makes @var{Ref} a reference to the created
+graphic. If you want to give the object a symbolic name you use the syntax:
+
+@item name(@var{-Atom},line(@var{+X1},@var{+Y1},@var{+X2},@var{+Y2}))
+@kindex name/2
+Note that only objects that can return a reference could be named.
+
+@item ellipse(@var{+X},@var{+Y},@var{+R1},@var{+R2})
+@itemx ellipse(@var{-Ref},@var{+X},@var{+Y},@var{+R1},@var{+R2})
+@kindex ellipse/4
+@kindex ellipse/5
+Draws an ellipse
+
+@item fillellipse(@var{+X},@var{+Y},@var{+R1},@var{+R2})
+@itemx fillellipse(@var{-Ref},@var{+X},@var{+Y},@var{+R1},@var{+R2})
+@kindex fillellipse/4
+@kindex fillellipse/5
+Draws a filled ellipse
+
+@item circle(@var{+X},@var{+Y},@var{+R})
+@itemx circle(@var{-Ref},@var{+X},@var{+Y},@var{+R})
+@kindex circle/3
+@kindex circle/4
+Draws a circle
+
+@item fillcircle(@var{+X},@var{+Y},@var{+R})
+@itemx fillcircle(@var{-Ref},@var{+X},@var{+Y},@var{+R})
+@kindex fillcircle/3
+@kindex fillcircle/4
+Draws a filled circle
+
+@item rect(@var{+X1},@var{+Y1},@var{+X2},@var{+Y2})
+@itemx rect(@var{-Ref},@var{+X1},@var{+Y1},@var{+X2},@var{+Y2})
+@kindex rect/4
+@kindex rect/5
+Draws a rectangle
+
+@item fillrect(@var{+X1},@var{+Y1},@var{+X2},@var{+Y2})
+@itemx fillrect(@var{-Ref},@var{+X1},@var{+Y1},@var{+X2},@var{+Y2})
+@kindex fillrect/4
+@kindex fillrect/5
+Draws a filled rectangle
+
+@item polygon(@var{+Xedges},@var{+Yedges})
+@itemx polygon(@var{-Ref},@var{+Xedges},@var{+Yedges})
+@kindex polygon/2
+@kindex polygon/3
+Draws a polygon. @var{Xedges} and @var{Yedges} are lists of edge coordinates
+
+@item fillpolygon(@var{+Xedges},@var{+Yedges})
+@itemx fillpolygon(@var{-Ref},@var{+Xedges},@var{+Yedges})
+@kindex fillpolygon/2
+@kindex fillpolygon/3
+Draws a filled polygon. @var{Xedges} and @var{Yedges} are lists of edge
+coordinates
+
+@item string(@var{+X},@var{+Y},@var{+Text})
+@itemx string(@var{-Ref},@var{+X},@var{+Y},@var{+Text})
+@kindex string/3
+@kindex string/4
+Draws a text line at position (@var{X},@var{Y})
+
+@item bitmap(@var{+X},@var{+Y},@var{+File})
+@itemx bitmap(@var{-Ref},@var{+X},@var{+Y},@var{+File})
+@kindex bitmap/3
+@kindex bitmap/4
+Draws a bitmap created from the (X bitmap format) file @var{File}.
+If you start GM on another host, the complete path to the bitmap file
+must be specified. Note that the filename could be specified in the form
+@code{library(@var{+File})}.
+
+@end table
+
+@noindent
+@i{Messages for graphic manipulation}
+
+@table @code
+
+@item picture(@var{-Ref},@var{+Graphics})
+@kindex picture/2
+Creates a picture containing the graphics specified in the list
+@var{Graphics}. The list could contain references to graphic objects
+created earlier or could specify new objects. The picture can then be 
+manipulated like any other graphic object.
+
+@item copy(@var{+Graphic1},@var{-Graphic2})
+@kindex copy/2
+Creates a new graphic exactly the same as @var{Graphic1} and make
+@var{Graphic2} a reference to it. The new graphic also gets the same
+pattern, brush, colors and transformation as @var{Graphic1}. This
+command is most useful when copying pictures but can be applied to
+simple graphic objects as well.
+
+@item move(@var{+Ref},@var{+Dx},@var{+Dy})
+@kindex move/3
+Moves the graphic @var{Ref} (@var{Dx},@var{Dy}) pixels relatively to
+the current position.
+
+@item moveto(@var{+Ref},@var{+X},@var{+Y})
+@kindex moveto/3
+Moves the graphic to position (@var{X},@var{Y}) absolutely.
+
+@item rotate(@var{+Ref},@var{+Angle})
+@kindex rotate/2
+Rotates the graphic @var{Angle} degrees counterclockwise.
+
+@item scale(@var{+Ref},@var{+Xs},@var{+Ys})
+@kindex scale/3
+Scales the graphic by @var{Xs} percent along the x axis and by @var{Ys} 
+percent along the y axis.
+
+@item newtext(@var{+Strobj},@var{+Text})
+@kindex newtext/2
+Changes the text of the string object @var{Strobj}. The transformation
+(position, rotation, scaling) of the object is maintained.  @var{Strobj}
+must be a string object and @var{Text} should be a text item.
+
+@item remove(@var{+Ref})
+@kindex remove/1
+Removes the graphic from the view
+@end table
+
+@noindent
+@i{Messages for drawing properties}
+
+@table @code
+@item setcolors(@var{+Fgcolor},@var{+Bgcolor})
+@kindex setcolors/2
+Sets the foreground and background colors of the view. The colors can be
+specified in two formats: (I) @code{rgb(R,G,B)}, where @var{R},@var{G}
+and @var{B} are values between 0 and 255, or (II) @code{white},
+@code{black}, @code{red}, @code{blue} etc. Valid color names are found
+by the @code{showrgb} command.
+
+@item setpattern(@var{+Pattern})
+@kindex setpattern/1
+Sets the filling pattern. @var{Pattern} should be a number between 0
+(solid) and 8 (clear) including. The pixels in the pattern
+corresponding to ones will be set to the foreground color and the
+other to the background color.
+
+@item setbrush(@var{+Pattern},@var{+Width})
+@kindex setbrush/2
+Sets the brush properties. @var{Pattern} should be as in
+@code{setpattern/1} and @var{Width} the brush width in pixels.
+
+@item setfont(@var{+Font})
+@kindex setfont/1
+Sets the font for drawing string objects.
+
+@item stringlength(@var{+Text},@var{-Length})
+@kindex stringlength/2
+Returns the length in pixels of @var{Text} if drawn in the current
+font.
+
+@cindex batch mode
+@item batchmode
+@kindex batchmode/0
+The view is normally updated instantly as graphics are drawn at it.
+However this will be very inefficient when a large number of graphics
+are drawn. By sending the @code{batchmode} message, the view will be
+put in @var{batchmode}. This means that it will not be updated when
+graphics are drawn. The updating has to be explicitly done by sending
+the message @code{update}.
+
+@item batchmodeoff
+@kindex batchmodeoff/0
+Turns batchmode off and updates the view.
+
+@item update
+@kindex update/0
+Updates the view.
+@end table
+
+@noindent
+@i{Messages for view management}
+
+@table @code
+@item setmenu(@var{+Menu})
+@kindex setmenu/1
+Sets the view menu to @var{Menu}. See below for creating a menu. Use
+the middle mouse button to cause the menu to pop up.
+
+@item clear
+@kindex clear/0
+Clears the view
+
+@item zoom(@var{+Amount})
+@kindex zoom/1
+Zooms the view by @var{Amount} percent.
+
+@item scrollto(@var{+X},@var{+Y})
+@kindex scrollto/2
+Scrolls the view to position (@var{X},@var{Y})
+
+@item scrollby(@var{+X},@var{+Y})
+@kindex scrollby/2
+Scrolls the view by (@var{X},@var{Y}) pixels
+
+@item getcur(@var{-X},@var{-Y})
+@kindex getcur/2
+Polls the current mouse position. The coordinates are relative to the
+origin of the view which is the lower left corner.
+
+@end table
+
+@node Cursor Handling, Boxes, Views, GM
+@section Cursor Handling
+@cindex cursor
+
+The shape of the cursor may be set/read using the following messages.
+These messages can be send to both window and view objects. They refer
+to the shape of the cursor when it is inside the object.
+
+@table @code
+@item setcursor(@var{+Cursor})
+@kindex setcursor/1
+@var{Cursor} must be either one of the atoms below or an integer
+returned with a @code{getcursor/1} message.
+
+@item getcursor(@var{-Cursor})
+@kindex getcursor/1
+@var{Cursor} is either one of the atoms below or an integer referring to
+some other cursor. This integer may be used in a @code{setcursor/1}
+message.
+
+@end table
+
+Predefined cursors:
+@table @code
+@item arrow
+@itemx crosshairs
+@itemx ltextCursor
+@itemx rtextCursor
+@itemx hourglass
+@itemx upperleft
+@itemx upperright
+@itemx lowerleft
+@itemx lowerright
+@itemx noCursor
+@itemx handCursor
+@itemx leftCursor
+@itemx rightCursor
+@itemx upCursor
+@itemx dnCursor
+@itemx defaultCursor
+@end table
+
+@node Boxes, Menus, Cursor Handling, GM
+@section Boxes
+
+A @dfn{box} is an object that tiles other objects horizontally. The
+objects in a box are aligned to each other from left to right in a
+@dfn{hbox} and from top to bottom in a @dfn{vbox}, with no overlapping
+between any two objects. Boxes are used to construct more complex
+windows with more than just a single view or object. The objects passed
+to the box constructor are created earlier or are created in the
+argument list. See the @file{gmexamples.pl} file for examples.
+
+@table @code
+@item hbox(@var{+Contents})
+@kindex hbox/1 (constructor)
+Constructs a horizontal box of objects. The natural size of a box is
+the sum of its elements along the horizontal axis, and the maximum
+along its vertical axis. @var{Contents} should be a list of objects
+as specified above and/or terms/atoms as listed below.
+
+@item vbox(@var{+Contents})
+@kindex vbox/1 (constructor)
+Constructs a vertical box of objects. Function is equal to hbox with
+``horizontal'' defined as ``vertical'' and vice versa.
+
+@end table
+
+@noindent
+Extra terms/atoms to be inserted in a box:
+
+@table @code
+
+@item space
+Inserts a horizontally stretchable space
+
+@item space(@var{+Object})
+Inserts the object with fixed-sized space around it
+
+@item border
+Inserts a vertical border
+
+@item frame(@var{+Object})
+Inserts the object with a frame around it
+
+@item space(frame(@var{+Object}))
+Inserts the object with an inner frame and outer space around it
+
+@item frame(space(@var{+Object}))
+Inserts the object with an inner space and outer frame around it
+
+@cindex scrolling
+@item scroller(@var{+Object})
+Inserts the object with attached horizontal and vertical scrollers.
+This should be used only when @var{Object} is a view or a textbrowser!
+
+@end table
+
+@noindent
+@i{Messages to a hbox/vbox}
+
+@table @code
+
+@item insert(@var{+Specification})
+Inserts a object from @var{+Specification} into a vbox/hbox.
+
+@item delete(@var{+Object})
+Deletes an object @var{+Object} from a vbox/hbox.
+
+@end table
+
+
+@node Menus, Outputs, Boxes, GM
+@section Menus
+@cindex menu
+
+A @dfn{menu} of popup type can be attached to a view or a textbrowser
+and is popped up by pressing the middle mouse button in the specified
+area. A menu must be constructed before a view or a textbrowser
+specifies the menu in a @code{setmenu/1} command.
+
+@noindent
+@i{Menu constructor}
+
+@table @code
+@item menu([@var{+Items}],[@var{+Messages}])
+@kindex menu/2 (constructor)
+Constructs a popup menu. @var{Items} should be a list of strings (the
+desired texts of the menu items) and @var{Messages} should be a list of
+atoms, i.e. the corresponding event names later matched for in AKL,
+see the Getting events section. Selecting a menu item generates an
+event that can be read by AKL.
+
+@end table
+
+
+@node Outputs, Inputs, Menus, GM
+@section Outputs
+
+An output object is used for displaying a simple text line in a
+window. The text in the output can be altered from AKL but can not
+be edited in the window it resides in. It is suitable for displaying
+calculated values or status information.
+
+@noindent
+@i{Output constructors}
+
+@table @code
+@item output(@var{+Text})
+@itemx output(@var{+Text},@var{+Font})
+@kindex output/1 (constructor)
+@kindex output/2 (constructor)
+Constructs a non-editable text label. @var{Text} should be a text item
+(the desired initial text). The text can later be changed by means of
+the @code{out/1} message. If @var{Font} is specified, the output is
+displayed with that font (even if you change it later).
+
+@end table
+
+@noindent
+@i{Output messages}
+
+@table @code
+@item out(@var{+Text})
+@kindex out/1
+Sets the text of the output to @var{Text}.
+@end table
+
+
+@node Inputs, Buttons, Outputs, GM
+@section Inputs
+
+An input object is a user editable text line which can be read from
+AKL at any time. You start editing the text by clicking inside the
+object and move around in the text line with emacs equivalents except
+^U for select all and ^W for select word. Terminate input with CR, LF,
+or FF or by clicking elsewhere in the same window.
+
+@noindent
+@i{Input constructors}
+
+@table @code
+@item input(@var{+Text})
+@itemx input(@var{+Text},@var{+Font})
+@kindex input/1 (constructor)
+@kindex input/2 (constructor)
+Constructs an editable text field for user input. @var{Text} should be a
+text item that specifies the initial text. This text is initially
+selected.
+
+@end table
+
+@noindent
+@i{Input messages}
+
+@table @code
+@item in(@var{-Text})
+@kindex in/1
+Reads the text in the input object into @var{Text}. The read text is a
+string (a list of characters).
+
+@item out(@var{+Text})
+@kindex out/1
+Sets the text of the input to @var{Text}.
+@end table
+
+
+@node Buttons, Textbrowsers, Inputs, GM
+@section Buttons
+@cindex button
+
+A button is a push-button that can be clicked by the mouse. This
+generates an event that later can be read by AKL.
+
+@noindent
+@i{Button constructors}
+
+@table @code
+@item button(@var{+Name},@var{+Message})
+@itemx button(@var{+Name},@var{+Message},@var{+Attribute})
+@itemx button(@var{+Name},@var{+Message},@var{+AttributeList})
+@kindex button/2 (constructor)
+@kindex button/3 (constructor)
+Constructs a pushbutton labelled with @var{Name}.  @var{Message}
+should be the event name matched in AKL when the button is pressed.
+The size, font, and style of the
+button can optionally be specified in @var{Attribute}.
+@var{AttributeList} is a list of attributes. An attribute may be one of
+the following:
+
+@table @code
+@item w(@var{+W})
+specifying width.
+@item h(@var{+H})
+specifying height.
+@item font(@var{+Font})
+specifying the font.
+@item style(@var{+Style})
+specifying the style. Available styles are @code{normal}, @code{fancy}
+and @code{radio}.
+@end table
+@end table
+
+@noindent
+@i{Button messages}
+
+@table @code
+@item enable
+@kindex enable/0
+Enables the button for use. This is the default.
+@item disable
+@kindex disable/0
+Disables the button. The button turns gray and does not react on
+clicking.
+@end table
+
+
+@node Textbrowsers, Sliders, Buttons, GM
+@section Textbrowsers
+@cindex text browser
+@cindex browser
+@cindex editor
+
+A text browser is an object for structured text displaying and editing.
+Selections in the text can be made using the left mousebutton. You may
+also move the text insertion point using the messages described below.
+There are several messages for moving text to and from AKL and
+deleting text.  Events may be generated when the left mousbutton is
+pressed and when @key{RET} or @key{LFD} is entered from the keyboard. A
+textbrowser can be grab-scrolled with the right mouse button and
+rate-scrolled when the control key also is pressed (even if no scrollers
+are attached).
+
+@noindent
+@i{Textbrowser constructors}
+
+@table @code
+@item text(@var{+Rows},@var{+Cols},@var{+Tab})
+@itemx text(@var{+Rows},@var{+Cols},@var{+Tab},@var{+Font})
+@kindex text/3 (constructor)
+@kindex text/4 (constructor)
+Constructs a text browser that allows text insertion from AKL.
+@var{Rows}, @var{Cols} and @var{Tab} should be integers specifying the
+initial x-size, y-size and tab width. The textbrowser font can
+optionally be specified and makes all the textbrowser text be
+displayed with this font.
+
+@end table
+
+@noindent
+@i{Textbrowser messages}
+
+@table @code
+
+@item readfile(@var{+File})
+@kindex readfile/1
+Reads @var{File} into the text browser. Old content is erased.
+Note that the filename could be specified in the form
+@code{library(@var{+File})}.
+
+@item writefile(@var{+File})
+@kindex writefile/1
+Writes the contents of the text browser to @var{File}. The file is
+created if it does not exist. Note that the file name could be 
+specified in the form @code{library(@var{+File})}.
+
+@item setmenu(@var{+Menu})
+@kindex setmenu/1
+Sets the text browser menu to @var{Menu}.
+
+@item insert(@var{+Text})
+@kindex insert/1
+Inserts the text @var{Text} into the textbrowser at the current position.
+
+@item delete
+@kindex delete/0
+Deletes the current selection.
+
+@item delete(@var{+N})
+@kindex delete/1
+Deletes @var{N} characters from the current position. If @var{N} is
+negative, @var{N} characters before the current position is deleted.
+
+@item clear
+@kindex clear/0
+Deletes the entire text.
+
+@item readonly
+@kindex readonly/0
+Disables input from the keyboard.
+
+@item readwrite
+@kindex readwrite/0
+Enables input from the keyboard. This is the default.
+
+@item moveto(@var{+Line},@var{+Position})
+@kindex moveto/2
+Moves the current position to a position absolutely.
+
+@item moveby(@var{+Lines},@var{+Positions})
+@kindex moveby/2
+Moves the current position relatively. Use negative arguments if
+movement is backwards and/or upwards.
+
+@item in(@var{+Spec}, @var{-Text})
+@kindex in/2
+Instantiates @var{Text} with a string made from the contents of the
+browser. @var{Spec} specifies the part of the text which is chosen:
+
+@table @code
+@item all
+The entire contents.
+
+@item selection
+The current selection.
+
+@item line(@var{+LineFrom},@var{+LineTo})
+Lines from @var{LineFrom} to @var{LineTo}.
+
+@item in(word, @var{-Text})
+The word at which the current position is pointing.
+
+@end table
+
+@cindex searching
+@item forwardsearch(@var{+Text})
+@kindex forwardsearch/1
+Searches for @var{Text} from the current position to the end of text.
+When a matching text is found, the current selection is set to the
+match.
+
+@item backwardsearch(@var{+Text})
+@kindex backwardsearch/1
+Searches for @var{Text} from the current position to the beginning of
+text. When a matching text is found, the current selection is set to
+the match.
+@end table
+
+
+@node Sliders, Get Event, Textbrowsers, GM
+@section Sliders
+@cindex slider
+
+A slider is very similar to a scrollbar but with the difference that
+it does not control any other object. Instead, the current value of
+the slider can be read from AKL. The slider may be set to generate
+an event when released.
+
+@noindent
+@i{Slider constructor}
+
+@table @code
+@item slider(@var{+Name})
+@kindex slider/1 (constructor)
+Constructs a horizontal slider for user value input. @var{Name} should
+be the text you want displayed in the sliding box.
+
+@end table
+
+@noindent
+@i{Slider messages}
+
+@table @code
+@item value(@var{-Value})
+@kindex value/1
+Reads the slider value into @var{Value}. The value is a float between 0
+and 1.
+@end table
+
+
+@node Get Event, Event Format, Sliders, GM
+@section Getting events from the graphics manager
+@cindex Events
+
+Getting events from any of your AKL created windows is completely
+controlled from AKL. GM does not send anything to AKL if it is
+not asking for it. Instead, GM buffers all events that occurs in all
+the windows, and sends them over when AKL wants it to do that.
+
+@noindent
+@i{General agents for getting events}
+
+@table @code
+@findex getevent/1
+@item nextevent(@var{-Event})
+Reads an event from any of your AKL-created windows into
+@var{Event}. If no event has occurred, @var{Event} is unified to the
+atom @code{noevent}.
+
+@findex waitevent/1
+@item waitevent(@var{-Event})
+Waits for an event from any of your AKL-created windows. If no event
+has occurred, AKL suspends until next event occurs. See below for
+event formats.
+
+@end table
+
+@noindent
+@i{Window messages for getting events}
+
+@table @code
+@item nextevent(@var{-Event})
+@kindex nextevent/1
+Reads an event from a certain window into @var{Event}. If no event has
+occurred in that window, @var{Event} is unified to the atom @code{noevent}.
+
+@item waitevent(@var{-Event})
+@kindex waitevent/1
+Waits for an event from a certain window. If no event has occurred in
+that window, AKL suspends until something happens in that window.
+See below for event formats.
+
+@end table
+
+@cindex enable event
+Some objects must be @var{enabled} to be able to generate events.
+These are objects of types @code{view}, @code{text}, @code{input} and
+@code{slider}. They accept the following messages.
+
+@table @code
+@item enable
+@kindex enable/0
+Enables the object to generate events. An object is disabled by default.
+
+@item disable
+@kindex disable/0
+Disables the object from generating events.
+@end table
+
+@node Event Format, Error Report, Get Event, GM
+@section Event formats
+
+The event read into the @code{nextevent/1}/@code{waitevent/1} argument
+is a structure that has a format depending on the event type.  One
+common thing is that every event format contains a reference to the
+window it occurred in. Sometimes they also have a reference to the
+object itself that generated the event. These references can be used for
+further message sending to objects that are otherwise inaccessible.
+
+@table @code
+@item button(@var{+Window},@var{+Eventname})
+A button was pressed.
+
+@item menu(@var{+Window},@var{+Eventname})
+A menu item was chosen.
+
+@item return(@var{+Window},@var{+Browser},@var{+LineNo})
+A carriage return was entered in @var{Browser} at @var{LineNo}.
+
+@item return(@var{+Window},@var{+Input})
+A new string was entered in @var{Input}, marked by a carriage return or
+by clicking outside.
+
+@item down(@var{+Window},@var{+View},@var{+X},@var{+Y})
+Left mouse button was clicked at position (@var{X},@var{Y}) in the
+view @var{View}.
+
+@item down(@var{+Window},@var{+Browser},@var{+Line},@var{+Pos})
+Left mouse button was clicked at position (@var{Line},@var{Pos}) in the
+text browser @var{Browser}.
+
+@item slider(@var{+Window},@var{+Slider},@var{+Value})
+A slider was released with @var{Value} as resulting value.
+
+@item noevent
+No event has occurred. This event type is only possible with the
+@code{nextevent/1} command or window message.
+
+@end table
+
+@node Error Report,  , Event Format, GM
+@section Error reporting
+
+There are two kinds of messages to indicate problems:
+
+@itemize @bullet
+@item
+If there is an @emph{error} that the system can't recover from you will
+get an error message and the call will fail. If this will return
+you to the top level you have no reference any longer to the
+Graphic Manager and it will automatically clean up.
+
+@item
+Sending the wrong message to an object gives a @emph{warning} or an error
+depending on the message. Sending a @code{close} message to a button
+is wrong but is not harmful.
+@end itemize
+
+
+@comment @table @code@
+@comment item gm_error(@var{Goal}, @var{Message})
+@comment @findex gm_error/2 (exception message)
+@comment @var{Goal} is the goal where the error occurred and @var{Message} 
+@comment is an atom specifying the error.
+@comment @end table
+
+@node Lists, Ordsets, GM, Top
+@comment  node-name,  next,  previous,  up
+@chapter List Processing
+@cindex lists
+
+This package defines operations on lists.  Lists are a very
+basic data structure, but nevertheless certain very frequent operations
+are provided in this package.
+
+To load the package, enter the query
+
+@example
+| ?- load(library(lists)).
+@end example
+@table @code
+@item append(@var{?Prefix}, @var{?Suffix}, @var{?Combined})
+@findex append/3
+is true when @var{Combined} is the combined list of the elements in
+@var{Prefix} followed by the elements in @var{Suffix}.  It can be used to
+form @var{Combined} or it can be used to find @var{Prefix} and/or
+@var{Suffix} from a given @var{Combined}.
+@item fappend(@var{+Prefix}, @var{+Suffix}, @var{?Combined})
+@findex fappend/3
+Same as append/3, but demands that the two first argments are instantiated
+to lists.
+@item delete(@var{+List}, @var{+Element}, @var{?Residue})
+@findex delete/3
+is true when @var{Residue} is the result of removing all
+@emph{identical} occurrences of @var{Element} in @var{List}.
+@var{List} must be instantiated to a list.
+@item is_list(@var{+List})
+@findex is_list/1
+is true when @var{List} is instantiated to a proper list.
+@item last(@var{?List}, @var{?Last})
+@findex last/2
+is true when @var{Last} is the last element in instantiated @var{List}.  Example:
+@example
+| ?- last(Z, [x,y,z]).
+
+Z = z ? 
+
+yes
+@end example
+@item max_list(@var{+ListOfNumbers}, @var{?Max})
+@findex max_list/2
+is true when @var{Max} is the largest of the elements in @var{ListOfNumbers}.
+It fails for the empty list.
+@item min_list(@var{+ListOfNumbers}, @var{?Min})
+@findex min_list/2
+is true when @var{Min} is the smallest of the numbers in the list
+@var{ListOfNumbers}.
+It fails for the empty list.
+@item member(@var{?Element}, @var{?List})
+@findex member/2
+is true when @var{Element} is a member of @var{List}.  It may be used to test 
+for membership in a list, but it can also be used to enumerate all the 
+elements in @var{List}.  Example:
+@example
+| ?- member(X, [a,b,c]).
+
+X = a ? ;
+
+X = b ? ;
+
+X = c ? 
+
+yes
+@end example
+@item memberchk(@var{+Element}, @var{+List})
+@findex memberchk/2
+is true when @var{Element} is a member of @var{List}, but 
+@code{memberchk/2} only succeeds at most once and can therefore not be used to
+enumerate the elements in @var{List}.
+@item nextto(@var{?X}, @var{?Y}, @var{?List})
+@findex nextto/3
+is true when @var{X} and @var{Y} appear side-by-side in @var{List}.  Example:
+@example
+| ?- nextto(X, Y, [1,2,3]).
+
+X = 1,
+Y = 2 ? ;
+
+X = 2,
+Y = 3 ? ;
+
+no
+@end example
+@item no_doubles(@var{?List})
+@findex no_doubles/1
+is true when @var{List} contains no duplicated elements.  This is true
+when @code{dif(@var{X}, @var{Y})} holds for all pairs of members @var{X}
+and @var{Y} of the list.
+@item non_member(@var{?Element}, @var{?List})
+@findex non_member/2
+is defined as not(member(@var{?Element}, @var{?List})).
+@item nth(@var{?N}, @var{?List}, @var{?Element})
+@findex nth/3
+@code{nth/3} is true when @var{Element} is the @var{N}th element of @var{List}.
+The first element is number 1.  Example:
+@example
+| ?- nth(N, [a,b,c,d,e,f,g,h,i], f).
+
+N = 6 ? 
+
+yes
+@end example
+@item nth(@var{?N}, @var{?List}, @var{?Element}, @var{?Rest})
+@findex nth/4
+is true when @var{Element} is in position @var{N} in the @var{List} and
+@var{Rest} is all elements in @var{List} except @var{Element}.
+@item nth0(@var{?N}, @var{?List}, @var{?Element})
+@findex nth0/3
+is true when @var{Element} is the @var{N}th element of @var{List}, counting 
+the first element as 0. 
+@item nth0(@var{?N}, @var{?List}, @var{?Element}, @var{?Rest})
+@findex nth0/4
+is true when @var{Element} is the @var{N}th element of @var{List},
+counting the first element as 0. @var{Rest} is all the other elements in
+@var{List}.    Example:
+@example
+| ?- nth0(N, [a,b,c,d,e,f,g,h,i,j], f, R).
+
+N = 5,
+R = [a,b,c,d,e,g,h,i,j] ? 
+
+yes
+@end example
+@item permutation(@var{?List}, @var{?Perm})
+@findex permutation/2
+is true when @var{Perm} is a permutation of @var{List}.
+
+@item prefix(@var{?Prefix}, @var{?List})
+@findex prefix/2
+is true when @var{Prefix} is a prefix of @var{List}.  Example:
+@example
+| ?- prefix([1,2,3], [1,2,3,4,5,6]).
+
+yes
+@end example
+@item prefix(@var{?Prefix}, @var{?List})
+@findex prefix/2
+is true when @var{Prefix} is a prefix of @var{List}.  Example:
+@example
+| ?- prefix([1,2,3], [1,2,3,4,5,6]).
+
+yes
+@end example
+@item remove_duplicates(@var{+List}, @var{?Pruned})
+@findex remove_duplicates/2
+is true when @var{Pruned} is the result of removing all identical
+duplicate elements in the instantiated list @var{List}.  Example:
+@example
+| ?- remove_duplicates([1,2,3,2,3,1], P).
+
+P = [1,2,3] ? ;
+
+no
+@end example
+@item reverse(@var{?List}, @var{?Reversed})
+@findex reverse/2
+is true when @var{Reversed} has the same elements as in the
+instantiated list @var{List} but in a reversed order.
+@item same_length(@var{?List1}, @var{?List2})
+@findex same_length/2
+is true when @var{List1} and @var{List2} have the same number of
+elements.
+@item same_length(@var{?List1}, @var{?List2}, @var{?Length})
+@findex same_length/3
+is true when @var{List1} and @var{List2} have the same number of elements
+and that number is @var{Length}.  Example:
+@example
+| ?- same_length([1,2,3], [9,8,7], N).
+
+N = 3 ? ;
+
+no
+@end example
+@item select(@var{?Element}, @var{?List}, @var{?List2})
+@findex select/3
+is true when the result of removing an occurrence of @var{Element} in
+@var{List} is @var{List2}.
+@item sublist(@var{?Sub}, @var{?List})
+@findex sublist/2
+is true when @var{Sub} contains some of the elements of @var{List}, and
+in the same order.
+@item substitute(@var{+X}, @var{+Xlist}, @var{+Y}, @var{?Ylist})
+@findex substitute/4
+is true when instantiated list @var{Xlist} and @var{Ylist} are equal
+except for replacing identical occurrences of @var{X} by @var{Y}.
+Example:
+@example
+| ?- substitute(1, [1,2,3,4], 5, X).
+
+X = [5,2,3,4] ? 
+
+yes
+@end example
+@item sum_list(@var{+ListOfNumbers}, @var{?Sum})
+@findex sum_list/2
+is true when @var{Sum} is the result of adding the @var{ListOfNumbers} 
+together.
+@item suffix(@var{?Suffix}, @var{?List})
+@findex suffix/2
+is true when @var{Suffix} is a suffix of @var{List}.
+@end table
+@node Ordsets, Prolog, Lists, Top
+@comment  node-name,  next,  previous,  up
+@chapter Ordered set manipulation
+@cindex sets
+@cindex ordered sets
+
+This package defines operations on ordered sets.  Ordered sets are sets
+represented as lists with the elements ordered in a standard order.
+The ordering is defined by the @code{@@<} family of term comparison
+predicates and it is the ordering produced by the built-in predicate
+@code{sort/2}. @refill
+
+To load the package, enter the query
+
+@example
+| ?- load(library(ordsets)).
+@end example
+
+@table @code
+@item is_ordset(@var{+Set})
+@findex is_ordset/1
+is true when @var{Set} is an ordered set.
+@item list_to_ord_set(@var{+List}, @var{?Set})
+@findex list_to_ord_set/2
+is true when @var{Set} is the ordered representation of the set denoted 
+by the unordered representation @var{List}.    Example:
+@example
+| ?- list_to_ord_set([p,r,o,l,o,g], P).
+
+P = [g,l,o,p,r] ? 
+
+yes
+
+@end example
+@item ord_add_element(@var{+Set1}, @var{+Element}, @var{?Set2})
+@findex ord_add_element/3
+is true when @var{Set2} is @var{Set1} with @var{Element} inserted in it, 
+preserving the order.  Example:
+@example
+| ?- ord_add_element([a,c,d,e,f], b, N).
+
+N = [a,b,c,d,e,f] ? 
+
+yes
+@end example
+@item ord_del_element(@var{+Set1}, @var{+Element}, @var{?Set2})
+@findex ord_del_element/3
+is true when @var{Set2} is like @var{Set1} but with @var{Element} removed.
+@item ord_disjoint(@var{+Set1}, @var{+Set2})
+@findex ord_disjoint/2
+is true when the two ordered sets have no elements in common.  
+
+@item ord_intersect(@var{+Set1}, @var{+Set2})
+@findex ord_intersect/2
+is true when the two ordered sets have at least one element in common.
+@item ord_intersection(@var{+Set1}, @var{+Set2}, @var{?Intersect})
+@findex ord_intersection/3
+is true when @var{Intersect} is the ordered set representation of the 
+intersection between @var{Set1} and @var{Set2}.
+@item ord_intersection(@var{+Sets}, @var{?Intersection})
+@findex ord_intersection/2
+is true when @var{Intersection} is the ordered set representation of the
+intersection of all the sets in @var{Sets}.  Example:
+@example
+| ?- ord_intersection([[1,2,3],[2,3,4],[3,4,5]], I).
+
+I = [3] ? 
+
+yes
+
+@end example
+@item ord_seteq(@var{+Set1}, @var{+Set2})
+@findex ord_seteq/2
+is true when the two arguments represent the same set.  Since they
+are assumed to be ordered representations, they must be identical.
+@item ord_setproduct(@var{+Set1}, @var{+Set2}, @var{?SetProduct})
+@findex ord_setproduct/3
+is true when @var{SetProduct} is the Cartesian Product of the two Sets.  The
+product is represented as pairs: Elem1-Elem2 where Elem1 is an element
+from @var{Set1} and Elem2 is an element from @var{Set2}.  Example
+@example
+| ?- ord_setproduct([1,2,3], [4,5,6], P).
+
+P = [1-4,1-5,1-6,2-4,2-5,2-6,3-4,3-5,3-6] ? 
+
+yes
+@end example
+@item ord_subset(@var{+Set1}, @var{+Set2})
+@findex ord_subset/2
+is true when every element of the ordered set @var{Set1} appears in the
+ordered set @var{Set2}.
+@item ord_subtract(@var{+Set1}, @var{+Set2}, @var{?Difference})
+@findex ord_subtract/3
+is true when @var{Difference} contains all and only the elements of @var{Set1}
+which are not also in @var{Set2}.  Example:
+@example
+| ?- ord_subtract([1,2,3,4], [3,4,5,6], S).
+
+S = [1,2] ? 
+
+yes 
+@end example
+@item ord_symdiff(@var{+Set1}, @var{+Set2}, @var{?Difference})
+@findex ord_symdiff/3
+is true when @var{Difference} is the symmetric difference of @var{Set1} and 
+@var{Set2}.  Example:
+@example
+| ?- ord_symdiff([1,2,3,4], [3,4,5,6], D).
+
+D = [1,2,5,6] ? 
+
+yes
+@end example
+@item ord_union(@var{+Set1}, @var{+Set2}, @var{?Union})
+@findex ord_union/3
+is true when @var{Union} is the union of @var{Set1} and @var{Set2}.  
+@item ord_union(@var{+Sets}, @var{?Union})
+@findex ord_union/2
+is true when @var{Union} is the union of all the sets in @var{Sets}.   Example: 
+@example
+| ?- ord_union([[1,2,3],[2,3,4],[3,4,5]], U).
+
+U = [1,2,3,4,5] ? 
+
+yes
+
+@end example
+@item ord_union(@var{+Set1}, @var{+Set2}, @var{?Union}, @var{?New})
+@findex ord_union/4
+is true when @var{Union} is the union of @var{Set1} and @var{Set2}, and
+@var{New} is the difference between @var{Set2} and @var{Set1}.  This is
+useful if you are accumulating members of a set and you want to process
+new elements as they are added to the set.
+@end table
+@node Prolog, Random, Ordsets, Top
+@chapter Prolog Built-in Predicates
+@cindex Prolog built-in predicates
+
+<<<NEEDS WORK>>>
+
+<<<The agents described below are built into AGENTS at
+present, i.e., there is no need to load a library to get
+them.  In fact, there is no library to load yet!>>>
+
+@table @code
+@item functor(@var{+Term}, @var{-Name}, @var{-Arity})
+@itemx functor(@var{-Term}, @var{+Name}, @var{+Arity})
+@findex functor/3
+@emph{synchronization:} Suspends until @var{Term} is
+constrained or @var{Name} and @var{Arity} are constrained.
+
+@emph{behavior:} If @var{Term} is constrained, unifies
+@var{Name} with the name and @var{Arity} with the arity of
+the principal functor of @var{Term}.  If @var{Name} and
+@var{Arity} are constrained, fails unless @var{Name} is an
+atom or, if @var{Arity} is @code{0}, an integer or float and
+@var{Arity} is a nonnegative integer; otherwise unifies
+@var{Term} with the least-constrained term whose principal
+functor has name @var{Name} and arity @var{Arity}.
+
+@item @var{+Term} =.@. @var{-List}
+@itemx @var{-Term} =.@. @var{+List}
+@itemx term_list(@var{+Term}, @var{-List})
+@itemx term_list(@var{-Term}, @var{+List})
+@findex =.@. /2, univ
+@findex term_list/2
+@emph{synchronization:} Suspends until @var{Term} or
+@var{List} is constrained.  If @var{Term} is unconstrained
+and @var{List} is a proper list, suspends until the head of
+@var{List} is constrained.
+
+@emph{behavior:} If @var{Term} is constrained, unifies
+@var{List} with a list whose head is the name of the
+principal functor of @var{Term} and whose tail is a list of
+the arguments of @var{Term}.  If @var{List} is constrained,
+fails unless @var{List} is a proper list whose head is an
+atom or, if its tail is @code{[]}, an integer or float;
+otherwise unifies @var{Term} with the term having the head
+of @var{List} as the name of its principal functor and the
+elements of the tail of @var{List} as its arguments.
+
+@item length(@var{+List}, @var{-Length})
+@itemx length(@var{-List}, @var{+Length})
+@findex length/2
+@emph{synchronization:} Suspends until @var{List} or
+@var{Length} is constrained.
+
+@emph{behavior:} If @var{List} is constrained, fails unless
+@var{List} is a proper list; otherwise unifies @var{Length}
+with the length of @var{List}.  If @var{Length} is
+constrained, fails unless @var{Length} is a nonnegative
+integer; otherwise unifies @var{List} with the
+least-constrained list whose length is @var{Length}.
+
+@item atom_chars(@var{+Atom}, @var{-Chars})
+@itemx atom_chars(@var{-Atom}, @var{+Chars})
+@findex atom_chars/2
+@emph{synchronization:} Suspends until @var{Atom} or
+@var{Chars} is constrained.
+
+@emph{behavior:} If @var{Atom} is constrained, fails unless
+@var{Atom} is an atom; otherwise unifies @var{Chars} with
+the string representing @var{Atom} (the ``name'' of
+@var{Atom}).  If @var{Chars} is constrained, fails unless
+@var{Chars} is a string; otherwise unifies @var{Atom} with
+the atom whose print representation is @var{Chars}.
+@end table
+
+@node Random, Reader, Prolog, Top
+@chapter Random Numbers
+@cindex random numbers
+
+This package provides a random number generator.  To load the package,
+enter the query
+
+@example
+| ?- load(library(random)).
+@end example
+@table @code
+@item random(@var{+List})
+@findex random/1
+if called with @var{List} as a list with uninstantiated variables, these
+variables will be instantiated to pseudo random floats in the
+interval [0.0, 1.0). Note that 1.0 will never be generated.
+If random/1 is called again, exactly the same list will be returned,
+as the same seed is used.
+@item random(@var{+Integer},@var{+List})
+@findex random/2
+Same as random/1 above, but the pseudo random numbers will be integers
+in the range [0, @var{Integer}-1].
+@item seed_random(@var{+List},@var{+SeedIn},@var{?SeedOut})
+Same as @code{random/1} above, but with the seed number given explicitly
+as a data structure of the form @code{seed(@var{N1},@var{N2},@var{N3})},
+where @var{N1},@var{N2},@var{N3} are integers.
+@item seed_random(@var{+Integer},@var{+List},@var{+SeedIn},@var{?SeedOut})
+Same as @code{random/2} above, but with the seed number given explicitly
+as a data structure of the form @code{seed(@var{N1},@var{N2},@var{N3})},
+where @var{N1},@var{N2},@var{N3} are integers.
+@item starting_seed(@var{?SeedOut})
+returns the starting seed used by @code{random/1} and @code{random/2}
+above.
+@end table
+@node Reader, SAGA, Random, Top
+@chapter Reader
+
+The library @t{reader} contains routines for use in construction of analysers,
+partial evaluators, program transformation tools etc. Below we include
+text giving more details on these routines and their use.  The text in
+this chapter also occurred as a deliverable in a report for the ESPRIT
+project ParForce 6707, ``Abstract Syntax and Normalisation of AKL
+Programs'' by Dan Sahlin and Thomas Sjoeland.
+
+
+@menu
+* Abstract::                    
+* Reader intro::                
+* Syntax design::               
+* Metasyntax::                  
+* Syntaxes::                    
+* Routines::                    
+* Transformations::             
+* Normalised programs::         
+* Normalising::                 
+* Annotations::                 
+* Conclusion::                  
+* References::                  
+@end menu
+
+@node  Abstract, Reader intro, Reader, Reader
+@section Abstract
+
+We have defined a set of syntaxes and formats for describing and
+representing AKL programs, and definitions which operate on the
+representations and also translate between them. This document is an
+appendix to the report ``Towards an Analysis Tool for AKL'' both written
+by Dan Sahlin and Thomas Sjoeland.  Together with the code for the
+analysis tool the report and this chapter in report form
+the deliverables for work package WP.1.6.1.M1 in the ESPRIT project 
+ParForce 6707.
+
+@node  Reader intro, Syntax design, Abstract, Reader
+@section Introduction
+
+In order to support the implementation of our analysis framework for the
+language AKL in the language itself, a hierarchy of syntaxes and a set
+of tools operating on these syntaxes have been designed and implemented.
+This allows a clear division of the different parts of a tool. It also
+enables experimentation with different strategies for transformations
+and for routines relating to input and output of programs.
+
+The rest of this chapter is structured as follows: 
+
+First we discuss the principles of the design reported here including
+the meta-syntax used here and in the analysis report.  Then we describe
+in detail the concrete and abstract syntaxes. Thereafter we describe the
+concrete abstract syntaxes, the internal formats designed for reading,
+writing and manipulating program code, and the routines operating on
+these internal formats followed by a part in which we define the notion
+of a normalised AKL program and presents and discusses the
+transformation steps involved in converting any AKL program into a
+normalised form. Finally we define and discuss user annotated programs
+and conclude.
+
+One reason for describing the syntaxes in detail is that we need to have
+a clear document as a basis of our discussions within the AKL development
+team in the integration effort in the next phase of the project and also
+with other partners in the ParForce project.
+
+The concrete syntax of AKL is however under discussion, and it is likely
+that at least parts of this chapter may need revision during the next
+phase of the project to follow this development.
+
+
+
+@node  Syntax design, Metasyntax, Reader intro, Reader
+@section General principles of the syntax design
+
+Different abstract syntaxes are defined by grammars. Below we will
+define the concrete syntax for AKL programs as it stands today, the
+abstract syntax, which shows the essential components of an AKL program
+in a form that can be related to the analysis framework, and the
+concrete abstract syntax, which shows the data structures used to
+represent programs. The formats @code{TERM0}, @code{TERM1}, @code{PROGRAM} 
+and @code{ANNOTATED PROGRAM} are formats used to represent programs in the 
+normalisation code. The reading and normalisaton of a program is structured 
+thus:
+
+First a list of ground terms is read. Those ground terms are described
+with the format @code{TERM0}. Then a translation into the @code{TERM1} format and
+later into the @code{PROGRAM} format takes place. Finally transformations on
+the @code{PROGRAM} format handle the normalisation of a program and a 
+template of the program in the @code{ANNOTATED PROGRAM} format is generated. In
+the annotated program format there are uninstantiated slots which can be
+filled in by subsequent routines applied during the analysis. In this
+way an analysed program is represented by a ground instance of the
+@code{ANNOTATED PROGRAM} format. This can be printed out directly.
+
+Routines for reading and writing elements of the grammars to/from
+streams are defined as I/O routines for each format.
+
+The routines for reading can handle errors in the parsing by returning
+special exception terms. Writing routines cannot handle exceptions.
+Therefore the reading and writing of elements is not quite symmetrical.
+Error reporting and warnings occur in the form of exception terms and
+sometimes by opening and writing to the standard output stream.
+
+
+Conversion routines are routines that translate between elements from
+different abstract syntaxes.
+
+Translations occur between the formats @t{TERM} and @t{TERM0}, @t{TERM0} 
+and @t{TERM1}, @t{TERM1} and @t{PROGRAM}, and @t{PROGRAM} and 
+@t{ANNOTATED PROGRAM}. Other data
+structures used for solving the analysis problem, i.e. the
+implementation of an analysis framework, are described in the
+accompanying report ``Towards an Analysis Tools for AKL''.
+
+
+@node  Metasyntax, Syntaxes, Syntax design, Reader
+@section Metasyntax
+
+We use BNF-grammar notation with productions of the form
+@noindent
+@*@t{DEFINED ::= DEFINES}
+@*@noindent for concrete syntaxes. 
+``@t{|}'' indicates a disjunction. Quoting is normally done with the 
+symbol ``@t{'}'' except in the case of @t{'} itself that is instead 
+quoted with '@t{"}', like this: @t{"'"}.  Groups of three juxtaposed 
+digits represents octal character codes. The symbol ``e'' denotes the 
+empty string. The notation ``c1..c2'' denotes any element in the 
+interval of characters c1 to c2.
+
+Functors occurring in the implemented tools begin with small letters,
+parameters of a grammar begin with a capital letter and continue with
+small letters or integers, sometimes interspersed by underlines,
+``@t{_}''.  Production identifiers are entirely written with capital
+letters. Lists with elements of type @t{ELEM} are denoted like this:
+@t{ELEM}-list.
+
+In code specifications arguments are written as production identifiers
+denoted prefix with the letter ``@t{+}'' representing the information
+that the argument is intended to be bound before execution, ``@t{-}''
+that a value will be produced for the argument by calling the agent, and
+``@t{?}'' that it can be either way. Entailment of guards makes sure
+that the ``@t{+}'' mode is fulfilled if the routine is correctly
+implemented.
+
+
+@node  Syntaxes, Routines, Metasyntax, Reader
+@section Syntaxes for AKL
+
+In this section we describe the concrete and abstract syntaxes of AKL
+programs.  They tell us what is the exact form of a program and what are
+the essential structural components of a program respectively.
+
+@menu
+* Concrete syntax::             
+* Abstract syntax::             
+* CA syntaxes::                 
+@end menu
+
+@node  Concrete syntax, Abstract syntax, Syntaxes, Syntaxes
+@subsection Concrete syntax
+
+The syntactic components of an AKL program are defined by a BNF grammar.
+A declaration is used to notify the analyser about the intended initial
+agents (or toplevel queries using older terminology). The keyword
+@t{public} is used for this purpose.
+
+@itemize @asis{@t{}}
+@item PROG    ::=     DEF-list
+@item DEF   ::=     CLAUSE-list
+@item CLAUSE ::=    HEAD REST '.' | PUBLIC
+@item REST  ::=     e | ':-' GUARDBODY
+@item GUARDBODY ::= e | GUARD GUARDOP BODY | GUARDOP BODY | BODY
+@item PUBLIC ::=    ':-' 'public' DEFNAMES '.'
+@item DEFNAMES ::=  NAME '/' ARITY RESTNAMES
+@item RESTNAMES ::= e | ',' DEFNAMES
+@item HEAD  ::=     LITERAL
+@item GUARDOP ::=   '->' | '|' | '!' | '?'
+@item GUARD ::=     CONJ
+@item BODY  ::=     CONJ
+@item CONJ  ::=     LITERAL RESTCONJ
+@item RESTCONJ  ::= e | ',' CONJ
+@item NAME  ::=     FUNC
+@item LITERAL  ::=  TERM
+@itemize |
+@item CONJ ';' CONJ
+@item CONJ '->' CONJ ';' CONJ
+@item 'not' CONJ
+@item '(' CONJ ')'
+@end itemize
+@end itemize
+
+The reading of @t{TERM}s is handled by the built-in definition 
+@t{read_term/3}
+which represents AKL terms in an unambiguous ground form. The grammar
+below is added for completeness. @t{FUNC}s are constants representing
+functors with a fixed associativity and priority which is resolved by
+@t{read_term/3}. In order to consider an infix, prefix or postfix functor
+as a constant, @t{read_term/3} uses parentheses and quoting as indicated
+below.
+
+@itemize @asis{@t{}}
+@item TERM  ::=     APPLICATION | INFIX | CONSTANT | STRUCT | LIST | VAR
+@item APPLICATION ::= VAR '(' ARGS ')'
+@item INFIX ::=     ARG FUNC ARG
+@item STRUCT        ::=     CONSTANT '(' ARGS ')'
+@item ARGS  ::=     TERM RESTARGS
+@item RESTARGS ::=  e | ',' ARGS
+@item LIST  ::=     '['LIST0 ']'
+@item LIST0 ::=     e | ARGS RESTLIST
+@item RESTLIST ::=  e | '|' TERM 
+@item VAR    ::=    VOID | NAMEDVAR
+@item CONSTANT ::=  CONST | " ' " ANYCHS " ' " | '(' FUNC ')' | " ' " FUNC " ' "
+@item CONST    ::=  a..z RESTCONST
+@item RESTCONST ::= e | IDENCHS 
+@item FUNC   ::=    a..z RESTFUNC
+@item RESTFUNC  ::= e | IDENCHS 
+@item VOID   ::=    '_' RESTVOID
+@item RESTVOID ::=  e | IDENCHS
+@item IDENCHS   ::= IDENCH RESTIDENCHS
+@item RESTIDENCHS ::= e | IDENCHS
+@item IDENCH    ::= a..z | A..Z | 0..9 | '_'
+@item ANYCHS   ::=  ANYCH RESTANYCHS
+@item RESTANYCHS ::= e | ANYCHS
+@item ANYCH     ::= 001..255        
+@item NAMEDVAR  ::= A..Z  RESTNAMEDVARS
+@item RESTNAMEDVARS ::= e | IDENCHS
+@item ARITY ::=     Integer
+@end itemize
+        
+A sequence of @t{CLAUSE}s with the same principal functor @t{NAME},
+arity @t{ARITY}, and guard operator @t{GUARDOP}, form a definition
+@t{DEF}.  Only one definition is allowed for each pair @t{NAME/ARITY}. 
+@t{'='/2} is a built in binary infix operator for unification of two terms.
+
+
+@node  Abstract syntax, CA syntaxes, Concrete syntax, Syntaxes
+@subsection Abstract syntax
+
+When talking about an AKL program we need to avoid syntactic
+idiosyncrasies. One of those is that since there is no syntactic element
+representing a definition in the current concrete syntax, we need to
+collect a sequence of clauses with the same name and arity that form a
+definition and check that the same name is not used elsewhere. The
+essential components of an AKL program are therefore defined by an
+abstract syntax disregarding those details. The abstract syntax is also
+useful to clarify the connection between the concrete syntax of an AKL
+program and the analysis frameworks.
+
+For the abstract syntax we use VDM-style productions of the form
+@*@t{DEFINED = DEFINES}.  
+@*We use @t{Pi}, @t{Cij}, @t{Gijk}, @t{Bijl} for definition head literals, 
+clause head literals, guard literals and body (query) literals respectively. 
+The indexes are picked from index sets so that they uniquely identify the
+syntactic component. @t{max(S)} is the largest element of a totally
+ordered set @t{S}.
+
+
+@t{QUERY-indexed-set} corresponds exactly to those agents that are declared 
+@t{public} in the source code.
+
+@itemize @asis{@t{}}
+@item PROG  =    DEF-indexed-set QUERY-indexed-set
+@item DEF   =    DEFNAME GUARDOP PREDHEAD CLAUSE-indexed-set
+@item CLAUSE =   CLAUSEHEAD GUARD BODY
+@item GUARD  =   GUARDLITERAL-indexed-set
+@item BODY   =   BODYLITERAL-indexed-set
+@item QUERY  =   B00m    0@dots{}m@dots{}max(M)
+@item PREDHEAD = Pi      1@dots{}i@dots{}max(I)
+@item CLAUSEHEAD  =  Cij     1@dots{}i@dots{}max(I), 1@dots{}j@dots{}max(Ji)
+@item GUARDLITERAL = Gijk    1@dots{}i@dots{}max(I), 1@dots{}j@dots{}max(Ji), 1@dots{}k@dots{}max(Kij)
+@item BODYLITERAL =  Bijl    1@dots{}i@dots{}max(I), 1@dots{}j@dots{}max(Ji), 1@dots{}l@dots{}max(Lij)
+@item DEFNAME =   NAME/ARITY
+@item GUARDOP =   '->' | '|' | '!' | '?'
+@end itemize
+
+The @t{Pi}, @t{Cij}, @t{Gijk} and @t{Bijl} are literals.
+The indices used are @t{m} from the index set for query literals
+@t{M (=L00)}, @t{i} from a set of indices @t{I} for
+definitions, for each element @t{i} of @t{I}, @t{j} from a set
+of indices @t{Ji} for clauses, for each element @t{j} of each
+@t{Ji}, @t{k} from a set of indices @t{Kij} for guard literals
+and @t{l} from a set of indices @t{Lij} for body literals. The
+index sets are totally ordered except for the set @t{I} of indices
+for definitions, which is unordered.  The ordered index sets can be seen
+as sequences.
+
+
+@node  CA syntaxes, Built in format, Abstract syntax, Syntaxes
+@subsection Concrete abstract syntaxes
+
+The translation from concrete syntax to abstract syntax involve a number
+of ground internal formats.
+
+@menu
+* Built in format::             
+* Primitive format::            
+* Basic format::                
+* PROGRAM format::              
+@end menu
+
+
+@node  Built in format, Primitive format, CA syntaxes, CA syntaxes
+@subsection Built in term format, @code{TERM}
+
+Programs are read with the built in @t{read_term/3}. This routine,
+provided by the AKL environment, represents a program clause as a ground
+term in a unique way.
+
+@node  Primitive format, Basic format, Built in format, CA syntaxes
+@subsection Primitive term format, @code{TERM0}
+
+The @t{TERM0}-format is a slight abstraction of a term in the
+@t{TERM} format.  @t{TERM0} should not normally be handled by the
+user. It reads a term in a raw format, not very well suited to
+processing as the different void variables, written as ``@t{_}'', are not
+distinguished properly.
+
+@itemize @asis{@t{}}
+@item DTERM0 ::= term0(TERM0) | exception(EXCEPTION0)
+@item EXCEPTION0 ::= end_of_file | ...
+@item TERM0 ::= VAR0 | struct(NAME0,Integer,TERM0-list) 
+@item NAME0 ::= Atom | VAR0
+@item VAR0  ::= var(VNAME0)
+@item VNAME0 ::= Atom
+@end itemize
+
+An @t{Atom} in @t{var(Atom)} is the name of the variable, which
+may be ``@t{_}'', but not an integer. The syntax covers the concrete
+syntax @t{F(ARGS)} where @t{F} is a variable. This form is
+transformed to the built-in literal @t{apply(F,ARGS)}. In this format
+a program is represented as a list of @t{DTERM0}s, each one
+representing a clause.
+
+
+@node  Basic format, PROGRAM format, Primitive format, CA syntaxes
+@subsection Basic term format, @code{TERM1}
+
+In this format void variables are given unique numbers as names.
+
+@itemize @asis{@t{}}
+@item DTERM1 ::= term1(TERM1) | exception(EXCEPTION1)
+@item EXCEPTION1 ::= end_of_file | ...
+@item TERM1 ::= VAR1 | struct(NAME1,Integer,TERM1-list)
+@item NAME1 ::= Atomic | VAR1
+@item VAR1  ::= var(VNAME1)
+@item VNAME1 ::= Atomic | noname(INTEGER)
+@end itemize
+
+Note that not all variables named with numbers are void. Sometimes the
+name of a variable is removed or introduced by transformations but we
+still want to be able to represent the term in the abstract syntax.
+
+
+@node  PROGRAM format,  , Basic format, CA syntaxes
+@subsection The @code{PROGRAM} format
+
+In the implemented code a program is stored as a ground data structure
+containing the elements of the abstract syntax. This data structure can
+be seen as an instance of the abstract syntax, where functors are added
+as tags on certain parts, and some components are duplicated for
+convenience. The indexed sets of the abstract syntax are represented by
+trees in which the index for a syntactic component is computable as the
+position in the tree of the component. A node of such a tree is defined below.
+
+A program represented by the program format is DCG-expanded and
+apply-expanded. The resulting clauses do not contain any terms with a
+variable as functor.  Connectives @t{(A;B)}, @t{(A->B;C)}, @t{not(A)}
+in @t{GUARD} and @t{BODY} are considered to be built-in metacalls. Before
+the construction of equations for the analysis phase, the metacalls are 
+unnested by the normalisation process (see below).
+
+@itemize @asis{@t{}}
+@item DPROGRAM ::= prog(QUERYLIT-list, PROGRAM) 
+@item PROGRAM ::= DEFINITION-list
+@item DEFINITION ::= DEFNAME-def(GUARDOP, PREDHEAD, CLAUSE-list)
+@item DEFNAME ::= ATOM/ARITY
+@item QUERYLIT ::= ALIT
+@item LITERAL ::= struct(ATOM, ARITY, VAR-list)     
+@item PREDHEAD ::= ALIT
+@item CLAUSE ::= clause(HEAD, GUARD, GUARDOP, BODY)
+@item HEAD ::= ALIT
+@item GUARD ::= PART
+@item BODY ::= PART
+@item PART ::= ALIT | struct(',' , 2, [PART,PART]) | PART$ANNOT
+@item ALIT ::= LITERAL | LITERAL$ANNOT
+@item ANNOT ::= TERM 
+@item GUARDOP ::= A-B
+@item A ::= noisy | quiet
+@item B ::= wait | condition | commit
+@item VAR ::= var(ATOM)
+@item ATOM ::= FUNC | t(NAME,DEFNAME,CLAUSENO)
+@item TERM ::= struct(ATOM,ARITY,TERM-list) | VAR
+@item CLAUSENO ::= Integer
+@end itemize
+
+The guards presently in use are
+@table @code{ ??? }    @i
+
+@item @b{concrete}
+@b{abstract syntax}
+
+@item ?
+noisy-wait
+
+@item ->
+quiet-condition
+
+@item |
+quiet-commit
+
+@item !
+noisy-condition
+@end table
+        
+@t{DEFNAME} names a @t{DEFINITION}. Only one definition is allowed for 
+each @t{DEFNAME}, so each definition has a unique guard operator. The
+@t{QUERYLIT}-list contains a sequence of literals which are the allowed 
+(top level) initial agents.
+
+The annotations denoted @t{ANNOT} are statements associated with different
+parts of a program. These are provided by the user, by the compiler or
+by the analyser. The binary operator @t{$} is left-associative. The syntax
+allows the use of nested annotations and annotations may also be
+omitted.
+
+
+@node  Routines, Transformations, Syntaxes, Reader
+@section Routines
+
+This section contains descriptions of the different routines available
+in the library @t{reader}. This library is constructed from various
+files located in library/readerdir so you do not need to load each of them
+separately.
+
+@menu
+* I/O routines::                
+* Conversion routines::         
+* Other routines::              
+* Unimplemented routines ::     
+@end menu
+
+@node  I/O routines, Conversion routines, Routines, Routines
+@subsection I/O routines
+
+This section contains descriptions of the I/O routines.
+
+@subsubsection @code{TERM0}
+
+@i{(defined in @file{library/readerdir/rwrDTERM0.akl})}
+
+The I/O-routines for the @t{TERM0}-format read and write terms stored
+in the @t{TERM0}-format. The different versions handle streams,
+files and exception tagged terms. These routines use @t{read_term/3} and
+@t{write_term/3} defined in the AKL I/O-system.
+
+
+@table @code
+@item read_dterm0(@var{-DTERM0},@var{+Stream},@var{-Stream})
+@findex read_dterm0/3
+
+@item read_dterms0(@var{-DTERM0-list},@var{+Stream},@var{-Stream})
+@findex read_dterms0/3
+
+@item read_dterms0(@var{+FILENAME},@var{-DTERM0-list})
+@findex read_dterms0/2
+
+@item write_dterm0(@var{+DTERM0},@var{+Stream},@var{-Stream})
+@findex write_dterm0/3
+
+@item write_term0(@var{+TERM0},@var{+Stream},@var{-Stream})
+@findex write_term0/3
+
+@end table
+
+@subsubsection @code{TERM1}
+
+@i{(defined in @file{library/readerdir/rwrDTERM1.akl})}
+
+The I/O-routines for the @t{TERM1}-format read an exception tagged term (or
+a list of them) from a file or an AKL stream.
+
+@table @code
+@item read_dterm1(@var{-DTERM1}, @var{+Stream}, @var{-Stream})
+@findex read_dterm1/3
+Reads a @t{DTERM1} from a stream.
+
+@item read_dterm1(@var{-DTERM1}, @var{+Stream}, @var{-Stream})
+@findex read_dterm1/3
+
+@item read_dterms1(@var{-DTERM1-list}, @var{+Stream}, @var{-Stream})
+@findex read_dterms1/3
+
+@item read_dterms1(@var{+Filename}, @var{-DTERM1-list})
+@findex read_dterms1/2
+
+@item read_terms1(@var{-TERM1-list}, @var{+Stream}, @var{-Stream})
+@findex read_terms1/3
+
+@item read_terms1(@var{+Filename}, @var{-TERM1-list})
+@findex read_terms1/2
+
+Read until an @t{end_of_file} is reached. These routines do not return the
+exception end_of_file and strips off the @t{term1(_)} tag.
+@end table
+
+
+These routines write a term (or a list of terms) to a file or an AKL
+stream. Variants handle exception tags.
+
+@table @code
+@item write_dterm1(@var{+DTERM1}, @var{+Stream}, @var{-Stream})
+@findex write_dterm1/3
+
+@item write_term1(@var{+TERM1}, @var{+Stream}, @var{-Stream})
+@findex write_term1/3
+
+@item write_dterms1(@var{+DTERM1-list}, @var{+Stream}, @var{-Stream})
+@findex write_dterms1/3
+
+@item write_terms1(@var{+TERM1-list}, @var{+Stream}, @var{-Stream})
+@findex write_terms1/3
+
+@item write_dterms1(@var{+Filename}, @var{+DTERM1-list})
+@findex write_dterms1/2
+
+@item write_terms1(@var{+Filename}, @var{+TERM1-list})
+@findex write_dterm1/2
+@end table
+
+
+There is also a routine which is useful in producing ground terms for
+use in execution:
+
+@table @code
+@item term1_to_term(@var{+TERM1}, @var{-AKLTERM})
+@findex term1_to_term/2
+This routine converts a term to a ground form where each variable is
+represented by a unique constant and all void variables are represented
+by the constant ``@t{_}''
+@end table
+
+@subsubsection @code{PROGRAM}
+
+@table @code
+@item read_program(@var{-DPROGRAM}, @var{+Stream}, @var{-Stream})
+@findex read_program/3
+
+@item read_program(@var{+Filename}, @var{-DPROGRAM})
+@findex read_program/2
+reads a program and returns it in the program format.
+
+@item write_program(@var{+PROGRAM}, @var{+Stream}, @var{-Stream})
+@findex write_program/3
+
+@item write_program(@var{+Filename}, @var{+PROGRAM})
+@findex write_program/2
+pretty-prints the program.
+@end table
+
+@node  Conversion routines, Other routines, I/O routines, Routines
+@subsection Conversion routines
+
+This section contains descriptions of the conversion routines.
+
+@subsubsection @code{TERM0} to @code{TERM1}
+
+@i{(defined in @file{library/readerdir/convDTERM0toDTERM1.akl})}
+
+The conversion routines define the translation between the two formats 
+@t{TERM0} and @t{TERM1}.
+
+@table @code
+@item dterm0_to_dterm1(@var{+DTERM0}, @var{-DTERM1})
+@findex dterm0_to_dterm1/2
+The names of all variables with name ``@t{_}'' are changed into 
+@t{noname(Integer)} where the various integers distinguish the 
+variables.
+
+@item dterm0_to_dterm1(@var{+DTERM0}, @var{-DTERM1}, @var{-NAME0-list}, @var{-NAME0-list})
+@findex dterm0_to_dterm1/4
+The same as above, but the first @t{NAME0}-list contains the names of the
+variables starting with ``@t{_}'' but nevertheless only have one occurrence
+in the @t{DTERM0}. The second @t{NAME0}-list contains the names of the 
+variables that occur several times in the clause, but nevertheless start with 
+``@t{_}'' (except the name ``@t{_}''). This definition is useful for 
+producing warnings when compiling.
+
+@item dterm1_to_dterm0(@var{+DTERM1}, @var{-DTERM0})
+@findex dterm1_to_dterm0/2
+If a variable only occurs once in @t{DTERM1}, its name is replaced by a new
+name, unique within this @t{DTERM0}, starting with ``@t{_}''. 
+If a variable with
+the name @t{noname(Integer)} occurs several times it will receive a new
+name not starting with ``@t{_}'', unique within this @t{DTERM0}.
+
+@end table
+
+@subsubsection @code{TERM1} to @code{PROGRAM}
+
+@i{(defined in @file{library/readerdir/convDTERM1toPROGRAM.akl})}
+
+@table @code
+@item dterms1_to_program(@var{+DTERM1-list}, @var{-PROGRAM})
+@findex dterms1_to_program/2
+This routine parses a program from a list of @t{DTERM1}. It takes care of
+special cases, e.g. @t{p.} and @t{p:-?true} both mean @t{p :-
+true?true}. The program is checked for duplicate definitions and
+warnings are produced on the stdout-stream.
+@end table
+
+@subsubsection @code{PROGRAM} to @code{PROGRAM}
+
+@i{(defined in @file{library/readerdir/convDPROGRAMtoDPROGRAM.akl})}
+
+@table @code
+@item unnest_terms(@var{+PROGRAM}, @var{-PROGRAM})
+@findex unnest_terms/2
+Unnest all composite terms so that goals (except unification) just have
+variables as arguments.
+
+@item unnest_aliases(@var{+PROGRAM}, @var{-PROGRAM})
+@findex unnest_aliases/2
+Unnest all composite terms so that variables occurring in goals have a
+single occurrence. 
+@t{p(f(X), X)} 
+@*is transformed to 
+@*@t{p(V1, X), V1=f(X)}.
+Both of these agents add new variables and explicit unification
+literals. Variables that are introduced will get names of the form @t{V_N}
+where @t{N} is an integer such that @t{V_N} does not occur in the clause
+into which the variable is introduced.
+
+@item unnest_metacalls(@var{+DEFINITION-list}, @var{-DEFINITION-list})
+@findex unnest_metacalls/2
+Replaces meta-calls to built-in predicates of the forms @t{;},
+@t{if(_->_;_)}, @t{not(_)} etc. with calls to newly defined agents.
+@t{... (A;B) ...        }
+@*is rewritten to 
+@*@t{
+... Q(Args) ... 
+@*Q(Args) :- ? A.
+@*Q(Args) :- ? B.
+}
+where @t{Q} is a new unique name and @t{Args} contain the 
+arguments of @t{A} and @t{B}.
+
+@t{... (A->B;C) ... }
+@*is rewritten to
+@*@t{
+... Q(Args) ... 
+@*Q(Args) :- A -> B.
+@*Q(Args) :- -> C.
+}
+where @t{Q} is a new unique name and @t{Args} 
+contain the arguments of @t{A}, @t{B} and @t{C}.
+
+@t{P :- ... not(A) ... }
+@*is rewritten to
+@*@t{
+P :- ... Q(Args) ... 
+@*Q(Args) :- A -> fail.
+@*Q(Args) :- -> true.
+}
+where @t{Q} is a new unique name and @t{Args} contain the arguments of 
+@t{A}.
+
+@end table
+
+The new compiler prefers to keep some simple disjunctions of flat
+constraint literals, so a special version of unnest_metacalls is also
+needed if those are not explicitly represented as a call to a constraint
+solver for flat guards, e.g. 
+@*@t{solve_constraint(A or B)}.
+
+
+@node  Other routines, Unimplemented routines , Conversion routines, Routines
+@subsection Other routines
+
+Some useful helproutines have been specified and implemented.
+
+@table @code
+@item permute_program(@var{+PROGRAM}, @var{-PROGRAM})
+@findex permute_program/2
+Permutes the order of all conjunctions in a program. Most sensible
+programs in AKL should survive such a transformation. This might be used
+to test whether the program has been written in a robust manner. The
+transformation is useful in preparing the program for a parallel
+execution or for testing whether certain program transformations are
+valid.
+
+@item filter_public(@var{+PROGRAM}, @var{-PROGRAM})
+@findex filter_public/2
+Returns a list of public and a program where the entry specifications
+have been moved to the @t{DEFLIT-list} field of @t{prog(DEFLIT-list, DEFLIST)}
+specifying the possible entries. This routine is applied since the
+public declarations are represented as clauses of the definition 
+@t{':-'/1} when first read.
+
+@item balance_program(@var{+PROGRAM}, @var{-PROGRAM})
+@findex balance_program/2
+The same conjunction (or a disjunction), an and-or expression, may be
+represented in different ways: 
+@*
+e.g. @t{(A,(B,C))} and @t{((A,B),C)} 
+@*are the same.
+This routine will make sure that and-or expressions are balanced, i.e. 
+any part of the form 
+@t{((A,B),C)} is rewritten into the form 
+@t{(A,(B,C))} and similarly any part of the form 
+@t{((A;B);C)} is rewritten into @t{(A;(B;C))}.
+@* @t{A}, @t{B}, @t{C} are and-or-expressions.
+
+@item unique_program_vars(@var{+PROGRAM}, @var{-PROGRAM})
+@findex unique_program_vars/2
+Transforms a program to a form where all variables have been transformed from 
+@t{var(NAME)} to @t{var(t(NAME, DEFNAME, CLAUSENO))}. 
+        
+@item original_program_vars(@var{+PROGRAM}, @var{-PROGRAM})
+@findex original_program_vars/2
+Transforms a program to a form where all variables have been transformed from 
+@t{var(t(NAME, DEFNAME, CLAUSENO))} to @t{var(NAME)}.
+
+@item unique_short_program_vars(@var{+PROGRAM}, @var{-PROGRAM})
+@findex unique_short_program_vars/2
+Replaces variable names with names from a numbering A..Z, AA..AZ,
+BA..BZ, etc.  Using this renaming makes it easy to read results from
+various parts of the analysis.
+
+@item xref_program(@var{+PROGRAM},
+@itemize @t{@asis{}}
+@item @var{-((DEFNAME-ALIT)-list)-list},
+@item @var{-((DEFNAME-ALIT)-list)-list},
+@item @var{-((CALLNAME-ALIT)-list)-list},
+@item @var{-((CALLNAME-ALIT)-list)-list},
+@item @var{-DSTRUCT-list})
+@end itemize
+@findex xref_program/6
+@*Returns five lists extracted from the program:
+
+@enumerate
+@item
+for each definition a unique sorted list of those call names used in the
+guards of this definition.
+
+@item
+for each definition a unique sorted list of those call names used in the
+bodies of this definition.
+
+@item
+for each call name a unique sorted list of those definitions in which
+the call is used from a guard.
+
+@item
+for each call name a unique sorted list of those definitions in which
+the call is used from a body.
+
+@item
+a list of the data structures explicitly mentioned in the code.
+@end enumerate
+
+@item xref(@var{+FILENAME})
+@findex xref/1
+Prints (on stdout) some information about the program in FILENAME which
+was found by applying @code{xref_program/6}: Public entries, public but
+not defined, defined but not public and not called, called from guards
+but not defined, and called but not defined from bodies.
+
+@item get_public(@var{+PROGRAM}, @var{-(DEFNAME-list)})
+@findex get_public/2
+Returns a list of names of definitions which are allowed entry points to this
+program.
+@end table
+
+
+@node  Unimplemented routines ,  , Other routines, Routines
+@subsection Unimplemented routines 
+
+Some definition which might be of use are specified but are not yet
+implemented are listed here.
+
+@t{get_dead_code(+PROGRAM, -(DEFNAME-list))}
+@*The difference between the list of unused definitions found with 
+@t{xref/6} and the list of entries given by @t{get_entries/2} 
+is the dead code.
+        
+@t{get_definition(+PROGRAM, ?DEF_NAME, -DEFINITION)}
+
+Returns a definition from a program, possibly nondeterministically. Fails if 
+nonexistent definition name is given.
+
+@t{get_simple_modes(+PROGRAM, +DEF_NAME, -MODES)}
+
+Return the modes of a predicate as can be extracted by simple inspection. 
+@t{MODES} is not defined yet.
+
+@t{get_clause(+PROGRAM, +DEF_NAME, ?CLAUSENUMBER, -CLAUSE)}
+
+Returns a clause from a definition, possibly nondeterministically. Fails if 
+wrong clause number is given.
+
+@t{get_guard_goal(+PROGRAM, +DEF_NAME, +CLAUSE, ?GOALNO, -GOAL)}
+
+Returns a goal from a guard in a clause, possibly
+nondeterministically. Fails if wrong goal number is given.
+
+@t{get_body_goal(+CLAUSE, ?GOALNO, -GOAL)}
+
+Returns a goal from a body in a clause, possibly nondeterministically.
+Fails if wrong goal number is given.
+
+@noindent
+@t{check_program(+PROGRAM, -ERRORS)}
+
+Check for possible errors in the program.
+@noindent
+Possible errors:
+@*@t{NOT_UNIQUE(NAME/ARITY/GUARDOP)}
+@*Multiply defined definition or guard conflict in different clauses
+@*@t{CALLED_BUT_NOT_DEFINED}
+@*@t{DEFINED_BUT_NOT_CALLED}
+@*@t{DEAD_CODE}
+@*the definition cannot be reached with the given entry points
+@*@t{OBVIOUS_DEADLOCK(NAME/ARITY/GUARDOP)}
+@*this definition cannot execute regardless of input
+
+@node  Transformations, Normalised programs, Routines, Reader
+@section Transformations
+
+The transformation uses the conversion agents for the
+@t{PROGRAM}-format in the construction of data structures used in the
+analysis phase. As specified earlier routines are available for
+transformations of metacalls like if-then-else, negation and disjunction
+into new unique clauses and for introduction of necessary new unique
+variables and unification literals.
+
+@node  Normalised programs, Normalising, Transformations, Reader
+@section Normalised programs
+
+In order to simplify the formulation of an analysis for AKL programs we
+have used the transformation filters to convert a program to a
+normalised form. The normalised program has a behaviour which is
+essentially equivalent to the original one. A variable occurs only once
+in a literal in a normalised program. Terms occur only on the right hand
+side in unification literals. The arguments of a term are always
+variables.
+
+
+@node  Normalising, Annotations, Normalised programs, Reader
+@section Forming a normalised AKL program
+
+A normalised program is formed by applying transformations in sequence so:
+
+@enumerate
+@item
+all public declarations of the program are collected and unique
+call literals with unique new variables are constructed for each one of
+them.
+
+@item
+all metacalls are recursively unfolded and new definitions are
+introduced which are called by a new goal where the metacall was in the
+original program.
+
+The metacalls handled in this way are disjunction, if-then-else and negation. 
+
+These transformations keep the operational meaning of the metacalls,
+since we just make an unfolding specialisation of the original
+definition in the spirit of partial evaluation.
+
+@item
+a call is transformed so that each call argument contains only variables by 
+introducing explicit unification literals and possibly new variables
+
+@*@t{p(t(r(s(X, X))))}
+@*is rewritten to
+@*@t{V0=s(X, X), V1=r(V0), V2=t(V1), p(V2)}
+
+By this transformation the handling of unification abstraction is
+localised and the effect of each unification will be visible in a
+separate program point.
+
+@item
+new variables are introduced so that there is only one
+occurrence of a variable in each call literal.
+
+@*@t{p(t(X, s(X, X), r(X)), X)}
+
+@*
+is rewritten to
+@*@t{V0=X, V1=X, V2=X, V3=X, p(t(V0, s(V1, V2), r(V3)), X)}
+
+This transformation makes it unnecessary to consider full term unification in 
+call abstractions and when used together with the previously mentioned one it 
+simplifies the analysis of aliasing. The only place where aliasing between 
+variables can be constructed is in explicit unification literals. 
+
+@item 
+variables are renamed to give each clause a unique set of variables.
+
+@t{
+@*      :- q(X).
+@*      :- r(X).
+}
+@*is rewritten to
+@t{
+@*      :- q(A).
+@*      :- r(B).
+}
+
+This transformation is used in order to avoid confusion between
+variables with the same name occurring in different clauses.
+@end enumerate
+
+@node  Annotations, Conclusion, Normalising, Reader
+@section Annotations
+
+This section describes annotations.
+
+@menu
+* Annotated format::            
+* R/W annotations::             
+@end menu
+
+@node  Annotated format, R/W annotations, Annotations, Annotations
+@subsection Annotated definition format
+
+An annotated program is a program where some parts may be connected to
+annotations, i.e. values produced by the analyser. Either of the
+components @t{DEFINITION}, @t{CLAUSE} or @t{LIT} may be
+annotated.  @*For example an annotated @t{CLAUSE} is
+@t{CLAUSE$Annotation} where @t{Annotation} can be any term. The
+annotations should be easily distinguished by their principal
+functor. Annotations not understood by a program operating of the
+abstract syntax should be ignored.
+
+A component may have several annotations:
+
+@t{CLAUSE$Annotation1$Annotation2$Annotation3}
+
+As the ordinary left-associativity of @t{$} is used, this is to be
+interpreted as
+
+@t{((CLAUSE$Annotation1)$Annotation2)$Annotation3}
+
+
+Two useful routines:
+
+@t{construct_annotation_template(+PROGRAM, -PROGRAM)}
+
+Constructs a program where unbound slots has been added for all
+annotatable components of the program. This can be modified to bind the
+output slots to appropriate variables in other data structures used in
+the analysis phase.
+
+
+@t{remove_annotations(+PROGRAM, -PROGRAM)}
+
+Removes annotations on all levels from a program.
+
+
+@node  R/W annotations,  , Annotated format, Annotations
+@subsection Reading and writing annotations
+
+Annotations can be written in the program with a special infix operator
+@t{$}.  Annotations should be stripped off by @t{read_term/3}. 
+The terms
+returned by @t{read_term/3} are of the form 
+@t{term(T)} where @t{T} is either of the
+form @t{var(V)} or of the form @t{struct(N, I, Args)},
+@t{V} is a variable name, @t{N}
+is the name of the structure, @t{I} is the arity, and @t{Args} 
+is the list of
+terms. A special version of @t{read_term/3}, @t{a_read_term/3} 
+should return an annotated term.
+
+
+@node  Conclusion, References, Annotations, Reader
+@section Conclusion
+
+We have constructed a set of tools in the form of AKL definitions which
+facilitate the practical implementation and integration of an analyser
+or other program transformation tool. This chapter also described
+metasyntax used in the report on the analyser.  The implementation of
+the code specified herein is finalised unless otherwise noted. It will
+be modified to allow integration of the analyser code into the current
+AKL system as the project continues.
+
+@node  References,  , Conclusion, Reader
+@section References
+
+@*
+@sc{Franz@'en93}, Torkel Franz@'en, Formal aspects of the Andorra Kernel Language, 
+(forthcoming revision of) SICS research report 90008, 1990.
+
+@*
+@sc{Janson&Haridi91}, Sverker Janson and Seif Haridi, Programming Paradigms of the 
+Andorra Kernel Language, in Logic Programming: Proceedings of the 1991 
+International Symposium, MIT Press, 1991, ed. P. Deransart
+
+@*
+@sc{Sahlin&Sjoeland93A}, Dan Sahlin and Thomas Sjoeland, 
+Towards Abstract Interpretation of AKL, Extended abstract, 
+in the Workshop of Concurrent Constraint 
+Programming at the International Conference on Logic Programming 1993, 
+Budapest, ed. G. Smolka
+
+@*
+@sc{Sahlin&Sjoeland93B}, Dan Sahlin and Thomas Sjoeland, 
+Towards an Analysis Tool for AKL, other part of deliverable 
+for WP.1.6.1.M1 of ESPRIT project ParForce, 1993
+
+
+@node SAGA, UGraphs, Reader, Top
+@chapter SAGA run time library
+@cindex SAGA
+@cindex parser generator
+@cindex lexical analysis generator
+@cindex syntax analyzer generator
+
+This is the run time library that is used with the programs generated by
+SAGA (Syntax Analyzer Generator in AKL).  There is a manual page "saga"
+which shows how to invoke "saga" on a "saga" file
+which contains a description based on regular expressions and
+LALR(1) context free grammars, similar to that of lex and yacc.
+The format of the saga file is described in the SAGA Report available in
+the documentation area in the Agents source file area.
+The "saga" command will the generate an Agents program that needs the
+saga run time library.
+
+To load the saga run time, enter the query
+
+@example
+| ?- load(library(sagaruntime)).
+@end example
+
+
+@node UGraphs, Index of Built-ins, SAGA, Top
+@chapter Unweighted Graphs
+@cindex unweighted graphs
+@cindex graphs, unweighted
+@cindex ugraph
+
+Directed and undirected graphs are fundamental data structures
+representing arbitrary relationships between data objects.  This package
+provides an Agents implementation of directed graphs, undirected graphs
+being a special case of directed graphs.
+
+An unweighted directed graph (ugraph) is represented as a list of
+(vertex-neighbors) pairs, where the pairs are in standard order (as
+produced by @code{keysort} with unique keys) and the neighbors of each
+vertex are also in standard order (as produced by @code{sort}), and
+every neighbor appears as a vertex even if it has no neighbors itself.
+
+An undirected graph is represented as a directed graph where for
+each edge @var{(U,V)} there is a symmetric edge @var{(V,U)}.
+
+An edge @var{(U,V)} is represented as the term @var{U-V}.
+@var{U} and @var{V} must be distinct.
+
+A vertex can be any term.  Two vertices are distinct iff they are
+not identical.
+
+A path from @var{u} to @var{v} is represented as a list of vertices,
+beginning with @var{u} and ending with @var{v}.  A vertex cannot appear
+twice in a path.  A path is maximal in a graph if it cannot be extended.
+
+A tree is a tree-shaped directed graph (all vertices have a single
+predecessor, except the root node, which has none).
+
+A strongly connected component of a graph is a maximal set of vertices
+where each vertex has a path in the graph to every other vertex.
+
+Sets are represented as ordered lists (@pxref{Ordsets}).
+
+To load the package, enter the query
+
+@example
+| ?- load(library(ugraphs)).
+@end example
+
+The following predicates are defined for directed graphs.
+@table @code
+@findex vertices_edges_to_ugraph/3
+@item vertices_edges_to_ugraph(@var{+Vertices}, @var{+Edges}, @var{-Graph})
+is true if @var{Vertices} is a list of vertices, @var{Edges} is a list
+of edges, and @var{Graph} is a graph built from @var{Vertices} and
+@var{Edges}.  @var{Vertices} and @var{Edges} may be in any order.  The
+vertices mentioned in @var{Edges} do not have to occur explicitly in
+@var{Vertices}.  @var{Vertices} may be used to specify vertices that are
+not connected by any edges.
+@findex vertices/2
+@item vertices(@var{+Graph}, @var{-Vertices})
+unifies @var{Vertices} with the vertices in @var{Graph}.
+@findex edges/2
+@item edges(@var{+Graph}, @var{-Edges})
+unifies @var{Edges} with the edges in @var{Graph}.
+@findex add_vertices/3
+@item add_vertices(@var{+Graph1}, @var{+Vertices}, @var{-Graph2})
+is true if @var{Graph2} is @var{Graph1} with @var{Vertices} added to it.
+@findex del_vertices/3
+@item del_vertices(@var{+Graph1}, @var{+Vertices}, @var{-Graph2})
+is true if @var{Graph2} is @var{Graph1} with @var{Vertices} and all edges
+to and from them removed from it.
+@findex add_edges/3
+@item add_edges(@var{+Graph1}, @var{+Edges}, @var{-Graph2}) 
+is true if @var{Graph2} is @var{Graph1} with @var{Edges} and their ``to'' and
+``from'' vertices added to it.
+@findex del_edges/3
+@item del_edges(@var{+Graph1}, @var{+Edges}, @var{-Graph2})
+is true if @var{Graph2} is @var{Graph1} with @var{Edges} removed from it.
+@findex transpose/2
+@item transpose(@var{+Graph}, @var{-Transpose})
+is true if @var{Transpose} is the graph computed by replacing each edge
+@var{(u,v)} in @var{Graph} by its symmetric edge @var{(v,u)}.  It can
+only be used one way around.  Takes O(N log N) time.
+@findex neighbors/3
+@findex neighbours/3
+@item neighbors(@var{+Vertex}, @var{+Graph}, @var{-Neighbors})
+@itemx neighbours(@var{+Vertex}, @var{+Graph}, @var{-Neighbors})
+is true if @var{Vertex} is a vertex in @var{Graph} and @var{Neighbors}
+are its neighbors.
+@findex complement/2
+@item complement(@var{+Graph}, @var{-Complement})
+@var{Complement} is the complement graph of @var{Graph}, i.e.@ the graph
+that has the same vertices as @var{Graph} but only the edges that are
+not in @var{Graph}.
+@findex compose/3
+@item compose(+G1, +G2, @var{-Composition})
+computes @var{Composition} as the composition of two graphs, which need
+not have the same set of vertices.
+@findex transitive_closure/2
+@item transitive_closure(@var{+Graph}, @var{-Closure}) 
+computes @var{Closure} as the transitive closure of @var{Graph} in
+O(N^3) time.
+@findex symmetric_closure/2
+@item symmetric_closure(@var{+Graph}, @var{-Closure}) 
+computes @var{Closure} as the symmetric closure of @var{Graph}, i.e.
+for each edge @var{(u,v)} in @var{Graph}, add its symmetric edge
+@var{(v,u)}.  Takes O(N^2) time.  This is useful for making a directed
+graph undirected.
+@findex top_sort/2
+@item top_sort(@var{+Graph}, @var{-Sorted})
+finds a topological ordering of a @var{Graph} and returns the ordering
+as a list of @var{Sorted} vertices.  Fails iff no ordering exists, i.e.
+iff the graph contains cycles.  Takes O(N^2) time.
+@findex max_path/5
+@item max_path(@var{+V1}, @var{+V2}, @var{+Graph}, @var{-Path}, @var{-Cost})
+is true if @var{Path} is a longest path of cost @var{Cost} from
+@var{V1} to @var{V2} in @var{Graph}, there being no cyclic paths from
+@var{V1} to @var{V2}.  Takes O(N^2) time.
+@findex min_path/5
+@item min_path(@var{+V1}, @var{+V2}, @var{+Graph}, @var{-Path}, @var{-Cost})
+is true if @var{Path} is a shortest path of cost @var{Cost} from
+@var{V1} to @var{V2} in @var{Graph}.  Takes O(N^2) time.
+@findex min_paths/3
+@item min_paths(@var{+Vertex}, @var{+Graph}, @var{-Tree})
+is true if @var{Tree} is a tree of all the shortest paths from
+@var{Vertex} to every other vertex in @var{Graph}.  This is the
+single-source shortest paths problem.
+@findex path/3
+@item path(@var{+Vertex}, @var{+Graph}, @var{-Path})
+is given a @var{Graph} and a @var{Vertex} of that @var{Graph}, and
+returns a maximal @var{Path} rooted at @var{Vertex}, enumerating more
+paths on backtracking.
+@findex reduce/2
+@item reduce(@var{+Graph}, @var{-Reduced})
+is true if @var{Reduced} is the reduced graph for @var{Graph}.  The
+vertices of the reduced graph are the strongly connected components of
+@var{Graph}.  There is an edge in @var{Reduced} from @var{u} to @var{v}
+iff there is an edge in @var{Graph} from one of the vertices in @var{u}
+to one of the vertices in @var{v}. 
+A strongly connected component is a maximal set of vertices where
+each vertex has a path to every other vertex.
+Approximately linear in the maximum of arcs and nodes (O(N log N)).
+@findex group_vertices/3
+@item group_vertices(@var{+Graph}, @var{+Groups}, @var{-Outgraph})
+@var{Outgraph} will contain the @var{Graph} but with nodes grouped as
+indicated @var{Groups}, which is a list of list of nodes which groups
+several nodes into one.  Each node in the @var{Outgraph} will become such
+a list of nodes.
+@findex reachable/3
+@item reachable(@var{+Vertex}, @var{+Graph}, @var{-Reachable})
+is given a @var{Graph} and a @var{Vertex} of that @var{Graph}, and
+returns the set of vertices that are @var{Reachable} from that
+@var{Vertex}.  Takes O(N^2) time.
+@findex random_ugraph/3
+@item random_ugraph(@var{+P}, @var{+N}, @var{-Graph})
+where @var{P} is a probability, unifies @var{Graph} with a random graph
+of vertices @var{1..N} where each possible edge is included with
+probability @var{P}.
+@findex seed_random_ugraph/5
+@item seed_random_ugraph(@var{+P}, @var{+N}, @var{-Graph}, @var{InSeed}, @var{OutSeed})
+as @code{random_ugraph/3} but with the random seed (@pxref{Random}) explicitly given.
+@end table
+@node Index of Built-ins, Index of Concepts, UGraphs, Top
+@unnumbered Index of Built-ins
+@printindex fn
+
+
+@node Index of Concepts,  , Index of Built-ins, Top
+@unnumbered Index of Concepts
+@printindex cp
+
+
+@contents
+
+
+@bye
+
+

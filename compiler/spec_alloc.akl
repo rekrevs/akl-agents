@@ -1,0 +1,746 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%             SPECIAL ALLOCATION PROCESSES
+%%%%
+%%%%             
+%%%%             left_end_alloc      First allocate process
+%%%%
+%%%%             right_end_alloc     Last allocate process
+%%%%             
+%%%%             barrier_alloc       Deep guard (at guard)
+%%%%             
+%%%%             flat_guard_alloc    Flat guard (at guard)
+%%%%             
+%%%%             goal_alloc
+%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%             left_end_alloc
+%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+left_end_alloc([end(YAss,_,Ar)|In],Frees,InArity,LeftSize):-
+    ->
+    initial_ass(Frees,InArity,Ar,In),
+    left_check_yass(YAss,In),
+    left_size(YAss,LeftSize).
+left_end_alloc([_|In],Frees,InArity,LeftSize):-
+    ->
+    left_end_alloc(In,Frees,InArity,LeftSize).
+
+left_size(flat,LeftSize):- ->  LeftSize=no.
+left_size(yass(_,_,MaxAfter),LeftSize):- ground(MaxAfter) -> LeftSize=MaxAfter.
+
+left_check_yass(flat,_):-         -> true.
+left_check_yass(yass(_,_,0),_):-  -> true.
+left_check_yass(YAss,Ass):-       -> check_yass(left_end,YAss,Ass).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%             right_end_alloc
+%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+right_end_alloc(Out):-
+    ->
+    Out=[end(yass(_,_,0),0,0)|Out1],
+    right_end_alloc2(Out1).
+
+%%%%
+
+right_end_alloc2([_|In]):-      ->  right_end_alloc2(In).
+right_end_alloc2(_):-         ->  true.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%             execute_alloc
+%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+execute_alloc([init(Out)|In],Ar):-
+   ->
+   execute_alloc1(In,Out,Ar).
+
+execute_alloc1([end(YAss,Id,Ar1)|In],Out,Ar2):-
+   ->
+   max(Ar1,Ar2,Ar),Out=[end(YAss,Id,Ar)|In].
+execute_alloc1([Msg|In],Out,Ar):-
+   ->
+   Out=[Msg|Out1],
+   execute_alloc1(In,Out1,Ar).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%             barrier_alloc
+%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+barrier_alloc([init(Out)|In],Db,GOp,Code,LeftSize,Size):-
+    ->
+    barrier_alloc1(In,Out,[],t(Db,GOp,Code,LeftSize,Size)).
+
+%%%%
+
+barrier_alloc1([Msg|In],Out,Acc,Rest):-
+    flat_member(Msg,[x(_),x(_,_),mark(_)])
+    ->
+    Out=[Msg|Out1],
+    barrier_alloc1(In,Out1,Acc,Rest).
+barrier_alloc1([Msg|In],Out,Acc,Rest):-
+    Msg=y(Name)
+    ->
+    Out=[Msg|Out1],
+    barrier_alloc1(In,Out1,[Name|Acc],Rest).
+barrier_alloc1([end(G,Id,Ar)|In],Out,Acc,Rest):-
+    ->
+    Out=[end(G1,Id,Ar)|Out1],
+    barrier_alloc2(Out1,In,G,G1,Acc,Rest,[],[]).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+barrier_alloc2([Msg|In],Out,BodyY,GuardY,Ys,Rest,Last,List):-
+    Msg=last_y(Name,_)
+    ->
+    barrier_alloc2(In,Out,BodyY,GuardY,Ys,Rest,[Name|Last],[Msg|List]).
+barrier_alloc2([Msg|In],Out,BodyY,GuardY,Ys,Rest,Last,List):-
+    Msg=new_y(_,_)
+    ->
+    barrier_alloc2(In,Out,BodyY,GuardY,Ys,Rest,Last,[Msg|List]).
+barrier_alloc2([Msg|In],Out,BodyY,GuardY,Ys,Rest,Last,List):-
+    ->
+    Out=[Msg|Out1],
+    barrier_alloc2(In,Out1,BodyY,GuardY,Ys,Rest,Last,List).
+barrier_alloc2(Ass,Out,BodyY,GuardY,Ys,t(Db,GOp,Code,LeftSize,Size),Last,List):-
+    Ass=ass(RegAss,F,M),ground_x_ass(Ass)
+    ->
+    BodyY=yass(BFrees,GMax,MaxAfter),
+    GuardY=yass(GFrees,GMax,MaxAfter),
+    make_set(Ys,Ys1),
+    Out=ass(RegAss1,F,M),
+    rem_early_ys(Ys1,RegAss,Ys2),
+    barrier_classify(Ys2,RegAss,RegAss1,YNames,YRegs,Extra,X_to_Y1),
+    Code=[X_to_Y1,Decide,X_to_Y2,Decide2,Y_to_X2,label(Label)],
+    simple_last_occ(YNames,Db,Occs),
+    mirror_rev_sort(Occs,YRegs,_,SortYRegs),
+    barrier_ass_y(0,Ct,SortYRegs),
+    extra_x_to_y(Ct,SuspSize,Extra,X_to_Y2,Y_to_X2),
+    inc(Ct,Ct1),
+    gen_frees(Ct1,SuspSize,BFrees),
+    before_ass_y(Last,List,Db,BFrees,SuspSize,ass(GFrees,GMax)),
+    bmax(LeftSize,GMax,M1),
+    bmax(M1,MaxAfter,Size),
+    calculate_live([],SuspSize,Live),
+    make_decide(Decide,Decide2,Label,GOp,Live).
+
+bmax(A,B,C):- ground(A),ground(B) -> max(A,B,C).
+
+ground_inform(What,Ass):-
+    ground(Ass)
+    ->
+    write(What),nl,nl,
+    write(Ass),nl,nl.
+    
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+make_decide(Decide,Decide2,Label,quiet_cut,Live):-
+    ->
+    Decide=shortcut_quiet_cut(l(Label),Live),Decide2=deep_quiet_cut.
+make_decide(Decide,Decide2,Label,quiet_commit,Live):-
+    ->
+    Decide=shortcut_quiet_commit(l(Label),Live),Decide2=deep_quiet_commit.
+make_decide(Decide,Decide2,Label,noisy_wait,Live):-
+    ->
+    Decide=shortcut_noisy_wait(l(Label),Live),Decide2=deep_noisy_wait.
+    
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+extra_x_to_y(Ct,CtOut,[],Before,After):- -> Before=[],After=[],Ct=CtOut.
+extra_x_to_y(Ct,CtOut,[XReg|XRegs],Before,After):- 
+    -> 
+    Before=[set_yvar_reg(XReg,Ct1)|Before1],
+    After=[set_reg_yvar(Ct1,XReg)|After1],
+    inc(Ct,Ct1),
+    extra_x_to_y(Ct1,CtOut,XRegs,Before1,After1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+barrier_ass_y(Ct,CtOut,[]):- -> Ct=CtOut.
+barrier_ass_y(Ct,CtOut,[Y|Ys]):-
+    -> 
+    inc(Ct,Y),
+    barrier_ass_y(Y,CtOut,Ys).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+rem_early_ys([],_,Out):- -> Out=[].
+rem_early_ys(_,[],Out):- -> Out=[].
+rem_early_ys([Name|Names],[p(Name,_)|Ass],Out):- 
+    -> 
+    Out=[Name|Out1],
+    rem_early_ys(Names,Ass,Out1).
+rem_early_ys([Name|Names],Ass,Out):- 
+    Ass=[p(AssName,_)|_],Name@<AssName
+    -> 
+    rem_early_ys(Names,Ass,Out).
+rem_early_ys(Names,[p(AssName,_)|Ass],Out):- 
+    Names=[Name|_],AssName@<Name
+    -> 
+    rem_early_ys(Names,Ass,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% barrier_classify(Names,Ass,NAss,YsName,YsY,Extra,Code)
+%%%           1: If var currently only x but y wanted
+%%%                     Make x to y Code 
+%%%                     Add y assignment 
+%%%                     Note in Ys
+%%%           2: If var currently only x y not wanted
+%%%                     Note in Extra
+%%%           3: If var currently xy or y 
+%%%                     Note in Ys
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+barrier_classify([],[],NAss,YsN,YsY,Extra,Code):-
+    ->
+    NAss=[],Extra=[],Code=[],YsN=[],YsY=[].
+barrier_classify([Name|Names],[A|Ass],NAss,YsN,YsY,Extra,Code):-
+    flat_member(A,[p(Name,xy(_,Y)),p(Name,y(Y))])
+    ->
+    NAss=[A|NAss1],YsN=[Name|YsN1],YsY=[Y|YsY1],
+    barrier_classify(Names,Ass,NAss1,YsN1,YsY1,Extra,Code).
+barrier_classify([Name|Names],[p(Name,x(X))|Ass],NAss,YsN,YsY,Extra,Code):-
+    ->
+    Code=[set_yvar_reg(XReg,Y)|Code1],NAss=[p(Name,xy(X,Y))|NAss1],
+    YsN=[Name|YsN1],YsY=[Y|YsY1],
+    get_x_ass(X,XReg),
+    barrier_classify(Names,Ass,NAss1,YsN1,YsY1,Extra,Code1).
+barrier_classify(Names,[A|Ass],NAss,YsN,YsY,Extra,Code):-
+    flat_member(A,[p(Name,xy(_,Y)),p(Name,y(Y))])
+    ->
+    NAss=[A|NAss1],YsN=[Name|YsN1],YsY=[Y|YsY1],
+    barrier_classify(Names,Ass,NAss1,YsN1,YsY1,Extra,Code).
+barrier_classify(Names,[A|Ass],NAss,YsN,YsY,Extra,Code):-
+    A=p(_,x(X))
+    ->
+    Extra=[XReg|Extra1],NAss=[A|NAss1],
+    get_x_ass(X,XReg),
+    barrier_classify(Names,Ass,NAss1,YsN,YsY,Extra1,Code).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%              flat_guard_alloc
+%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+flat_guard_alloc([init(Out)|In],Code,Db):-
+    ->
+    flat_guard_alloc1(In,Out,Code,Db).
+
+%%%%
+
+flat_guard_alloc1([end(YAss,Id,Ar)|In],Out,Code,Db):-
+    ->
+    YAss=yass(F,M,MaxAfter),
+    flat_guard_rel(M,MaxAfter,ContSize),
+    Code=create_cont(ContSize),
+    F=[],
+    Out=[end(flat,Id,Ar)|Out1],
+    flat_guard_alloc2(Out1,In,[],[],M,Db).
+flat_guard_alloc1([Msg|In],Out,Code,Db):-
+    flat_member(Msg,[y(_),x(_),x(_,_),mark(_)])
+    ->
+    Out=[Msg|Out1],
+    flat_guard_alloc1(In,Out1,Code,Db).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+flat_guard_alloc2([new_y(Name,Y)|In],Out,AccN,AccY,Ct,Db):-
+    ->
+    flat_guard_alloc2(In,Out,[Name|AccN],[Y|AccY],Ct,Db).
+flat_guard_alloc2([Msg|In],Out,AccN,AccY,Ct,Db):-
+    flat_member(Msg,[w(_,_),mark(_)])
+    ->
+    Out=[Msg|Out1],
+    flat_guard_alloc2(In,Out1,AccN,AccY,Ct,Db).
+flat_guard_alloc2(Ass,Out,Names,Ys,Ct,Db):-
+    ground_x_ass(Ass)
+    ->
+    extra(flag_guard,Ass),
+    Ass=Out,
+    simple_last_occ(Names,Db,Occs),
+    mirror_rev_sort(Occs,Ys,_,SYs),
+    flat_assign_y(1,Ct,SYs).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+flat_assign_y(Ct,CtOut,[Y|Ys]):-
+   ->
+   Y=Ct,inc(Ct,Ct1),
+   flat_assign_y(Ct1,CtOut,Ys).
+flat_assign_y(Ct,CtOut,[]):-
+   ->
+   dec(Ct,CtOut).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%             goal_alloc
+%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+goal_alloc([init(Out)|In],Order,Arity,Call,Db):-
+    ->
+    goal_alloc1(In,Out,Order,Arity,Call,Db).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+goal_alloc1([Msg|In],Out,Order,Arity,Call,Db):-
+    flat_member(Msg,[y(Name),x(Name),x(Name,_)])
+    ->
+    Out=[y(Name)|Out1],
+    goal_alloc1(In,Out1,Order,Arity,Call,Db).
+goal_alloc1([Msg|In],Out,Order,Arity,Call,Db):-
+    flat_member(Msg,[mark(_)])
+    ->
+    Out=[Msg|Out1],
+    goal_alloc1(In,Out1,Order,Arity,Call,Db).
+goal_alloc1([end(G1,Id,Ar1)|In],Out,after,Arity,Call,Db):-
+    ->
+    max(Arity,Ar1,Ar2),
+    Out=[end(G2,Id,Ar2)|Out1],
+    gen_barrier_handle(Out1,In,Handle,p(Ass,Out2)),
+    dump_all_x_ass(Ass,Out2),
+/*    write_ass(Out2), */
+    goal_alloc_after(Handle,Out2,G2,G1,[],[],Call,Db).
+goal_alloc1([end(G1,Id,Ar1)|In],Out,before,Arity,Call,Db):-
+    ->
+    max(Arity,Ar1,Ar2),
+    Out=[end(G2,Id,Ar2)|Out1],
+    gen_barrier_handle(Out1,In,Handle,p(Ass,Out2)),
+    dump_all_x_ass(Ass,Out2),
+    goal_alloc_before(Handle,Out2,G2,G1,[],[],Call,Db).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%             goal_alloc_after
+%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+goal_alloc_after([Msg|In],Ass,GIn,GOut,New,List,Call,Db):-
+    Msg=new_y(Name,_)
+    ->
+    goal_alloc_after(In,Ass,GIn,GOut,[Name|New],[Msg|List],Call,Db).
+goal_alloc_after([Msg|In],Ass,GIn,GOut,New,List,Call,Db):-
+    Msg=last_y(_,_)
+    ->
+    goal_alloc_after(In,Ass,GIn,GOut,New,[Msg|List],Call,Db).
+goal_alloc_after([],Ass,yass(Frees,Max,MaxAfter),GOut,New,List,Call,Db):-
+    ground_x_ass(Ass)				% DEBUG
+    ->
+    extra(goal_alloc_after,Ass),
+    simple_last_occ(New,Db,Temp),
+    mirror_rev_sort(Temp,New,_,Prior),
+    reverse_list(List,List1),
+    after_ass_y(Prior,List1,Frees,Max,ass(F,M)),
+    GOut=yass(F,M,NMaxAfter),
+    check_yass(after_2,GOut,Ass),		% DEBUG
+    after_rel(MaxAfter,M,NMaxAfter),
+    calculate_live(Frees,MaxAfter,Live),
+    Call=call(MaxAfter,Live).
+
+extra(_,_):- -> true.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% after_ass_y(PriorList,YHapsList,Frees,Max,Out)
+%%%%                PriorList - var name list of new y use
+%%%%                YHapsList - y happenings list
+%%%%                Out - ass(FreesOut,MaxOut)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+after_ass_y([],List,Frees,Max,Out):-
+    ->
+    Out=ass(Frees1,Max),
+    free_lasts(List,Frees,Frees1).
+after_ass_y([Name|New],List,Frees,Max,Out):-
+    Frees=[YReg|_]
+    ->
+    after_ass_y1(Name,List,free(YReg),Ret),
+    after_ass_y2(Ret,New,List,Frees,Max,Out).
+after_ass_y([Name|New],List,[],Max,Out):-
+    ->
+    after_ass_y1(Name,List,no,Ret),
+    after_ass_y2(Ret,New,List,[],Max,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+after_ass_y1(Name,[Last|List],no,Ret):-
+    Last=last_y(_,_)
+    ->
+    after_ass_y1(Name,List,Last,Ret).
+after_ass_y1(Name,[Last|List],free(YReg),Ret):-
+    Last=last_y(_,Y),Y<YReg
+    ->
+    after_ass_y1(Name,List,Last,Ret).
+after_ass_y1(Name,[Last|List],last_y(_,YReg),Ret):-
+    Last=last_y(_,Y),Y<YReg
+    ->
+    after_ass_y1(Name,List,Last,Ret).
+after_ass_y1(Name,[new_y(Name,Y)|_],SoFar,Ret):-
+    ->
+    Ret=p(Y,SoFar).
+after_ass_y1(Name,[_|List],SoFar,Ret):-
+    ->
+    after_ass_y1(Name,List,SoFar,Ret).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+after_ass_y2(p(Y,free(YReg)),New,List,[YReg|Frees],Max,Out):-
+    ->
+    YReg=Y,
+    after_ass_y(New,List,Frees,Max,Out).
+after_ass_y2(p(Y,Last),New,List,Frees,Max,Out):-
+    Last=last_y(_,YReg)
+    ->
+    YReg=Y,
+    member_remove(Last,List,List1),
+    after_ass_y(New,List1,Frees,Max,Out).
+after_ass_y2(p(Y,no),New,List,[],Max,Out):-
+    ->
+    inc(Max,Y),
+    after_ass_y(New,List,[],Y,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%             goal_alloc_before
+%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+goal_alloc_before([Msg|In],Ass,GIn,GOut,Last,List,Call,Db):-
+    Msg=last_y(Name,_)
+    ->
+    goal_alloc_before(In,Ass,GIn,GOut,[Name|Last],[Msg|List],Call,Db).
+goal_alloc_before([Msg|In],Ass,GIn,GOut,Last,List,Call,Db):-
+    Msg=new_y(_,_)
+    ->
+    goal_alloc_before(In,Ass,GIn,GOut,Last,[Msg|List],Call,Db).
+goal_alloc_before([],Ass,GIn,yass(Frees,Max,MaxAfter),Last,List,Call,Db):-
+    ground_x_ass(Ass)				% DEBUG
+    ->
+    check_yass(before_2,yass(Frees,Max,_),Ass),		% DEBUG
+    before_ass_y(Last,List,Db,Frees,Max,ass(F,M)),
+    GIn=yass(F,M,NMaxAfter),
+    before_rel(NMaxAfter,M,MaxAfter),
+    calculate_live(Frees,Max,Live),
+    Call=call(NMaxAfter,Live).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% before_ass_y(LastYVars,YHapList,Db,Frees,Max,Out)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+before_ass_y(Last,List,Db,Frees,Max,Ret):-
+    ->
+    simple_first_occ(Last,Temp,Db),
+    mirror_sort(Temp,Last,_,Prior),
+    before_ass_y_cont(Prior,List,Frees,Max,Ret).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% before_ass_y_cont
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+before_ass_y_cont([],List,Frees,M,Out):-
+    ->
+    free_news(List,Frees,Frees1),
+    Out=ass(Frees1,M).
+before_ass_y_cont([Name|Last],List,Frees,M,Out):-
+    Frees=[YReg|_]
+    ->
+    before_ass_y1(Name,List,free(YReg),Ret),
+    before_ass_y2(Ret,Last,List,Frees,M,Out).
+before_ass_y_cont([Name|Last],List,[],M,Out):-
+    ->
+    before_ass_y1(Name,List,no,Ret),
+    before_ass_y2(Ret,Last,List,[],M,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+before_ass_y1(Name,[New|List],no,Ret):-
+    New=new_y(_,_)
+    ->
+    before_ass_y1(Name,List,New,Ret).
+before_ass_y1(Name,[New|List],new_y(_,YReg),Ret):-
+    New=new_y(_,Y),Y<YReg
+    ->
+    before_ass_y1(Name,List,New,Ret).
+before_ass_y1(Name,[New|List],free(YReg),Ret):-
+    New=new_y(_,Y),Y<YReg
+    ->
+    before_ass_y1(Name,List,New,Ret).
+before_ass_y1(Name,[last_y(Name,Y)|_],SoFar,Ret):-
+    ->
+    Ret=p(Y,SoFar).
+before_ass_y1(Name,[_|List],SoFar,Ret):-
+    ->
+    before_ass_y1(Name,List,SoFar,Ret).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+before_ass_y2(p(Y,no),Last,List,[],M,Out):-
+   ->
+   inc(M,Y),before_ass_y_cont(Last,List,[],Y,Out).
+before_ass_y2(p(Y,free(YReg)),Last,List,[YReg|Frees],M,Out):-
+   ->
+   Y=YReg,
+   before_ass_y_cont(Last,List,Frees,M,Out).
+before_ass_y2(p(Y,New),Last,List,[YReg|Frees],M,Out):-
+   New=new_y(_,YReg)
+   ->
+   Y=YReg,
+   delete_element(New,List,List1),
+   before_ass_y_cont(Last,List1,Frees,M,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%            Common to alloc objects
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%        Occurrence variations
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+simple_last_occ([],_Db,Occs):- ->Occs=[].
+simple_last_occ([Name|Ys],Db,Occs):-
+   ->
+   send(last_occurrence(Name,Ct),Db,_),
+   Occs=[Ct|Occs1],
+   simple_last_occ(Ys,Db,Occs1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+simple_first_occ([],Out,_Db):-
+    ->
+    Out=[].
+simple_first_occ([Name|In],Out,Db):-
+    ->
+    send(first_occurrence(Name,Ct),Db,_),
+    Out=[Ct|Out1],
+    simple_first_occ(In,Out1,Db).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+free_lasts([],Frees,Frees1):-
+    ->
+    Frees=Frees1.
+free_lasts([last_y(_,Y)|Last],Frees,Frees2):-
+    ->
+    insert_in_ordered_list(Y,Frees,Frees1),
+    free_lasts(Last,Frees1,Frees2).
+free_lasts([new_y(_,_)|Last],Frees,Frees2):-
+    ->
+    free_lasts(Last,Frees,Frees2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+free_news([],Frees,Frees1):-
+    ->
+    Frees=Frees1.
+free_news([new_y(_,Y)|New],Frees,Frees2):-
+    ->
+    insert_in_ordered_list(Y,Frees,Frees1),
+    free_news(New,Frees1,Frees2).
+free_news([last_y(_,_)|New],Frees,Frees2):-
+    ->
+    free_news(New,Frees,Frees2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%  Priming register allocation processes
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+do_reg_alloc(Code,Frees,InArity,NewCode,LeftSize):-
+   ->
+   left_end_alloc(Left,Frees,InArity,LeftSize),
+   flatten_list_rem_nil(Code,Code1,[]),
+   reg_alloc(Code1,Left,NewCode).
+
+%%%%
+
+reg_alloc([],Send,Code):-
+   ->
+   right_end_alloc(Send),Code=[].
+reg_alloc([process(P)|Rest],Send,Code):-
+    ->
+   P=[init(Send)|NSend],
+   reg_alloc(Rest,NSend,Code).
+reg_alloc([process(P,Answer)|Rest],Send,Code):-
+   ->
+   P=[init(Send)|NSend],Code=[Answer|Code1],
+   reg_alloc(Rest,NSend,Code1).
+reg_alloc([sub(Sub)|Rest],Send,Code):-
+   ->
+   Code=[Sub|Code1],
+   reg_alloc(Rest,Send,Code1).
+reg_alloc([X|Rest],Send,Code):-
+   ->
+   Code=[X|Code1],
+   reg_alloc(Rest,Send,Code1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% UTILITY
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+flat_guard_rel(Calc,MaxAfter,ContSize):- 
+    integer(Calc),integer(MaxAfter)
+    ->
+    max(Calc,MaxAfter,ContSize).
+
+after_rel(AfterLeft,MaxRight,AfterRight):-
+    integer(MaxRight),integer(AfterRight)
+    ->
+    max(MaxRight,AfterRight,AfterLeft).
+
+before_rel(AfterLeft,MaxRight,AfterRight):-
+    integer(MaxRight),integer(AfterRight)
+    ->
+    max(MaxRight,AfterRight,AfterLeft).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% calculate_live
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+calculate_live(Frees,Max,Live):- calc_live(1,Frees,Max,Live).
+
+
+calc_live(Max,[Max],Max,Live):-
+   ->
+   Live=[].
+calc_live(Ct,[Ct|Frees],Max,Live):-
+   ->
+   inc(Ct,Ct1),
+   calc_live(Ct1,Frees,Max,Live).
+calc_live(Max,[],Max,Live):-
+   ->
+   Live=[Max].
+calc_live(Ct,[],Max,Live):-
+   Ct<Max
+   ->
+   Live=[Ct|Live1],
+   inc(Ct,Ct1),
+   calc_live(Ct1,[],Max,Live1).
+calc_live(Ct,Frees,Max,Live):-
+   Frees=[F|_],Ct<F
+   ->
+   Live=[Ct|Live1],
+   inc(Ct,Ct1),
+   calc_live(Ct1,Frees,Max,Live1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% gen_barrier_handle
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+gen_barrier_handle([w(last(_),Mask)|In],Out,Handle,Ret):-
+   ->
+   Mask=[],
+   gen_barrier_handle(In,Out,Handle,Ret).
+gen_barrier_handle([w(next(_,_),Flag)|In],Out,Handle,Ret):-
+   ->
+   Flag=no,
+   gen_barrier_handle(In,Out,Handle,Ret).
+gen_barrier_handle([w(free(_,_),Mask)|In],Out,Handle,Ret):-
+   ->
+   Mask=[],
+   gen_barrier_handle(In,Out,Handle,Ret).
+gen_barrier_handle([Msg|In],Out,Handle,Ret):-
+   flat_member(Msg,[last_y(_,_),new_y(_,_)])
+   ->
+   Handle=[Msg|Handle1],
+   gen_barrier_handle(In,Out,Handle1,Ret).
+gen_barrier_handle([Msg|In],Out,Handle,Ret):-
+   Msg=mark(_)
+   ->
+   Out=[Msg|Out1],
+   gen_barrier_handle(In,Out1,Handle,Ret).
+gen_barrier_handle(In,Out,Handle,Ret):-
+   ->
+   Handle=[],Ret=p(In,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% dump_all_x_ass
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dump_all_x_ass(ass(List,F,M),NewAss):-
+   ->
+   NewAss=ass(List1,F1,M),
+   dump_all_x_ass1(List,List1,F2),
+   qsort(F2,F3),
+   ordered_merge(F,F3,F1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dump_all_x_ass1([p(Name,xy(pos(XRegs),Y))|Ass],NewAss,Frees):-
+   ->
+   copy_with_var_end(XRegs,Frees,Frees1),
+   NewAss=[p(Name,y(Y))|NewAss1],
+   dump_all_x_ass1(Ass,NewAss1,Frees1).
+dump_all_x_ass1([Y|Ass],NewAss,Frees):-
+   Y=p(_,y(_))
+   ->
+   NewAss=[Y|NewAss1],
+   dump_all_x_ass1(Ass,NewAss1,Frees).
+dump_all_x_ass1([p(_,x(pos(XRegs)))|Ass],NewAss,Frees):-
+   ->
+   copy_with_var_end(XRegs,Frees,Frees1),
+   dump_all_x_ass1(Ass,NewAss,Frees1).
+dump_all_x_ass1([],NewAss,Frees):- -> NewAss=[],Frees=[].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% error checking
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% check_yass
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+check_yass(_,yass(A,B,_),ass(L,_,_)):- 
+   ground(A),ground(B),ground(L)
+   -> 
+   check_yass0(A,B,L).
+
+check_yass0(A,B,L):-
+   ->
+   grab_y_ass(L,Ys),
+   qsort(Ys,Ys1),
+   check_yass1(A,1,B,Ys1).
+
+grab_y_ass([p(_,y(Y))|Rest],Out):- -> Out=[Y|Out1],grab_y_ass(Rest,Out1).
+grab_y_ass([p(_,xy(_,Y))|Rest],Out):- -> Out=[Y|Out1],grab_y_ass(Rest,Out1).
+grab_y_ass([_|Rest],Out):- -> grab_y_ass(Rest,Out).
+grab_y_ass([],Out):- -> Out=[].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% check_yass1(FreeYs,CurCt,MaxYs,YAss)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+check_yass1([],Max1,Max,[]):- inc(Max,Max1) -> true.
+check_yass1([F|Fs],F,Max,Ys):- -> inc(F,F1),check_yass1(Fs,F1,Max,Ys).
+check_yass1(Fs,F,Max,[F|Ys]):- -> inc(F,F1),check_yass1(Fs,F1,Max,Ys).
+
+    

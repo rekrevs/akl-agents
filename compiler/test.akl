@@ -1,0 +1,438 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%             TESTING
+%%%   
+   
+write_spaces(0):- -> true.
+write_spaces(Xc):- 
+   -> 
+   write(' '),
+   dec(Xc,Xc1),
+   write_spaces(Xc1).
+	
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+flat_member(X,List):- data(X) -> flat_member1(X,List).
+   
+flat_member1(X,[X|Xs]):- ! true.
+flat_member1(X,[Y|Xs]):-  ! flat_member(X,Xs).
+   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% main_compile
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+main_compile(Terms,OptFlags,Out):-
+   ->
+   stage_1(Terms,Predicates,Directives),
+   perform_directives(Directives),
+   stage_2(Predicates,NewPreds),
+   main_compile1(NewPreds,OptFlags,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+main_compile1(Intermediate,OptFlags,Out):-
+    singleton_dump
+    ->
+    singleton_dump_write(Intermediate).
+main_compile1(Intermediate,OptFlags,Out):-
+   transformation_dump
+   ->
+   stage_2_write(Intermediate).
+main_compile1(Intermediate,OptFlags,Out):-
+   ->
+   stage_3(Intermediate,Inter),
+   main_compile2(Inter,OptFlags,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+main_compile2(Inter,OptFlags,Out):-
+   before_opt_write
+   ->
+   code_write(Inter).
+main_compile2(Inter,OptFlags,Out):- 
+   ->
+   last_var_opt(Inter,OptFlags,Inter1),
+   main_compile3(Inter1,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+main_compile3(Inter,Out):-
+   final_code_write
+   ->
+   code_write(Inter).
+main_compile3(Inter,Out):-
+   ->
+   Inter=Out.
+   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%	
+
+perform_directives(Directives).          % ATTENTION
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% WRITE
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%    singleton_dump_write
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+singleton_dump_write([]):- -> true.
+singleton_dump_write([pred(F,A,GOp,Ds,Cs)|Pred]):- 
+    ground(F),ground(A),ground(Cs) 
+    -> 
+    write(F),write('/'),write(A),nl,
+    singleton_dump_write(Pred).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%             STAGE 2
+%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+stage_2_write([]):- -> true.
+stage_2_write([X|Xs]):- 
+   -> 
+   s_2_write(X),
+   stage_2_write(Xs).
+stage_2_write(X):-
+   -> 
+   write(strange_stage_2(X)),nl.
+
+s_2_write(Pred):-
+   Pred=pred(F,A,GOp,Ds,Cs),
+   data(F),data(A),data(GOp),data(Ds),ground_cs(Cs)
+   -> 
+   write('PREDICATE: '),
+   write(F),write('\'),write(A),write(':'),write(GOp),nl,
+   write('  DIRECTIVES: '),write(Ds),nl,
+   write_clauses(Cs),nl.
+s_2_write(P):-
+   -> 
+   write(strange_stage_2(P)),nl,
+   write(P),nl.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+ground_cs([]):-  -> true.
+ground_cs([Clause|MoreClauses]):-
+   ->
+   Clause=clause(Index,Guard,Body,Db),
+   ground(Index),ground(Guard),ground(Body),
+   ground_cs(MoreClauses).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+write_clauses([]):- -> true.
+write_clauses([X|Xs]):- -> write_clause(X),write_clauses(Xs).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+write_clause(clause(Index,G,B,Db)):-
+    Index=index(Args,C,NU),
+    B=[Out|Body]
+    -> 
+/*    Db=[],*/
+    indent_write(2,'CLAUSE'),
+    indent_write(4,'<Guard>:'),
+    indent_write(6,'Args:'),    
+    write_list(8,Args),
+    maybe_write_list(6,'Complex Unif:',C),    
+    maybe_write_list(6,'Non-Unif:',NU),    
+    write_guard_blocks(G),
+    indent_write(4,'<Body>'),
+    write_output(Out),
+    write_body_blocks(Body),
+    nl.
+
+write_output(out(U1,U2,U3,NU)):-
+    ->
+    app(U1,U2,U4),    
+    app(U3,U4,U5),    
+    maybe_write_list(6,'Output Unif:',U5),
+    maybe_write_list(6,'Output Non-Unif:',NU).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+write_guard_blocks([]):- -> true.
+write_guard_blocks([g(A,B,C,D,E)|Rest]):-
+    -> 
+    write_block(A,B,C,D,E),
+    write_guard_blocks(Rest).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+write_body_blocks([]):- -> true.
+write_body_blocks([b(A,B,C,D,E)|Rest]):-
+    -> 
+    write_block(A,B,C,D,E),
+    write_body_blocks(Rest).
+
+write_block(A,B,C,D,E):-
+    ->
+    indent_write(6,'BLOCK'),
+    maybe_write_list(10,'Pre U:',A),
+    maybe_write_list(10,'Pre NU:',B),
+    indent_write_no_nl(8,'Goal:'),write(C),nl,
+    maybe_write_list(10,'Post U:',D),
+    maybe_write_list(10,'Post NU:',E).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+maybe_write_list(Ind,Pre,[]):- -> true.
+maybe_write_list(Ind,Pre,List):- -> 
+    indent_write(Ind,Pre),add(Ind,2,Ind2),write_list(Ind2,List).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+write_list(Ind,[]):- -> true.   
+write_list(Ind,[X|Xs]):- -> indent_write(Ind,X),write_list(Ind,Xs).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+indent_write_no_nl(N,X):- -> indent(N),write(X).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+indent_write(N,X):- -> indent(N),write(X),nl.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+indent(0):- -> true.
+indent(X):- -> write(' '),dec(X,X1),indent(X1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% Code writing
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+code_write(Preds):-   -> code_write(Preds,1).
+
+code_write([pred(F,A,_,Code)|Rest],Ct):-
+    ground(F),ground(A)
+    -> 
+    write('PREDICATE:'),
+    write(F),write('/'),write(A),nl,
+    code_write2(Code,Ct,1,Flag),
+    inc(Ct,Ct1),
+    code_write1(Flag,Rest,Ct1).
+
+code_write1(ok,[],Ct):-
+    -> 
+    true.
+code_write1(ok,Rest,Ct):-
+    -> 
+    code_write(Rest,Ct).
+
+code_write2([],PCt,LCt,Flag):- -> Flag=ok.
+code_write2([arginfo(A)|Xs],PCt,LCt,Flag):-
+    ground_arginfo(A)
+    ->
+    write_arginfo(A),
+    code_write2(Xs,PCt,LCt,Flag).
+code_write2([def(Defs)|Xs],PCt,LCt,Flag):-
+    ground_defs(Defs)
+    ->
+    write_defs(Defs),
+    code_write2(Xs,PCt,LCt,Flag).
+code_write2([X|Xs],PCt,LCt,Flag):-
+    ground(X)
+    ->     
+    instr_write(X,PCt,LCt),inc(LCt,LCt1),
+    code_write2(Xs,PCt,LCt1,Flag).
+
+code_write_inc([],Ct):- -> 
+    nl,write('**** CODE FINISH :'),nl.
+code_write_inc([pred(F,A,Code)|Rest],Ct):-
+    -> 
+    write('PREDICATE:'),write(P),write(' -- '),
+    write(F),write('/'),write(A),write(' -- '),write(Ct),nl,
+    code_write2_inc(Code,Ct,1),
+    code_write_inc(Rest,Ct).
+
+code_write2_inc([],PCt,LCt):- -> true.
+code_write2_inc([X|Xs],PCt,LCt):-
+    -> 
+    instr_write_inc(X,PCt,LCt),
+    inc(LCt,LCt1),
+    code_write2_inc(Xs,PCt,LCt1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% arginfo stuff
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+ground_arginfo(arginfo(Array,max(M,_),H)):-
+    ->
+    ground(H),
+    ground(M),
+    ground_array(M,Array).
+
+write_arginfo(_):-
+   write_arginfo_flag(no)
+   ->
+   true.
+write_arginfo(arginfo(Array,max(M,_),H)):-
+   write_arginfo_flag(yes)
+   ->
+   indent_write(10,'ARGINFO'),
+   indent_write(12,'History'),
+   write_list_with_indent(14,H),
+   indent_write(12,'ArgInfo'),
+   write_array(14,1,M,Array).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% def stuff
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+ground_defs([]):- -> true.
+ground_defs([D|Defs]):-
+    ->
+    ground_def(D),
+    ground_defs(Defs).
+
+ground_def(def(Ct,Max,Array,Ready,Non,clause(_,G,B,_))):-
+    ->
+    ground(Ct),
+    ground(Max),
+    ground_array(Max,Array),
+    ground(Ready),
+    ground(Non),
+    ground(G),
+    ground(B).
+
+write_defs(_):-   write_def_flag(no)   ->   true.
+write_defs([]):-                       -> true.
+write_defs([D|Defs]):-
+   ->
+   write_def(D),
+   write_defs(Defs).
+
+write_def(def(Ct,Max,Array,Ready,Non,clause(_,G,B,_))):-
+   ->
+   indent_write_no_nl(10,'DEF:'),write(Ct),nl,
+   indent_write(12,'Args'),
+   write_array(14,1,Max,Array),
+   indent_write(12,'Ready Tests'),
+   write_list_with_indent(14,Ready),
+   indent_write(12,'NonReady Tests'),
+   write_list_with_indent(14,Non),
+   indent_write(12,'Guard'),
+   write_list_with_indent(14,G),
+   indent_write(12,'Body'),
+   write_list_with_indent(14,B).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+instr_write(block(A,B,C),P,I):-
+   ->
+   write('        '),write(block),write(':'),write(B),nl,
+   write('             '),write(A),nl,
+   instr_write2(C).
+instr_write(X,P,I):-
+   X=label(_)
+   ->
+   write(X),nl.
+instr_write(X,P,I):-
+   ->
+   write('        '),write(X),nl.
+
+instr_write2([]):- -> true.
+instr_write2([X|Xs]):-
+   ->
+   write('                  '),write(X),nl,
+   instr_write2(Xs).
+
+
+instr_write_inc(X,P,I):-
+   ground(X)
+   |
+   write('<<<<'),write(P),write(':'),write(I),
+   write(' '),write(be),
+   write('>>>> '),write(X),write(' <<<<<'),nl.
+instr_write_inc(X,P,I):-
+   |
+   write('<<<<'),write(P),write(':'),write(I),
+   write(' '),write(b),write(' '),
+   write('>>>> '),write(X),write(' <<<<<'),nl,
+   w_instr_write_inc(X,P,I).
+
+w_instr_write_inc(X,P,I):-
+   ground(X)
+   -> 
+   write('<<<<'),write(P),write(':'),write(I),
+   write('  '),write(e),
+   write('>>>> '),write(X),write(' <<<<<'),nl.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% DEBUG
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+error_if_not_empty([],W):- -> true.
+error_if_not_empty(X,W):-  ->  error(p(X,W)).
+
+error_if_not_member(X,List,W):-  member(X,List) -> true.
+error_if_not_member(X,List,W):-  -> error(W).
+
+%%%%
+
+not_implemented(X):-
+   -> 
+   write('**** NOT IMPLEMENTED IN COMPILER **** '),write(X),
+   nl,fail.
+
+%%%%
+
+error(X):-
+   -> 
+   write('**** COMPILER ERROR **** '),write(X),
+   nl,fail.
+
+%%%%
+
+error_if_equal(X,X,Write):- -> error(Write).
+error_if_equal(_,_,_):-     -> true.
+   
+%%%%
+
+error_if_not_equal(X,X,Write):- -> true.
+error_if_not_equal(X,Y,Write):- -> error(Write).
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% array write stuff
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+ground_array(0,Array):-  -> true.
+ground_array(M,Array):- 
+   M>0
+   ->
+   arg(M,Array,Arg),
+   ground(Arg),
+   dec(M,M1),
+   ground_array(M1,Array).
+
+write_list_with_indent(_,[]):-  -> true.
+write_list_with_indent(Ind,[X|Xs]):- 
+   ->
+   indent_write(14,X),
+   write_list_with_indent(Ind,Xs).
+   
+write_array(_,Ct,Limit,_Array):- Ct>Limit -> true.
+write_array(Ind,Ct,Limit,Array):- 
+   ->
+   arg(Ct,Array,Arg),
+   indent_write_no_nl(Ind,Ct),
+   write(': '),write(Arg),nl,
+   inc(Ct,Ct1),
+   write_array(Ind,Ct1,Limit,Array).
+
+
+
+
+
+
+

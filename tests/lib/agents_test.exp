@@ -1,0 +1,40 @@
+proc agents_test_initialize {} {
+  global prompt1
+  global prompt2
+  global test
+
+  expect_after {
+    -re "(.*)$prompt1$"			{
+      fail "$test (unexpected output)"
+      verbose "UNEXPECTED OUTPUT: \{\n$expect_out(1,string)\n\}\n"
+    }
+    -re "(.*)$prompt2$"			{
+      fail "$test (unexpected output)"
+      verbose "UNEXPECTED OUTPUT: \{\n$expect_out(1,string)\n\}\n"
+      send "\n"
+      expect {
+	-re "$prompt1$"			{}
+      }
+    }
+    timeout				{fail "$test (timeout)"}
+  }
+}
+
+proc agents_test {name in out} {
+  global prompt1
+  global prompt2
+  global test
+
+  set test $name
+  send "$in"
+  expect {
+    -re "$out.*$prompt1$"		{pass "$test"}
+    -re "$out.*$prompt2$"		{
+      pass "$test"
+      send "\n"
+      expect {
+	-re "$prompt1$"			{}
+      }
+    }
+  }
+}

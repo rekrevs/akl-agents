@@ -1,0 +1,1287 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%         Test indexing
+%%%%
+%%%%         Main
+%%%%         Specific
+%%%%              Equality
+%%%%              Int compare
+%%%%         General
+%%%%              Utility - Choosing
+%%%%              Unymmetric 3 test stuff
+%%%%              Symmetric 3 test stuff
+%%%%              Utility -Label On test 
+%%%%              Utility - Diverse
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% MAIN
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% dec_code_test          
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+dec_code_test(Mode,Tree,Code,Defs,ArgInfo,Flag):-
+   Flag=second(_)
+   ->
+   dec_code_test1(no,Mode,Tree,Code,Defs,ArgInfo,Flag).
+dec_code_test(Mode,Tree,Code,Defs,ArgInfo,Flag):-
+   ->
+   arg(1,Flag,F),
+   defs_possible_tests(Defs,Tests),
+   dec_test_1(Tests,Defs,Results),
+   best_test(Tests,Results,F,Best),
+   dec_code_test1(Best,Mode,Tree,Code,Defs,ArgInfo,Flag).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+dec_test_1([],_,Out):- -> Out=[].
+dec_test_1([Test|Tests],Defs,Out):-
+   ->
+   Out=[Cat|Out1],
+   defs_categorize_test(Defs,Test,Cat),
+   dec_test_1(Tests,Defs,Out1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%      
+%%%% dec_code_test1
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%      
+
+dec_code_test1(no,Mode,[],Code,Defs,ArgInfo,second(any2)):-
+   ->
+   dec_code_fin(Mode,Code,Defs,ArgInfo).
+dec_code_test1(no,Mode,[],Code,Defs,ArgInfo,first(any2)):-
+   ->
+   defs_gen_t_tree(Defs,Tree),
+   dec_code(Mode,Tree,Code,Defs,ArgInfo,second(excl)).
+dec_code_test1(no,Mode,Tree,Code,Defs,ArgInfo,Flag):-
+   next_dec_flag(Flag,Flag1)
+   ->
+   dec_code(Mode,Tree,Code,Defs,ArgInfo,Flag1).
+dec_code_test1(p(Test,S),Mode,Tree,Code,Defs,ArgInfo,Flag):-
+   ->
+   maybe_dec_write(Defs,test(Test,Flag)),
+   dec_lay_test(Test,S,Mode,Tree,Code,Defs,ArgInfo).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+edit_tree_spec([],Out):- -> Out=[].
+edit_tree_spec([p(_,T)|Xs],Out):- 
+    flat_member(T,[[],v(_),integer(v(_)),atom(v(_))])
+    -> 
+     edit_tree_spec(Xs,Out).
+edit_tree_spec([p(A,T)|Xs],Out):- 
+     T=vf(_,_)
+     ->
+     Out=[p(A,t([],[],[],[],[],T,[]))|Out1],
+     edit_tree_spec(Xs,Out1).
+edit_tree_spec([p(A,integer(T))|Xs],Out):- 
+     ->
+     Out=[p(A,t([],T,[],[],[],[],[]))|Out1],
+     edit_tree_spec(Xs,Out1).
+edit_tree_spec([p(_,atom(T))|Xs],Out):- 
+     ->
+     Out=[p(t(T,[],[],[],[],[],[]))|Out1],
+     edit_tree_spec(Xs,Out1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+next_dec_flag(first(excl),Out):-  -> Out=first(any1).
+next_dec_flag(first(any1),Out):-  -> Out=first(any2).
+next_dec_flag(second(excl),Out):- -> Out=second(any1).
+next_dec_flag(second(any1),Out):- -> Out=second(any2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% dec_lay_test
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+dec_lay_test(Test,Res,Mode,Tree,Code,Defs,ArgInfo):-
+   classify_test(Test,test(_,untyped,_))
+   ->
+   dec_test_extract_regs(Test,Regs),
+   arginfo_regs_depend_without_reg(Regs,ArgInfo,Depend),
+   Code=[label(SST),constraint_stack_test(Depend,l(Label)),Code1,label(Label),SCode1|SCode2],
+   lay_test(Test,Res,Mode,Tree,Code1,Defs,ArgInfo,Branch),
+   test_susp(SST,Test,Branch,SCode1,SCode2).
+dec_lay_test(Test,Res,Mode,Tree,Code,Defs,ArgInfo):-
+   classify_test(Test,test(_,typed,_))
+   ->
+   dec_test_extract_regs(Test,Regs),
+   arginfo_regs_depend_with_reg(Regs,ArgInfo,Depend),
+   Code=[label(SST),constraint_stack_test(Depend,l(Label)),Code1,label(Label),LCode1|LCode2],
+   lay_test(Test,Res,Mode,Tree,Code1,Defs,ArgInfo,Branch),
+   test_susp(SST,Test,Branch,LCode1,LCode2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% test_susp
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+test_susp(SST,Test,[p(Label,Class)],Try,Extra):-
+   ->
+   trust_susp_choice(SST,Test,Label,Class,Try,Extra).
+test_susp(SST,Test,[p(Label,Class)|Branch],Try,Extra):-
+   ->
+   Try=[Try1|Try2],Extra=[Extra1|Extra2],
+   try_susp_choice(SST,Test,Label,Class,Try1,Extra1),
+   test_susp(SST,Test,Branch,Try2,Extra2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% trust_susp_choice
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+% int_compare
+trust_susp_choice(SST,int_compare(_,_),Label,t123,Try,Extra):-
+   ->
+   error(trust_susp_choice),
+   Try=s_trust(l(Label),l(SST)),Extra=[].
+trust_susp_choice(SST,int_compare(reg(Reg),reg(Reg2)),Label,What,Try,Extra):-
+   ->
+   two_sort(Reg,Reg2,Regs),
+   Try=test_trust(l(Label),Regs,l(SST),l(BLabel)),
+   make_int_comp_reg_reg(BLabel,Reg,Reg2,What,Extra).
+trust_susp_choice(SST,int_compare(reg(Reg),integer(I)),Label,What,Try,Extra):-
+   ->
+   Try=test_trust(l(Label),[Reg],l(SST),l(BLabel)),
+   make_int_comp_reg_int(BLabel,Reg,integer(I),What,Extra).
+
+% eq
+trust_susp_choice(SST,eq(reg(Reg),reg(Reg2)),Label,t1,Try,Extra):-
+   ->
+   two_sort(Reg,Reg2,Regs),
+   Try=test_trust(l(Label),Regs,l(SST),l(BLabel)),
+   make_equal_reg_reg(BLabel,Reg,Reg2,Extra).
+trust_susp_choice(SST,eq(reg(Reg),reg(Reg2)),Label,t2,Try,Extra):-
+   ->
+   two_sort(Reg,Reg2,Regs),
+   Try=test_trust(l(Label),Regs,l(SST),l(BLabel)),
+   make_dif_reg_reg(BLabel,Reg,Reg2,Extra).
+trust_susp_choice(SST,eq(_,_),Label,t3,Try,Extra):-
+   ->
+   error(trust_susp_choice),
+   Try=s_trust(l(Label),l(SST)),Extra=[].
+
+two_sort(Reg,Reg2,Regs):- Reg<Reg2 -> Regs=[Reg,Reg2].
+two_sort(Reg,Reg2,Regs):- Reg>Reg2 -> Regs=[Reg2,Reg].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% try_susp_choice
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+% int_compare
+try_susp_choice(SST,int_compare(_,_),Label,t123,Try,Extra):-
+   ->
+   error(try_susp_choice),
+   Try=s_try(l(Label),l(SST)),Extra=[].
+try_susp_choice(SST,int_compare(reg(Reg),reg(Reg2)),Label,What,Try,Extra):-
+   ->
+   two_sort(Reg,Reg2,Regs),
+   Try=test_try(l(Label),Regs,l(SST),l(BLabel)),
+   make_int_comp_reg_reg(BLabel,Reg,Reg2,What,Extra).
+try_susp_choice(SST,int_compare(reg(Reg),integer(I)),Label,What,Try,Extra):-
+   ->
+   Try=test_try(l(Label),[Reg],l(SST),l(BLabel)),
+   make_int_comp_reg_int(BLabel,Reg,integer(I),What,Extra).
+
+% eq
+try_susp_choice(SST,eq(reg(Reg),reg(Reg2)),Label,t1,Try,Extra):-
+   ->
+   two_sort(Reg,Reg2,Regs),
+   Try=test_try(l(Label),Regs,l(SST),l(BLabel)),
+   make_equal_reg_reg(BLabel,Reg,Reg2,Extra).
+try_susp_choice(SST,eq(reg(Reg),reg(Reg2)),Label,t2,Try,Extra):-
+   ->
+   two_sort(Reg,Reg2,Regs),
+   Try=test_try(l(Label),Regs,l(SST),l(BLabel)),
+   make_dif_reg_reg(BLabel,Reg,Reg2,Extra).
+try_susp_choice(SST,eq(_,_),Label,t3,Try,Extra):-
+   ->
+   error(try_susp_choice),
+   Try=s_try(l(Label),l(SST)),Extra=[].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% make_equal_reg_reg 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+make_equal_reg_reg(Label,Reg,Reg2,Block):-
+   ->
+   Block=block(label(Label),instr,eq_reg_reg(Reg,Reg2)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% make_dif_reg_reg
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+make_dif_reg_reg(Label,Reg,Reg2,Block):-
+   ->
+   Block=block(label(Label),instr,dif_reg_reg(Reg,Reg2)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% make_int_comp_reg_reg
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+make_int_comp_reg_reg(Label,Reg1,Reg2,t1,Out):-
+   ->
+   Out=block(label(Label),instr,int_less_reg_reg(Reg1,Reg2)).
+make_int_comp_reg_reg(Label,Reg1,Reg2,t2,Out):-
+   ->
+   Out=block(label(Label),instr,int_equal_reg_reg(Reg1,Reg2)).
+make_int_comp_reg_reg(Label,Reg1,Reg2,t13,Out):-
+   ->
+   Out=block(label(Label),instr,int_not_equal_reg_reg(Reg1,Reg2)).
+make_int_comp_reg_reg(Label,Reg1,Reg2,t3,Out):-
+   ->
+   Out=block(label(Label),instr,int_less_reg_reg(Reg2,Reg1)).
+make_int_comp_reg_reg(Label,Reg1,Reg2,t12,Out):-
+   ->
+   Out=block(label(Label),instr,int_not_less_reg_reg(Reg2,Reg1)).
+make_int_comp_reg_reg(Label,Reg1,Reg2,t23,Out):-
+   ->
+   Out=block(label(Label),instr,int_not_less_reg_reg(Reg1,Reg2)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% make_int_comp_reg_int
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+make_int_comp_reg_int(Label,Reg,Int,t1,Out):-
+   ->
+   Out=block(label(Label),instr,int_less_reg_int(Reg,Int)).
+make_int_comp_reg_int(Label,Reg,Int,t2,Out):-
+   ->
+   Out=block(label(Label),instr,int_equal_reg_int(Reg,Int)).
+make_int_comp_reg_int(Label,Reg,Int,t3,Out):-
+   ->
+   Out=block(label(Label),instr,int_greater_reg_int(Reg,Int)).
+make_int_comp_reg_int(Label,Reg,Int,t12,Out):-
+   ->
+   Out=block(label(Label),instr,int_not_greater_reg_int(Reg,Int)).
+make_int_comp_reg_int(Label,Reg,Int,t13,Out):-
+   ->
+   Out=block(label(Label),instr,int_not_equal_reg_int(Reg,Int)).
+make_int_comp_reg_int(Label,Reg,Int,t23,Out):-
+   ->
+   Out=block(label(Label),instr,int_not_less_reg_int(Reg,Int)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% lay_test
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+lay_test(Test,else2([X]),Mode,Tree,Code,Defs,ArgInfo,Branch):-
+   ->
+   lay_test(Test,X,Mode,Tree,Code,Defs,ArgInfo,Branch).
+lay_test(Test,else2([X|Xs]),Mode,Tree,Code,Defs,ArgInfo,Branch):-
+   ->
+   Code=[back(l(Label)),Code1,label(Label),Code2],
+   lay_test(Test,X,Mode,Tree,Code1,Defs,ArgInfo1,Branch1),
+   arginfo_split(ArgInfo,ArgInfo1,ArgInfo2),
+   lay_test(Test,else2(Xs),Mode,Tree,Code2,Defs,ArgInfo2,Branch2),
+   app(Branch1,Branch2,Branch).
+lay_test(Test,else(X,Y),Mode,Tree,Code,Defs,ArgInfo,Branch):-
+   ->
+   Code=[back(l(Label)),Code1,label(Label),Code2],
+   lay_test(Test,X,Mode,Tree,Code1,Defs,ArgInfo1,Branch1),
+   arginfo_split(ArgInfo,ArgInfo1,ArgInfo2),
+   lay_test(Test,Y,Mode,Tree,Code2,Defs,ArgInfo2,Branch2),
+   app(Branch1,Branch2,Branch).
+lay_test(Test,Else,Mode,Tree,Code,Defs,ArgInfo,Branch):-
+   bad_lay_test(Test,Else,ClSet)
+   ->
+   Code=[label(Label)|Code1],
+   lay_tests1([f(Else,Label,ClSet,Code1)],Mode,Tree,Defs,ArgInfo,Branch).
+lay_test(Test,Else,Mode,Tree,Code,Defs,ArgInfo,Branch):-
+   ->
+   lay_specific_test(Test,Else,Mode,Tree,Code,Defs,ArgInfo,Branch).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+bad_lay_test(int_compare(_,_),[p(t123,S)|Rest],Set):- 
+     -> 
+     error_if_not_equal(Rest,[],bad_lay_test),
+     Set=S.
+bad_lay_test(int_compare(_,_),_,_):-             -> fail.
+bad_lay_test(eq(_,_),[p(t3,S)|Rest],Set):-            
+     -> 
+     error_if_not_equal(Rest,[],bad_lay_test),
+     Set=S.
+bad_lay_test(eq(_,_),_,_):-                      -> fail.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% lay_specific_test
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+lay_specific_test(Test,Res,Mode,Tree,Code,Defs,ArgInfo,Branch):-
+   Test=int_compare(_,_)
+   ->
+   div_sym_test3(Res,Res1),
+   int_comp_instr(Test,Res1,Code,Ps),
+   defs_test_performed(Test,Defs,Defs1),
+   lay_tests1(Ps,Mode,Tree,Defs1,ArgInfo,Branch).
+lay_specific_test(Test,Res,Mode,Tree,Code,Defs,ArgInfo,Branch):-
+   Test=eq(_,_)
+   ->
+   eq_instr(Test,Res,Code,Ps),
+   defs_test_performed(Test,Defs,Defs1),
+   lay_tests1(Ps,Mode,Tree,Defs1,ArgInfo,Branch).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+lay_tests1([],_Mode,_Tree,_Defs,_ArgInfo,Branch):-   ->   Branch=[].
+lay_tests1([f(X,Label,Set,Code)|In],Mode,Tree,Defs,ArgInfo,Branch):-
+   ->
+   Branch=[p(Label,X)|Branch1],
+   extract_defs(Set,Defs,Defs1),
+   edit_tree(Set,Tree,Tree1),
+   dec_code(Mode,Tree1,Code,Defs1,ArgInfo,first(excl)),
+   lay_tests1(In,Mode,Tree,Defs,ArgInfo,Branch1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%% SPECIFIC TESTS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%% EQUALITY
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+eq_instr(Test,X,Code,Out):-
+   Test=eq(reg(Reg1),reg(Reg2))
+   ->
+   Code=[eq_reg_reg(Reg1,Reg2,No,Dk)|Code1],
+   eq_instr1(X,No,Dk,Code1,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+eq_instr1([p(t1,S1),p(t2,S2)],No,Dk,Code,Out):-
+   ->
+   No=l(NLabel),Dk=l(DkLabel),
+   Code=[label(ELabel),ECode,label(DkLabel),s_try(l(ELabel)),s_trust(l(NLabel)),
+          label(NLabel)|NCode],
+   Out=[f(t1,ELabel,S1,ECode),f(t2,NLabel,S2,NCode)].
+eq_instr1([p(t2,S1),p(t1,S2)],No,Dk,Code,Out):-
+   ->
+   No=l(NLabel),Dk=l(DkLabel),
+   Code=[label(ELabel),ECode,label(DkLabel),s_try(l(NLabel)),s_trust(l(ELabel)),
+          label(NLabel)|NCode],
+   Out=[f(t2,NLabel,S2,NCode),f(t1,ELabel,S1,ECode)].
+eq_instr1([p(t1,S1)],No,Dk,Code,Out):-
+   ->
+   No=fail_dec,Dk=l(DkLabel),
+   Code=[label(ELabel),ECode,label(DkLabel),s_trust(l(ELabel))],
+   Out=[f(t1,ELabel,S1,ECode)].
+eq_instr1([p(t2,S1)],No,Dk,Code,Out):-
+   ->
+   No=l(NLabel),Dk=l(DkLabel),
+   Code=[fail_dec,label(DkLabel),s_trust(l(NLabel)),label(NLabel)|NCode],
+   Out=[f(t2,NLabel,S1,NCode)].
+eq_instr1([p(t1,S1),p(t3,S2)],No,Dk,Code,Out):-
+   ->
+   No=l(NLabel),Dk=l(DkLabel),
+   Code=[back(l(NLabel)),label(ELabel),ECode,
+         label(DkLabel),s_try(l(ELabel)),s_trust(l(NLabel)),label(NLabel)|NCode],
+   Out=[f(t1,ELabel,S1,ECode),f(t3,NLabel,S2,NCode)].
+eq_instr1([p(t2,S1),p(t3,S2)],No,Dk,Code,Out):-
+   ->
+   No=l(NLabel),Dk=l(DkLabel),
+   Code=[label(ELabel),ECode,label(DkLabel),s_try(l(NLabel)),s_trust(l(ELabel)),
+         label(NLabel),back(l(ELabel)),label(Outer)|NCode],
+   Out=[f(t2,Outer,S1,NCode),f(t3,ELabel,S2,ECode)].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%% INT COMPARE
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+int_comp_instr(Test,X,Code,Out):-
+   Test=int_compare(reg(Reg),reg(Reg2))
+   ->
+   Code=[int_compare_reg_reg(Reg,Reg2,One,Two)|Code1],
+   label_label_on_test(t1,t2,t3,t12,t13,t23,t123,X,One,Two,Code1,Out).
+int_comp_instr(Test,X,Code,Out):-
+   Test=int_compare(reg(Reg),I),I=integer(_)
+   ->
+   Code=[int_compare_reg_int(Reg,I,One,Two)|Code1],
+   label_label_on_test(t1,t2,t3,t12,t13,t23,t123,X,One,Two,Code1,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% UTILITY - chooosing
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% best_test
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+best_test(Tests,Ds,Flag,Out):-
+   -> 
+   best_test2(Tests,Ds,Flag,no,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+best_test2([],[],_Flag,no,Out):-
+   ->    
+   Out=no.
+best_test2([],[],_Flag,t(p(NT,_),T),Out):-
+   ->    
+   Out=p(T,NT).
+best_test2([T|Ts],[D|Ds],Flag,SoFar,Out):-
+   ->    
+   test_factor(Flag,T,D,Res),
+   best_test1(Res,T,SoFar,SoFar1),
+   best_test2(Ts,Ds,Flag,SoFar1,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+best_test1(no,_,SoFar,Out):-                    -> Out=SoFar.
+best_test1(New,NTest,t(p(_,F),_Test),Out):- 
+    New=p(_,NF),NF>F 
+    -> 
+    Out=t(New,NTest). 
+best_test1(p(_,NF),_,SoFar,Out):- 
+    SoFar=t(p(_,F),_),NF=<F 
+    -> 
+    Out=SoFar.
+best_test1(New,NTest,no,Out):- -> Out=t(New,NTest).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+test_factor(excl,T,[A,B,C],Out):-
+   classify_test(T,test(_,_,unsym(3)))
+   ->
+   excl_unsym3(A,B,C,Out).
+test_factor(any1,T,[A,B,C],Out):-
+   classify_test(T,test(_,_,unsym(3)))
+   ->
+   any1_unsym3(A,B,C,Out).
+test_factor(excl,T,[A,B,C],Out):-
+   classify_test(T,test(_,_,unsym(3)))
+   ->
+   any2_unsym3(A,B,C,Out).
+test_factor(excl,T,[A,B,C],Out):-
+   classify_test(T,test(_,_,sym(3)))
+   ->
+   excl_sym3(A,B,C,Out).
+test_factor(any1,T,[A,B,C],Out):-
+   classify_test(T,test(_,_,sym(3)))
+   ->
+   any1_sym3(A,B,C,Out).
+test_factor(excl,T,[A,B,C],Out):-
+   classify_test(T,test(_,_,sym(3)))
+   ->
+   any2_sym3(A,B,C,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% UNSYMMETRIC 3
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% excl_unsym3
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+excl_unsym3(A,B,C,Out):-
+   ->
+   p_ify_test3(A,B,C,P),
+   unsym_test3(P,[],Ret),
+   excl_unsym3_1(Ret,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+excl_unsym3_1(ret([],Acc),Out):-
+   flat_member(Acc,[[p(t1,_),p(t2,_)],[p(t2,_),p(t1,_)]])
+   ->
+   reverse_list(Acc,Acc1),
+   Out=p(Acc1,2).
+excl_unsym3_1(ret([],Acc),Out):-
+   flat_member(Acc,[[p(t1,_)],[p(t2,_)]])
+   ->
+   Out=p(Acc,1).
+excl_unsym3_1(_,Out):- 
+    -> 
+    Out=no.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% any1_unsym3
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+any1_unsym3(A,B,C,Out):-     
+    ->
+    excl_unsym3(A,B,C,X), 
+    error_if_not_equal(X,no,any1_eq),
+    p_ify_test3(A,B,C,P),
+    unsym_test3(P,[],Ret),
+    any1_unsym3_1(Ret,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+any1_unsym3_1(ret([],Acc),Out):-
+    ->
+    any_unsym3_factor(Acc,Factor),
+    unsym3_maybe_else(Acc,Acc1),
+    Out=p(Acc1,Factor).
+any1_unsym3_1(_,Out):- -> Out=no.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% any2_unsym3
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+any2_unsym3(A,B,C,Out):-     
+    ->
+    any1_unsym3(A,B,C,X), 
+    error_if_not_equal(X,no,any1_eq),
+    p_ify_test3(A,B,C,P),
+    unsym_test3(P,[],Ret),
+    any2_unsym3_1(Ret,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+any2_unsym3_1(p(Xs,Acc),Out):-
+    ->
+    any_unsym_factor(Acc,Factor),
+    error_if_equal(Xs,[],any2_eq_1),
+    unsym3_maybe_else(Acc,Acc1),
+    Out=p(else2([e(Acc1)|Out1]),Factor),
+    unsym_test3(Xs,[],Ret),
+    any2_unsym3_2(Ret,Out1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+any2_unsym3_2(p([],Acc),Out):-
+    ->
+    unsym3_maybe_else(Acc,Acc1),
+    Out=[e(Acc1)].
+any2_unsym3_2(p(Xs,Acc),Out):-
+    ->
+    unsym3_maybe_else(Acc,Acc1),
+    Out=[e(Acc1)|Out1],
+    unsym_test3(Xs,[],Ret),
+    any2_unsym3_2(Ret,Out1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% any_unsym3_factor
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+any_unsym3_factor([p(t3,_)|Xs],Factor):-  -> any_unsym3_factor(Xs,Factor).
+any_unsym3_factor([_,_],Factor):-         -> Factor=2.
+any_unsym3_factor([_],Factor):-           -> Factor=1.
+any_unsym3_factor([],Factor):-            -> Factor=0.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% unsym3_maybe_else
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+unsym3_maybe_else([X|Xs],Out):-
+    X=p(t3,_),
+    unsym3_maybe_else2(2,Xs),
+    unsym3_maybe_else2(1,Xs)
+    ->
+    Out=else(Xs1,X),
+    reverse_list(Xs,Xs1).
+unsym3_maybe_else(Xs,Out):-
+    ->
+    reverse_list(Xs,Out).
+
+unsym3_maybe_else2(2,[p(t2,_)|_]):- -> true.
+unsym3_maybe_else2(1,[p(t1,_)|_]):- -> true.
+unsym3_maybe_else2(X,[_|Xs]):-      -> unsy3_maybe_else2(X,Xs).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% unsym_test3   Only t1,t2,t3
+%%%%
+%%%%    Cases
+%%%%            Next:     Not member     If member only last
+%%%%                          
+%%%%            t1        {t3}           {t1}
+%%%%            t2        {t3}           {t2}
+%%%%            t3        all                       
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+unsym_test3([p(X,ClNo)|Xs],[],Ret):-
+    ->     
+    unsym_test3(Xs,[p(X,[ClNo])],Ret).
+unsym_test3([p(t1,ClNo)|Xs],[p(t1,S)|Acc],Ret):-
+    ->     
+    unsym_test3(Xs,[p(t1,[ClNo|S])|Acc],Ret).
+unsym_test3([p(t1,ClNo)|Xs],Acc,Ret):-
+    Acc=[p(t2,_)]
+    ->     
+    unsym_test3(Xs,[p(t1,[ClNo])|Acc],Ret).
+unsym_test3([p(t2,ClNo)|Xs],[p(t2,S)|Acc],Ret):-
+    ->     
+    unsym_test3(Xs,[p(t2,[ClNo|S])|Acc],Ret).
+unsym_test3([p(t2,ClNo)|Xs],Acc,Ret):-
+    Acc=[p(t1,_)]
+    ->     
+    unsym_test3(Xs,[p(t2,[ClNo])|Acc],Ret).
+unsym_test3([p(t3,ClNo)|Xs],[p(t3,S)|Acc],Ret):-
+    ->     
+    unsym_test3(Xs,[p(t2,[ClNo|S])|Acc],Ret).
+unsym_test3([p(t3,ClNo)|Xs],Acc,Ret):-
+    ->     
+    unsym_test3(Xs,[p(t3,[ClNo])|Acc],Ret).
+unsym_test3(Xs,Acc,Ret):-
+    ->
+    Ret=ret(Xs,Acc).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%      
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%      
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%      
+%%%%  SYMMETRIC 3
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%      
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%      
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%      
+
+excl_sym3(A,B,C,Out):-
+   ->
+   p_ify_test3(A,B,C,P),
+   sym_test3(P,[],Ret),
+   excl_sym3_1(Ret,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%      
+
+excl_sym3_1(ret([],Acc),Out):- 
+   excl_sym3_check(Acc,no,Factor)
+   ->
+   Out=p(Acc1,Factor),
+   reverse_list(Acc,Acc1).
+excl_sym3_1(_,Out):-  -> Out=no.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%      
+%%%% any1_sym3
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%      
+
+any1_sym3(A,B,C,Out):-
+    excl_sym3(A,B,C,X),
+    error_if_not_equal(X,no,any1_int_comp),
+    p_ify_test_3(A,B,C,P),
+    sym_test3(P,[],Ret),
+    any1_sym3_1(Ret,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%      
+
+any1_sym3_1(ret([],Acc),Out):-
+   ->
+   any_sym3_factor(Acc,Factor),
+   sym3_maybe_else(Acc,Acc1),
+   Out=p(Acc1,Factor).
+any1_sym3_1(_,Out):-   ->   Out=no.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%      
+%%%% any2_sym3
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%      
+
+any2_sym3(A,B,C,Out):-
+    any1_sym3(A,B,C,X),
+    error_if_not_equal(X,no,any1_int_comp),
+    p_ify_sym_test_3(A,B,C,P),
+    sym_test3(P,[],Ret),
+    any2_sym3_1(Ret,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%      
+
+any2_sym3_1(ret(Xs,Acc),Out):-
+   ->
+   any_sym3_factor(Acc,Factor),
+   error_if_equal(Xs,[],any2_int_comp1),
+   sym3_maybe_else(Acc,Acc1),
+   Out=p(else2([e(Acc1)|Out1]),Factor),
+   sym_test3(Xs,[],Ret),
+   any2_sym3_2(Ret,Out1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+any2_sym3_2(ret([],Acc),Out):-
+   ->
+   sym3_maybe_else(Acc,Acc1),
+   Out=[e(Acc1)].
+any2_sym3_2(ret(Xs,Acc),Out):-
+   ->
+   sym3_maybe_else(Acc,Acc1),
+   Out=[e(Acc1)|Out1],
+   sym_test3(Xs,[],Ret),
+   any2_sym3_2(Ret,Out1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% sym3_maybe_else
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+sym3_maybe_else([X|Xs],Out):-
+   X=p(t123,_),
+   sym3_maybe_else2(1,Xs),
+   sym3_maybe_else2(2,Xs),
+   sym3_maybe_else2(3,Xs)
+   ->
+   Out=else(Xs1,X),
+   reverse_list(Xs,Xs1).
+sym3_maybe_else(Xs,Out):-
+   ->
+   reverse_list(Xs,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+sym3_maybe_else2(1,[p(X,_)|_]):- 
+   flat_member(X,[t1,t12,t13])
+   -> true.
+sym3_maybe_else2(2,[p(X,_)|_]):- 
+   flat_member(X,[t2,t12,t23])
+   -> true.
+sym3_maybe_else2(3,[p(X,_)|_]):- 
+   flat_member(X,[t3,t13,t23])
+   -> true.
+sym3_maybe_else2(Y,[_|Xs]):-
+   ->
+   sym3_maybe_else2(Y,Xs).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% div_sym_test3
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+div_sym_test3(Xs,Out):-
+   ->
+   div_sym_test3_1(Xs,[],Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+div_sym_test3_1([],_,Out):-   -> Out=[].
+div_sym_test3_1([p(S,A)|Xs],Acc,Out):-
+   flat_member(S,[t1,t2,t3])
+   ->
+   sym3_maybe_back(S,Xs,Acc,Acc1,I),
+   Out=[t(S,A,I)|Out1],
+   div_sym_test3_1(Xs,Acc1,Out1).
+div_sym_test3_1([p(S,A)|Xs],Acc,Out):-
+   flat_member(S,[t12,t23,t13])
+   ->
+   sym3_back_match(S,Acc,Acc1,I1),
+   sym3_maybe_back(S,Xs,Acc1,Acc2,I2),
+   sym3_i2(I1,I2,I),
+   Out=[t(S,A,I)|Out1],   
+   div_sym_test3_1(Xs,Acc2,Out1).
+div_sym_test3_1([p(t123,A)],Acc,Out):-
+   ->
+   sym3_back_match(t123,Acc,_,I1),
+   Out=[t(t123,A,I1)].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+sym3_i2([],[],Out):- -> Out=[].
+sym3_i2(X,[],Out):-  -> Out=X.
+sym3_i2([],X,Out):-  -> Out=X.
+sym3_i2(X,Y,Out):-   -> Out=[X,Y].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% sym3_maybe_back
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+sym3_maybe_back(_,[],Acc,Acc1,Maybe):-  -> Acc=Acc1,Maybe=[].
+sym3_maybe_back(t1,[p(X,_)|_],Acc,Acc1,Maybe):- 
+   flat_member(X,[t12,t13,t123])
+   -> 
+   Maybe=back(l(Label)),
+   sym3_maybe_back1(X,Label,Acc,Acc1).
+sym3_maybe_back(t2,[p(X,_)|_],Acc,Acc1,Maybe):- 
+   flat_member(X,[t12,t23,t123])
+   -> 
+   Maybe=back(l(Label)),
+   sym3_maybe_back1(X,Label,Acc,Acc1).
+sym3_maybe_back(t3,[p(X,_)|_],Acc,Acc1,Maybe):- 
+   flat_member(X,[t13,t23,t123])
+   -> 
+   Maybe=back(l(Label)),
+   sym3_maybe_back1(X,Label,Acc,Acc1).
+sym3_maybe_back(X,[p(t123,_)],Acc,Acc1,Maybe):- 
+   -> 
+   Maybe=back(l(Label)),
+   sym3_maybe_back1(X,Label,Acc,Acc1).
+sym3_maybe_back(X,[_|Ys],Acc,Acc1,Maybe):- 
+   ->
+   sym3_maybe_back(X,Ys,Acc,Acc1,Maybe).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+sym3_maybe_back1(X,Label,Acc,Acc1):-
+   Acc=[p(X,label(L))|_]
+   ->
+   L=Label,Acc=Acc1.
+sym3_maybe_back1(X,Label,[A|Acc],Acc1):-
+   ->
+   Acc1=[A|Acc2],
+   sym_maybe_back1(X,Label,Acc,Acc2).
+sym3_maybe_back1(X,Label,[],Acc1):-
+   ->
+   Acc1=[p(X,label(Label))].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% sym3_back_match
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+sym3_back_match(_X,[],Acc,Instr):-            ->    Acc=[],Instr=[].
+sym3_back_match(X,[p(X,I)|Xs],Acc,Instr):-   ->    Acc=Xs,Instr=I.
+sym3_back_match(X,[Y|Ys],Acc,Instr):- 
+   -> 
+   Acc=[Y|Acc1],
+   sym3_back_match(X,Ys,Acc1,Instr).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% sym_test3
+%%%%
+%%%%    Cases
+%%%%            Next:      Not members:           If members only last
+%%%%                          
+%%%%            t1        {t123,t13,t12}           {t1}
+%%%%            t2        {t12,t23,t123}           {t2}
+%%%%            t3        {t13,t23,t123}           {t3}
+%%%%            t12       {t123,t23,t13}           {t12,t1,t2}
+%%%%            t13       {t123,t23,t12}           {t13,t1,t3}
+%%%%            t23       {t123,t12,t13}           {t23,t2,t3}
+%%%%            t123      {}                       {}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% t1
+sym_test3([p(t1,ClNo)|Xs],[p(t1,S)|Acc],Ret):-      
+     ->     
+     sym_test3(Xs,[p(t1,[ClNo|S])|Acc],Ret).
+sym_test3([p(t1,ClNo)|Xs],Acc,Ret):-      
+    sym_ok_add([t123,t12,t13],Acc)
+     ->
+     sym_test3(Xs,[p(t1,[ClNo])|Acc],Ret).     
+
+%% t2
+sym_test3([p(t2,ClNo)|Xs],[p(t2,S)|Acc],Ret):-      
+     ->     
+     sym_test3(Xs,[p(t2,[ClNo|S])|Acc],Ret).
+sym_test3([p(t2,ClNo)|Xs],Acc,Ret):-      
+    sym_ok_add([t123,t12,t23],Acc)
+     ->
+     sym_test3(Xs,[p(t2,[ClNo])|Acc],Ret).     
+
+%% t3
+sym_test3([p(t3,ClNo)|Xs],[p(t3,S)|Acc],Ret):-      
+     ->     
+     sym_test3(Xs,[p(t3,[ClNo|S])|Acc],Ret).
+sym_test3([p(t3,ClNo)|Xs],Acc,Ret):-      
+    sym_ok_add([t123,t13,t23],Acc)
+     ->
+     sym_test3(Xs,[p(t3,[ClNo])|Acc],Ret).     
+
+%% t12
+sym_test3([p(t12,ClNo)|Xs],[p(t12,S)|Acc],Ret):-      
+     ->     
+     sym_test3(Xs,[p(t12,[ClNo|S])|Acc],Ret).
+sym_test3([p(t12,ClNo)|Xs],Acc,Ret):-      
+     Acc=[X|Xs],flat_member(X,[p(t1,_),p(t2,_)])
+     ->     
+     sym_test3(Xs,[p(t12,[ClNo])|Acc],Ret).
+sym_test3([p(t12,ClNo)|Xs],Acc,Ret):-      
+    sym_ok_add([t123,t13,t23],Acc)
+     ->
+     sym_test3(Xs,[p(t12,[ClNo])|Acc],Ret).     
+
+%% t13
+sym_test3([p(t13,ClNo)|Xs],[p(t13,S)|Acc],Ret):-      
+     ->     
+     sym_test3(Xs,[p(t13,[ClNo|S])|Acc],Ret).
+sym_test3([p(t13,ClNo)|Xs],Acc,Ret):-      
+     Acc=[X|Xs],flat_member(X,[p(t1,_),p(t3,_)])
+     ->     
+     sym_test3(Xs,[p(t13,[ClNo])|Acc],Ret).
+sym_test3([p(t13,ClNo)|Xs],Acc,Ret):-      
+    sym_ok_add([t123,t12,t23],Acc)
+     ->
+     sym_test3(Xs,[p(t13,[ClNo])|Acc],Ret).     
+
+%% t23
+sym_test3([p(t23,ClNo)|Xs],[p(t23,S)|Acc],Ret):-      
+     ->     
+     sym_test3(Xs,[p(t23,[ClNo|S])|Acc],Ret).
+sym_test3([p(t23,ClNo)|Xs],Acc,Ret):-      
+     Acc=[X|Xs],flat_member(X,[p(t2,_),p(t3,_)])
+     ->     
+     sym_test3(Xs,[p(t23,[ClNo])|Acc],Ret).
+sym_test3([p(t23,ClNo)|Xs],Acc,Ret):-      
+    sym_ok_add([t123,t13,t12],Acc)
+     ->
+     sym_test3(Xs,[p(t12,[ClNo])|Acc],Ret).     
+
+%% t123
+sym_test3([p(t123,ClNo)|Xs],[p(t123,S)|Acc],Ret):-      
+     ->     
+     sym_test3(Xs,[p(t123,[ClNo|S])|Acc],Ret).
+sym_test3([p(t23,ClNo)|Xs],Acc,Ret):-      
+     ->     
+     sym_test3(Xs,[p(t123,[ClNo])|Acc],Ret).
+
+%% Cur=t1
+sym_test3(Xs,Acc,Ret):-
+     ->
+     Ret=ret(Xs,Acc).
+     
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+sym_ok_add([],_):- -> true.
+sym_ok_add([X|Xs],Acc):- 
+     -> 
+     sym_ok_add1(X,Acc),
+     sym_ok_add(Xs,Acc).
+
+sym_ok_add1(_X,[]):-         -> true.
+sym_ok_add1(X,[p(X,_)|_]):- -> fail.
+sym_ok_add1(X,[_|Rest]):-   -> sym_ok_add1(X,Rest).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% excl_sym3_check
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+excl_sym3_check([],X,Out):-                 
+   flat_member(X,[t1_2,t1_3,t2_3,t1_23,t13_2,t12_3])
+   -> 
+   Out=2.
+excl_sym3_check([],X,Out):-                 
+   flat_member(X,[t1,t2,t3,t12,t13,t23])
+   -> 
+   Out=1.
+excl_sym3_check([],t1_2_3,Out):-            -> Out=3.
+
+excl_sym3_check([p(t1,_)|Xs],no,Out):-      -> excl_sym3_check(Xs,t1,Out).
+excl_sym3_check([p(t1,_)|Xs],t1,Out):-      -> excl_sym3_check(Xs,t1,Out).
+excl_sym3_check([p(t1,_)|Xs],t1_23,Out):-   -> excl_sym3_check(Xs,t1_23,Out).
+excl_sym3_check([p(t1,_)|Xs],t2,Out):-      -> excl_sym3_check(Xs,t1_2,Out).
+excl_sym3_check([p(t1,_)|Xs],t3,Out):-      -> excl_sym3_check(Xs,t1_3,Out).
+excl_sym3_check([p(t1,_)|Xs],t23,Out):-     -> excl_sym3_check(Xs,t1_23,Out).
+excl_sym3_check([p(t1,_)|Xs],t1_2,Out):-    -> excl_sym3_check(Xs,t1_2,Out).
+excl_sym3_check([p(t1,_)|Xs],t1_3,Out):-    -> excl_sym3_check(Xs,t1_3,Out).
+excl_sym3_check([p(t1,_)|Xs],t2_3,Out):-    -> excl_sym3_check(Xs,t1_2_3,Out).
+excl_sym3_check([p(t1,_)|Xs],t1_2_3,Out):-  -> excl_sym3_check(Xs,t1_2_3,Out).
+
+
+excl_sym3_check([p(t2,_)|Xs],no,Out):-      -> excl_sym3_check(Xs,t2,Out).
+excl_sym3_check([p(t2,_)|Xs],t1,Out):-      -> excl_sym3_check(Xs,t1_2,Out).
+excl_sym3_check([p(t2,_)|Xs],t13_2,Out):-   -> excl_sym3_check(Xs,t13_2,Out).
+excl_sym3_check([p(t2,_)|Xs],t2,Out):-      -> excl_sym3_check(Xs,t2,Out).
+excl_sym3_check([p(t2,_)|Xs],t3,Out):-      -> excl_sym3_check(Xs,t2_3,Out).
+excl_sym3_check([p(t2,_)|Xs],t13,Out):-     -> excl_sym3_check(Xs,t13_2,Out).
+excl_sym3_check([p(t2,_)|Xs],t1_2,Out):-    -> excl_sym3_check(Xs,t1_2,Out).
+excl_sym3_check([p(t2,_)|Xs],t2_3,Out):-    -> excl_sym3_check(Xs,t2_3,Out).
+excl_sym3_check([p(t2,_)|Xs],t1_3,Out):-    -> excl_sym3_check(Xs,t1_2_3,Out).
+excl_sym3_check([p(t2,_)|Xs],t1_2_3,Out):-  -> excl_sym3_check(Xs,t1_2_3,Out).
+
+excl_sym3_check([p(t3,_)|Xs],no,Out):-      -> excl_sym3_check(Xs,t3,Out).
+excl_sym3_check([p(t3,_)|Xs],t1,Out):-      -> excl_sym3_check(Xs,t1_3,Out).
+excl_sym3_check([p(t3,_)|Xs],t12_3,Out):-   -> excl_sym3_check(Xs,t12_3,Out).
+excl_sym3_check([p(t3,_)|Xs],t2,Out):-      -> excl_sym3_check(Xs,t2_3,Out).
+excl_sym3_check([p(t3,_)|Xs],t3,Out):-      -> excl_sym3_check(Xs,t3,Out).
+excl_sym3_check([p(t3,_)|Xs],t12,Out):-     -> excl_sym3_check(Xs,t12_3,Out).
+excl_sym3_check([p(t3,_)|Xs],t1_2,Out):-    -> excl_sym3_check(Xs,t1_2_3,Out).
+excl_sym3_check([p(t3,_)|Xs],t2_3,Out):-    -> excl_sym3_check(Xs,t2_3,Out).
+excl_sym3_check([p(t3,_)|Xs],t1_3,Out):-    -> excl_sym3_check(Xs,t1_3,Out).
+excl_sym3_check([p(t3,_)|Xs],t1_2_3,Out):-  -> excl_sym3_check(Xs,t1_2_3,Out).
+
+excl_sym3_check([p(t12,_)|Xs],no,Out):-      -> excl_sym3_check(Xs,t12,Out).
+excl_sym3_check([p(t12,_)|Xs],t12,Out):-     -> excl_sym3_check(Xs,t12,Out).
+excl_sym3_check([p(t12,_)|Xs],t12_3,Out):-   -> excl_sym3_check(Xs,t12_3,Out).
+excl_sym3_check([p(t12,_)|Xs],t3,Out):-      -> excl_sym3_check(Xs,t12_3,Out).
+
+excl_sym3_check([p(t13,_)|Xs],no,Out):-      -> excl_sym3_check(Xs,t13,Out).
+excl_sym3_check([p(t13,_)|Xs],t13,Out):-     -> excl_sym3_check(Xs,t13,Out).
+excl_sym3_check([p(t13,_)|Xs],t13_2,Out):-   -> excl_sym3_check(Xs,t13_2,Out).
+excl_sym3_check([p(t13,_)|Xs],t2,Out):-      -> excl_sym3_check(Xs,t13_2,Out).
+
+excl_sym3_check([p(t23,_)|Xs],no,Out):-      -> excl_sym3_check(Xs,t23,Out).
+excl_sym3_check([p(t23,_)|Xs],t23,Out):-     -> excl_sym3_check(Xs,t23,Out).
+excl_sym3_check([p(t23,_)|Xs],t1_23,Out):-   -> excl_sym3_check(Xs,t1_23,Out).
+excl_sym3_check([p(t23,_)|Xs],t1,Out):-      -> excl_sym3_check(Xs,t1_23,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% any_sym3_factor
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+any_sym3_factor(Xs,F):-
+    ->
+    any_sym3_f(Xs,[],Acc),
+    any_sym3_f2(Acc,F).
+
+any_sym3_f([],Acc,F):- -> F=Acc.
+any_sym3_f([p(X,_)|Xs],Acc,F):-
+    member(X,Acc)
+    ->
+    any_sym3_f(Xs,Acc,F).
+any_sym3_f([p(X,_)|Xs],Acc,F):-
+    ->
+    any_sym3_f(Xs,[X|Acc],F).
+
+any_sym3_f2([_],F):- -> F=1.
+any_sym3_f2([t1|Acc],F):-
+    ->
+    any_sym3_f2([t12,t123,t13],Acc,Acc1),
+    inc(F1,F),
+    any_sym3_f2(Acc1,F1).
+any_sym3_f2([t2|Acc],F):-
+    ->
+    any_sym3_f2([t12,t123,t23],Acc,Acc1),
+    inc(F1,F),
+    any_sym3_f2(Acc1,F1).
+any_sym3_f2([t3|Acc],F):-
+    ->
+    any_sym3_f2([t3,t13,t123,t23],Acc,Acc1),
+    inc(F1,F),
+    any_sym3_f2(Acc1,F1).
+any_sym3_f2([X|Acc],F):-
+    flat_member(X,[t12,t23,t13])
+    ->
+    any_sym3_f2([t123],Acc,Acc1),
+    inc(F1,F),
+    any_sym3_f2(Acc1,F1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% LABEL ON TEST UTILITY 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% label_label_on_test
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+label_label_on_test(X,Y,Z,_XY,_XZ,YZ,_XYZ,[t(X,A,I)|Xs],One,Two,Code,Out):-
+   ->
+   One=l(Label),
+   maybe_outer_ins(I,ICode,Label,Outer),
+   Code=[Code1,label(Label),ICode|Code2],
+   Out=[f(X,Outer,A,Code2)|Out1],
+   one_label_one_on_test(Y,Z,YZ,Xs,Two,Code1,Out1).
+label_label_on_test(X,Y,Z,_XY,XZ,_YZ,_XYZ,[t(Y,A,I)|Xs],One,Two,Code,Out):-
+   ->
+   Two=l(Label),
+   maybe_outer_ins(I,ICode,Label,Outer),
+   Code=[Code1,label(Label),ICode|Code2],
+   Out=[f(Y,Outer,A,Code2)|Out1],
+   one_label_one_on_test(X,Z,XZ,Xs,One,Code1,Out1).
+label_label_on_test(X,Y,Z,XY,_XZ,_YZ,_XYZ,[t(Z,A,I)|Xs],One,Two,Code,Out):-
+   ->
+   Code=[ICode,Code1|Code2],
+   maybe_outer_ins_on(I,ICode,Outer),
+   Out=[f(Z,Outer,A,Code1)|Out1],
+   two_label_test(X,Y,XY,Xs,One,Two,Code2,Out1).
+label_label_on_test(_X,_Y,Z,XY,_XZ,_YZ,_XYZ,[t(XY,A,I)|Xs],One,Two,Code,Out):-
+   ->
+   One=l(Label),Two=One,
+   Code=[Code1,label(Label),ICode|Code2],
+   maybe_outer_ins(I,ICode,Label,Outer),
+   Out=[f(XY,Outer,A,Code2)|Out1],
+   one_on_test(Z,Xs,Code1,Out1).
+label_label_on_test(_X,Y,_Z,_XY,XZ,_YZ,_XYZ,[t(XZ,A,I)|Xs],One,Two,Code,Out):-
+   ->
+   One=l(Label),
+   Code=[label(Label),ICode,Code1|Code2],
+   maybe_outer_ins(I,ICode,Label,Outer),
+   Out=[f(XZ,Outer,A,Code1)|Out1],
+   one_label_test(Y,Xs,Two,Code2,Out1).
+label_label_on_test(X,_Y,_Z,_XY,_XZ,YZ,_XYZ,[t(YZ,A,I)|Xs],One,Two,Code,Out):-
+   ->
+   Two=l(Label),
+   Code=[label(Label),ICode,Code1|Code2],
+   maybe_outer_ins(I,ICode,Label,Outer),
+   Out=[f(YZ,Outer,A,Code1)|Out1],
+   one_label_test(X,Xs,One,Code2,Out1).
+label_label_on_test(_X,_Y,_Z,_XY,_XZ,_YZ,XYZ,[t(XYZ,A,I)],One,Two,Code,Out):-
+   ->
+   Two=l(Label),One=Two,
+   Code=[label(Label),ICode|Code1],
+   maybe_outer_ins(I,ICode,Label,Outer),
+   Out=[f(XYZ,Outer,A,Code1)].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% maybe_outer_ins
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+maybe_outer_ins([],ICode,Label,Outer):- -> ICode=[],Outer=Label.
+maybe_outer_ins(I,ICode,_Label,Outer):-  -> ICode=[I,label(Outer)].
+
+maybe_outer_ins_on([],ICode,Outer):- -> ICode=[label(Outer)].
+maybe_outer_ins_on(I,ICode,Outer):-  -> ICode=[I,label(Outer)].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% two_label_test
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+two_label_test(_,_,_,[],One,Two,Code,Out):-
+   ->
+   One=fail_dec,Two=fail_dec,Code=[],Out=[].
+two_label_test(X,Y,_,[t(X,A,I)|Xs],One,Two,Code,Out):-
+   ->
+   One=l(LLabel),
+   maybe_outer_ins(I,ICode,LLabel,Outer),
+   Code=[label(LLabel),ICode,Code1|Code2],
+   Out=[f(X,Outer,A,Code1)|Out1],
+   one_label_test(Y,Xs,Two,Code2,Out1).
+two_label_test(X,Y,_,[t(Y,A,I)|Xs],One,Two,Code,Out):-
+   ->
+   Two=l(LLabel),
+   maybe_outer_ins(I,ICode,LLabel,Outer),
+   Code=[label(LLabel),ICode,Code1|Code2],
+   Out=[f(Y,Outer,A,Code1)|Out1],
+   one_label_test(X,Xs,One,Code2,Out1).
+two_label_test(_,_,XY,[t(XY,A,I)],One,Two,Code,Out):-
+   ->
+   Two=l(Label),One=Two,
+   maybe_outer_ins(I,ICode,Label,Outer),
+   Code=[label(Label),ICode|Code1],
+   Out=[f(XY,Outer,A,Code1)].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% one_label_one_on_test
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+one_label_one_on_test(_,_,_,[],One,Code,Out):-
+   ->
+   One=fail_dec,Code=[],Out=[].
+one_label_one_on_test(X,Y,_,[t(X,A,I)|Xs],One,Code,Out):-
+   ->
+   One=l(LLabel),
+   maybe_outer_ins(I,ICode,LLabel,Outer),
+   Code=[Code1,label(LLabel),ICode|Code2],
+   Out=[f(X,Outer,A,Code2)|Out1],
+   one_on_test(Y,Xs,Code1,Out1).
+one_label_one_on_test(X,Y,_,[t(Y,A,I)|Xs],One,Code,Out):-
+   ->
+   Code=[ICode,Code1|Code2],
+   maybe_outer_ins_on(I,ICode,Outer),
+   Out=[f(Y,Outer,A,Code1)|Out1],
+   one_label_test(X,Xs,One,Code2,Out1).
+one_label_one_on_test(_,_,XY,[t(XY,A,I)],One,Code,Out):-
+   ->
+   One=l(Label),
+   maybe_outer_ins(I,ICode,Label,Outer),
+   Code=[label(Label),ICode|Code1],
+   Out=[f(XY,Outer,A,Code1)].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% one_label_test
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+one_label_test(_,[],One,Code,Out):-
+   ->
+   One=fail_dec,Code=[],Out=[].
+one_label_test(X,[t(X,A,I)],One,Code,Out):-
+   ->
+   One=l(LLabel),
+   maybe_outer_ins(I,ICode,LLabel,Outer),
+   Code=[label(LLabel),ICode,Code1],
+   Out=[f(X,Outer,A,Code1)].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% one_on_test
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+one_on_test(_,[],Code,Out):-
+   ->
+   Code=fail_dec,Out=[].
+one_on_test(X,[t(X,A,I)],Code,Out):-
+   ->
+   maybe_outer_ins_on(I,ICode,Outer),
+   Code=[ICode|Code1],
+   Out=[f(X,Outer,A,Code1)].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%      
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%      
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%      
+%%%%   DIVERSE UTILTY
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%      
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%      
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%      
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%      
+%%%% p_ify_test3
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%      
+    
+p_ify_test3(A,B,[],P):- -> p_ify_test_2(A,t1,B,t2,t12,P).
+p_ify_test3(A,[],C,P):- -> p_ify_test_2(A,t1,C,t3,t13,P).
+p_ify_test3([],B,C,P):- -> p_ify_test_2(B,t2,C,t3,t23,P).
+p_ify_test3([A1|A],B,C,P):-
+    C=[C1|_],B=[B1|_],A1<B1,A1<C1
+    ->
+    P=[p(t1,A1)|P1],
+    p_ify_test3(A,B,C,P1).
+p_ify_test3(A,[B1|B],C,P):-
+    C=[C1|_],A=[A1|_],B1<A1,B1<C1
+    ->
+    P=[p(t2,B1)|P1],
+    p_ify_test3(A,B,C,P1).
+p_ify_test3(A,B,[C1|C],P):-
+    B=[B1|_],A=[A1|_],C1<A1,C1<B1
+    ->
+    P=[p(t3,C1)|P1],
+    p_ify_test3(A,B,C,P1).
+p_ify_test3([ABC|A],[ABC|B],[ABC|C],P):-
+    ->
+    P=[p(t123,ABC)|P1],
+    p_ify_test3(A,B,C,P1).
+p_ify_test3([AB|A],[AB|B],C,P):-
+    ->
+    P=[p(t12,AB)|P1],
+    p_ify_test3(A,B,C,P1).
+p_ify_test3([AC|A],B,[AC|C],P):-
+    ->
+    P=[p(t13,AC)|P1],
+    p_ify_test3(A,B,C,P1).
+p_ify_test3(A,[BC|B],[BC|C],P):-
+    ->
+    P=[p(t23,BC)|P1],
+    p_ify_test3(A,B,C,P1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%      
+%%%% p_ify_test_2
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%      
+
+p_ify_test_2([],_,B,IdB,_,P):-
+    ->
+    p_ify_test_1(B,IdB,P).
+p_ify_test_2(A,IdA,[],_,_,P):-
+    ->
+    p_ify_test_1(A,IdA,P).
+p_ify_test_2([AB|A],IdA,[AB|B],IdB,Id,P):-
+    ->
+    P=[p(Id,AB)|P1],
+    p_ify_test_2(A,IdA,B,IdB,Id,P1).
+p_ify_test_2([A1|A],IdA,B,IdB,Id,P):-
+    B=[B1|_],A1<B1
+    ->
+    P=[p(IdA,A1)|P1],
+    p_ify_test_2(A,IdA,B,IdB,Id,P1).
+p_ify_test_2(A,IdA,[B1|B],IdB,Id,P):-
+    ->
+    P=[p(IdB,B1)|P1],
+    p_ify_test_2(A,IdA,B,IdB,Id,P1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%      
+%%%% p_ify_test_1
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%      
+
+p_ify_test_1([],_,P):- -> P=[].
+p_ify_test_1([A1|A],Id,P):-
+    ->
+    P=[p(Id,A1)|P1],
+    p_ify_test_1(A,Id,P1).
+
+
+
+

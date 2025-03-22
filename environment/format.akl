@@ -1,0 +1,274 @@
+% $Id: format.akl,v 1.16 1994/04/14 14:29:32 rch Exp $
+
+/* 
+
+* ~k is not supported, since write_canonical is not
+available (at present).
+
+* ~N is not supported, since there is apparently no way to
+get the stream position.
+
+* Column handling via ~<N>|, ~<N>+, and ~<N>t is not
+supported.
+
+*/
+
+format(Format) :-
+    ->	stdout(S),
+	format(Format, [], Flag, S, _),
+	format_diagnosis(Flag, format(Format, [])).
+
+format(Format, Args) :-
+    ->	stdout(S),
+	format(Format, Args, Flag, S, _),
+	format_diagnosis(Flag, format(Format, Args)).
+
+format(Format, S0, S) :-
+    ->	format(Format, [], Flag, S0, S),
+	format_diagnosis(Flag, format(Format, [], S0, S)).
+
+format(Format, Args, S0, S) :-
+    ->	format(Format, Args, Flag, S0, S),
+	format_diagnosis(Flag, format(Format, Args, S0, S)).
+
+format(Format, Args, Flag)-S :-
+	atom(Format)
+    ->	format(0, Format, Args, Flag)-S.
+format(_Format, _Args, Flag)-_S :-
+    ->	Flag = bad_format.
+
+format(I, Format, Args, Flag)-S :-
+	atom_char(I, Format, C)
+    ->	I1 is I+1,
+	format(C, I1, Format, Args, Flag)-S.
+format(_I, _Format, _Args, Flag)-_S :-
+    ->	Flag = true.
+
+format(0'\, I, Format, Args, Flag)-S :-
+	atom_char(I, Format, C)
+    ->	I1 is I+1,
+	format_backslash(C, I1, Format, Args, Flag)-S.
+format(0'~, I, Format, Args, Flag)-S :-
+	atom_char(I, Format, C)
+    ->	I1 is I+1,
+	format_tilde(C, I1, Format, Args, Flag)-S.
+format(C, I, Format, Args, Flag)-S :-
+    ->	putc(C)@S,
+	format(I, Format, Args, Flag)-S.
+
+format_backslash(0'c, I, Format, Args, Flag)-S :-
+	atom_char(I, Format, C)
+    ->	I1 is I+1,
+	format_backslash_1(C, I1, Format, Args, Flag)-S.
+format_backslash(C, I, Format, Args, Flag)-S :-
+    ->	putc(0'\)@S, putc(C)@S,
+	format(I, Format, Args, Flag)-S.
+
+format_backslash_1(10, I, Format, Args, Flag)-S :-
+    ->	format(I, Format, Args, Flag)-S.
+format_backslash_1(C, I, Format, Args, Flag)-S :-
+    ->	putc(0'\)@S, putc(0'c)@S, putc(C)@S,
+	format(I, Format, Args, Flag)-S.
+
+format_tilde(0'a, I, Format, [Arg|Args], Flag)-S :-
+	atom(Arg)
+    ->	write(Arg)-S,
+	format(I, Format, Args, Flag)-S.
+format_tilde(0'a, _I, _Format, _Args, Flag)-_S :-
+    ->	Flag = bad_args.
+format_tilde(0'i, I, Format, [_|Args], Flag)-S :-
+    ->	format(I, Format, Args, Flag)-S.
+format_tilde(0'i, _I, _Format, _Args, Flag)-_S :-
+    ->	Flag = bad_args.
+%format_tilde(0'k, I, Format, [Arg|Args], Flag)-S :-
+%    ->	write_canonical(Arg)-S,
+%	format(I, Format, Args, Flag)-S.
+%format_tilde(0'k, _I, _Format, _Args, Flag)-_S :-
+%    ->	Flag = bad_args.
+format_tilde(0'p, I, Format, [Arg|Args], Flag)-S :-
+    ->	print(Arg)-S,
+	format(I, Format, Args, Flag)-S.
+format_tilde(0'p, _I, _Format, _Args, Flag)-_S :-
+    ->	Flag = bad_args.
+format_tilde(0'q, I, Format, [Arg|Args], Flag)-S :-
+    ->	writeq(Arg)-S,
+	format(I, Format, Args, Flag)-S.
+format_tilde(0'q, _I, _Format, _Args, Flag)-_S :-
+    ->	Flag = bad_args.
+format_tilde(0'w, I, Format, [Arg|Args], Flag)-S :-
+    ->	write(Arg)-S,
+	format(I, Format, Args, Flag)-S.
+format_tilde(0'w, _I, _Format, _Args, Flag)-_S :-
+    ->	Flag = bad_args.
+format_tilde(0'~, I, Format, Args, Flag)-S :-
+    ->	putc(0'~)@S,
+	format(I, Format, Args, Flag)-S.
+format_tilde(0'*, I, Format, [Arg|Args], Flag)-S :-
+	integer(Arg), Arg >= 0,
+	atom_char(I, Format, C)
+    ->	I1 is I+1,
+	format_tilde_N(C, Arg, I1, Format, Args, Flag)-S.
+format_tilde(0'*, _I, _Format, _Args, Flag)-_S :-
+    ->	Flag = bad_args.
+format_tilde(C, I, Format, Args, Flag)-S :-
+	0'0 =< C, C =< 0'9,
+	atom_char(I, Format, C1)
+    ->	I1 is I+1,
+	format_tilde_digit(C1, [C|Cs], Cs, I1, Format, Args, Flag)-S.
+format_tilde(C, _I, _Format, _Args, Flag)-_S :-
+	0'0 =< C, C =< 0'9
+    ->	Flag = bad_args.
+format_tilde(C, I, Format, Args, Flag)-S :-
+    ->	format_tilde_N(C, -1, I, Format, Args, Flag)-S.
+
+format_tilde_digit(C, Cs, Cs1, I, Format, Args, Flag)-S :-
+	0'0 =< C, C =< 0'9,
+	atom_char(I, Format, C1)
+    ->	Cs1 = [C|Cs2],
+	I1 is I+1,
+	format_tilde_digit(C1, Cs, Cs2, I1, Format, Args, Flag)-S.
+format_tilde_digit(C, _Cs, _Cs1, _I, _Format, _Args, Flag)-_S :-
+	0'0 =< C, C =< 0'9
+    ->	Flag = bad_args.
+format_tilde_digit(C, Cs, Cs1, I, Format, Args, Flag)-S :-
+    ->	Cs1 = [],
+	chars_to_integer(Cs, N),
+	format_tilde_N(C, N, I, Format, Args, Flag)-S.
+
+format_tilde_N(0'c, N, I, Format, [Arg|Args], Flag)-S :-
+	integer(Arg)
+    ->	format_char(N, Arg)-S,
+	format(I, Format, Args, Flag)-S.
+format_tilde_N(0'c, _N, _I, _Format, _Args, Flag)-_S :-
+    ->	Flag = bad_args.
+format_tilde_N(0'e, N, I, Format, [Arg|Args], Flag)-S :-
+	float(Arg)
+    ->	format_float(N, 0'e, Arg)-S,
+	format(I, Format, Args, Flag)-S.
+format_tilde_N(0'e, _N, _I, _Format, _Args, Flag)-_S :-
+    ->	Flag = bad_args.
+format_tilde_N(0'E, N, I, Format, [Arg|Args], Flag)-S :-
+	float(Arg)
+    ->	format_float(N, 0'E, Arg)-S,
+	format(I, Format, Args, Flag)-S.
+format_tilde_N(0'E, _N, _I, _Format, _Args, Flag)-_S :-
+    ->	Flag = bad_args.
+format_tilde_N(0'f, N, I, Format, [Arg|Args], Flag)-S :-
+	float(Arg)
+    ->	format_float(N, 0'f, Arg)-S,
+	format(I, Format, Args, Flag)-S.
+format_tilde_N(0'f, _N, _I, _Format, _Args, Flag)-_S :-
+    ->	Flag = bad_args.
+format_tilde_N(0'g, N, I, Format, [Arg|Args], Flag)-S :-
+	float(Arg)
+    ->	format_float(N, 0'g, Arg)-S,
+	format(I, Format, Args, Flag)-S.
+format_tilde_N(0'g, _N, _I, _Format, _Args, Flag)-_S :-
+    ->	Flag = bad_args.
+format_tilde_N(0'G, N, I, Format, [Arg|Args], Flag)-S :-
+	float(Arg)
+    ->	format_float(N, 0'G, Arg)-S,
+	format(I, Format, Args, Flag)-S.
+format_tilde_N(0'G, _N, _I, _Format, _Args, Flag)-_S :-
+    ->	Flag = bad_args.
+format_tilde_N(0'd, N, I, Format, [Arg|Args], Flag)-S :-
+	integer(Arg)
+    ->	format_decimal(N, 0'd, Arg)-S,
+	format(I, Format, Args, Flag)-S.
+format_tilde_N(0'd, _N, _I, _Format, _Args, Flag)-_S :-
+    ->	Flag = bad_args.
+format_tilde_N(0'D, N, I, Format, [Arg|Args], Flag)-S :-
+	integer(Arg)
+    ->	format_decimal(N, 0'D, Arg)-S,
+	format(I, Format, Args, Flag)-S.
+format_tilde_N(0'D, _N, _I, _Format, _Args, Flag)-_S :-
+    ->	Flag = bad_args.
+format_tilde_N(0'r, N, I, Format, [Arg|Args], Flag)-S :-
+	integer(Arg)
+    ->	format_radix(N, 0'r, Arg)-S,
+	format(I, Format, Args, Flag)-S.
+format_tilde_N(0'r, _N, _I, _Format, _Args, Flag)-_S :-
+    ->	Flag = bad_args.
+format_tilde_N(0'R, N, I, Format, [Arg|Args], Flag)-S :-
+	integer(Arg)
+    ->	format_radix(N, 0'R, Arg)-S,
+	format(I, Format, Args, Flag)-S.
+format_tilde_N(0'R, _N, _I, _Format, _Args, Flag)-_S :-
+    ->	Flag = bad_args.
+format_tilde_N(0's, N, I, Format, [Arg|Args], Flag)-S :-
+	format_string_1(N, Arg, Cs)
+    ->	format_string_2(Cs)-S,
+	format(I, Format, Args, Flag)-S.
+format_tilde_N(0's, _N, _I, _Format, _Args, Flag)-_S :-
+    ->	Flag = bad_args.
+format_tilde_N(0'n, N, I, Format, Args, Flag)-S :-
+    ->	format_nl(N)-S,
+	format(I, Format, Args, Flag)-S.
+format_tilde_N(_C, _N, _I, _Format, _Args, Flag)-_S :-
+    ->	Flag = bad_format.
+
+format_char(-1, C)-S :-	% default
+    ->	putc(C)@S.	% "
+format_char(0, _C)-_S :-
+    ->	true.
+format_char(N, C)-S :-
+    ->	putc(C)@S,
+	N1 is N-1,
+	format_char(N1, C)-S.
+
+% method_putf_3 handles default
+format_float(Precision, Format, F)-S :-
+    ->	putf(F, Format, Precision)@S.
+
+format_decimal(-1, Format, D)-S :-	% default
+    ->	putd(D, Format, 0)@S.		% "
+format_decimal(Precision, Format, D)-S :-
+    ->	putd(D, Format, Precision)@S.
+
+format_radix(-1, Format, D)-S :-	% default
+    ->	putd(D, Format, 8)@S.		% "
+format_radix(Radix, Format, D)-S :-
+    ->	2 =< Radix, Radix =< 36,
+	putd(D, Format, Radix)@S.
+
+format_nl(-1)-S :-	% default
+    ->	nl-S.		% "
+format_nl(0)-_S :-
+    ->	true.
+format_nl(N)-S :-
+    ->	nl-S,
+	N1 is N-1,
+	format_nl(N1)-S.
+
+format_string_1(-1, Cs0, Cs) :-		% default
+    ->	list_to_length(Cs0, N),		% "
+	format_string_1(N, Cs0, Cs).	% "
+format_string_1(0, _Cs0, Cs) :-
+    ->	Cs = [].
+format_string_1(N, [], Cs) :-
+    ->	format_string_1_1(N, Cs).
+format_string_1(N, [C|Cs0], Cs) :-
+    ->	integer(C),
+	Cs = [C|Cs1],
+	N1 is N-1,
+	format_string_1(N1, Cs0, Cs1).
+
+format_string_1_1(0, Cs) :-
+    ->	Cs = [].
+format_string_1_1(N, Cs) :-
+    ->	Cs = [0' |Cs1],
+	N1 is N-1,
+	format_string_1_1(N1, Cs1).
+
+format_string_2([])-_S :-
+    ->	true.
+format_string_2([C|Cs])-S :-
+    ->	putc(C)@S,
+	format_string_2(Cs)-S.
+
+format_diagnosis(true, _Goal) :-
+    ->	true.
+format_diagnosis(bad_format, Goal) :-
+    ->	domain_error(Goal, 1, 'well-formed format').
+format_diagnosis(bad_args, Goal) :-
+    ->	domain_error(Goal, 2, 'well-formed args').

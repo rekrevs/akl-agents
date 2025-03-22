@@ -1,0 +1,6 @@
+%	gm_start(+,+,-pid,-fileno)	Start ispgm process
+%	gm_endsocket(+pid,+fileno)	Terminate ispgm process
+
+foreign(startsocket, gm_start(+string,+string,-integer,-integer)).
+foreign(endsocket, gm_endsocket(+integer,+integer)).
+

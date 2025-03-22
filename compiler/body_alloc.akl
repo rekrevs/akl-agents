@@ -1,0 +1,485 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%             BODY - REGISTER ALLOCATION PROCESSES
+%%%%
+%%%%             
+%%%%
+%%%%             vvalloc             X=Y unifications
+%%%%
+%%%%             palloc              W push allocation - not X register
+%%%%
+%%%%             ralloc              W push allocation - into X register
+%%%%
+%%%%             post_qalloc         Quiet body init unifications reg
+%%%%             f_post_qalloc
+%%%%
+%%%%             post_alloc          Post complex unifications
+%%%% 
+%%%%             post_alloc          Post complex unifications
+%%%%
+%%%%
+%%%%             vvalloc(Stream,Name,Name2,Code)
+%%%%             palloc(Stream,Name,RW),
+%%%%             ralloc(Stream,Name,RW,Reg),
+%%%%             post_qalloc(Stream,Name,UReg,Pre,Comm)
+%%%%             f_post_qalloc(Stream,Name,Comm,Code)
+%%%%             post_alloc(Stream,Name,XY,Pre)
+%%%%             pre_alloc(Stream,Name,XY,Pre)
+%%%%             
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%   vvalloc 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+vvalloc([init(Out)|In],Name,Name2,Code):-
+   ->
+   Out=[x(Name),x(Name2)|Out1],
+   init_named(In,M1,Name2,p(PosNo,I0,I0)),
+   init_named(M1,Out1,Name,p(Pos,I,O)),
+   PosNo=no,				% debug only
+   handle_w_named(O,Middle,Name,Pos,p(Ass,Ass),shift),
+   handle_w_named(Middle,I,Name2,no,p(Ass1,Out2),no_shift),
+   find_ass(Name,Ass1,Cur1),
+   find_ass(Name2,Ass1,Cur2),
+   Code=[RW1,RW2|RW3],
+   maybe_dump_or_add_y_ass(Cur2,Name2,no,Ass1,Out2,Ass3,Out3,rw(RW1),Cur2_1,no),
+   maybe_dump_or_add_y_ass(Cur1,Name,Pos,Ass3,Out3,Ass4,Out4,rw(RW2),Cur1_1,Want),
+   delete_ass(Name2,Ass4,Ass5),
+   vvalloc_ass(Cur1_1,Cur2_1,Ass5,Out4,Name,Want,RW3).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% vvalloc_ass       
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%   Other XY
+vvalloc_ass(_,xy(_,_),_Ass,_Out,_Name,_Want,_Code):-
+   ->
+   error(vvalloc_ass).
+%%%%   Survivor X Other X
+vvalloc_ass(x(X1),x(X2),Ass,Out,Name,no,Code):-
+   ->
+   get_x_ass(X1,XReg1),
+   get_x_ass(X2,XReg2),
+   Code=match_reg_reg(XReg1,XReg2),
+   free_regs([XReg1,XReg2],Ass,Ass1),
+   delete_x_ass(Name,Ass1,Out).
+vvalloc_ass(x(X1),x(X2),Ass,Out,Name,y,Code):-
+   ->
+   make_new_y_ass(Name,Y,Ass,Out,Ass1,Out1),
+   get_x_ass(X1,XReg1),
+   Code=[set_yvar_reg(XReg1,Y)|Code1],
+   vvalloc_ass(x(X1),x(X2),Ass1,Out1,Name,no,Code1).
+vvalloc_ass(x(X1),x(X2),Ass,Out,Name,Want,Code):-
+   flat_member(Want,[x,xy,x(_),xy(_)])
+   ->
+   get_x_ass(X1,XReg1),
+   get_x_ass(X2,XReg2),
+   Code=[match_reg_reg(XReg1,XReg2)|Code1],
+   ass_choice(Want,x(X1),XReg2,Name,Ass,AssOut,Out,AssOut,What),
+   vvalloc_ass2(What,XReg1,XReg2,Code1).
+%%%%   Survivor Y Other X
+vvalloc_ass(y(Y),x(X),Ass,Out,_Name,Want,Code):-
+   flat_member(Want,[no,y])
+   ->
+   get_x_ass(X,XReg),
+   Code=match_reg_yvar(XReg,Y),
+   free_reg(XReg,Ass,Out).
+vvalloc_ass(y(_),x(_),_Ass,_Out,_Name,Want,_Code):-
+   flat_member(Want,[x,xy])
+   ->
+   not_implemented(vvalloc_ass).
+
+%%%%   Survivor X Other Y
+vvalloc_ass(Cur,y(Y2),Ass,Out,Name,Want,Code):-
+   Cur=x(X)
+   ->
+   get_x_ass(X,XReg),
+   Code=[match_reg_yvar(XReg,Y2)|Code1],
+   maybe_x_move(x(X),Ass,Out,AssOut,AssOut,Name,Want,rw(Code1),_).
+%%%%   Survivor XY Other Y
+vvalloc_ass(xy(X,_),Cur2,Ass,Out,Name,Want,Code):-
+   ->
+   vvalloc_ass(x(X),Cur2,Ass,Out,Name,Want,Code).
+%%%%   Survivor Y Other Y
+vvalloc_ass(y(Y1),Cur2,Ass,Out,Name,Want,Code):-
+   Cur2=y(_),
+   flat_member(Want,[x,xy,xy(_),x(_)])
+   ->
+   det_best_x_place(Name,Want,Ass,Ass1,Out,Out1,Reg),
+   Code=[set_reg_yvar(Y1,Reg)|Code1],
+   find_ass(Name,Ass1,Cur),
+   vvalloc_ass(Cur,Cur2,Ass1,Out1,Name,Want,Code1).
+vvalloc_ass(y(Y1),y(Y2),Ass,Out,_Name,Want,Code):-
+   flat_member(Want,[y,no])
+   ->
+   Code=[match_yvar_yvar(Y1,Y2)],Ass=Out.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+vvalloc_ass2(neither(NReg,Reg,AltReg),Reg,AltReg,Code):-       -> Code=[set_reg_reg(Reg,NReg)].
+vvalloc_ass2_2(old(Reg),Reg,_AltReg,Code):-                     -> Code=[].
+vvalloc_ass2_2(new(AltReg),_Reg,AltReg,Code):-                  -> Code=[].
+vvalloc_ass2_2(add(Reg,AltReg),Reg,AltReg,Code):-              -> Code=[].
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%             palloc
+%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+palloc([init(Out)|In],Name,RW):-
+   ->
+   Out=[x(Name)|Out1],
+   init_named(In,Out1,Name,p(Pos,I,O)),
+   handle_w_named(O,I,Name,Pos,p(Ass,Out2),shift),
+   find_ass(Name,Ass,Cur),
+   RW=[RW1,RW2|RW3],
+   maybe_x_move(Cur,Ass,Ass3,Out2,Out3,Name,Pos,rw(RW1),Cur1),
+   maybe_dump_or_add_y_ass(Cur1,Name,Pos,Ass3,Out3,Ass4,Out4,rw(RW2),Cur2,Want),
+   palloc_ass(Cur2,Ass4,Out4,Name,RW3,Want).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%% no assignment
+palloc_ass(no,Ass,Out,Name,RW,y):-
+   ->
+   Out=[new_y(Name,Y)|Out1],
+   RW=set_yvar_H_and_push_void(Y),
+   new_ass(Name,y(Y),Ass,Out1).
+palloc_ass(no,Ass,Out,Name,RW,Pos):-
+   flat_member(Pos,[x,xy,x(_),xy(_)])
+   ->
+   det_best_x_place(Name,Pos,Ass,AssOut,Out,AssOut,Reg),
+   RW=set_reg_H_and_push_void(Reg).
+
+%%%% Only X assigned
+palloc_ass(x(X),Ass,Out,Name,RW,Want):-
+   flat_member(Want,[no,y])
+   ->
+   get_x_ass(X,XReg),
+   RW=push_reg(XReg),
+   free_reg(XReg,Ass,Ass1),
+   delete_x_ass(Name,Ass1,Out).
+palloc_ass(x(X),Ass,Out,_Name,RW,Want):-
+   flat_member(Want,[x,xy,x(_),xy(_)])
+   ->
+   get_x_ass(X,XReg),
+   RW=push_reg(XReg),
+   Out=Ass.
+
+%%%% Only Y assigned
+palloc_ass(y(Y),Ass,Out,_Name,RW,Pos):-
+   flat_member(Pos,[no,y])
+   ->
+   RW=push_yvar(Y),
+   Ass=Out.
+palloc_ass(y(Y),Ass,Out,Name,RW,Pos):-
+   flat_member(Pos,[x,xy,x(_),xy(_)])
+   ->
+   RW=[set_reg_yvar(Y,Pick),push_reg(Pick)],
+   det_best_x_place(Name,Pos,Ass,AssOut,Out,AssOut,Pick).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%             ralloc
+%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+ralloc([init(Out)|In],Name,RW,Reg):-
+   ->
+   Out=[x(Name,Reg)|Out1],
+   init_named(In,Out1,Name,p(Pos,I,O)),
+   handle_w_named(O,I,Name,Pos,p(Ass2,Out2),shift),
+   find_ass(Name,Ass2,Cur),
+   RW=[RW1|RW2],
+   maybe_dump_or_add_y_ass(Cur,Name,Pos,Ass2,Out2,Ass3,Out3,rw(RW1),Cur1,Want),
+   ralloc_ass(Cur1,Ass3,Out3,Name,RW2,Want,Reg).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% Not assigned
+ralloc_ass(no,Ass,Out,Name,RW,y,Reg):-
+   ->
+   RW=set_reg_and_yvar_H_and_push_void(Reg,Y),
+   new_ass(Name,xy(pos([Reg]),Y),Ass,Ass1),
+   Out=[new_y(Name,Y)|Out1],
+   remove_from_free(Reg,Ass1,Out1).
+ralloc_ass(no,Ass,Out,Name,RW,Pos,Reg):-
+   flat_member(Pos,[x,xy,xy(_),x(_)])
+   ->
+   remove_from_free(Reg,Ass,Ass1),
+   RW=set_reg_H_and_push_void(Reg),
+   new_ass(Name,x(pos([Reg])),Ass1,Out).
+
+%%%% Only X assigned
+
+ralloc_ass(x(pos(XRegs)),Ass,Out,Name,RW,_,Reg):-
+   ->
+   member_flag(Reg,XRegs,Flag),
+   (Flag=yes->
+       RW=[],Ass=Out
+   ;   remove_from_free(Reg,Ass,Out),
+       XRegs=[XReg|_],RW=set_reg_reg(XReg,Reg),
+       new_x_ass(Name,pos([Reg|XRegs]),Ass,Out)).
+ralloc_ass(x(X),Ass,Out,Name,RW,_,Reg):-
+   ->
+   get_x_ass(X,XReg),
+   RW=set_reg_reg(XReg,Reg),
+   free_reg(XReg,Ass,Ass1),
+   change_x_ass(Name,pos([Reg]),Ass1,Out).
+
+%%%  Only Y assigned
+
+ralloc_ass(y(Y),Ass,Out,Name,RW,_Pos,Reg):-
+   ->
+   RW=set_reg_yvar(Y,Reg),
+   remove_from_free(Reg,Ass,Ass1),
+   new_x_ass(Name,pos([Reg]),Ass1,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%              post_qalloc
+%%%%
+%%%%     
+%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+post_qalloc([init(Out)|In],Name,Off,Kind,Code,Post,Comm):-
+   ->
+   Out=[x(Name)|Out1],
+   init_named(In,Out1,Name,p(Pos,I,O)),
+   add_x_to_pos(Pos,Pos1),
+   handle_w_named(O,I,Name,Pos1,p(Ass,Out2),shift(Id)),
+   find_ass(Name,Ass,Cur),
+   Comm=[id(Id)|Comm1],
+   Code=[Code1|Code2],
+   maybe_dump_y_ass(Pos,Name,Cur,Ass,Comm1,Ass2,Comm2),
+   maybe_shift_split(Cur,Ass2,Ass3,Out2,Out3,Id,Name,Pos,Code1,Cur1),
+   post_qalloc_ass(Cur1,Ass3,Out3,Name,Off,Kind,Code2,Post,Comm2,Pos).
+
+p_q_match(Reg,list,Off,Post):-   -> Post=match_reg_H_list(Reg,Off).
+p_q_match(Reg,struct,Off,Post):- -> Post=match_reg_H_struct(Reg,Off).
+
+p_q_match_y(YReg,list,Off,Post):-   -> Post=match_yvar_H_list(YReg,Off).
+p_q_match_y(YReg,struct,Off,Post):- -> Post=match_yvar_H_struct(YReg,Off).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Want= x(Pos),xy(Pos)
+post_qalloc_ass(Cur,Ass,Out,_Name,Off,Kind,Code,Post,Comm,Want):-
+   flat_member(Want,[x(Pos),xy(Pos)]),
+   flat_member(Cur,[x(CPos),xy(CPos)])
+   ->
+   CPos=[Reg|_],Code=[],Comm=[],Ass=Out,
+   p_q_match(Reg,Kind,Off,Post).
+post_qalloc_ass(Cur,Ass,Out,Name,Off,Kind,Code,Post,Comm,Want):-
+   flat_member(Cur,[x(X),xy(X,_)]),
+   flat_member(Want,[x(Pos),xy(Pos)])
+   ->
+   get_x_ass(X,Reg),
+   p_q_match(Reg,Kind,Off,Post),
+   match(Ass,Pos,Ass1,Match),
+   post_qalloc_match(Match,Cur,Ass1,Out,Name,Code,Comm,Pos).
+post_qalloc_ass(y(Y),Ass,Out,Name,Off,Kind,Code,Post,Comm,Want):-
+   flat_member(Want,[x(Pos),xy(Pos)])
+   ->
+   p_q_match_y(Y,Kind,Off,Post),
+   match(Ass,Pos,Ass1,Match),
+   post_qalloc_match_y(Match,Ass1,Out,Name,Code,Comm,Pos).
+
+% Want= x,xy
+post_qalloc_ass(Cur,Ass,Out,_Name,Off,Kind,Code,Post,Comm,Want):-
+   flat_member(Want,[x,xy]),
+   flat_member(Cur,[x(opt(XReg)),xy(opt(XReg),_)])
+   ->
+   Code=[],Comm=[],Ass=Out,
+   p_q_match(XReg,Kind,Off,Post).
+post_qalloc_ass(Cur,Ass,Out,Name,Off,Kind,Code,Post,Comm,Want):-
+   flat_member(Want,[x,xy]),
+   flat_member(Cur,[x(badx(XReg)),xy(badx(XReg),_)])
+   ->
+   Out=[w(last(Name),Mask)|Out1],
+   Code=set_reg_H(Pick),Comm=[change_x_ass(Name,opt(Pick)),free(XReg)],Ass=Out,
+   p_q_match(XReg,Kind,Off,Post),
+   pick(Mask,Ass,Out1,Pick).
+post_qalloc_ass(y(Y),Ass,Out,Name,Off,Kind,Code,Post,Comm,Want):-
+   flat_member(Want,[x,xy])
+   ->
+   Out=[new_y(Name,Y),w(last(Name),Mask)|Out1],Code=set_reg_H(Pick),Comm=[change_x_ass(Name,opt(Pick))],
+   p_q_match_y(Y,Kind,Off,Post),
+   pick(Mask,Ass,Out1,Pick).
+
+
+% Want= y
+post_qalloc_ass(x(opt(XReg)),Ass,Out,Name,Off,Kind,Code,Post,Comm,y):-
+   ->
+   Code=set_yvar_H(Y),Comm=[free(XReg)],
+   p_q_match(XReg,Kind,Off,Post),
+   delete_x_ass(Name,Ass,Ass1),
+   Out=[new_y(Name,Y)|Out1],
+   new_y_ass(Name,Y,Ass1,Out1).
+post_qalloc_ass(y(Y),Ass,Out,_Name,Off,Kind,Code,Post,Comm,y):-
+   ->
+   Comm=[],Code=[],Ass=Out,
+   p_q_match_y(Y,Kind,Off,Post).
+   
+% Want= no
+post_qalloc_ass(x(opt(XReg)),Ass,Out,Name,Off,Kind,Code,Post,Comm,no):-
+   ->
+   Code=[],Comm=[free(XReg)],
+   p_q_match(XReg,Kind,Off,Post),
+   delete_ass(Name,Ass,Out).
+post_qalloc_ass(y(Y),Ass,Out,Name,Off,Kind,Code,Post,Comm,no):-
+   ->
+   Code=[],Comm=[],
+   p_q_match_y(Y,Kind,Off,Post),
+   delete_ass(Name,Ass,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+post_qalloc_match(no,Cur,Ass,Out,_Name,Code,Comm,_):-
+   flat_member(Cur,[x(non(_)),xy(non(_),_)])
+   ->
+   Comm=[],Code=[],Ass=Out.
+post_qalloc_match(no,Cur,Ass,Out,Name,Code,Comm,Pos):-
+   flat_member(Cur,[x(bad(Reg)),xy(bad(Reg),_)])
+   ->
+   Code=set_reg_H(Pick),
+   Out=[w(free(Pos,Name),Mask)|Out1],
+   Comm=[change_x_ass(Name,non(Pick)),free(Reg)],
+   pick(Mask,Ass,Out1,Pick).
+post_qalloc_match(Match,Cur,Ass,Out,Name,Code,Comm,_):-
+   integer(Match)
+   ->
+   get_x_ass(Cur,Reg),
+   Code=set_reg_H(Match),
+   Comm=[change_x_ass(Name,pos([Match])),free(Reg)],
+   Ass=Out.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+post_qalloc_match_y(no,Ass,Out,Name,Code,Comm,Pos):-
+   ->
+   Code=set_reg_H(Pick),Out=[w(free(Pos,Name),Mask)|Out1],
+   Comm=[new_x_ass(Name,non(Pick))],
+   pick(Mask,Ass,Out1,Pick).
+post_qalloc_match_y(Match,Ass,Out,Name,Code,Comm,_):-
+   ->
+   Code=set_reg_H(Match),Comm=[change_x_ass(Name,pos([Match]))],Ass=Out.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%              f_post_qalloc
+%%%%
+%%%%     
+%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+f_post_qalloc([init(Out)|In],Name,Comm,Code):-
+   ->
+   id_grabber(In,Middle,Id),
+   Comm=[id(Id)|Comm1],
+   init_named_x_only(Middle,Out,Name,p(Pos,I,O)),
+   handle_id(O,Middle2,Id,p(X,X)),
+   handle_w_named(Middle2,I,Name,Pos,p(Ass,Out1),no_shift),
+   alloc_deal_with_comm(Comm1,Out1,Ass,Code).  
+
+%%% ERROR
+
+c_write_stream(Y,[Msg|_]):- Msg=end(_,_,_) -> write(stream(Y,Msg)),nl.
+c_write_stream(Y,[Msg|Msgs]):-  -> write(stream(Y,Msg)),nl,c_write_stream(Y,Msgs).
+c_write_stream(Y,X):-           -> write(stream_end(Y,X)),nl.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%              post_alloc
+%%%%
+%%%%     
+%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+post_alloc([init(Out)|In],Name,XY,Pre):-
+   ->
+   Out=[x(Name)|Out1],
+   init_named(In,Out1,Name,p(Pos,I,O)),
+   handle_w_named(O,I,Name,Pos,p(Ass,Out2),shift),
+   find_ass(Name,Ass,Cur),
+   Pre=[Pre1,Pre2|Pre3],
+   maybe_x_move(Cur,Ass,Ass3,Out2,Out3,Name,Pos,rw(Pre1),Cur1),
+   maybe_dump_or_add_y_ass(Cur1,Name,Pos,Ass3,Out3,Ass4,Out4,rw(Pre2),Cur2,Want),
+   post_alloc_ass(Cur2,Ass4,Out4,Name,Want,XY,Pre3).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%% Only X ass
+post_alloc_ass(x(X),Ass,Out,Name,Want,XY,Pre):-
+   flat_member(Want,[no,y])
+   ->
+   get_x_ass(X,XReg),XY=x(XReg),
+   Pre=[],
+   free_reg(XReg,Ass,Ass1),
+   delete_x_ass(Name,Ass1,Out).
+post_alloc_ass(x(X),Ass,Out,_Name,Want,XY,Pre):-
+   flat_member(Want,[x,xy,xy(_),x(_)])
+   ->
+   Ass=Out,get_x_ass(X,XReg),XY=x(XReg),Pre=[].
+
+%%% Only Y ass
+post_alloc_ass(y(Y),Ass,Out,_Name,Want,XY,Pre):-
+   flat_member(Want,[y,no])
+   ->
+   XY=y(Y),Pre=[],Ass=Out.
+post_alloc_ass(y(Y),Ass,Out,Name,Want,XY,Pre):-
+   flat_member(Want,[xy,x,x(_),xy(_)])
+   ->
+   XY=x(Pick),Pre=set_reg_yvar(Y,Pick),
+   det_best_x_place(Name,Want,Ass,AssOut,Out,AssOut,Pick).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%              pre_alloc
+%%%%
+%%%%     
+%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+pre_alloc([init(Out)|In],Name,Code):-
+   ->
+   Out=[x(Name)|Out1],
+   init_named(In,Out1,Name,p(Pos,I,O)),
+   handle_w_named(O,I,Name,Pos,p(Ass,Out2),shift),
+   find_ass(Name,Ass,Cur),
+   check_no(Cur),				% DEBUG
+   pre_alloc_ass(Ass,Out2,Name,Pos,Code).
+
+check_no(no):- -> true.
+check_no(X):-  -> error(check_no(X)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% pre_alloc_ass
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+pre_alloc_ass(_Ass,_Out,_Name,no,_Code):-
+   ->error(pre_alloc_ass).
+pre_alloc_ass(Ass,Out,Name,y,Code):-
+   ->
+   Code=set_yvar_H(Y),
+   make_new_y_ass(Name,Y,Ass,Out,AssOut,AssOut).
+pre_alloc_ass(Ass,Out,Name,Pos,Code):-
+   flat_member(Pos,[x,xy,xy(_),x(_)])
+   ->
+   Code=set_reg_H(Pick),   
+   det_best_x_place(Name,Pos,Ass,AssOut,Out,AssOut,Pick).
+
+

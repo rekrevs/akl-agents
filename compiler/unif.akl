@@ -1,0 +1,671 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%          R/W Unification 
+%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%        amalgamations
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%         complex constraint amalgamation
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+amalgamate_complex(Args,[],NArgs):- -> Args=NArgs.
+amalgamate_complex(Args,[eq(Name1,Name2)|CUC],NArgs):-
+   preferred_amal(Name1,Name2,Rem,Rep)
+   ->
+   replace(Rep,Rem,Args,Args1),
+   amalgamate_complex(Args1,CUC,NArgs).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+preferred_amal(Name1,Name2,Rem,Rep):- 
+   Name1=var(art(_)) ->
+   Rem=Name2,Rep=Name1.
+preferred_amal(Name1,Name2,Rem,Rep):- 
+   Name2=var(art(_)) ->
+   Rem=Name1,Rep=Name2.
+preferred_amal(Name1,Name2,_,_):- 
+   ->
+   error(preferred_amal(Name1,Name2)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%            Head arg unifications
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%
+%%%       compile_freeing_args(ArgList,ArgNumber,-RestArgs,-Free,Code)
+%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+compile_freeing_args([],_Ct,RestArgs,Free,Code):-
+   ->
+   Free=[],
+   RestArgs=[],
+   Code=[].
+compile_freeing_args([atom(Atom)|Args],Ct,RestArgs,Free,Code):- 
+   ->
+   Free=[Ct|MoreFree],
+   Code=[match_reg_atom(Ct,Atom)|Code1],
+   inc(Ct,Ct1),
+   compile_freeing_args(Args,Ct1,RestArgs,MoreFree,Code1).
+compile_freeing_args([integer(I)|Args],Ct,RestArgs,Free,Code):-	  
+   ->
+   Code=[match_reg_integer(Ct,I)|Code1],
+   Free=[Ct|MoreFree],
+   inc(Ct,Ct1),
+   compile_freeing_args(Args,Ct1,RestArgs,MoreFree,Code1).
+compile_freeing_args([nil|Args],Ct,RestArgs,Free,Code):-	    
+   ->
+   Free=[Ct|MoreFree],
+   Code=[match_reg_nil(Ct)|Code1],
+   inc(Ct,Ct1),
+   compile_freeing_args(Args,Ct1,RestArgs,MoreFree,Code1).
+compile_freeing_args([unnamed|Args],Ct,RestArgs,Free,Code):-	   
+   ->
+   Free=[Ct|MoreFree],
+   inc(Ct,Ct1),
+   compile_freeing_args(Args,Ct1,RestArgs,MoreFree,Code).
+compile_freeing_args([Arg|Args],Ct,RestArgs,Free,Code):-
+   ->
+   RestArgs=[(Ct,Arg)|R],			  
+   inc(Ct,Ct1),
+   compile_freeing_args(Args,Ct1,R,Free,Code).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%    compile_var_args
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+compile_var_args([],CodeM,Rest):- -> Rest=[],CodeM=[].
+compile_var_args([(Ct,var(Name))|Args],CodeM,Rest):-
+   ->
+   halloc(P,Answer,Ct,_,Name,Comm),
+   f_halloc(P2,Name,Ct,Comm,rw(RW)),
+   CodeM=[process(P,Answer),process(P2,RW)|CodeM1],
+   compile_var_args(Args,CodeM1,Rest).
+compile_var_args([Else|Args],CodeM,Rest):-
+   ->
+   Rest=[Else|Rest1],
+   compile_var_args(Args,CodeM,Rest1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%          Take care of other arguments
+%%%   compile_complex_args(+ArgList,-Code,)
+%%%          where ArgList is list of arguments sorted by reg use after
+%%%                complete compilation
+%%%   Cases: 1) No more args
+%%%          2) Next arg is list
+%%%          3) Next arg is var constrained to list
+%%%          4) Next arg is structure
+%%%          5) Next arg is var constrained to structure
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+compile_complex_args([],CodeM,CodeS):-
+   ->
+   CodeM=[],CodeS=[].
+compile_complex_args([(Ct,list(Head,Tail))|Args],CodeM,CodeS):-
+   ->
+   f_alloc(P,Ct,R,W),
+   find_pos_two(Head,Tail,Deepest),
+   CodeM=[CodeM1|CodeM2],
+   CodeS=[CodeS1|CodeS2],
+   rw_reg_cont_list(Deepest,Head,Tail,0,0,x(Ct),process(P,R),W,CodeM1,CodeS1),
+   compile_complex_args(Args,CodeM2,CodeS2).
+compile_complex_args([(Ct,var_simple(Name,Cons))|Args],CodeM,CodeS):-
+   Cons=list(Head,Tail)
+   ->						
+   halloc(P,Answer,Ct,Ct1,Name,Comm),
+   f_halloc(P2,Name,Ct,Comm,rw(R,W)),
+   CodeM=[process(P,Answer),CodeM1|CodeM2],
+   CodeS=[CodeS1|CodeS2],   
+   find_pos_two(Head,Tail,Deepest),
+   rw_reg_cont_list(Deepest,Head,Tail,0,0,x(Ct1),process(P2,R),W,CodeM1,CodeS1),
+   compile_complex_args(Args,CodeM2,CodeS2).
+compile_complex_args([(Ct,struct(F,A,FArgs))|Args],CodeM,CodeS):-
+   ->
+   f_alloc(P,Ct,R,W),
+   CodeM=[CodeM1|CodeM2],
+   CodeS=[CodeS1|CodeS2],
+   find_best_pos(FArgs,DId,Deep,Before,After),
+   rw_reg_cont_struct(DId,F,A,Deep,Before,After,0,0,x(Ct),process(P,R),W,CodeM1,CodeS1),
+   compile_complex_args(Args,CodeM2,CodeS2).
+compile_complex_args([(Ct,var_simple(Name,Cons))|Args],CodeM,CodeS):-
+   Cons=struct(F,A,FArgs)
+   ->						
+   halloc(P,Answer,Ct,Ct1,Name,Comm),
+   f_halloc(P2,Name,Ct,Comm,rw(R,W)),
+   CodeM=[process(P,Answer),CodeM1|CodeM2],
+   CodeS=[CodeS1|CodeS2],
+   find_best_pos(FArgs,DeepId,Deep,Before,After),
+   rw_reg_cont_struct(DeepId,F,A,Deep,Before,After,0,0,x(Ct1),process(P2,R),W,CodeM1,CodeS1),
+   compile_complex_args(Args,CodeM2,CodeS2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%                   Read/Write compilation predicates     
+%%% 
+%%%      rw_reg_cont_list
+%%%      rw_reg_cont_struct
+%%%      rw_simple_reg
+%%%      rw_simple_reg_off
+%%%      rpw_reg(Arg,NoC,Reg,Level,ReadIns,Read,Push,Write):-
+%%%      rpw_struct_off(Args,Off,Reg,NoCells,Level,Read,Push,Write)
+%%%      rw_reg(Arg,Reg,Level,Insert,Read,Write)
+%%%      rw_reg_off(Arg,Off,Reg,Level,Read,Write)
+%%%      rpw_reg_off(Arg,NoC,Off,Reg,Level,Read,Push,Write)
+%%%        
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%    rw_reg_cont_list
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+rw_reg_cont_list(2,Head,Tail,Level,Off,Reg,ReadIns,WriteIns,Read,Write):-
+   ->						  
+   Read=[P,sub(Instr),ReadIns,Read1,Read2,JRead],
+   Write=[label(Label1),WriteIns,Push1,InsertP,PushWrite,Write2,JWrite],
+   maybe_jump(Level,JRead,JWrite),
+   is_deep(Head,HFlag),
+   match_reg_list(HFlag,cdr,Off,Reg,l(Label1),Level,UReg,Instr),
+   inc(Level,Level1),
+   alloc_or_temp(P,Tail,UReg,InsertR,InsertP),
+   count_pushes([InsertP,PushWrite],NC_Head),
+   rpw_reg_off(Head,NC_Head,-1,UReg,Level1,Read1,Push1,Write2),
+   rw_reg(Tail,UReg,Level,InsertR,Read2,PushWrite).
+rw_reg_cont_list(1,Head,Tail,Off,Level,Reg,ReadIns,WriteIns,Read,Write):-
+   ->						
+   Read=[P,sub(Instr),ReadIns,Read1,Read2,JRead],
+   Write=[label(Label1),WriteIns,InsertP,Push1,PushWrite,Write2,JWrite],
+   maybe_jump(Level,JRead,JWrite),
+   is_deep(Tail,TFlag),
+   match_reg_list(TFlag,car,Off,Reg,l(Label1),Level,UReg,Instr),
+   inc(Level,Level1),
+   count_pushes(PushWrite,NC),
+   alloc_or_temp(P,Head,UReg,InsertR,InsertP),
+   rw_reg_off(Tail,1,UReg,Level1,Read1,PushWrite),
+   rpw_reg(Head,NC,UReg,Level,InsertR,Read2,Push1,Write2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%    rw_reg_cont_struct
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+rw_reg_cont_struct(A,F,A,Deepest,Before,[],Level,Off,Reg,ReadIns,WriteIns,Read,Write):-
+   ->
+   Read=[P,sub(Instr),ReadIns,Read1,Read2,JRead],
+   Write=[label(Label1),WriteIns,Push1,InsertP,PushWrite,Write1,JWrite],
+   maybe_jump(Level,JRead,JWrite),
+   is_deep_list(Before,BFlag),
+   inc(Level,Level1),
+   match_reg_struct(BFlag,Off,Reg,F,A,l(Label1),Level,A,UReg,Instr),
+   alloc_or_temp(P,Deepest,UReg,InsertR,InsertP),
+   dec(A,Off1),
+   count_pushes([InsertP,PushWrite],NC_Before),
+   rpw_struct_off(Before,Off1,UReg,NC_Before,Level1,Read1,Push1,Write1),
+   rw_reg(Deepest,UReg,Level,InsertR,Read2,PushWrite).
+rw_reg_cont_struct(N,F,A,Deepest,Before,After,Level,Off,Reg,ReadIns,WriteIns,Read,Write):-
+   ->
+   Read=[P,sub(Instr),ReadIns,Read1,Read2,Read3,JRead],
+   Write=[label(Label1),WriteIns,Push1,InsertP,Push2,Push3,Write1,Write2,Write3,JWrite],
+   maybe_jump(Level,JRead,JWrite),
+   is_deep_list(Before,BFlag),
+   is_deep_list(After,AFlag),
+   inc(Level,Level1),
+   match_reg_struct(p(BFlag,AFlag),Off,Reg,F,A,l(Label1),Level,N,UReg,Instr),
+   alloc_or_temp(P,Deepest,UReg,InsertR,InsertP),
+   count_pushes(Write1,NC_After),
+   count_pushes([Push3,Write1,Write2],NC_Deep),
+   dec(N,Off1),
+   inc(N,Off2),
+   rpw_struct_off(Before,Off1,UReg,0,Level1,Read1,Push1,Write1),
+   rpw_struct_off(After,Off2,UReg,NC_After,Level1,Read2,Push3,Write2),
+   rpw_reg(Deepest,NC_Deep,UReg,Level,InsertR,Read3,Push2,Write3).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%  rw_simple_reg
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+   
+rw_simple_reg(atom(A),Reg,Read,Write):-
+   ->Read=match_reg_atom(Reg,A),Write=push_atom(A).
+rw_simple_reg(integer(I),Reg,Read,Write):-
+   ->Read=match_reg_integer(Reg,I),Write=push_integer(I).
+rw_simple_reg(nil,Reg,Read,Write):-
+   ->Read=match_reg_nil(Reg),Write=push_nil.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%  rw_simple_reg_off
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+   
+rw_simple_reg_off(atom(A),Off,Reg,Read,Write):-
+   ->Read=match_reg_off_atom(Reg,Off,A),Write=push_atom(A).
+rw_simple_reg_off(integer(I),Off,Reg,Read,Write):-
+   ->Read=match_reg_off_integer(Reg,Off,I),Write=push_integer(I).
+rw_simple_reg_off(nil,Off,Reg,Read,Write):-
+   ->Read=match_reg_off_nil(Reg,Off),Write=push_nil.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%    rpw_reg(Arg,NoC,Reg,Level,Insert,Read,Push,Write)
+%%%         Ins = process freeing Reg that may insert code
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+rpw_reg(var_simple(_Name,Whatever),NoC,Reg,Level,Ins,Read,Push,Write):-
+   ->
+   rpw_reg(Whatever,NoC,Reg,Level,Ins,Read,Push,Write).
+rpw_reg(struct(F,A,Args),NoC,Reg,Level,Ins,Read,Push,Write):-
+   ->
+   inc(NoC,NoC1),
+   Push=push_structure(NoC1),
+   find_best_pos(Args,DId,D,Bef,Aft),
+   Write=[push_functor(F,A)|Write1],
+   rw_reg_cont_struct(DId,F,A,D,Bef,Aft,Level,x(Reg),Ins,[],Read,Write1).
+rpw_reg(list(Head,Tail),NoCells,Reg,Level,Ins,Read,Push,Write):-
+   ->
+   inc(NoCells,NoCells1),
+   Push=push_list(NoCells1),
+   find_pos_two(Head,Tail,Deepest),
+   rw_reg_cont_list(Deepest,Head,Tail,Level,x(Reg),Ins,[],Read,Write).
+rpw_reg(unnamed,_NoC,_Reg,_Level,Ins,Read,Push,Write):-
+   ->
+   Write=[],
+   Read=Ins,
+   Push=push_void.
+rpw_reg(var(_),_NoC,_Reg,_Level,Ins,Read,Push,Write):-
+   ->
+   Write=[],Read=Ins,Push=[].
+rpw_reg(Else,_NoC,Reg,_Level,Ins,Read,Push,Write):-
+   ->
+   Write=[],
+   Read=[Ins|Read1],
+   rw_simple_reg(Else,Reg,Read1,Push).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%    rpw_reg_off(Arg,NoC,Off,Reg,Level,Read,Push,Write)
+%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+rpw_reg_off(var_simple(Name,Whatever),NoC,Off,Reg,Level,Read,Push,Write):-
+   ->
+   Read=[process(P,Read1)|Read2],
+   Push=[Push1|Push2],
+   salloc(P,Read1,Push1,Off,Reg,Name,deep),
+   rpw_reg_off(Whatever,NoC,Off,Reg,Level,Read2,Push2,Write).
+rpw_reg_off(struct(F,A,Args),NoC,Off,Reg,Level,Read,Push,Write):-
+   ->
+   inc(NoC,NoC1),
+   Push=push_structure(NoC1),
+   find_best_pos(Args,DId,D,Bef,Aft),
+   Write=[push_functor(F,A)|Write1],
+   rw_reg_cont_struct(DId,F,A,D,Bef,Aft,Level,Off,x(Reg),[],[],Read,Write1).
+rpw_reg_off(list(Head,Tail),NoCells,Off,Reg,Level,Read,Push,Write):-
+   ->
+   inc(NoCells,NoCells1),
+   Push=push_list(NoCells1),
+   find_pos_two(Head,Tail,Deepest),
+   rw_reg_cont_list(Deepest,Head,Tail,Level,Off,x(Reg),[],[],Read,Write).
+rpw_reg_off(unnamed,_NoC,_Off,_Reg,_Level,Read,Push,Write):-
+   ->
+   Push=push_void,
+   Write=[],
+   Read=[].
+rpw_reg_off(var(Name),_NoC,Off,Reg,_Level,Read,Push,Write):-
+   ->
+   Read=process(P,Read1),
+   Write=[],
+   salloc(P,Read1,Push,Off,Reg,Name,shallow).
+rpw_reg_off(Else,_NoC,Off,Reg,_Level,Read,Push,Write):-
+   ->
+   Write=[],
+   rw_simple_reg_off(Else,Off,Reg,Read,Push).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%    rw_reg(Arg,Reg,Level,Insert,Read,Write)
+%%%         Insert = process freeing Reg that may insert code
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+rw_reg(var_simple(_Name,Whatever),Reg,Ins,Level,Read,Write):-
+   ->
+   rw_reg(Whatever,Reg,Level,Ins,Read,Write).
+rw_reg(struct(F,A,Args),Reg,Level,Ins,Read,Write):-
+   ->
+   find_best_pos(Args,DId,D,Bef,Aft),
+   Write=[push_structure_imm,push_functor(F,A)|Write1],
+   rw_reg_cont_struct(DId,F,A,D,Bef,Aft,Level,x(Reg),Ins,[],Read,Write1).
+rw_reg(list(Head,Tail),Reg,Level,Ins,Read,Write):-
+   ->
+   find_pos_two(Head,Tail,Deepest),
+   Write=[push_list_imm|Write1],
+   rw_reg_cont_list(Deepest,Head,Tail,Level,x(Reg),Ins,[],Read,Write1).
+rw_reg(unnamed,_Reg,_Level,Ins,Read,Write):-
+   ->
+   Read=Ins,
+   Write=push_void.
+rw_reg(var(_),_Reg,_Level,Ins,Read,Write):-
+   ->
+   Read=Ins,
+   Write=[].
+rw_reg(Else,Reg,_Level,Ins,Read,Write):-
+   ->
+   Read=[Ins|Read1],
+   rw_simple_reg(Else,Reg,Read1,Write).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%    rw_reg_off(Arg,Off,Reg,Level,Read,Write)
+%%%        
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+rw_reg_off(var_simple(Name,Whatever),Off,Reg,Level,Read,Write):-
+   ->
+   Read=[process(P,Read1)|Read2],
+   Write=[Write1|Write2],
+   salloc(P,Read1,Write1,Off,Reg,Name,deep),
+   rw_reg_off(Whatever,Off,Reg,Level,Read2,Write2).
+rw_reg_off(struct(F,A,Args),Off,Reg,Level,Read,Write):-
+   ->
+   find_best_pos(Args,DId,D,Bef,Aft),
+   Write=[push_structure_imm,push_functor(F,A)|Write1],
+   rw_reg_cont_struct(DId,F,A,D,Bef,Aft,Level,Off,x(Reg),[],[],Read,Write1).
+rw_reg_off(list(Head,Tail),Off,Reg,Level,Read,Write):-
+   ->
+   find_pos_two(Head,Tail,Deepest),
+   rw_reg_cont_list(Deepest,Head,Tail,Level,Off,x(Reg),[],[],Read,Write).
+rw_reg_off(unnamed,_Off,_Reg,_Level,Read,Write):-
+   ->
+   Read=[],
+   Write=push_void.
+rw_reg_off(var(Name),Off,Reg,_Level,Read,Write):-
+   ->
+   Read=process(P,Read1),
+   salloc(P,Read1,Write,Off,Reg,Name,shallow).
+rw_reg_off(Else,Off,Reg,_Level,Read,Write):-
+   ->
+   rw_simple_reg_off(Else,Off,Reg,Read,Write).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%    rpw_struct_off(Args,Off,Reg,NoCells,Level,Read,Push,Write)
+%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+rpw_struct_off([],_,_,_,_,Read,Push,Write):-
+   ->Read=[],Push=[],Write=[].
+rpw_struct_off([Arg|Args],Off,Reg,NoCells,Level,Read,Push,Write):-
+   ->
+   Read=[Read1|Read2],
+   Push=[Push1|Push2],
+   Write=[Write1|Write2],
+   inc(Off,Off1),
+   count_pushes(Push2,NoPush2),
+   add(NoCells,NoPush2,NoCells1),
+   rpw_reg_off(Arg,NoCells1,Off,Reg,Level,Read1,Push1,Write1),
+   count_pushes(Write1,NCW),
+   add(NoCells,NCW,NoCellsCon),
+   rpw_struct_off(Args,Off1,Reg,NoCellsCon,Level,Read2,Push2,Write2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%        Help Read/Write
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%
+%%%    match_reg_list(Deep,CarCdr,Offset,Reg,Label,Level,NextReg,Instr)
+%%%                      
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+match_reg_list(no,cdr,0,x(Reg),Label,_Level,NextReg,Instr):-
+  ->Instr=match_reg_list_cdr(Reg,Label,NextReg).
+match_reg_list(yes,cdr,0,x(Reg),Label,Level,NextReg,Instr):-
+  ->Instr=match_reg_list_cdr_level(Reg,Label,Level,NextReg).
+match_reg_list(no,cdr,Off,x(Reg),Label,_Level,NextReg,Instr):-
+  ->Instr=match_reg_off_list_cdr(Reg,Off,Label,NextReg).
+match_reg_list(yes,cdr,Off,x(Reg),Label,Level,NextReg,Instr):-
+  ->Instr=match_reg_off_list_cdr_level(Reg,Off,Label,Level,NextReg).
+match_reg_list(no,car,0,x(Reg),Label,_Level,NextReg,Instr):-
+  ->Instr=match_reg_list_car(Reg,Label,NextReg).
+match_reg_list(yes,car,0,x(Reg),Label,Level,NextReg,Instr):-
+  ->Instr=match_reg_list_car_level(Reg,Label,Level,NextReg).
+match_reg_list(no,car,Off,x(Reg),Label,_Level,NextReg,Instr):-
+  ->Instr=match_reg_off_list_car(Reg,Off,Label,NextReg).
+match_reg_list(yes,car,Off,x(Reg),Label,Level,NextReg,Instr):-
+  ->Instr=match_reg_off_list_car_level(Reg,Off,Label,Level,NextReg).
+
+% y
+match_reg_list(no,cdr,0,y(Reg),Label,_Level,NextReg,Instr):-
+  ->Instr=match_yvar_list_cdr(Reg,Label,NextReg).
+match_reg_list(yes,cdr,0,y(Reg),Label,Level,NextReg,Instr):-
+  ->Instr=match_yvar_list_cdr_level(Reg,Label,Level,NextReg).
+match_reg_list(no,cdr,Off,y(Reg),Label,_Level,NextReg,Instr):-
+  ->Instr=match_yvar_off_list_cdr(Reg,Off,Label,NextReg).
+match_reg_list(yes,cdr,Off,y(Reg),Label,Level,NextReg,Instr):-
+  ->Instr=match_yvar_off_list_cdr_level(Reg,Off,Label,Level,NextReg).
+match_reg_list(no,car,0,y(Reg),Label,_Level,NextReg,Instr):-
+  ->Instr=match_yvar_list_car(Reg,Label,NextReg).
+match_reg_list(yes,car,0,y(Reg),Label,Level,NextReg,Instr):-
+  ->Instr=match_yvar_list_car_level(Reg,Label,Level,NextReg).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%    match_reg_struct(Deep,CarCdr,Offset,Reg,Label,Level,NextReg,Instr)
+%%%                      
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+match_reg_struct(no,0,x(Reg),F,A,Label,_Level,NextOff,NextReg,Instr):-
+  ->Instr=match_reg_struct(Reg,F,A,Label,NextOff,NextReg).
+match_reg_struct(yes,0,x(Reg),F,A,Label,Level,NextOff,NextReg,Instr):-
+  ->Instr=match_reg_struct_level(Reg,F,A,Label,Level,NextOff,NextReg).
+match_reg_struct(no,Off,x(Reg),F,A,Label,_Level,NextOff,NextReg,Instr):-
+  ->Instr=match_reg_off_struct(Reg,Off,F,A,Label,NextOff,NextReg).
+match_reg_struct(yes,Off,x(Reg),F,A,Label,Level,NextOff,NextReg,Instr):-
+  ->Instr=match_reg_off_struct_level(Reg,Off,F,A,Label,Level,NextOff,NextReg).
+
+match_reg_struct(p(no,no),0,x(Reg),F,A,Label,_Level,NextOff,NextReg,Instr):-
+  ->Instr=match_reg_struct(Reg,F,A,Label,NextOff,NextReg).
+match_reg_struct(p(_,_),0,x(Reg),F,A,Label,Level,NextOff,NextReg,Instr):-
+  ->Instr=match_reg_struct_level(Reg,F,A,Label,Level,NextOff,NextReg).
+match_reg_struct(p(no,no),Off,x(Reg),F,A,Label,_Level,NextOff,NextReg,Instr):-
+  ->Instr=match_reg_off_struct(Reg,Off,F,A,Label,NextOff,NextReg).
+match_reg_struct(p(_,_),Off,x(Reg),F,A,Label,Level,NextOff,NextReg,Instr):-
+  ->Instr=match_reg_off_struct_level(Reg,Off,F,A,Label,Level,NextOff,NextReg).
+
+% y
+match_reg_struct(no,0,y(Reg),F,A,Label,_Level,NextOff,NextReg,Instr):-
+  ->Instr=match_yvar_struct(Reg,F,A,Label,NextOff,NextReg).
+match_reg_struct(yes,0,y(Reg),F,A,Label,Level,NextOff,NextReg,Instr):-
+  ->Instr=match_yvar_struct_level(Reg,F,A,Label,Level,NextOff,NextReg).
+
+match_reg_struct(p(no,no),0,y(Reg),F,A,Label,_Level,NextOff,NextReg,Instr):-
+  ->Instr=match_yvar_struct(Reg,F,A,Label,NextOff,NextReg).
+match_reg_struct(p(_,_),0,y(Reg),F,A,Label,Level,NextOff,NextReg,Instr):-
+  ->Instr=match_yvar_struct_level(Reg,F,A,Label,Level,NextOff,NextReg).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%       alloc_or_temp(P,Arg,UReg,InsertR,InsertP,InsertW,NC)
+%%%%            P is register allocation process
+%%%%            Arg is argument
+%%%%            UReg is register assignment
+%%%%            InsertR is freeing register allocation process
+%%%%            InsertP is the push stream
+%%%%            InsertW is the write stream
+%%%%            Insert NC is push count between the push and write stream
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+alloc_or_temp(P,var(Name),UReg,InsertR,InsertP):-
+   ->
+   balloc(P1,Name,UReg,InsertP,Comm,shallow),P=process(P1),
+   f_balloc(P2,Name,Comm,ReadCode),
+   InsertR=process(P2,ReadCode).
+alloc_or_temp(P,var_simple(Name,_),UReg,InsertR,InsertP):-
+   ->
+   balloc(P1,Name,UReg,InsertP,Comm,deep),P=process(P1),
+   f_balloc(P2,Name,Comm,ReadCode),
+   InsertR=process(P2,ReadCode).
+alloc_or_temp(P,_,UReg,InsertR,InsertP):-
+   ->
+   talloc(P1,UReg,Comm),P=process(P1),
+   InsertP=[],
+   f_talloc(P2,UReg,Comm),InsertR=process(P2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%       is_deep(Arg,Flag)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+is_deep_list(List,Out):- is_deep0(List,no,Out).
+
+is_deep0([],F,Out):-  -> Out=F.
+is_deep0(_,yes,Out):- -> Out=yes.
+is_deep0([X|Xs],no,Out):- 
+   ->
+   is_deep(X,F),
+   is_deep0(Xs,F,Out).
+
+is_deep(X,Out):-  flat_member(X,[list(_,_),struct(_,_,_),var_simple(_,_)]) ->Out=yes.
+is_deep(_,Out):- ->Out=no.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%          Choosing best position
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%           find best pos
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+find_best_pos(Args,Id,Deep,Before,After):-
+   ->
+   find_var_pos(Args,1,Id1,D,B,A),
+   find_best_pos2(Id1,Args,Id,D,B,A,Deep,Before,After).
+
+find_best_pos2(no,Args,Id,_,_,_,Deep,Before,After):-
+   ->find_deepest(Args,Id,Deep,Before,After).
+find_best_pos2(Id1,_Args,Id,D,B,A,Deep,Before,After):-       
+   ->Id=Id1,D=Deep,B=Before,After=A.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%           find_pos_two
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+find_pos_two(_,Tail,Id):-
+   flat_member(Tail,[var(_),var_simple(_,_)])
+   ->Id=2.
+find_pos_two(Head,_,Id):-
+   flat_member(Head,[var(_),var_simple(_,_)])
+   ->Id=1.
+find_pos_two(Head,Tail,Deepest):-   
+   ->
+   sub_calculate_depth(Head,0,HeadD),
+   sub_calculate_depth(Tail,0,TailD),
+   find_d_two(HeadD,TailD,Deepest).
+
+%%%%
+
+find_d_two(A,B,Deepest):- A =< B  -> Deepest=2.
+find_d_two(A,B,Deepest):- A >  B  -> Deepest=1.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%     find_var_pos
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+find_var_pos([],_,Id,_,_,_):-
+   ->
+   Id=no.
+find_var_pos([Arg|Args],Cur,Id,Deep,Before,After):-
+   flat_member(Arg,[var(_),var_simple(_,_)])   
+   ->
+   Cur=Id,
+   Deep=Arg,
+   Before=[],
+   After=Args.
+find_var_pos([Arg|Args],Cur,Id,Deep,Before,After):-
+   ->
+   Before=[Arg|B],
+   inc(Cur,Cur1),
+   find_var_pos(Args,Cur1,Id,Deep,B,After).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% find_deepest
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+find_deepest([X|Xs],Id,Deepest,Before,After):-
+   ->
+   sub_calculate_depth(X,0,DX),
+   find_deepest2(Xs,1,1,DX,Id),
+   divide_by_id([X|Xs],1,Id,Deepest,Before,After).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+divide_by_id([X|Xs],Ct,Ct,Deepest,Before,After):-
+   ->
+   Deepest=X,
+   After=Xs,
+   Before=[].
+divide_by_id([X|Xs],Ct,Id,Deepest,Before,After):-
+   Ct<Id
+   ->
+   inc(Ct,Ct1),
+   Before=[X|B],	
+   divide_by_id(Xs,Ct1,Id,Deepest,B,After).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+find_deepest2([],_ArgCt,ArgSoFar,_DSoFar,Out):-
+   ->
+   Out=ArgSoFar.
+find_deepest2([X|Xs],ArgCt,ArgSoFar,DSoFar,Out):-
+   ->
+   sub_calculate_depth(X,0,D1),
+   inc(ArgCt,A),
+   (D1 < DSoFar->
+        find_deepest2(Xs,A,ArgSoFar,DSoFar,Out)
+    ;   find_deepest2(Xs,A,ArgCt,D1,Out)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+sub_calculate_depth(struct(_,_,Args),Acc,Depth):-
+   ->
+   inc(Acc,Acc1),
+   sub_calculate_depth(Args,Acc1,Depth).
+sub_calculate_depth(list(Car,Cdr),Acc,Depth):-
+   ->
+   inc(Acc,Acc1),
+   sub_calculate_depth([Car,Cdr],Acc1,Depth).
+sub_calculate_depth([X|Xs],Acc,Depth):-
+   ->
+   sub_calculate_depth(X,Acc,D1),
+   sub_calculate_depth(Xs,Acc,D2),
+   max(D1,D2,Depth).
+sub_calculate_depth(_,Acc,Depth):-
+   ->Acc=Depth.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+/*
+maybe_insert(yes,List1,List2):-
+   ->
+  List1=List2.
+maybe_insert(no,List1,_):-
+   ->
+   maybe_insert1(List1).
+
+%%%%
+
+maybe_insert1([]):- -> true.
+maybe_insert1([X|Xs]):- -> X=[],maybe_insert1(Xs).
+
+*/
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+maybe_jump(0,Read,Write):-  -> Read=label(Label),Write=jump(l(Label)).
+maybe_jump(Level,Read,Write):-  -> Read=label(Label),Write=test_level(Level,l(Label)).
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

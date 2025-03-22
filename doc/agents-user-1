@@ -1,0 +1,1527 @@
+This is Info file agents-user, produced by Makeinfo version 1.67 from
+the input file user.texi.
+
+   This file documents AGENTS.
+
+   Copyright (C) 1990-1994 Swedish Institute of Computer Science
+
+   All rights reserved.
+
+
+File: agents-user,  Node: Top,  Next: Introduction,  Prev: (dir),  Up: (dir)
+
+AGENTS
+******
+
+   The Agents Kernel Language (AKL) is a concurrent constraint
+programming language developed at the Swedish Institute of Computer
+Science (SICS).  In AKL, computation is performed by agents
+interacting through stores of constraints.  This notion accomodates
+multiple programming paradigms; in appropriate contexts, AKL agents
+may be thought of as processes, objects, functions, relations, or
+constraints.
+
+   AGENTS is a system for programming in AKL.  It provides a complete
+implementation of AKL with equality constraints over rational trees,
+various "finite domain" constraints over integers, and ports, a
+novelty of AKL.  It also provides assorted built-in agents and other
+support.
+
+* Menu:
+
+* Introduction::
+* Getting Started::
+* Syntax and (Informal) Semantics::
+* Constraints::
+* Built-in Agents::
+* Modules::
+* Debugging::
+* Summary of Built-in Agents::
+* Standard Operators::
+* System Limits::
+* Getting and Installing AGENTS::
+* Index of Built-ins::
+* Index of Concepts::
+
+
+File: agents-user,  Node: Introduction,  Next: Getting Started,  Prev: Top,  Up: Top
+
+Introduction
+************
+
+   The Agents Kernel Language (AKL) is a concurrent constraint
+programming language developed at the Swedish Institute of Computer
+Science (SICS).  In AKL, computation is performed by agents
+interacting through stores of constraints.  This notion accomodates
+multiple programming paradigms; in appropriate contexts, AKL agents
+may be thought of as processes, objects, functions, relations, or
+constraints.
+
+   AGENTS is a system for programming in AKL.  It provides a complete
+implementation of AKL with equality constraints over rational trees,
+various "finite domain" constraints over integers, and ports, a
+novelty of AKL.  It also provides assorted built-in agents and other
+support.
+
+   This *AGENTS User Manual* explains how to get, install, and use
+AGENTS.  AKL is described in *An Introduction to AKL*.  Libraries and
+tools distributed with AGENTS are described in the *AGENTS Library
+Manual*.
+
+   Parts of this manual are adapted with permission from the *SICStus
+Prolog User's Manual* by Johan Andersson, Stefan Andersson, Kent
+Boortz, Mats Carlsson, Hans Nilsson, Thomas Sjoeland, and Johan Widen.
+
+
+File: agents-user,  Node: Getting Started,  Next: Syntax and (Informal) Semantics,  Prev: Introduction,  Up: Top
+
+Getting Started
+***************
+
+   In the following sections, we will guide you through writing,
+compiling, loading, running, and debugging a tiny AKL program.  We
+will typographically distinguish `programs and computer output' from
+*user input*.  Hitting the return key is denoted by *<return>*.
+
+* Menu:
+
+* AGENTS::
+* Entering AGENTS::
+* An Example::
+* Compiling the Example::
+* Running the Example::
+* Debugging the Example::
+* Exiting AGENTS::
+* Top-Level Interaction::
+* Demonstration Programs::
+* Libraries::
+
+
+File: agents-user,  Node: AGENTS,  Next: Entering AGENTS,  Up: Getting Started
+
+AGENTS
+======
+
+   If you do not have AGENTS but would like to get it, or if you have
+AGENTS but have not installed it yet, *note Getting and Installing
+AGENTS::..
+
+
+File: agents-user,  Node: Entering AGENTS,  Next: An Example,  Prev: AGENTS,  Up: Getting Started
+
+Entering AGENTS
+===============
+
+   AGENTS is normally entered from one of the UNIX shells.  To enter
+AGENTS, type the user command *agents*.
+
+     % *agents<return>*
+
+AGENTS displays an identification message and the prompt `| ?- ' when
+it is ready for input.
+
+     AGENTS 0.9: Thu Jan  6 16:36:33 MET 1994
+     (C) 1990-1994 Swedish Institute of Computer Science
+     All rights reserved.
+     | ?-
+
+   You can now call built-in agents.
+
+     | ?- *X is Y+1, Y is 2*3.<return>*
+
+AGENTS displays the bindings of the variables in the goal.
+
+     X = 7,
+     Y = 6 ?
+
+Type *<return>* at the `? ' prompt to obtain a new input prompt.
+
+
+File: agents-user,  Node: An Example,  Next: Compiling the Example,  Prev: Entering AGENTS,  Up: Getting Started
+
+An Example
+==========
+
+   As a (really trivial) example of an AKL program, consider a
+program determining membership in a list.
+
+     member(X, [X|_]).
+     member(X, [_|R]) :- member(X, R).
+
+Use your favorite editor to create this program in a file
+`example.akl'.
+
+
+File: agents-user,  Node: Compiling the Example,  Next: Running the Example,  Prev: An Example,  Up: Getting Started
+
+Compiling the Example
+=====================
+
+   You can compile the source code and load the executable code into
+AGENTS immediately.
+
+     | ?- *compile(example).<return>*
+
+   Note that the extension `.akl' may be omitted.  Alternately, you
+can compile the source code to a file instead for subsequent loading.
+
+     | ?- *compilef(example).<return>*
+     {compiling /usr/boortz/akl/example.akl...}
+     {/usr/boortz/akl/example.akl compiled, 55 ms}
+     
+     yes
+     | ?-
+
+The compiled form of the program is now stored in the file
+`example.pam'.  You can load it from the file.
+
+     | ?- *load(example).<return>*
+     {loading /usr/boortz/akl/example.pam...}
+     {/usr/boortz/akl/example.pam loaded, 10 msec, 28 bytes}
+     
+     yes
+     | ?-
+
+Note that the extension `.pam' may be omitted.
+
+
+File: agents-user,  Node: Running the Example,  Next: Debugging the Example,  Prev: Compiling the Example,  Up: Getting Started
+
+Running the Example
+===================
+
+   When you have loaded the program, you can run it.
+
+     | ?- *member(X, [a, b, c]).<return>*
+     X = a ? *;<return>*
+     X = b ? *;<return>*
+     X = c ? *;<return>*
+     no
+     | ?-
+
+Typing *;<return>* at the `? ' prompt gives the next solution, if any.
+
+
+File: agents-user,  Node: Debugging the Example,  Next: Exiting AGENTS,  Prev: Running the Example,  Up: Getting Started
+
+Debugging the Example
+=====================
+
+   You can step through the program in the debugger.  First turn on
+tracing.
+
+     | ?- *trace.<return>*
+     {The debugger will first creep -- showing everything (trace)}
+         Exit: trace ? *<return>*
+     
+     yes
+     | ?-
+
+Then run the program, stepping the execution with the return key.
+
+     | ?- *member(b, [a,b,c]).<return>*
+         Call: member(b, [a,b,c]) ? *<return>*
+         [Create:1] :member ? *<return>*
+         [Fail:1] :member ? *<return>*
+         [Create:2] :member ? *<return>*
+         [Promote:2] :member ? *<return>*
+         Call: member(b, [b,c]) ? *<return>*
+         [Create:1] :member ? *<return>*
+         [Suspend:1] :member ? *<return>*
+         [Create:2] :member ? *<return>*
+         [Suspend:2] :member ? *<return>*
+         Suspend: member(b, [b,c]) ? *<return>*
+         [Up:  ] :Root ? *<return>*
+         Exit: member(b, [a,b,c]) ? *<return>*
+         Nondet-Pre : Mother=[ROOT], Cand=[member:1] ? *<return>*
+         Nondet-Post: Mother=[ROOT], Cand=[member:1] ? *<return>*
+         [Promote:1] :member ? *<return>*
+         Exit: member(b, [b,c]) ? *<return>*
+     
+     yes
+     {trace}
+     | ?-
+
+   The debugger is described in *Note Debugging::.
+
+
+File: agents-user,  Node: Exiting AGENTS,  Next: Top-Level Interaction,  Prev: Debugging the Example,  Up: Getting Started
+
+Exiting AGENTS
+==============
+
+   To exit AGENTS and return to the shell, use the `halt' command.
+
+     | ?- *halt.<return>*
+     { End of AGENTS execution, user time 5.190 }
+     %
+
+   You can also signal "end-of-file" with <C-d> (control-d) to
+achieve the same effect.
+
+     | ?- *^D*
+     { End of AGENTS execution, user time 5.190 }
+     %
+
+
+File: agents-user,  Node: Top-Level Interaction,  Next: Demonstration Programs,  Prev: Exiting AGENTS,  Up: Getting Started
+
+Top-Level Interaction
+=====================
+
+   At the top level, you type in goals for execution by AGENTS.  If
+execution terminates (i.e., it is not trapped in endless recursion),
+the top level reports the results as follows:
+
+`yes'
+     The goal was sucessful.  In this case, the top level also
+     reports the bindings of the variables in the goal, if any.
+
+`no'
+     The goal was unsucessful.  If this is because computation
+     suspended, the top level reports the configuration.
+
+   There are several commands you can type in at the top level that
+are not goals (in the sense of calls to agents):
+
+`halt'
+     Ends AGENTS execution.
+
+`h'
+     `h' stands for "history".  Lists the goals given to the top
+     level since it was started.  Each line is preceded by a number.
+     Identical goals share the same entry in the list.
+
+`N'
+     Executes goal number N in the the history list.
+
+   From now on, in examples of top level interaction, we will usually
+omit the confirmation `yes' and the new input prompt following it.
+
+
+File: agents-user,  Node: Demonstration Programs,  Next: Libraries,  Prev: Top-Level Interaction,  Up: Getting Started
+
+Demonstration Programs
+======================
+
+   AGENTS comes with demonstration programs.  By default, these are
+compiled during installation.  The default installation directory for
+both `.akl' and `.pam' files is `/usr/local/lib/agents0.9/demos'; in
+any case, you can find out the installation directory:
+
+     | ?- *demos_directory(X).<return>*
+     
+     X = '/usr/local/lib/agents0.9/demos' ?
+
+   See the `.akl' files for descriptions of the demonstration
+programs.
+
+   Before running a demonstration program, you must load the
+appropriate `.pam' file.  For example, to load the `queens'
+demonstration program:
+
+     | ?- *load('/usr/local/lib/agents0.9/demos/queens').<return>*
+     {loading /usr/local/lib/agents0.9/demos/queens.pam...}
+     {/usr/local/lib/agents0.9/demos/queens.pam loaded, 80 ms, 10352 bytes}
+
+
+File: agents-user,  Node: Libraries,  Prev: Demonstration Programs,  Up: Getting Started
+
+Libraries
+=========
+
+   The AGENTS Library comprises a number of packages thought to be
+useful for various applications.  See the *AGENTS Library Manual* for
+descriptions of the packages.
+
+   Before using a package, you must load it.  For example, to load
+the `assoc' package:
+
+     | ?- *load(library(assoc)).<return>*
+
+   Note that the `Graphics Manager' package must be included in
+AGENTS in advance.  *Note Including GM::.
+
+
+File: agents-user,  Node: Syntax and (Informal) Semantics,  Next: Constraints,  Prev: Getting Started,  Up: Top
+
+Syntax and (Informal) Semantics
+*******************************
+
+   <<<NEEDS WORK>>>
+
+   In this chapter, we present the syntax of data and programs in
+AGENTS.  We also discuss their semantics informally.  See
+<<<References>>> for formal treatments of AKL semantics.
+
+   We typographically distinguish `literal syntax' from other matter.
+
+* Menu:
+
+* Data::
+* Programs::
+
+
+File: agents-user,  Node: Data,  Next: Programs,  Up: Syntax and (Informal) Semantics
+
+Data
+====
+
+   AGENTS data are represented by "terms".  A term is either a
+"variable", a "constant symbol", or a "compound term" built from a
+"function symbol" and a sequence of other terms.  A term may be
+interpreted as representing an abstract object, on which computation
+is performed.  In the following, we discuss this interpretation of
+terms.
+
+* Menu:
+
+* Variables::
+* Constant Symbols::
+* Compound Terms::
+
+
+File: agents-user,  Node: Variables,  Next: Constant Symbols,  Up: Data
+
+Variables
+---------
+
+   A variable is any sequence of letters, digits, and `_' beginning
+with an upper case letter or `_'.  For example:
+
+     Value   X   X1   _2   _zzz
+
+   There is one special case.  In a compound term, (*note Compound
+Terms::.), a variable having exactly one occurrence may be an
+"anonymous" variable, denoted by the underline character `_'.  There
+may be multiple anonymous variables in a compound term, each
+constituting a distinct variable.
+
+   In the context of a program execution, a variable may be thought
+of as representing a definite but unknown object.  Alternatively, it
+is sometimes helpful to think of a variable as representing the
+(possibly infinite) set of objects consistent with the constraints on
+the variable in the constraint store (*note Constraints::.).
+
+
+File: agents-user,  Node: Constant Symbols,  Next: Compound Terms,  Prev: Variables,  Up: Data
+
+Constant Symbols
+----------------
+
+   Constant symbols, or "constants", include "integers".  For example:
+
+     0   42   2001   -512   -2
+
+   These represent the obvious integers.  Besides the usual decimal,
+or base 10, notation, integers may be written in any base from 2 to
+36, of which bases 2 (binary), 8 (octal), and 16 (hexadecimal) are
+probably the most useful.  Letters `A' through `Z', upper or lower
+case, are used for bases greater than 10.  For example,
+
+     15   2'1111   8'17   16'F   16'f
+
+all represent the integer fifteen.
+
+   There is a special notation for (ASCII) character codes.  For
+example,
+
+     0'A
+
+is equivalent to `65', because the character code for `A' is the
+integer sixty-five.
+
+   Constants also include "floats".  For example:
+
+     0.0   3.14   -4.2E1   0.123e+4   5.678e-09
+
+   These represent the obvious floating point numbers.  Note that
+there must be a decimal point with at least one digit before and
+after it.
+
+   Constants also include "atoms".  For example:
+
+     foo   barBaz   ++   'Algol-68'   []
+
+   In detail, an atom is one of the following:
+
+  1. Any sequence of letters, digits, and `_' beginning with a lower
+     case letter.
+
+  2. Any sequence of { `+' `-' `*' `/' `\' `^' `<' `>' `=' ``' `~' `:'
+     `.' `?' `@' `#' `$' `&' }, except for sequences beginning with
+     `/*', which is reserved to denote the beginning of a comment.
+
+  3. One of { `!' `;' `[]' `{}' }.  Note that `[]' and `{}' are
+     atoms, but `[', `]', `{', and `}' are not.  However, note that
+     with respect to compound terms (*note Compound Terms::.), `{X}'
+     is equivalent to `{}(X)', and `[X]' is equivalent to `.(X,[])',
+     where `X' is any term.
+
+  4. Any sequence of characters delimited by single quotes.  To
+     include a single quote in the sequence, write it twice in
+     immediate succession, e.g., `'can''t''.  If the sequence is an
+     atom according to one of the preceding criteria, then quoting it
+     does not yield a new atom, e.g., `'foo'' is equivalent to `foo'.
+
+   These may be thought of as representing elementary objects having
+no attributes.
+
+
+File: agents-user,  Node: Compound Terms,  Prev: Constant Symbols,  Up: Data
+
+Compound Terms
+--------------
+
+   A compound term is built from a function symbol, or "functor", and
+a sequence of other terms, known as "arguments".  The functor is
+characterized by its "name", which is an atom, and its "arity", which
+is the number of arguments.  The compound term is the name of the
+functor followed by the arguments, where the arguments are delimited
+by parentheses and separated by commas.  For example,
+
+     point(X, Y, Z)
+
+is the compound term whose functor has name `point' and arity three
+and whose arguments are `X', `Y', and `Z'.  Note that spaces are
+allowed between arguments and parentheses or commas, but no space is
+allowed between the name of the functor and the left parenthesis.
+
+   Compound terms may be thought of as representing trees.  For
+example, the compound term
+
+     s(np(john),vp(v(likes),np(mary)))
+
+may be thought of as representing the tree
+
+            s
+          /   \
+       np       vp
+       |       /  \
+     john     v     np
+              |     |
+            likes  mary
+
+   <<<Discussion of operators.>>>
+
+   A "list" is either the atom `[]' or a compound term of the form
+`.(H, T)', where `H' is any term and `T' is a list.  For example,
+
+     .(1,.(2,.(3,[])))
+
+is the list of the first three natural numbers;
+
+       .
+      / \
+     1    .
+         / \
+        2    .
+            / \
+           3   []
+
+is the tree it represents.
+
+   There is a special notation for lists.  For example,
+
+     [1, 2, 3]
+
+is the usual list notation for the list of the first three natural
+numbers;
+
+     [1, 2, 3|[]]  [1|[2|[3|[]]]]  [1|[2|[3]]]  [1, 2|[3]]  [1|[2, 3]]
+
+are other possibilities.  List notation is usually more readable than
+standard compound term notation for lists.
+
+   Some terms that are not lists may be written in list notation.
+For example,
+
+     [foo|bar]
+
+which is equivalent to
+
+     .(foo, bar)
+
+is not a list, because `bar' is not a list.
+
+   `[]' is known as the "empty list", and `H' and `T' are known as
+the "head" and "tail" of `[H|T]'.  For example,
+
+     1   [2, 3]
+
+are the head and tail of the list of the first three natural numbers.
+
+   There is a special notation for lists of character codes, known as
+"strings".  For example,
+
+     "AGENTS"
+
+is equivalent to
+
+     [65, 71, 69, 78, 84, 83]
+
+   <<<Explain meaning of "functor" for atomic trees.>>>
+
+   <<<INCOMPLETE>>>
+
+
+File: agents-user,  Node: Programs,  Prev: Data,  Up: Syntax and (Informal) Semantics
+
+Programs
+========
+
+   <<<INCOMPLETE>>>
+
+   <<<Discussion of accumulator syntax.>>>
+
+
+File: agents-user,  Node: Constraints,  Next: Built-in Agents,  Prev: Syntax and (Informal) Semantics,  Up: Top
+
+Constraints
+***********
+
+   <<<INCOMPLETE>>>
+
+   <<<Discussion of variables.  Meaning of "constrained".>>>
+
+   <<<Discussion of how certain built-in agents may be regarded as
+"ask-only" constraints associated with crude constraint solvers.>>>
+
+* Menu:
+
+* Trees::
+* Finite Domains::
+* Ports::
+
+
+File: agents-user,  Node: Trees,  Next: Finite Domains,  Up: Constraints
+
+Trees
+=====
+
+   <<<INCOMPLETE>>>
+
+   <<<Discussion of "constrained" and "ground".>>>
+
+
+File: agents-user,  Node: Finite Domains,  Next: Ports,  Prev: Trees,  Up: Constraints
+
+Finite Domains
+==============
+
+   <<<INCOMPLETE>>>
+
+
+File: agents-user,  Node: Ports,  Prev: Finite Domains,  Up: Constraints
+
+Ports
+=====
+
+   <<<NEEDS WORK>>>
+
+   AKL provides *ports* for communication.  A port is a constraint
+relating a bag (a multi-set) and a stream (a list).  It simply states
+that the two contain the same elements.  Messages (terms) are added
+to the bag and appear on the stream.  Any number of senders may add
+(send) messages on the same port.  When all references to the bag are
+dropped, the corresponding stream is closed.
+
+`open_port(-PORT, -STREAM)'
+     Open a port between a bag PORT (which is usually referred to as
+     a port) and a stream STREAM.
+
+`send(+M, +PORT)'
+     Add a message M to the bag/port PORT. It will appear on the
+     stream associated with the port.
+
+`send(+M, +PORT, -NEWPORT)'
+     Add a message M to the bag/port PORT. The port NEWPORT is equal
+     to PORT, but it is guaranteed that messages sent on NEWPORT will
+     appear after M on the stream associated with PORT.
+
+
+File: agents-user,  Node: Built-in Agents,  Next: Modules,  Prev: Constraints,  Up: Top
+
+Built-in Agents
+***************
+
+   AGENTS provides assorted built-in agents in the following
+categories:
+
+     Data Types
+     Tree Mappings
+     Tree Comparisons
+     Arithmetic
+     Arrays
+     Hash Tables
+     Input and Output
+         I/O Streams
+         Data I/O
+     Interaction with UNIX
+     Compiling and Loading
+     Exceptions
+     Miscellaneous
+
+The descriptions of built-in agents follow these categories.
+
+   The description of a built-in agent begins with a template such as
+
+     tree_to_list(+TREE, -LIST)
+
+TREE and LIST are meta-variables; they name the arguments of
+`tree_to_list/2'.  The characters + and - are mode annotations; they
+mean the following:
+
++
+     This argument is an input.  Computation suspends until this
+     argument is sufficiently constrained.
+
+-
+     This argument is an output.  A datum is computed and unified
+     with this argument.
+
+The rest of the description consists of two parts, labeled
+"*synchronization:*" and "*behavior:*".  The first part explains the
+meaning of "sufficiently constrained" in this context, and the second
+part explains the computation.
+
+   Two artifacts of the current implementation override the
+explanations of synchronization and behavior below.  First, a
+built-in agent evaluates its arguments from left to right.  If an
+argument is insufficiently constrained, the agent suspends - it does
+*not* evaluate the next argument to the right, if any.  Even if an
+argument to the right would make it fail, the agent suspends.
+
+   Second, if an argument should be a tree, a built-in agent suspends
+until the functor is known.  In particular, if the argument is a
+port, the agent suspends rather than fails.  Even though no
+subsequent operation could make the argument a tree, the agent
+suspends.
+
+   These are artifacts of the current implementation.  *Avoid writing
+programs that depend on them.*  It is possible that future versions
+of AGENTS will not preserve them.  By contrast, the explanations of
+synchronization and behavior below are meant to be definitive.
+
+   It is impossible to redefine a built-in agent.  An attempt to do
+so will raise an exception.  *Note Summary of Built-in Agents::.
+
+* Menu:
+
+* Data Types::
+* Tree Mappings::
+* Tree Comparisons::
+* Arithmetic::
+* Arrays::
+* Hash Tables::
+* Input and Output::
+* Interaction with UNIX::
+* Compiling and Loading::
+* Exceptions::
+* Miscellaneous::
+
+
+File: agents-user,  Node: Data Types,  Next: Tree Mappings,  Up: Built-in Agents
+
+Data Types
+==========
+
+   *Note Data:: regarding the classification of data into types.
+
+`data(+DATUM)'
+     *synchronization:* Suspends until DATUM is constrained.
+
+     *behavior:* Succeeds when DATUM is constrained.
+
+`abstraction(+DATUM)'
+     *synchronization:* Suspends until DATUM is constrained.
+
+     *behavior:* Succeeds when DATUM is a abstraction; otherwise
+     fails.
+
+`port(+DATUM)'
+     *synchronization:* Suspends until DATUM is constrained.
+
+     *behavior:* Succeeds when DATUM is a port; otherwise fails.
+
+`tree(+DATUM)'
+     *synchronization:* Suspends until DATUM is constrained.
+
+     *behavior:* Succeeds when DATUM is a tree; otherwise fails.
+
+`atom(+DATUM)'
+     *synchronization:* Suspends until DATUM is constrained.
+
+     *behavior:* Succeeds when DATUM is an atom; otherwise fails.
+
+`integer(+DATUM)'
+     *synchronization:* Suspends until DATUM is constrained.
+
+     *behavior:* Succeeds when DATUM is an integer; otherwise fails.
+
+`float(+DATUM)'
+     *synchronization:* Suspends until DATUM is constrained.
+
+     *behavior:* Succeeds when DATUM is a float; otherwise fails.
+
+`atomic(+DATUM)'
+     *synchronization:* Suspends until DATUM is constrained.
+
+     *behavior:* Succeeds when DATUM is an atomic tree (atom,
+     integer, or float); otherwise fails.
+
+`compound(+DATUM)'
+     *synchronization:* Suspends until DATUM is constrained.
+
+     *behavior:* Succeeds when DATUM is a compound tree; otherwise
+     fails.
+
+
+File: agents-user,  Node: Tree Mappings,  Next: Tree Comparisons,  Prev: Data Types,  Up: Built-in Agents
+
+Tree Mappings
+=============
+
+   There are some "natural" mappings among trees, e.g., from a
+compound tree to its arguments.  The following agents compute such
+mappings.
+
+   Most Prolog implementations provide some of these mappings as
+"bidirectional" predicates such as `functor/3', `'=..'/2', and
+`length/2'.  The AGENTS library package *Prolog* provides agents
+resembling some of these.  See the *AGENTS Library Manual* for
+specifics.
+
+`arg(+ARGNO, +TREE, -ARG)'
+     *synchronization:* Suspends until ARGNO and TREE are constrained.
+
+     *behavior:* Fails unless ARGNO is an integer and TREE is a
+     compound tree or if ARGNO is less than one or greater than the
+     arity of TREE.  Unifies ARG with argument number ARGNO of TREE.
+
+`tree_to_functor(+TREE, -NAME, -ARITY)'
+     *synchronization:* Suspends until TREE is constrained.
+
+     *behavior:* Fails unless TREE is a tree.  Unifies NAME with the
+     name and ARITY with the arity of the functor of TREE.
+
+`functor_to_tree(+NAME, +ARITY, -TREE)'
+     *synchronization:* Suspends until NAME and ARITY are constrained.
+
+     *behavior:* Fails unless NAME is an atomic tree and ARITY is a
+     nonnegative integer.  If NAME is not an atom, fails unless ARITY
+     is zero.  Unifies TREE with the least-constrained tree whose
+     functor has name NAME and arity ARITY.
+
+`tree_to_list(+TREE, -LIST)'
+     *synchronization:* Suspends until TREE is constrained.
+
+     *behavior:* Fails unless TREE is a tree.  Unifies LIST with a
+     list whose head is the name of the functor of TREE and whose
+     tail is a list of the arguments of TREE.
+
+`list_to_tree(+LIST, -TREE)'
+     *synchronization:* Suspends until LIST is constrained.  If LIST
+     is a list, suspends until the head of LIST is constrained.
+
+     *behavior:* Fails unless LIST is a nonempty list.  Fails unless
+     the head is an atomic tree, and if the head is not an atom,
+     fails unless the tail is `[]'.  Unifies TREE with the tree
+     having the head of LIST as the name of its functor and the
+     elements of the tail of LIST as its arguments.
+
+`list_to_length(+LIST, -LENGTH)'
+     *synchronization:* Suspends until LIST is constrained.
+
+     *behavior:* Fails unless LIST is a list.  Unifies LENGTH with
+     the length of LIST.
+
+`length_to_list(+LENGTH, -LIST)'
+     *synchronization:* Suspends until LENGTH is constrained.
+
+     *behavior:* Fails unless LENGTH is a nonnegative integer.
+     Unifies LIST with the least-constrained list whose length is
+     LENGTH.
+
+`atom_char(+CHARNO, +ATOM, -CHAR)'
+     *synchronization:* Suspends until CHARNO and ATOM are
+     constrained.
+
+     *behavior:* Fails unless CHARNO is an integer and ATOM is an
+     atom or if CHARNO is less than zero or greater than or equal to
+     the length of the print representation of ATOM.  Unifies CHAR
+     with character number CHARNO in the print representation of
+     ATOM, where characters are numbered from 0 (not 1).
+
+`atom_to_chars(+ATOM, -CHARS)'
+`integer_to_chars(+INTEGER, -CHARS)'
+`float_to_chars(+FLOAT, -CHARS)'
+     *synchronization:* `atom_to_chars/2' suspends until ATOM is
+     constrained.
+
+     *behavior:* Fails unless ATOM is an atom.  Unifies CHARS with
+     the print represention of ATOM (the "name" of ATOM).
+
+     `integer_to_chars/2' and `float_to_chars/2' are analogues for
+     integers and floats.
+
+`chars_to_atom(+CHARS, -ATOM)'
+`chars_to_integer(+CHARS, -INTEGER)'
+`chars_to_float(+CHARS, -FLOAT)'
+     *synchronization:* `chars_to_atom/2' suspends until CHARS is
+     constrained.
+
+     *behavior:* Fails unless CHARS is a string.  Unifies ATOM with
+     the atom whose print representation is CHARS.
+
+     `chars_to_integer/2' and `chars_to_float/2' are analogues for
+     integers and floats.
+
+
+File: agents-user,  Node: Tree Comparisons,  Next: Arithmetic,  Prev: Tree Mappings,  Up: Built-in Agents
+
+Tree Comparisons
+================
+
+   These agents refer to a "standard order" of trees:
+
+   * Floats, in numeric order (e.g., -1.0 is before 1.0).
+
+   * Integers, in numeric order (e.g., -1 is before 1).
+
+   * Atoms, in alphabetical (i.e., character code) order.
+
+   * Compound trees, ordered first by the arity, then by the name of
+     the functor, and then by the arguments (in left-to-right order).
+     Recall that lists are equivalent to compound trees with functor
+     `'.'/2'.
+
+For example, here is a list of trees in standard order:
+
+     [-1.0, -9, 1, fie, foe, X = Y, foe(0, 2), fie(1, 1, 1)]
+
+   Calling a tree comparison agent may be thought of as asking
+whether some ordering constraint holds among the arguments.  For the
+sake of efficiency, the "constraint solver" thereby invoked is
+incomplete for nonground trees.  Concisely, comparing nonground trees
+suspends unless the ordering can be determined *without reference to
+unconstrained (sub)trees*.  This is what is meant by "sufficiently
+constrained for comparison" in the descriptions of these agents.  For
+example,
+
+     f(X) \== g(a)
+
+succeeds, because it is unnecessary to examine X to determine the
+relation.  However,
+
+     f(a,X) \== f(X,0)
+
+suspends, even though it obviously "should" succeed, because the
+relation cannot be determined without reference to X.
+
+   Note that for integer and float comparisons, there are other
+agents preferable to `== /2', `\== /2', `@< /2', `@> /2', `@=< /2',
+`@>= /2', and `compare/3'.  For example,
+
+     1.0 @< 0
+
+succeeds, because floats precede integers in the standard order, but
+
+     1.0 < 0
+
+fails, because the arithmetic comparison agent `< /2' refers to
+numeric order.  *Note Arithmetic::.
+
+`+TREE1 == +TREE2'
+     *synchronization:* Suspends until TREE1 and TREE2 are
+     sufficiently constrained for comparison.
+
+     *behavior:* Succeeds when TREE1 and TREE2 are the same tree;
+     otherwise fails.
+
+`+TREE1 \== +TREE2'
+     *synchronization:* Suspends until TREE1 and TREE2 are
+     sufficiently constrained for comparison.
+
+     *behavior:* Succeeds when TREE1 and TREE2 are different trees;
+     otherwise fails.
+
+`+TREE1 @< +TREE2'
+     *synchronization:* Suspends until TREE1 and TREE2 are
+     sufficiently constrained for comparison.
+
+     *behavior:* Succeeds when TREE1 and TREE2 are trees and TREE1 is
+     less than TREE2 in the standard order; otherwise fails.
+
+`+TREE1 @> +TREE2'
+     *synchronization:* Suspends until TREE1 and TREE2 are
+     sufficiently constrained for comparison.
+
+     *behavior:* Succeeds when TREE1 and TREE2 are trees and TREE1 is
+     greater than TREE2 in the standard order; otherwise fails.
+
+`+TREE1 @=< +TREE2'
+     *synchronization:* Suspends until TREE1 and TREE2 are
+     sufficiently constrained for comparison.
+
+     *behavior:* Succeeds when TREE1 and TREE2 are trees and TREE1 is
+     less than or equal to TREE2 in the standard order; otherwise
+     fails.
+
+`+TREE1 @>= +TREE2'
+     *synchronization:* Suspends until TREE1 and TREE2 are
+     sufficiently constrained for comparison.
+
+     *behavior:* Succeeds when TREE1 and TREE2 are trees and TREE1 is
+     greater than or equal to TREE2 in the standard order; otherwise
+     fails.
+
+`compare(-OP, +TREE1, +TREE2)'
+     *synchronization:* Suspends until TREE1 and TREE2 are
+     sufficiently constrained for comparison.
+
+     *behavior:* Fails unless TREE1 and TREE2 are trees.  Unifies OP
+     with `=', `<', or `>' according to whether TREE1 is equal to,
+     less than, or greater than TREE2 in the standard order.
+
+`sort(+LIST1, -LIST2)'
+     *synchronization:* Suspends until LIST1 is constrained.  If
+     LIST1 is a list, suspends until each member is sufficiently
+     constrained for comparison (unless there is only one).
+
+     *behavior:* Fails unless LIST1 is a list, where each member is a
+     tree.  Sorts the members of LIST1 according to the standard
+     order, discarding duplicates, and unifies with LIST2.  (The time
+     and space complexity of this operation is at worst O(N LOG N)
+     where N is the length of LIST1.)
+
+     Note that in the current implementation, if a member of LIST1 is
+     not a tree, the domain error message mentions `compare/3' rather
+     than `sort/2'.
+
+`keysort(+LIST1, -LIST2)'
+     *synchronization:* Suspends until LIST1 is constrained.  If
+     LIST1 is a list of KEY-VALUE pairs, suspends until each KEY is
+     sufficiently constrained for comparison (unless there is only
+     one).
+
+     *behavior:* Fails unless LIST1 is a list of KEY-VALUE pairs,
+     where each KEY is a tree.  Sorts the members of LIST1 by the KEY
+     trees according to the standard order and unifies with LIST2.
+     Duplicates are not discarded.  Moreover, the relative placement
+     of members of LIST1 having the same KEY tree is preserved.  (The
+     time and space complexity of this operation is at worst O(N LOG
+     N) where N is the length of LIST1.)
+
+     Note that in the current implementation, if a KEY in LIST1 is
+     not a tree, the domain error message mentions `compare/3' rather
+     than `keysort/2'.
+
+
+File: agents-user,  Node: Arithmetic,  Next: Arrays,  Prev: Tree Comparisons,  Up: Built-in Agents
+
+Arithmetic
+==========
+
+   These agents evaluate trees known as "arithmetic expressions"
+built from integers, floats, and certain functors, listed below.
+Integers and floats evaluate to themselves, and compound trees
+evaluate to arithmetic functions of their arguments.  Evaluation
+fails unless the tree is a well-formed arithmetic expression.
+
+   Evaluation of a compound tree begins with evaluation of its
+arguments, from left to right.  If evaluation of an argument
+suspends, the whole evaluation suspends - it does *not* continue with
+the next argument to the right, if any.  Even if an argument to the
+right would make it fail, the whole evaluation suspends.  Naturally,
+if evaluation of an argument fails, the whole evaluation fails.
+
+   Only certain functors are recognized in arithmetic expressions.
+These are listed below, along with descriptions of the arithmetic
+functions they represent.  X and Y represent arithmetic expressions.
+Unless otherwise stated, these may evaluate to any numbers, and the
+value of the whole arithmetic expression is a float if any of its
+arguments evaluates to a float, otherwise an integer.
+
+`+X'
+     The value is X.
+
+`-X'
+     The value is the negative of X.
+
+`X+Y'
+     The value is the sum of X and Y.
+
+`X-Y'
+     The value is the difference of X and Y.
+
+`X*Y'
+     The value is the product of X and Y.
+
+`X/Y'
+     The value is the *float* quotient of X and Y.
+
+`X//Y'
+     The value is the *integer* quotient of X and Y.
+
+`X mod Y'
+     The value is the *integer* remainder after dividing X by Y, i.e.,
+     `integer(X)-integer(Y)*(X//Y)'.
+
+`X min Y'
+     The value is the minimum of X and Y.
+
+`X max Y'
+     The value is the maximum of X and Y.
+
+`integer(X)'
+     The value is the closest integer between X and 0, if X is a
+     float, otherwise X itself.
+
+`float(X)'
+     The value is the float equivalent of X, if X is an integer,
+     otherwise X itself.
+
+`X/\Y'
+     The value is the bitwise conjunction of the integers X and Y.
+
+`X\/Y'
+     The value is the bitwise disjunction of the integers X and Y.
+
+`X#Y'
+     The value is the bitwise exclusive or of the integers X and Y.
+
+`\(X)'
+     The value is the bitwise negation of the integer X.
+
+`X<<Y'
+     The value is the integer X shifted left by Y places.
+
+`X>>Y'
+     The value is the integer X shifted right by Y places.
+
+`acos(X)'
+`acosh(X)'
+`asin(X)'
+`asinh(X)'
+`atan(X)'
+`atan2(X,Y)'
+`atanh(X)'
+`ceil(X)'
+`cos(X)'
+`cosh(X)'
+`exp(X)'
+`fabs(X)'
+`floor(X)'
+`log(X)'
+`log10(X)'
+`pow(X,Y)'
+`sin(X)'
+`sinh(X)'
+`sqrt(X)'
+`tan(X)'
+`tanh(X)'
+     Arithmetic operations from the UNIX math library.  See the UNIX
+     manual pages.
+
+     Annoyingly, some of these operations are unavailable on some
+     types of host.  See the README file distributed with AGENTS for
+     details.  Notes regarding unavailable operations are printed
+     during configuration of AGENTS, and calls to them raise
+     exceptions.
+
+   Arithmetic expressions are trees.  To evaluate one, you must pass
+it to one of the agents listed below.
+
+`Z is X'
+     *synchronization:* Suspends if evaluation of X suspends.
+
+     *behavior:* Evaluates X.  If this evaluation succeeds, unifies
+     the result with Z; otherwise fails.
+
+`X =:= Y'
+     *synchronization:* Suspends if evaluation of X or Y suspends.
+
+     *behavior:* Evaluates X and Y.  If these evaluations succeed,
+     succeeds if the results are numerically equal; otherwise fails.
+
+`X =\= Y'
+     *synchronization:* Suspends if evaluation of X or Y suspends.
+
+     *behavior:* Evaluates X and Y.  If these evaluations succeed,
+     succeeds if the results are numerically not equal; otherwise
+     fails.
+
+`X < Y'
+     *synchronization:* Suspends if evaluation of X or Y suspends.
+
+     *behavior:* Evaluates X and Y.  If these evaluations succeed,
+     succeeds if the result for X is numerically less than the result
+     for Y; otherwise fails.
+
+`X > Y'
+     *synchronization:* Suspends if evaluation of X or Y suspends.
+
+     *behavior:* Evaluates X and Y.  If these evaluations succeed,
+     succeeds if the result for X is numerically greater than the
+     result for Y; otherwise fails.
+
+`X =< Y'
+     *synchronization:* Suspends if evaluation of X or Y suspends.
+
+     *behavior:* Evaluates X and Y.  If these evaluations succeed,
+     succeeds if the result for X is numerically less than or equal
+     to the result for Y; otherwise fails.
+
+`X >= Y'
+     *synchronization:* Suspends if evaluation of X or Y suspends.
+
+     *behavior:* Evaluates X and Y.  If these evaluations succeed,
+     succeeds if the result for X is numerically greater than or
+     equal to the result for Y; otherwise fails.
+
+   There are also the following agents, which may be compiled more
+efficiently than `is/2' etc. in a future version of AGENTS.  Their
+input arguments should be numbers, *not* general arithmetic
+expressions.  With this understanding, their synchronization and
+behavior may be understood by analogy with `is/2' etc.  For example,
+
+     neg(X, Z)
+
+is identical to
+     Z is -X
+
+assuming X is a number.  Similarly,
+
+     equal(X, Y)
+
+is identical to
+     X =:= Y
+
+assuming X and Y are numbers.
+
+`plus(+X, -Y)'
+     Z is X.
+
+`neg(+X, -Z)'
+     Z is the negative of X.
+
+`add(+X, +Y, -Z)'
+     Z is the sum of X and Y.
+
+`inc(+X, -Z)'
+     Z is the sum of X and `1'.
+
+`sub(+X, +Y, -Z)'
+     Z is the difference of X and Y.
+
+`dec(+X, -Z)'
+     Z is the difference of X and `1'.
+
+`mul(+X, +Y, -Z)'
+     Z is the product of X and Y.
+
+`div(+X, +Y, -Z)'
+     Z is the *float* quotient of X and Y.
+
+`idiv(+X, +Y, -Z)'
+     Z is the *integer* quotient of X and Y.
+
+`mod(+X, +Y, -Z)'
+     Z is the *integer* remainder after dividing X by Y.
+
+`min(+X, +Y, -Z)'
+     Z is the minimum of X and Y.
+
+`max(+X, +Y, -Z)'
+     Z is the maximum of X and Y.
+
+`integer(+X, -Y)'
+     Y is the closest integer between X and 0, if X is a float,
+     otherwise X itself.
+
+`float(+X, -Y)'
+     Y is the float equivalent of X, if X is an integer, otherwise X
+     itself.
+
+`and(+X, +Y, -Z)'
+     Z is the bitwise conjunction of the integers X and Y.
+
+`or(+X, +Y, -Z)'
+     Z is the bitwise disjunction of the integers X and Y.
+
+`xor(+X, Y, -Z)'
+     Z is the bitwise exclusive or of the integers X and Y.
+
+`com(+X, -Z)'
+     Z is the bitwise negation of the integer X.
+
+`shl(+X, Y, -Z)'
+     Z is the integer X shifted left by Y places.
+
+`shr(+X, Y, -Z)'
+     Z is the integer X shifted right by Y places.
+
+`acos(+X, -Y)'
+`acosh(+X, -Y)'
+`asin(+X, -Y)'
+`asinh(+X, -Y)'
+`atan(+X, -Y)'
+`atan2(+X, +Y, -Z)'
+`atanh(+X, -Y)'
+`ceil(+X, -Y)'
+`cos(+X, -Y)'
+`cosh(+X, -Y)'
+`exp(+X, -Y)'
+`fabs(+X, -Y)'
+`floor(+X, -Y)'
+`log(+X, -Y)'
+`log10(+X, -Y)'
+`pow(+X, +Y, -Z)'
+`sin(+X, -Y)'
+`sinh(+X, -Y)'
+`sqrt(+X, -Y)'
+`tan(+X, -Y)'
+`tanh(+X, -Y)'
+     Arithmetic operations from the UNIX math library.  See the UNIX
+     manual pages.
+
+     Annoyingly, some of these operations are unavailable on some
+     types of host.  See the README file distributed with AGENTS for
+     details.  Notes regarding unavailable operations are printed
+     during configuration of AGENTS, and calls to them raise
+     exceptions.
+
+`equal(+X, +Y)'
+     X and Y are numerically equal.
+
+`not_equal(+X, +Y)'
+     X and Y are numerically not equal.
+
+`less(+X, +Y)'
+     X is numerically less than Y.
+
+`greater(+X, +Y)'
+     X is numerically greater than Y.
+
+`not_greater(+X, +Y)'
+     X is numerically less than or equal to Y.
+
+`not_less(+X, +Y)'
+     X is numerically greater than or equal to Y.
+
+
+File: agents-user,  Node: Arrays,  Next: Hash Tables,  Prev: Arithmetic,  Up: Built-in Agents
+
+Arrays
+======
+
+   In AGENTS, arrays are "port objects", i.e., there are ports to
+which messages can be sent to obtain array operations - the streams
+associated with these ports are consumed by agents maintaining states
+supporting these operations efficiently.  If you are not familiar
+with ports, please see *An Introduction to AKL*.  In the following, a
+port referring to an array will be identified with the array.
+
+   The following agents create arrays.
+
+`new_array(+SIZE, -ARRAY)'
+`new_array(+SIZE, +START, -ARRAY)'
+     *synchronization:* Suspends until SIZE and START are constrained.
+
+     *behavior:* Fails unless SIZE is a positive integer and START is
+     an integer.  Unifies ARRAY with a new array having size SIZE and
+     starting index START - if START is omitted, the starting index
+     is `0'.  The indices of the array run from the starting index to
+     the starting index plus the size minus one.  The elements of the
+     array are initialized to `[]'.
+
+     Some examples:
+
+          | ?- *new_array(5, A0),<return>
+          new_array(5, 1, A1),<return>
+          new_array(5, -5, A2).<return>*
+          
+          A0 = _0{array[0..4]: [],[],[],[],[]},
+          A1 = _1{array[1..5]: [],[],[],[],[]},
+          A2 = _2{array[-5..-1]: [],[],[],[],[]} ?
+
+   The following messages can be sent to an array.
+
+`typeof(-TYPE)'
+     *synchronization:* Never suspends.
+
+     *behavior:* Unifies TYPE with `array'.
+
+`sizeof(-SIZE)'
+     *synchronization:* Never suspends.
+
+     *behavior:* Unifies SIZE with the size of the array.
+
+`get(+INDEX, -VALUE)'
+     *synchronization:* Suspends until INDEX is constrained.
+
+     *behavior:* Fails unless INDEX is an integer within the index
+     range of the array.  Unifies VALUE with value of the element of
+     the array whose index is INDEX.
+
+`set(+INDEX, +VALUE)'
+`set(+INDEX, -OLDVALUE, +VALUE)'
+     *synchronization:* Suspends until INDEX is constrained.
+
+     *behavior:* Fails unless INDEX is an integer within the index
+     range of the array.  Assigns VALUE to the element of the array
+     whose index is INDEX.  `set/3' unifies OLDVALUE with the old
+     value.
+
+`subarray(+INDEX, +SIZE, -SUBARRAY)'
+`subarray(+INDEX, +SIZE, +START, -SUBARRAY)'
+`subarray(+INDEX, +SIZE, +START, +SCALE, -SUBARRAY)'
+     *synchronization:* Suspends until INDEX, SIZE, START, and SCALE
+     are constrained.
+
+     *behavior:* Fails unless INDEX is an integer within the index
+     range of the original array, SIZE is a positive integer, START
+     is an integer, and SCALE is a nonzero integer.  Unifies SUBARRAY
+     with a subarray of the original array having size SIZE and
+     starting index START - if START is omitted, the starting index
+     is that of the original array.  The indices of the array run
+     from the starting index to the starting index plus the size
+     minus one.  Element START of the subarray is element INDEX of
+     the original array, element START+1 of the subarray is element
+     INDEX+SCALE of the original array, element START+2 of the
+     subarray is element INDEX+(SCALE*2) of the original array, etc.
+     - if SCALE is omitted, the scale is `1'.  Subarray creation
+     fails if any subarray index would be out of bounds with respect
+     to the original array.
+
+     Some examples:
+
+          | ?- *new_array(10, A),<return>
+          subarray(0, 5, 0, 2, SA)@A,<return>
+          set(2, foo)@SA.<return>*
+          
+          A = _0{array[0..9]: [],[],[],[],foo,[],[],[],[],[]},
+          SA = _1{array[0..4]: [],[],foo,[],[]} ? *<return>*
+          
+          yes
+          | ?- *new_array(7, 1, A),<return>
+          subarray(7, 4, 1, -2, SA)@A,<return>
+          set(1, foo)@SA.<return>*
+          
+          A = _0{array[1..7]: [],[],[],[],[],[],foo},
+          SA = _1{array[1..4]: foo,[],[],[]} ? *<return>*
+          
+          yes
+          | ?- *new_array(12, A),<return>
+          subarray(3, 2, 1, 3, SA)@A,<return>
+          set(6, foo)@A.<return>*
+          
+          A = _0{array[0..11]: [],[],[],[],[],[],foo,[],[],[],[],[]},
+          SA = _1{array[1..2]: [],foo} ? *<return>*
+          
+          yes
+          | ?-
+
+
+File: agents-user,  Node: Hash Tables,  Next: Input and Output,  Prev: Arrays,  Up: Built-in Agents
+
+Hash Tables
+===========
+
+   In AGENTS, hash tables are "port objects", i.e., there are ports
+to which messages can be sent to obtain hash table operations - the
+streams associated with these ports are consumed by agents
+maintaining states supporting these operations efficiently.  If you
+are not familiar with ports, please see *An Introduction to AKL*.  In
+the following, a port referring to a hash table will be identified
+with the hash table.
+
+   The following agents create hash tables.
+
+`new_hash_table(-HASHTABLE)'
+`new_hash_table(+SIZE, -HASHTABLE)'
+     *synchronization:* Suspends until SIZE is constrained.
+
+     *behavior:* Fails unless SIZE is a positive integer.  Unifies
+     HASHTABLE with a new hash table having space for SIZE elements
+     initially; the hash table automatically expands to accomodate
+     further elements.
+
+   A hash table key must be constrained to a *ground* tree.  This is
+what is meant by "sufficiently constrained" in the descriptions of
+hash table messages.  Each key is associated with a unique value,
+which may be any datum.
+
+   The following messages can be sent to a hash table.
+
+`typeof(-TYPE)'
+     *synchronization:* Never suspends.
+
+     *behavior:* Unifies TYPE with `hash_table'.
+
+`sizeof(-SIZE)'
+     *synchronization:* Never suspends.
+
+     *behavior:* Unifies SIZE with the size of the hash table.
+
+`indomain(+KEY, -YESORNO)'
+     *synchronization:* Suspends until KEY is sufficiently
+     constrained.
+
+     *behavior:* Fails unless KEY is a tree.  Unifies YESORNO with
+     `yes' or `no', depending on whether the hash table associates a
+     value with the key KEY.
+
+`get(+KEY, -VALUE)'
+     *synchronization:* Suspends until KEY is sufficiently
+     constrained.
+
+     *behavior:* Fails unless KEY is a tree.  If the hash table
+     associates a value with the key KEY, unifies VALUE with it, else
+     fails.
+
+`set(+KEY, +VALUE)'
+`set(+KEY, -OLDVALUE, +VALUE)'
+     *synchronization:* Suspends until KEY is sufficiently
+     constrained.
+
+     *behavior:* Fails unless KEY is a tree.  Causes the hash table
+     to associate the value VALUE with the key KEY.  If there is an
+     old value, `set/3' unifies OLDVALUE with it, else fails.
+
+`delete(+KEY)'
+`delete(+KEY, -OLDVALUE)'
+     *synchronization:* Suspends until KEY is sufficiently
+     constrained.
+
+     *behavior:* Fails unless KEY is a tree. If the hash table
+     associates a value with the key KEY, causes the hash table to do
+     so no longer, else fails.  `delete/2' unifies OLDVALUE with the
+     old value.
+
+     Note that in the current implementation, the memory occupied by
+     the value is not freed, merely marked for possible reuse; this
+     is a potential memory leak.
+
+`attributes(-ATTRIBUTES)'
+`domain(-DOMAIN)'
+`range(-RANGE)'
+     *synchronization:* Never suspends.
+
+     *behavior:* Unifies ATTRIBUTES, DOMAIN, or RANGE with the
+     attributes, domain, or range, respectively, of the hash table;
+     ATTRIBUTES is a list of all key-value pairs `(KEY,VALUE)',
+     DOMAIN is a list of all keys, and RANGE is a list of all values.
+
+
+File: agents-user,  Node: Input and Output,  Next: Interaction with UNIX,  Prev: Hash Tables,  Up: Built-in Agents
+
+Input and Output
+================
+
+* Menu:
+
+* I/O Streams::
+* Data I/O::
+

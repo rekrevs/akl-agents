@@ -1,0 +1,201 @@
+% File: 	confldiag.akl
+% Author: 	Anders Andersson
+% Purpose:	Reporting of LALR(1) conflicts and other problems with 
+%               the grammar, e.g. unreachable symbols
+
+% Given the status as reported by lalr/7, the 'expect'ed number of shift/reduce
+% conflicts and printable names for the grammar symbols, print a status report
+% Also need the user actions and the precedence assoc
+print_problem_report(status(Inf, Unreach, Expect, 0, _,_), _,_,Expect, N,_) :-
+    ->	print_grammar_errors(Inf, Unreach, N).
+print_problem_report(status(Inf, Unreach, 0, 0,_,_), _, _, Expect,N,_) :-
+    ->	print_grammar_errors(Inf, Unreach, N),
+	format('No conflicts, but ~w shift/reduce conflicts were expected~n',
+	       [Expect]).
+print_problem_report(status(Inf, Unreach, SR, RR, G, R), 
+	             Actions, Prec, Expect, N, T) :-
+    ->	user_acts_to_items(Actions, ItemActs),
+	list_to_assoc(ItemActs, User),
+	print_conflicts(G, R, User, Prec, N, T),
+	print_grammar_errors(Inf, Unreach, N),
+	format('~w shift/reduce (~w expected) & ~w reduce/reduce conflict(s)~n'
+	      , [SR, Expect, RR]).
+
+% Given a list of unreachable non-terminals and a list of looping non-terminals
+% print a corresponding error report 
+print_grammar_errors([], [], _) :-
+    ->	true.
+print_grammar_errors([], Unreachable, NAssoc) :-
+    ->	format('ERROR. The following non-terminal(s) cannot be reached:~n',[]),
+	print_grammar_symbols(Unreachable, NAssoc, _),
+	format('~n',[]).
+print_grammar_errors(Infinite, Unreachable, NAssoc) :-
+    ->	format('ERROR. The following non-terminal(s)  match no input:~n',[]),
+	print_grammar_symbols(Infinite, NAssoc, _),
+	format('~n',[]),
+	print_grammar_errors([], Unreachable, NAssoc).
+
+% Given unsorted info about the goto function and reductions, print a report
+% of the shift/reduce and reduce/reduce conflicts. 'expect' assertions are
+% assumed to have been violated, so all conflicts are reported except for
+% precedence related ones
+print_conflicts(GotoInfo, ReduceInfo, Actions, Prec, NAssoc, TAssoc) :-
+    ->	split_goto(GotoInfo, ShiftInfo, _),
+	key_sort_set-ShiftInfo,
+	fappend(ReduceInfo, ShiftInfo, Info), 
+	key_sort_union-Info,
+	key_sort_set-GotoInfo,
+	list_to_assoc(GotoInfo, GotoAssoc),
+	print_conflicts1(Info, Actions, Prec, GotoAssoc, NAssoc, TAssoc).
+
+print_conflicts1([State-Row|Xs], Actions, Prec, GotoAssoc, NAssoc, TAssoc) :-
+    ->	print_row_report(State, Row, Actions, Prec, GotoAssoc, NAssoc, TAssoc),
+	print_conflicts1(Xs, Actions, Prec, GotoAssoc, NAssoc, TAssoc).
+print_conflicts1([], _, _, _, _, _) :-
+    ->	true.
+
+% Given a state and a row of transitions, the start state and assocs giving
+% the Goto table info and the printing names of terminals and nonterminals,
+% print the conflicts in the row, if there are any.
+print_row_report(State, Row, Actions, Prec, GotoAssoc, NAssoc, TAssoc) :-
+	row_conflicts(Row, Actions, Prec, Report),
+	Report = [_|_]
+    ->	goto_path(State, 0, GotoAssoc, Path),
+	format('CONFLICT. Assuming input of the form:~n',[]),
+	print_grammar_symbols(Path, NAssoc, TAssoc),
+	format('~n'),
+	print_row_conflicts(Report, NAssoc, TAssoc).
+print_row_report(_,_,_,_,_,_,_) :-
+    ->	true.
+
+% Given a To state and a From state (the start state) and an assoc of the
+% the complete goto table, finds the shortest path and the sequence of
+% grammar symbols needed to make the transition
+goto_path(To, From, GotoAssoc, Path) :-
+    ->	ord_list_to_assoc([], Visited),
+	find_goto_path([From-[]], To, GotoAssoc, RevPath)-Visited,
+	reverse(RevPath, Path).
+
+% Make a breath-first traversal to find a shortest path
+find_goto_path([To-Path], To, _, Result)-_V :-
+    ->	Result = Path.
+find_goto_path(List, To, GotoAssoc, Path)-Visited :-
+    ->	goto_forward(List, To, GotoAssoc, [], NewList)-Visited,
+	find_goto_path(NewList, To, GotoAssoc, Path)-Visited.
+
+% Given a set of states and their partial paths, go to all their successors
+goto_forward([To-Path|_], To, _, _, NewList)-_V :-
+    ->	NewList = [To-Path].
+goto_forward([State-_|Xs], To, GotoAssoc, Ac, NewList)-Visited :-
+	get_assoc(State, _, Visited, _)
+    ->	goto_forward(Xs, To, GotoAssoc, Ac, NewList)-Visited.
+goto_forward([State-Path|Xs], To, GotoAssoc, Ac, NewList)-Visited :-
+	get_assoc(State, Trans, GotoAssoc, _)
+    ->	put_assoc(State, visited)-Visited,
+	goto_forward_state(Trans, Path, Ac, Ac2),
+	goto_forward(Xs, To, GotoAssoc, Ac2, NewList)-Visited.
+goto_forward([State-_|Xs], To, GotoAssoc, Ac, NewList)-Visited :-
+    ->	put_assoc(State, visited)-Visited,
+	goto_forward(Xs, To, GotoAssoc, Ac, NewList)-Visited.
+goto_forward([], _, _, Ac, NewList)-_V :-
+    ->	NewList = Ac.
+
+% Put all successor states on the queue
+goto_forward_state([Symbol-NewState|Xs], Path, Ac, Result) :-
+    ->	goto_forward_state(Xs, Path, [NewState-[Symbol|Path]|Ac], Result).
+goto_forward_state([], _, Ac, Result) :-
+    ->	Result = Ac.
+
+% Given a row, create a summary of the conflicts in the form: 
+%   [..[LA1,...,LAn]-[Action1,...,ActionN]..]
+row_conflicts(Row, Actions, Prec, Report) :-
+    ->	key_sort_set-Row,
+	filter_conflicts(Row, Actions, Prec, ConflictsLA),
+	key_sort_set-ConflictsLA, 
+	invert_assoclist(ConflictsLA, Report).
+
+% Remove all non-conflicting entries and flip key-value. Also replace all
+% shift actions by 0, to make the error report more compact.
+% Actually, we cheat slightly. If a state have both reduce/reduce conflict(s) 
+% and a shift/reduce conflict that could have been resolved by precedence,
+% the shift/reduce conflict *is* reported. This should be a rare case, however
+filter_conflicts([_-[_]|Xs], UserActions, Prec, Conflicts) :-
+    ->	filter_conflicts(Xs, UserActions, Prec, Conflicts).
+filter_conflicts([LA-[Shift, Reduce]|Xs], UserActions, Prec, Conflicts) :-
+	integer(Shift),
+	get_assoc(LA, P2, Prec, _),
+	get_assoc(Reduce, P1-_, UserActions, _),
+	not_equal(P1, P2)
+    ->	filter_conflicts(Xs, UserActions, Prec, Conflicts).
+filter_conflicts([LA-[Shift|Rest]|Xs], UserActions, Prec, Conflicts) :-
+	integer(Shift)
+    ->	[[0|Rest]-LA]-Conflicts, % allow maximum compaction of messages
+	filter_conflicts(Xs, UserActions, Prec, Conflicts).
+filter_conflicts([LA-Actions|Xs], UserActions, Prec, Conflicts) :-
+    ->	[Actions-LA]-Conflicts,
+	filter_conflicts(Xs, UserActions, Prec, Conflicts).
+filter_conflicts([], _, _, Conflicts) :-
+    ->	Conflicts = [].
+
+% Print the conflict report created by row_conflicts/2
+print_row_conflicts([[LA]-Conflicts|Xs], NAssoc, TAssoc) :-
+    ->	get_assoc(LA, Name, TAssoc, _),
+	format('  With "~w" as the next token there is a conflict between:~n',
+	       [Name]),
+	print_la_conflicts(Conflicts, NAssoc, TAssoc),
+	print_row_conflicts(Xs, NAssoc, TAssoc).
+print_row_conflicts([LAs-Conflicts|Xs], NAssoc, TAssoc) :-
+    ->	format('  With any of:~n   ',[]),
+	print_terminals(LAs, TAssoc),
+	format('~n  as the next token there is a conflict between:~n', []),
+	print_la_conflicts(Conflicts, NAssoc, TAssoc),
+	print_row_conflicts(Xs, NAssoc, TAssoc).
+print_row_conflicts([], _, _) :-
+    ->	true.
+
+% Print each conflict in a list of actions
+print_la_conflicts([X|Xs], NAssoc, TAssoc) :-
+	integer(X)
+    ->	format('    shift~n'),
+	print_la_conflicts(Xs, NAssoc, TAssoc).
+print_la_conflicts([Item|Xs], NAssoc, TAssoc) :-
+    ->	print_reduction(Item, NAssoc, TAssoc),
+	print_la_conflicts(Xs, NAssoc, TAssoc).
+print_la_conflicts([], _, _) :-
+    ->	true.
+
+% Print a reduction item
+print_reduction(item(NTerm, 0, p), NAssoc, _) :-
+    ->	get_assoc(NTerm, Name, NAssoc, _),
+	format('    reduce:   ~w -> /* empty */~n',[Name]).
+print_reduction(item(NTerm, 0, Prod), NAssoc, TAssoc) :-
+    ->	get_assoc(NTerm, Name, NAssoc, _),
+	tree_to_list(Prod, [_|ProdList]),       % DS
+%       compound_extract(Prod, _, _, ProdList),
+	reverse-ProdList,
+	format('    reduce:   ~w -> ',[Name]),
+	print_grammar_symbols(ProdList, NAssoc, TAssoc),
+	format('~n', []).
+
+% Print a list of terminals (stripped of t(..))
+print_terminals(Xs, TAssoc) :-
+    ->	put_assoc(-1, '<EOF>')-TAssoc,
+	print_grammar_symbols(Xs, TAssoc, TAssoc).
+
+% Print a list of grammar symbols
+print_grammar_symbols([t(X)|Xs], NAssoc, TAssoc ) :-
+    	get_assoc(X, Name, TAssoc,_)
+    ->	format('~w ', [Name]),
+	print_grammar_symbols(Xs, NAssoc, TAssoc).
+print_grammar_symbols([X|Xs], NAssoc, TAssoc) :-
+    	get_assoc(X, Name, NAssoc, _)
+    ->	format('~w ', [Name]),
+	print_grammar_symbols(Xs, NAssoc, TAssoc).
+print_grammar_symbols([_|Xs], NAssoc, TAssoc) :-
+    ->	print_grammar_symbols(Xs, NAssoc, TAssoc).
+print_grammar_symbols([], _, _) :-
+    ->	true.
+
+
+
+
