@@ -12,7 +12,7 @@
 
 
 #if !defined(APOLLO) && !defined(macintosh)
-#include <malloc.h>
+#include <stdlib.h>
 #endif
 
 

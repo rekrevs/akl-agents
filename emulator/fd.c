@@ -1,6 +1,9 @@
 #define DEFINING_FD_DATA
 #include "fd_akl.h"
 
+#ifndef NOFD
+/* Finite domain functionality is enabled */
+
 static dep_class prop_table[2][2] = {{P_DOM,P_MAX},{P_MIN,P_MINMAX}};
 
 int not_affected[4][4] = {
@@ -2492,3 +2495,22 @@ void fd_numb_of_ff(L)
     reset_trail(cp);
   }
 }
+
+#else /* NOFD */
+/* Empty stubs when finite domain support is disabled */
+
+/* These stubs are needed to satisfy the linker */
+void bit_add() {}
+void bit_compl() {}
+void bit_intersect() {}
+void bit_sub() {}
+void bit_union() {}
+void get_dom() {}
+int in_dom() { return 0; }
+long max_b() { return 0; }
+long min_b() { return 0; }
+int monoton() { return 0; }
+int non_empty_dom() { return 0; }
+void reset_trail() {}
+
+#endif /* NOFD */

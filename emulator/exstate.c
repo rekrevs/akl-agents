@@ -11,7 +11,7 @@
 #include "error.h"
 
 #if !defined(APOLLO) && !defined(macintosh)
-#include <malloc.h>
+#include <stdlib.h>
 #endif
 
 void		update_context_trail();

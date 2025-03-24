@@ -9,6 +9,9 @@
 #include "copy.h"
 #include "predicate.h"
 
+/* Forward declaration for entailed function from exstate.c */
+bool entailed(constraint **constrp);
+
 #include "exstate.h"
 #include "error.h"
 

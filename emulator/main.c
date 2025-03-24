@@ -15,6 +15,7 @@
 #include "names.h"
 #include "display.h"
 #include "intrpt.h"
+#include <string.h>
 
 int akl_argc;
 char **akl_argv;

@@ -257,7 +257,7 @@ extern void trace_begin();
 extern int trace_exit_cont();
 
 extern int trace_apply();
-extern trace_apply_list();
+extern int trace_apply_list();
 
 
 extern unsigned int init_filter();

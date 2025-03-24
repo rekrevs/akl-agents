@@ -1,5 +1,11 @@
 #include "fd_akl.h"
 
+#ifndef NOFD
+/* Finite domain functionality is enabled */
+
+/* Forward declaration for propagate_info function from fd.c */
+dep_class propagate_info(Term X, domstruct *t, andbox *andb, exstate *exs);
+
 #ifdef THREADED_CODE
 address *fd_instr_label_table;
 int fd_instr_label_table_length = 0;
@@ -994,3 +1000,128 @@ void initialize_finite()
   define("fd_numberof",fd_numberof,2);
   define("fd_numberof_ff",fd_numberof_ff,2);
 }
+
+#else /* NOFD */
+/* Empty stubs when finite domain support is disabled */
+
+/* Stub implementation of essential finite domain (FD) functions */
+
+/* Implement stub structures with correct initialization */
+gvamethod finitemethod = {
+  NULL, /* new_finite */
+  NULL, /* unify_finite */
+  NULL, /* print_finite */
+  NULL, /* copy_finite */
+  NULL, /* gc_finite */
+  NULL, /* uncopied_finite */
+  NULL, /* deallocate_finite */
+  NULL, /* kill_finite */
+  NULL, /* close_finite */
+  NULL, /* send_finite */
+  NULL, /* copy_external_finite */
+  NULL, /* gc_external_finite */
+  NULL, /* external_gc_finite */
+  NULL, /* makewake_finite */
+  NULL  /* makerecall_finite */
+};
+
+constrtable fd_in_method = {NULL};
+
+/* Stub implementations with correct return types */
+Gvainfo new_finite() { return NULL; }
+bool unify_finite() { return false; }
+int print_finite() { return 0; }
+Gvainfo copy_finite() { return NULL; }
+Gvainfo gc_finite() { return NULL; }
+int uncopied_finite() { return 0; }
+envid *deallocate_finite() { return NULL; }
+int kill_finite() { return 0; }
+bool close_finite() { return false; }
+bool send_finite() { return false; }
+void copy_external_finite() {}
+void gc_external_finite() {}
+void makewake_finite() {}
+void makerecall_finite() {}
+
+/* Initialize function */
+void initialize_finite() {}
+
+/* Other required functions */
+Term copy_args() { return 0; }
+void copy_fd_susp() {}
+void copy_mon() {}
+void evaluate_range() {}
+void fd_das() {}
+int fd_entailed() { return 0; }
+bool fd_in() { return false; }
+void fd_numb_of() {}
+void fd_numb_of_ff() {}
+bool fd_one_solution() { return false; }
+bool fd_one_solution_ff() { return false; }
+bool fd_propagate() { return false; }
+int fd_trailed() { return 0; }
+void gc_args() {}
+void gc_fd_susp() {}
+void gc_mon() {}
+intersect intersect_fd() { return NULL; }
+intersect intersect_trail() { return NULL; }
+int is_determined() { return 0; }
+int local() { return 0; }
+dom_info monotonicity() { return 0; }
+void move_dom() {}
+int number_of_bits() { return 0; }
+void print_dom() {}
+dep_class propagate_info() { return 0; }
+void retrail() {}
+void split_fd_susp() {}
+void trail() {}
+void wake_agent_suspensions() {}
+void wake_trail_suspensions() {}
+void bind_variable() {}
+
+/* More function stubs */
+bool install_in() { return false; }
+void reinstall_in() {}
+void deinstall_in() {}
+void promote_in() {}
+int print_in() { return 0; }
+constraint *copy_in() { return NULL; }
+constraint *gc_in() { return NULL; }
+
+bool install_min() { return false; }
+void reinstall_min() {}
+void deinstall_min() {}
+void promote_min() {}
+int print_min() { return 0; }
+constraint *copy_min() { return NULL; }
+constraint *gc_min() { return NULL; }
+
+bool install_trail() { return false; }
+void reinstall_trail() {}
+void deinstall_trail() {}
+void promote_trail() {}
+int print_trail() { return 0; }
+constraint *copy_trail() { return NULL; }
+constraint *gc_trail() { return NULL; }
+
+void range() {}
+long min_bit() { return 0; }
+long max_bit() { return 0; }
+void wake_suspensions() {}
+int copy_fd_entailed() { return 0; }
+locality_info locality() { return 0; }
+bool resuspend_x() { return false; }
+dep_class prop_info() { return 0; }
+
+/* AKL interface functions */
+void fd_element_x() {}
+void fd_element_i() {}
+void akl_in() {}
+void fd_size() {}
+void fd_min() {}
+void fd_one() {}
+void fd_one_ff() {}
+void fd_numberof() {}
+void fd_numberof_ff() {}
+
+#endif /* NOFD */

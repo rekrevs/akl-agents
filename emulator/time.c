@@ -17,6 +17,9 @@
 #include "functor.h"
 #include "compare.h"
 
+/* Forward declaration for systime function */
+int systime(void);
+
 #ifdef unix
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -48,6 +51,17 @@ int systime() {
 #endif
 #endif
 
+/* Add macOS specific implementation */
+#ifdef MACOSX
+#include <sys/time.h>
+#include <sys/resource.h>
+
+int systime() {
+  struct rusage u;
+  getrusage(RUSAGE_SELF, &u);
+  return u.ru_utime.tv_sec*1000 + u.ru_utime.tv_usec / 1000;
+}
+#endif
 
 
 bool akl_systime(Arg)

@@ -18,6 +18,7 @@
 #include "error.h"
 #include "functor.h"
 #include "engine.h"
+#include <string.h>
 
 
 typedef struct predlist {

@@ -20,15 +20,24 @@
 #include "examine.h"
 #include "abstraction.h"
 #include "port.h"
-#include "fd.h"
-#include "fd_instr.h"
 
+/* Finite domain constants - needed regardless of FD support */
 #define N 32	 /* What is the best way of getting rid of the explicit 32? */
 #define MaxL 8	 /* maximal domain = 0..(N*MaxL-1) */
 #define NrDoms 10
 #define CodeArea 1000
 #define CodeTable 200
 #define FdStack 100
+
+/* Include finite domain headers only if FD support is enabled */
+#ifndef NOFD
+#include "fd.h"
+#include "fd_instr.h"
+#else
+/* Basic type definitions when FD is disabled */
+typedef void* fd_instr;
+typedef int enum_fd_instr;
+#endif
 #define VStack 50
 #define BHeap MaxL*NrDoms
 

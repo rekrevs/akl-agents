@@ -348,7 +348,7 @@ undefine(`define')
 
 static char name[MAXATOMLEN];
 static char pname[MAXATOMLEN];
-static int abs;
+static int abs_val; /* Renamed from 'abs' to avoid conflict with stdlib abs() function */
 static int arity;
 static int parity;
 static int ext;
@@ -521,12 +521,12 @@ definitions: /* empty */
 	  }
         | definitions
 	  PREDICATE LPAR NUMBER
-          { abs = atoi(yytext);
+          { abs_val = atoi(yytext);
           } SLASH NUMBER 
 	  { parity = atoi(yytext); 
 	  } SLASH NUMBER
 	  { ext = atoi(yytext);
-            Define_Abstraction(abs,parity,ext);
+            Define_Abstraction(abs_val,parity,ext);
 	  } code RPAR
           { End_Definition;
             if(verbose)

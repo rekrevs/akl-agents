@@ -18,6 +18,8 @@
 #include "error.h"
 #include "inout.h"
 #include "ptrhash.h"
+#include <string.h>
+#include <unistd.h> /* For isatty function */
 
 #include <sys/ioctl.h>
 #include <sys/types.h>
