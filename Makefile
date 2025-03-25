@@ -57,7 +57,7 @@ VERSION = 0.9
 SHELL = /bin/sh
 
 # $(srcdir) MUST BE ABSOLUTE.
-srcdir = /home/sverker/agents
+srcdir = /Users/sverker/gitrepos/akl-agents
 gmpdir = $(srcdir)/gmp
 
 # ***** INSTALLATION VARIABLES *****
@@ -83,7 +83,7 @@ mandir = $(prefix)/man/man1
 manext = 1
 infodir = $(prefix)/info
 
-INSTALL = /usr/gnu/bin/install -c
+INSTALL = /usr/bin/install -c
 INSTALL_DATA = $(INSTALL) -m 644
 INSTALL_PROGRAM = $(INSTALL)
 
@@ -91,19 +91,19 @@ AGENTS = $(srcdir)/agents
 BISON = bison
 CC = gcc
 CFLAGS = -O2
-ALL_CFLAGS = -I$(gmpdir) $(CFLAGS)
+ALL_CFLAGS =  $(CFLAGS)
 ETAGS = etags
 FLEX = flex
 FLEXFLAGS = -8
-LDFLAGS = -L$(gmpdir) -lgmp -lm
+LDFLAGS =  -lm
 M4 = m4
 MAKE = make
 MAKEINFO = makeinfo
 MAKEINFOFLAGS = --fill-column=70
 RUNTEST = runtest
-WORKINGCOPY = agents
+WORKINGCOPY = $(shell pwd)/agents
 
-AGENTSFLAGS_AUTO =  
+AGENTSFLAGS_AUTO = -DNOBIGNUM 
 # E for Environment field in records
 EAGENTSFLAGS = $(AGENTSFLAGS_AUTO) -DMETERING -DNDEBUG -DSTRUCT_ENV
 # O for Ordinary
@@ -154,12 +154,16 @@ INSTALL_VARS_TO_PASS = \
 	infodir=$(infodir)
 
 
-all: 	make-gmp make-emulator make-compiler make-environment make-version \
+all: 	 make-emulator make-compiler make-environment make-version \
 	make-agents make-library make-tools make-demos
 
 make-gmp:
-	(cd gmp; \
-	 $(MAKE) $(MFLAGS) CC=$(CC) libgmp.a)
+	@if [ -d gmp ]; then \
+		(cd gmp; \
+		 $(MAKE) $(MFLAGS) CC=$(CC) libgmp.a); \
+	else \
+		echo "Using system GMP library"; \
+	fi
 
 make-emulator:
 	(cd emulator; \
@@ -224,7 +228,7 @@ make-demos:
 	 $(MAKE) $(MFLAGS) $(VARS_TO_PASS) VARS_TO_PASS='$(VARS_TO_PASS)' all)
 
 
-install:	installdirs install-gmp install-emulator install-compiler \
+install:	installdirs  install-emulator install-compiler \
 		install-environment install-version install-agents \
 		install-library install-tools install-demos install-man \
 		install-info install-emacs-mode
@@ -387,8 +391,10 @@ uninstall-info:
 
 
 clean:
-	(cd gmp; \
-	 $(MAKE) $(MFLAGS) clean)
+	@if [ -d gmp ]; then \
+		(cd gmp; \
+		 $(MAKE) $(MFLAGS) clean); \
+	fi
 	(cd emulator; \
 	 $(MAKE) $(MFLAGS) clean; \
 	 rm -f oagents.o oagents tcovagents.o tcovagents)

@@ -2,6 +2,12 @@
 #define TADBITS 64
 #endif
 
+/* Apple Silicon M1/M2 (ARM64) support */
+#if defined(__APPLE__) && defined(__arm64__)
+#define TADBITS 64
+#define HAS_NO_GCVT
+#endif
+
 #ifdef mips
 #define HAS_NO_GCVT
 #endif

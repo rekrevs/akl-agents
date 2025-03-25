@@ -1,0 +1,2 @@
+process handle SIGTRAP --stop-on-signal true --pass-signal false
+run

@@ -177,6 +177,12 @@ EOF
     i[34]86:Linux:*:*)
 	echo ${UNAME_MACHINE}-unknown-linux
 	exit 0 ;;
+    arm64:Darwin:*:*)
+	echo arm64-apple-darwin${UNAME_RELEASE}
+	exit 0 ;;
+    *:Darwin:*:*)
+	echo ${UNAME_MACHINE}-apple-darwin${UNAME_RELEASE}
+	exit 0 ;;
     i[34]86:UNIX_SV:4.*:*)
 	if grep Novell /usr/include/link.h >/dev/null 2>/dev/null; then
 		echo ${UNAME_MACHINE}-univel-sysv${UNAME_RELEASE}

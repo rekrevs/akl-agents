@@ -3,7 +3,7 @@
 
 SHELL = /bin/sh
 
-AGENTS = ../agents
+AGENTS = /Users/sverker/gitrepos/akl-agents/agents
 
 
 # Variables to pass to all submakes apart from installs, uninstalls, and

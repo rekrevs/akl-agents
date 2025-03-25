@@ -3,6 +3,7 @@
 
 #define FatalError(String)\
     { fprintf(stderr,"{FatalError: %s}\n",String);\
+      fflush(stderr);\
       error_exit(1); }
 
 

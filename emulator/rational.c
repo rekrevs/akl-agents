@@ -14,7 +14,7 @@ typedef struct mp_bignum mp_bignum, *MP_Bignum;
 #include "predicate.h"
 #include "exstate.h"
 #include "engine.h"
-#include "gmp.h"
+#include <gmp.h>
 #include "unify.h"
 #include "gc.h"
 #include "copy.h"
@@ -52,7 +52,7 @@ method ratmethod =
 
 typedef struct {
   generic	generic;
-  MP_RAT	mp_rat;
+  mpq_t	mp_rat; /* Changed from MP_RAT to mpq_t for modern GMP compatibility */
 } RatType;
 
 #define Rat(Prt)  ((RatType *)Prt)
@@ -63,7 +63,7 @@ typedef struct {
 
 struct mp_bignum {
   uword		tag2;
-  MP_INT	mp_int;
+  mpz_t	mp_int; /* Changed from MP_INT to mpz_t for modern GMP compatibility */
 };
 
 #define Bign(Prt)  ((Bignum)Prt)
@@ -149,20 +149,20 @@ int printrat(file,rat,tsiz)
 {
   extern char *salloc();
   char *buf;
-  MP_INT t0, t1;
+  mpz_t t0, t1;
 
-  mpz_init(&t0);		/* memory leak */
-  mpz_init(&t1);		/* memory leak */
-  mpq_get_num(&t0, &rat->mp_rat);
-  mpq_get_den(&t1, &rat->mp_rat);
+  mpz_init(t0);		/* memory leak */
+  mpz_init(t1);		/* memory leak */
+  mpq_get_num(t0, rat->mp_rat);
+  mpq_get_den(t1, rat->mp_rat);
 
-  buf = salloc(mpz_sizeinbase(&t0,10) + 2);
-  mpz_get_str(buf, 10, &t0);
+  buf = salloc(mpz_sizeinbase(t0,10) + 2);
+  mpz_get_str(buf, 10, t0);
   fprintf(file,"r'%s/", buf);
   free(buf);			/* should use sfree or something */
 
-  buf = salloc(mpz_sizeinbase(&t1,10) + 2);
-  mpz_get_str(buf, 10, &t1);
+  buf = salloc(mpz_sizeinbase(t1,10) + 2);
+  mpz_get_str(buf, 10, t1);
   fprintf(file,"%s", buf);
   free(buf);			/* should use sfree or something */
   return 1;
@@ -236,9 +236,9 @@ bool akl_big_to_rat(Arg)
   if (IsBignum(X0) && IsBignum(X1))
     {
       MakeGeneric(rat, RatType, &ratmethod);
-      mpq_init(&rat->mp_rat);
-      mpq_set_num(&rat->mp_rat,&Bign(Gen(X0))->mp_int);
-      mpq_set_den(&rat->mp_rat,&Bign(Gen(X1))->mp_int);
+      mpq_init(rat->mp_rat);
+      mpq_set_num(rat->mp_rat, Bign(Gen(X0))->mp_int);
+      mpq_set_den(rat->mp_rat, Bign(Gen(X1))->mp_int);
       Deref(X2, A(2));
       return unify(X2, TagGen(rat), exs->andb,exs);
     }
@@ -260,10 +260,10 @@ bool akl_rat_to_big(Arg)
     {
       bn0 = new_bignum(NULL);
       bn1 = new_bignum(NULL);
-      mpz_init(&bn0->mp_int);	/* memory leak */
-      mpz_init(&bn1->mp_int);	/* memory leak */
-      mpq_get_num(&bn0->mp_int,&Rat(Gen(X0))->mp_rat);
-      mpq_get_den(&bn1->mp_int,&Rat(Gen(X0))->mp_rat);
+      mpz_init(bn0->mp_int);	/* memory leak */
+      mpz_init(bn1->mp_int);	/* memory leak */
+      mpq_get_num(bn0->mp_int, Rat(Gen(X0))->mp_rat);
+      mpq_get_den(bn1->mp_int, Rat(Gen(X0))->mp_rat);
       Deref(X1, A(1));
       Deref(X2, A(2));
       return unify(X1, TagGen(bn0), exs->andb,exs)

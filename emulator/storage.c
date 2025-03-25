@@ -11,8 +11,10 @@
 #include "error.h"
 
 
-#if !defined(APOLLO) && !defined(macintosh)
+#if !defined(APOLLO) && !defined(macintosh) && !defined(__APPLE__)
 #include <malloc.h>
+#else
+#include <stdlib.h>
 #endif
 
 

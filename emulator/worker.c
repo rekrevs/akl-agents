@@ -1,8 +1,10 @@
 /* $Id: worker.c,v 1.2 1991/11/13 12:55:51 jm Exp $ */
 
 #include "include.h"
-#ifndef APOLLO
+#if !defined(APOLLO) && !defined(macintosh) && !defined(__APPLE__)
 #include <malloc.h>
+#else
+#include <stdlib.h>
 #endif
 
 void		update_context_trail();

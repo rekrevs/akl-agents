@@ -563,7 +563,15 @@ bool expand_file_name(name, target)
 
 void break_to_gdb() {
 #ifdef unix
+  /* Check if we're on Apple Silicon M1 at runtime */
+#if defined(__APPLE__) && defined(__arm64__)
+  /* On Apple Silicon M1, skip sending SIGTRAP as it causes issues */
+  fprintf(stderr, "{DEBUG: break_to_gdb called - skipping SIGTRAP on Apple Silicon M1}\n");
+  fflush(stderr);
+#else
+  /* On other systems, send SIGTRAP as usual */
   kill(getpid(), SIGTRAP);
+#endif
 #endif
 }
 

@@ -100,7 +100,7 @@ MAKE = @MAKE@
 MAKEINFO = makeinfo
 MAKEINFOFLAGS = --fill-column=70
 RUNTEST = runtest
-WORKINGCOPY = agents
+WORKINGCOPY = $(shell pwd)/agents
 
 AGENTSFLAGS_AUTO = @AGENTSFLAGS_GMP@ @AGENTSFLAGS_MATH@
 # E for Environment field in records
@@ -157,8 +157,12 @@ all: 	@MAKE_GMP@ make-emulator make-compiler make-environment make-version \
 	make-agents make-library make-tools make-demos
 
 make-gmp:
-	(cd gmp; \
-	 $(MAKE) $(MFLAGS) CC=$(CC) libgmp.a)
+	@if [ -d gmp ]; then \
+		(cd gmp; \
+		 $(MAKE) $(MFLAGS) CC=$(CC) libgmp.a); \
+	else \
+		echo "Using system GMP library"; \
+	fi
 
 make-emulator:
 	(cd emulator; \
@@ -386,8 +390,10 @@ uninstall-info:
 
 
 clean:
-	(cd gmp; \
-	 $(MAKE) $(MFLAGS) clean)
+	@if [ -d gmp ]; then \
+		(cd gmp; \
+		 $(MAKE) $(MFLAGS) clean); \
+	fi
 	(cd emulator; \
 	 $(MAKE) $(MFLAGS) clean; \
 	 rm -f oagents.o oagents tcovagents.o tcovagents)

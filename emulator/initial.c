@@ -134,7 +134,9 @@ static void init_intrinsics() {
   initialize_trace();
   initialize_predicate();
   initialize_aggregate();
+#ifndef NOFD
   initialize_finite();
+#endif
   initialize_error();
   initialize_abstraction();
 

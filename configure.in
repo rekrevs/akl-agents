@@ -1,5 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(agents.in)
+AC_INIT
+AC_CONFIG_SRCDIR([agents.in])
 
 dnl Handle relative srcdir.
 case ${srcdir} in
@@ -48,8 +49,8 @@ fi
 echo "configuring for $host"
 
 dnl Handle gmp exclusion.
-CFLAGS_GMP="-I$(gmpdir)"
-LDFLAGS_GMP="-L$(gmpdir) -lgmp"
+CFLAGS_GMP="-I/opt/homebrew/opt/gmp/include"
+LDFLAGS_GMP="-L/opt/homebrew/opt/gmp/lib -lgmp"
 AGENTSFLAGS_GMP=""
 MAKE_GMP=make-gmp
 INSTALL_GMP=install-gmp
@@ -75,11 +76,27 @@ AC_PROG_CC
 dnl CFLAGS should contain nothing essential - it should be possible for users
 dnl to override it freely on the 'make' command line.  Essential things should
 dnl be aggregated with CFLAGS to form ALL_CFLAGS - see Makefile.in.
-if [[ ${GCC} ]] ; then
-  CFLAGS=-O2
-else
-  CFLAGS=""
-fi
+
+dnl Special handling for Apple Silicon (arm64) to handle older C code
+case "$host" in
+  arm64-apple-darwin*)
+    dnl Use more lenient compiler flags for older C code on Apple Silicon
+    dnl -Wno-deprecated-non-prototype: Suppress warnings about K&R-style function declarations
+    dnl -Wno-shift-count-overflow: Suppress warnings about shifts in macro definitions
+    CFLAGS="-O2 -w -Wno-error -std=gnu89 -Wno-deprecated-non-prototype -Wno-shift-count-overflow"
+    CFLAGS_GMP="$CFLAGS_GMP -w -Wno-error -std=gnu89 -Wno-deprecated-non-prototype -Wno-shift-count-overflow"
+    ;;
+  *)
+    dnl Default compiler flags for other platforms
+    if [[ ${GCC} ]] ; then
+      dnl Add -Wno-deprecated-non-prototype to suppress warnings about K&R-style function declarations
+      dnl Add -Wno-shift-count-overflow to suppress warnings about shifts in macro definitions
+      CFLAGS="-O2 -Wno-deprecated-non-prototype -Wno-shift-count-overflow"
+    else
+      CFLAGS=""
+    fi
+    ;;
+esac
 AC_SUBST(CFLAGS)
 
 AC_PROG_INSTALL
@@ -133,6 +150,7 @@ AC_SUBST(LDFLAGS_MATH)
 
 dnl gmake is preferable on HPs, whose default make is unusually stupid, and is
 dnl fine on others too.
-AC_PROGRAM_CHECK(MAKE,gmake,gmake,make)
+AC_CHECK_PROG([MAKE],[gmake],[gmake],[make])
 
-AC_OUTPUT(Makefile)
+AC_CONFIG_FILES([Makefile])
+AC_OUTPUT

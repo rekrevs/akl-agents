@@ -1,1 +1,0 @@
-.././mpn/sparc32/v9/submul_1.asm

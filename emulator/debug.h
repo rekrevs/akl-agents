@@ -16,6 +16,9 @@
 */
 #define VAR_DEBUG
 
+/* Define this to enable GMP debugging */
+#define GMP_DEBUG
+
 #endif 
 
 
@@ -58,6 +61,12 @@
 #define ScheduleDebugPrint(STR)	DebugPrint(STR)
 #else
 #define ScheduleDebugPrint(STR) 
+#endif
+
+#ifdef GMP_DEBUG
+#define GmpDebugPrint(STR)	DebugPrint(STR)
+#else
+#define GmpDebugPrint(STR)
 #endif
 
 #ifdef FAIL_DEBUG

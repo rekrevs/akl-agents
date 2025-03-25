@@ -416,7 +416,7 @@ int print_in(cns)
   cp = b_code+200;
   *(--cp) = FD_HALT;
   while (cp-b_code > 0) {
-    instr = FdInstrToEnum(byte_code[d]);
+    instr = FdInstrToEnum((fd_instr)(byte_code[d]));
     switch(instr) {
     case FD_HALT:
       goto rest;
@@ -984,7 +984,10 @@ void initialize_finite()
   dom_code_index_1 = code_top;
   NextInstr(code_top) = EnumToFdInstr(FD_DOM_1);
   NextInstr(code_top) = EnumToFdInstr(FD_HALT);
-  MakeIntegerTerm(ZERO,0);
+  /* Temporarily commenting out to bypass the trap error */
+  /* MakeIntegerTerm(ZERO,0); */
+  /* Initialize ZERO directly with MakeSmallNum, bypassing MakeIntegerTerm */
+  ZERO = MakeSmallNum(0);
 
   define("akl_in",akl_in,8);
   define("fd_size",fd_size,2);

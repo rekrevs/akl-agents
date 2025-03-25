@@ -5,12 +5,12 @@ SHELL = /bin/sh
 
 BISON = bison
 CC = gcc
-CFLAGS = -g -I../gmp
+CFLAGS = -g -I/opt/homebrew/opt/gmp/include -w -Wno-error -std=gnu89
 ETAGS = etags
 FLEX = flex
 FLEXFLAGS = -8
-LDFLAGS = -L../gmp -lgmp -lm
-M4 = gm4
+LDFLAGS = -L/opt/homebrew/opt/gmp/lib -lgmp -lm
+M4 = m4
 
 AGENTSFLAGS = -DMETERING -DNDEBUG
 

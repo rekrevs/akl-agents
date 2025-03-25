@@ -17,14 +17,18 @@
 #include "functor.h"
 #include "compare.h"
 
-#ifdef unix
+#if defined(unix) || defined(__APPLE__)
 #include <sys/time.h>
 #include <sys/resource.h>
 
 
 #ifndef HAS_NO_GETRUSAGE
 
+#ifdef __APPLE__
+#include <sys/resource.h>
+#else
 extern int getrusage PROTO((int who, struct *rusage));
+#endif
 
 struct rusage u;
 

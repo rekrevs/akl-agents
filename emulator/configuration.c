@@ -2,8 +2,10 @@
 
 #include "include.h"
 
-#ifndef APOLLO
+#if !defined(APOLLO) && !defined(macintosh) && !defined(__APPLE__)
 #include <malloc.h>
+#else
+#include <stdlib.h>
 #endif
 
 void		update_context_trail();

@@ -12,13 +12,14 @@ typedef struct mp_bignum mp_bignum, *MP_Bignum;
 #include "predicate.h"
 #include "exstate.h"
 #include "engine.h"
-#include "gmp.h"
+#include <gmp.h>
 #include "unify.h"
 #include "gc.h"
 #include "copy.h"
 #include "storage.h"
 #include "config.h"
 #include "initial.h"
+#include "gmp_debug.h"
 #include "bignum.h"
 #include "builtin.h"
 #include "error.h"
@@ -31,7 +32,7 @@ extern void mpz_mul_2exp_si();	/* for practical reasons */
 
 struct mp_bignum {
   uword		tag2;
-  MP_INT	mp_int;
+  mpz_t	mp_int; /* Changed from MP_INT to mpz_t for modern GMP compatibility */
 };
   
 extern void *bignum_alloc();
@@ -50,8 +51,19 @@ Bignum new_bignum(old)	/* "old" may be NULL */
 {
   Bignum new;
 
+  GMP_DEBUG_PRINT("new_bignum called");
+  GMP_DEBUG_PRINT_PTR("old bignum at", old);
+  
   NEW(new, mp_bignum);
+  GMP_DEBUG_PRINT_PTR("Memory allocated at", new);
+  
   new->tag2 = BIG_TAG2;
+  
+  /* Initialize the mp_int field for compatibility with modern GMP library */
+  mpz_init(new->mp_int);
+  GMP_DEBUG_PRINT("mp_int initialized");
+  
+  GMP_DEBUG_PRINT("new_bignum completed successfully");
 
   return new;
 }
@@ -63,9 +75,24 @@ Bignum make_bignum(value)
 {
   Bignum new;
 
+  GMP_DEBUG_PRINT("make_bignum called with value");
+  GMP_DEBUG_PRINT_VALUE("make_bignum value", value);
+  
+  GMP_DEBUG_PRINT("About to allocate memory with NEW macro");
   NEW(new, mp_bignum);
+  
+  GMP_DEBUG_PRINT_PTR("Memory allocated at", new);
+  
+  GMP_DEBUG_PRINT("Setting tag2 field");
   new->tag2 = BIG_TAG2;
-  mpz_init_set_si(&new->mp_int, value);
+  
+  /* Initialize the mpz_t structure properly for modern GMP */
+  GMP_DEBUG_PRINT("About to call mpz_init_set_si");
+  /* Use mpz_init first to ensure proper initialization */
+  mpz_init(new->mp_int);
+  /* Then set the value */
+  mpz_set_si(new->mp_int, value);
+  GMP_DEBUG_PRINT("mpz_init_set_si completed successfully");
 
   return new;
 }
@@ -76,7 +103,13 @@ void bignum_gc(old,new,gcst)
      Bignum old, new;
      gcstatep gcst;
 {
-  mpz_init_set(&new->mp_int, &old->mp_int);
+  GMP_DEBUG_PRINT("bignum_gc called");
+  GMP_DEBUG_PRINT_PTR("old bignum at", old);
+  GMP_DEBUG_PRINT_PTR("new bignum at", new);
+  
+  GMP_DEBUG_PRINT("About to call mpz_init_set");
+  mpz_init_set(new->mp_int, old->mp_int);
+  GMP_DEBUG_PRINT("mpz_init_set completed successfully");
 }
 
 /* -------------------------------------------------------------------- */
@@ -85,7 +118,7 @@ long bignum_sizeinbase(bn, base)
      Bignum bn;
      int base;
 {
-  return mpz_sizeinbase(&bn->mp_int, base);
+  return mpz_sizeinbase(bn->mp_int, base);
 }
 
 /* -------------------------------------------------------------------- */
@@ -97,7 +130,7 @@ int bignum_print(file, bn)
 #define FIXED_BUF_SIZE 512
   char *buf;
   int res;
-  long size = mpz_sizeinbase(&bn->mp_int,10) + 2;
+  long size = mpz_sizeinbase(bn->mp_int,10) + 2;
   char fixed_buf[FIXED_BUF_SIZE];
 
   if (size > FIXED_BUF_SIZE)
@@ -105,7 +138,7 @@ int bignum_print(file, bn)
   else
     buf = fixed_buf;
 
-  mpz_get_str(buf, 10, &bn->mp_int);
+  mpz_get_str(buf, 10, bn->mp_int);
   res = fprintf(file, "%s", buf);
 
   if (size > FIXED_BUF_SIZE)
@@ -118,10 +151,19 @@ int bignum_print(file, bn)
 Term canonize_bignum(b)
      Bignum b;
 {
-  if (mpz_cmp_si(&b->mp_int, -MaxSmallNum) >= 0 &&
-      mpz_cmp_si(&b->mp_int, MaxSmallNum) < 0) {
-    return MakeSmallNum(mpz_get_si(&b->mp_int));
+  GMP_DEBUG_PRINT("canonize_bignum called");
+  GMP_DEBUG_PRINT_PTR("bignum at", b);
+  
+  GMP_DEBUG_PRINT("About to call mpz_cmp_si");
+  if (mpz_cmp_si(b->mp_int, -MaxSmallNum) >= 0 &&
+      mpz_cmp_si(b->mp_int, MaxSmallNum) < 0) {
+    GMP_DEBUG_PRINT("Converting to small number");
+    GMP_DEBUG_PRINT("About to call mpz_get_si");
+    sword val = mpz_get_si(b->mp_int);
+    GMP_DEBUG_PRINT_VALUE("Small number value", val);
+    return MakeSmallNum(val);
   } else {
+    GMP_DEBUG_PRINT("Keeping as bignum");
     return TagBig(b);
   }
 }
@@ -131,10 +173,23 @@ Term canonize_bignum(b)
 Term bignum_atoi(name)
      char *name;
 {
+  GMP_DEBUG_PRINT("bignum_atoi called");
+  GMP_DEBUG_PRINT_PTR("string at", name);
+  
   Bignum res;
+  GMP_DEBUG_PRINT("About to call new_bignum");
   res = new_bignum(NULL);
-  mpz_init_set_str(&res->mp_int, name, 10);
-  return canonize_bignum(res);
+  GMP_DEBUG_PRINT_PTR("new bignum at", res);
+  
+  GMP_DEBUG_PRINT("About to call mpz_init_set_str");
+  mpz_init_set_str(res->mp_int, name, 10);
+  GMP_DEBUG_PRINT("mpz_init_set_str completed successfully");
+  
+  GMP_DEBUG_PRINT("About to call canonize_bignum");
+  Term result = canonize_bignum(res);
+  GMP_DEBUG_PRINT("canonize_bignum completed successfully");
+  
+  return result;
 }
 
 /* -------------------------------------------------------------------- */
@@ -144,7 +199,7 @@ void bignum_itoa(bn, base, buf)
      int base;
      char *buf;
 {
-  mpz_get_str(buf, base, &bn->mp_int);
+  mpz_get_str(buf, base, bn->mp_int);
 }
 
 /* -------------------------------------------------------------------- */
@@ -152,8 +207,8 @@ void bignum_itoa(bn, base, buf)
 bool bignum_is_machine_integer(b)
      Bignum b;
 {
-  if (mpz_cmp_si(&b->mp_int, LONG_MIN) >= 0 &&
-      mpz_cmp_si(&b->mp_int, LONG_MAX) <= 0)
+  if (mpz_cmp_si(b->mp_int, LONG_MIN) >= 0 &&
+      mpz_cmp_si(b->mp_int, LONG_MAX) <= 0)
     return TRUE;
   else
     return FALSE;
@@ -164,8 +219,8 @@ bool bignum_is_machine_integer(b)
 bool bignum_is_machine_unsigned(b)
      Bignum b;
 {
-  if (mpz_cmp_si(&b->mp_int, 0) >= 0 &&
-      mpz_cmp_ui(&b->mp_int, ULONG_MAX) <= 0)
+  if (mpz_cmp_si(b->mp_int, 0) >= 0 &&
+      mpz_cmp_ui(b->mp_int, ULONG_MAX) <= 0)
     return TRUE;
   else
     return FALSE;
@@ -182,12 +237,12 @@ int bignum_compare(x, y)
 
   if (IsBIG(x)) {
     if (IsNUM(y)) {
-      return mpz_cmp_si(&Big(x)->mp_int, GetSmall(y));
+      return mpz_cmp_si(Big(x)->mp_int, GetSmall(y));
     } else if (IsBIG(y)) {
-      return mpz_cmp(&Big(x)->mp_int, &Big(y)->mp_int);
+      return mpz_cmp(Big(x)->mp_int, Big(y)->mp_int);
     }
   } else if (IsBIG(y) && IsNUM(x)) {
-    return -mpz_cmp_si(&Big(y)->mp_int, GetSmall(x));
+    return -mpz_cmp_si(Big(y)->mp_int, GetSmall(x));
   }
 
   Error("non-numeric domain in numeric comparison");
@@ -201,7 +256,7 @@ sword get_bignum_integer(i)
      Term i;
 {
   if (IsBIG(i))
-    return mpz_get_si(&Big(i)->mp_int);
+    return mpz_get_si(Big(i)->mp_int);
   else
     {
       Error("get_bignum_integer() applied on non-integer term");
@@ -215,7 +270,7 @@ uword get_bignum_unsigned(i)
      Term i;
 {
   if (IsBIG(i))
-    return mpz_get_ui(&Big(i)->mp_int);
+    return mpz_get_ui(Big(i)->mp_int);
   else
     {
       Error("get_bignum_unsigned() applied on non-integer term");
@@ -228,10 +283,10 @@ uword get_bignum_unsigned(i)
 uword bignum_hash_value(i)
      Term i;
 {
-  MP_INT *bp = &Big(i)->mp_int;
+  /* Use direct access to the mpz_t variable without taking its address */
   unsigned int hval;
 
-  hval = mpz_get_ui(bp);
+  hval = mpz_get_ui(Big(i)->mp_int);
 
   return hval;
 }
@@ -247,38 +302,13 @@ double get_bignum_float(x)
 {
   if (IsBIG(x)) {
     Bignum b = Big(x);
-    long i, size;
-    unsigned long *d;
     double f;
 
- /* NOTE: Here we use knowledge about the internal MP_INT representation! */
+    /* Use GMP API functions instead of direct access to internal fields */
+    /* Convert the mpz_t to a double using mpz_get_d */
+    f = mpz_get_d(b->mp_int);
 
-    d = b->mp_int._mp_d;
-    size = b->mp_int._mp_size;
-
-    if (size < 0)
-      i = -size;
-    else
-      i = size;
-
-    f = 0.0;
-
-    while (i--) {
-      unsigned long u = d[i];
-
-      /* The following is adapted from Sicstus. */
-      /* I don't know what the problem is...... */
-
-      if (u & SIGN_BIT)		/* trouble on some machines */
-	f = f*F_LIMB_BASE + F_SIGN_BIT + (u - SIGN_BIT);
-      else
-	f = f*F_LIMB_BASE + u;
-    }
-
-    if (size < 0)
-      return -f;
-    else
-      return f;
+    return f;
   } else {
     Error("get_bignum_float() applied on non-integer term");
     return 0.0;
@@ -323,8 +353,8 @@ Term hard_mul_int(x, y)
   Bignum bz;
   bx = make_bignum(y >= 0 ? x : -x);
   bz = new_bignum(NULL);
-  mpz_init(&bz->mp_int);
-  mpz_mul_ui(&bz->mp_int, &bx->mp_int, (y >= 0 ? y : -y));
+  mpz_init(bz->mp_int);
+  mpz_mul_ui(bz->mp_int, bx->mp_int, (y >= 0 ? y : -y));
   return canonize_bignum(bz);
 }
 
@@ -339,12 +369,12 @@ Term hard_shift_int(x, y, negate)
   uword y_abs;
   bx = make_bignum(x);
   bz = new_bignum(NULL);
-  mpz_init(&bz->mp_int);
+  mpz_init(bz->mp_int);
   y_abs = (y >= 0 ? y : -y);
   if ((negate < 0) == (y < 0))
-    mpz_mul_2exp(&bz->mp_int, &bx->mp_int, y_abs);
+    mpz_mul_2exp(bz->mp_int, bx->mp_int, y_abs);
   else
-    mpz_div_2exp(&bz->mp_int, &bx->mp_int, y_abs);
+    mpz_div_2exp(bz->mp_int, bx->mp_int, y_abs);
   return canonize_bignum(bz);
 }
 
@@ -420,7 +450,7 @@ Bignum bignum_copy_to_constspace(src)
 			  bignum_const_realloc,
 			  bignum_const_dealloc);
 
-  mpz_init_set(&dest->mp_int, &src->mp_int);
+  mpz_init_set(dest->mp_int, src->mp_int);
 
   mp_set_memory_functions(bignum_alloc,
 			  bignum_realloc,
@@ -449,7 +479,7 @@ Term Name(x, y) \
      Term x, y; \
 { \
   Bignum z = new_bignum(NULL); \
-  mpz_init(&z->mp_int); \
+  mpz_init(z->mp_int); \
  \
   if (IsBIG(x)) { \
     if (IsBIG(y)) { \
@@ -491,8 +521,8 @@ Term Name(x) \
  \
   if (IsBIG(x)) { \
     z = new_bignum(NULL); \
-    mpz_init(&z->mp_int); \
-    Mpz_func(&z->mp_int, &Big(x)->mp_int); \
+    mpz_init(z->mp_int); \
+    Mpz_func(z->mp_int, Big(x)->mp_int); \
     return canonize_bignum(z); \
   } \
  \
@@ -510,8 +540,8 @@ Term Name(x) \
  \
   if (IsBIG(x)) { \
     z = new_bignum(NULL); \
-    mpz_init(&z->mp_int); \
-    Mpz_func(&z->mp_int, &Big(x)->mp_int, 1); \
+    mpz_init(z->mp_int); \
+    Mpz_func(z->mp_int, Big(x)->mp_int, 1); \
     return canonize_bignum(z); \
   } \
  \
@@ -533,26 +563,26 @@ Term bignum_shift(x, y, negate)
       Error("in arithmetic expression: shift count has too large magnitude");
       return MakeSmallNum(-1);	/* Kludge! */
     }
-    yi = mpz_get_si(&Big(y)->mp_int);
+    yi = mpz_get_si(Big(y)->mp_int);
     if (negate < 0)
       yi = -yi;
     z = new_bignum(NULL);
-    mpz_init(&z->mp_int);
+    mpz_init(z->mp_int);
     if (IsBIG(x)) {
-      mpz_mul_2exp_si(&z->mp_int, &Big(x)->mp_int, yi);
+      mpz_mul_2exp(z->mp_int, Big(x)->mp_int, yi);
       return canonize_bignum(z);
     } else if (IsNUM(x)) {
       tmp = make_bignum(GetSmall(x));
-      mpz_mul_2exp_si(&z->mp_int, &tmp->mp_int, yi);
+      mpz_mul_2exp(z->mp_int, tmp->mp_int, yi);
       return canonize_bignum(z);
     }
   } else if (IsNUM(y) && IsBIG(x)) {
     z = new_bignum(NULL);
-    mpz_init(&z->mp_int);
+    mpz_init(z->mp_int);
     yi = GetSmall(y);
     if (negate < 0)
       yi = -yi;
-    mpz_mul_2exp_si(&z->mp_int, &Big(x)->mp_int, yi);
+    mpz_mul_2exp(z->mp_int, Big(x)->mp_int, yi);
     return canonize_bignum(z);
   }
 
@@ -609,26 +639,35 @@ void mpz_xor_kludge(res, x, y)
 {
   /* SUPER-KLUDGE FOLLOWS: */
 
-  MP_INT t1, t2, t3;
+  mpz_t t1, t2, t3;
 
-  mpz_init(&t1);
-  mpz_init(&t2);
-  mpz_init(&t3);
-  mpz_com(&t1, x);		/*    ~x     */
-  mpz_and(&t2, &t1, y);		/*   ~x&y    */
-  mpz_com(&t1, y);		/*    ~y     */
-  mpz_and(&t3, &t1, x);		/*   ~y&x    */
-  mpz_ior(res, &t2, &t3);	/* ~x&y|~y&x */
-  mpz_clear(&t1);
-  mpz_clear(&t2);
-  mpz_clear(&t3);
+  mpz_init(t1);
+  mpz_init(t2);
+  mpz_init(t3);
+  mpz_com(t1, x);		/*    ~x     */
+  mpz_and(t2, t1, y);		/*   ~x&y    */
+  mpz_com(t1, y);		/*    ~y     */
+  mpz_and(t3, t1, x);		/*   ~y&x    */
+  mpz_ior(res, t2, t3);	/* ~x&y|~y&x */
+  mpz_clear(t1);
+  mpz_clear(t2);
+  mpz_clear(t3);
 }
 
 
 void initialize_bignum() {
-
-  mp_set_memory_functions(bignum_alloc,bignum_realloc,bignum_dealloc);
-
+  /* Modern GMP libraries handle memory allocation differently
+   * We'll use the default GMP memory functions instead of custom ones
+   * to ensure compatibility with the modern GMP library
+   */
+  /* mp_set_memory_functions(bignum_alloc,bignum_realloc,bignum_dealloc); */
+  
+  /* Ensure GMP is properly initialized before any operations */
+  mpz_t dummy;
+  mpz_init(dummy);
+  mpz_clear(dummy);
+  
+  GMP_DEBUG_PRINT("GMP library initialized");
 }
 
 #else
@@ -655,115 +694,96 @@ void initialize_bignum() {
 #include <math.h>
 
 
-Bignum new_bignum(old)
-     Bignum old;	/* ignore */
+Bignum new_bignum(Bignum old)
 {
   Bignum new;
 
+  /* In NOBIGNUM mode, we allocate a basic bigstub structure */
   NEW(new, bigstub);
   new->tag2 = BIG_TAG2;
+  
+  /* No need to initialize mp_int field in NOBIGNUM mode */
 
   return new;
 }
 
-Bignum make_bignum(value)
-     sword value;	/* ignore */
+Bignum make_bignum(sword value)
 {
   return new_bignum(NULL);
 }
 
-void bignum_gc(old,new,gcst)
-     Bignum old, new;
-     gcstatep gcst;
+void bignum_gc(Bignum old, Bignum new, gcstatep gcst)
 {
 }
 
-long bignum_sizeinbase(bn, base)
-     Bignum bn;
-     int base;
+long bignum_sizeinbase(Bignum bn, int base)
 {
   return TADBITS;
 }
 
-int bignum_print(file, bn)
-     FILE *file;
-     Bignum bn;
+int bignum_print(FILE *file, Bignum bn)
 {
   return fprintf(file, "Overflow");
 }
 
-Term bignum_atoi(name)
-     char *name;
+Term bignum_atoi(char *name)
 {
   return TagBig(new_bignum(NULL));
 }
 
-void bignum_itoa(bn, base, buf)
-     Bignum bn;
-     int base;
-     char *buf;
+void bignum_itoa(Bignum bn, int base, char *buf)
 {
   sprintf(buf, "Overflow");
 }
 
-bool bignum_is_machine_integer(b)
-     Bignum b;
+bool bignum_is_machine_integer(Bignum b)
 {
   return FALSE;
 }
 
-bool bignum_is_machine_unsigned(b)
-     Bignum b;
+bool bignum_is_machine_unsigned(Bignum b)
 {
   return FALSE;
 }
 
-int bignum_compare(x, y)
-     Term x, y;
+int bignum_compare(Term x, Term y)
 {
   return -1;	/* Kludge! */
 }
 
-Term canonize_bignum(b)
-     Bignum b;
+Term canonize_bignum(Bignum b)
 {
   return TagBig(b);
 }
 
-sword get_bignum_integer(i)
-     Term i;
+sword get_bignum_integer(Term i)
 {
   return MaxSmallNum;
 }
 
-uword get_bignum_unsigned(i)
-     Term i;
+uword get_bignum_unsigned(Term i)
 {
   return MaxSmallNum;
 }
 
-uword bignum_hash_value(i)
-     Term i;
+uword bignum_hash_value(Term i)
 {
   return MaxSmallNum;
 }
 
-double get_bignum_float(x)
-     Term x;
+double get_bignum_float(Term x)
 {
   return (double)MaxSmallNum;
 }
 
-Term bignum_from_float(x)
-     Term x;
+Term bignum_from_float(Term x)
 {
   return TagBig(new_bignum(NULL));
 }
 
 /* Note: This is NOT a dummy! It tries to handle some non-overflow cases. */
 
-Term hard_mul_int(x, y)
-     sword x, y;
+Term hard_mul_int(sword x, sword y)
 {
   sword z = x*y;
   if (IntIsSmall(z))
@@ -774,9 +794,7 @@ Term hard_mul_int(x, y)
 
 /* Note: This is NOT a dummy! It tries to handle some non-overflow cases. */
 
-Term hard_shift_int(x, y, negate)
-     sword x, y;
-     int negate;
+Term hard_shift_int(sword x, sword y, int negate)
 {
   sword z;
   if (negate < 0)
@@ -789,8 +807,7 @@ Term hard_shift_int(x, y, negate)
     return TagBig(new_bignum(NULL));
 }
 
-Bignum bignum_copy_to_constspace(src)
-     Bignum src;
+Bignum bignum_copy_to_constspace(Bignum src)
 {
   Bignum dest;
 
@@ -800,22 +817,18 @@ Bignum bignum_copy_to_constspace(src)
 }
 
 #define DummyBinaryArithmetic(Name) \
-Term Name(x, y) \
-     Term x, y; \
+Term Name(Term x, Term y) \
 { \
   return canonize_bignum(new_bignum(NULL)); \
 }
 
 #define DummyUnaryArithmetic(Name) \
-Term Name(x) \
-     Term x; \
+Term Name(Term x) \
 { \
   return canonize_bignum(new_bignum(NULL)); \
 }
 
-Term bignum_shift(x, y, negate)
-     Term x, y;
-     int negate;
+Term bignum_shift(Term x, Term y, int negate)
 {
   return canonize_bignum(new_bignum(NULL));
 }

@@ -23,8 +23,16 @@ Functor functor_errno_1;
 void error_exit(e)
     int e;
 {
+    fprintf(stderr, "{ERROR: error_exit called with code %d}\n", e);
+    fflush(stdout);
+    fflush(stderr);
 #ifdef unix
+#if !(defined(__APPLE__) && defined(__arm64__))
+    /* Call break_to_gdb on all platforms except Apple Silicon M1 */
     break_to_gdb();		/* defined in foreign.c */
+#else
+    fprintf(stderr, "{DEBUG: Skipping break_to_gdb on Apple Silicon M1}\n");
+#endif
 #endif
     exit(e);
 }
