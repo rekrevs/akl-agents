@@ -1,0 +1,247 @@
+% -*-texinfo-*-
+\raggedbottom
+\input texinfo
+
+@comment %**start of header (This is for running Texinfo on a region.)
+@setfilename agents-engine
+@settitle AGENTS Engine Internals
+@setchapternewpage odd
+@comment %**end of header (This is for running Texinfo on a region.)
+@c @smallbook
+
+@syncodeindex fn cp
+
+@tex
+% LaTeX "sloppy"
+\global\tolerance=10000
+\global\hfuzz=.5pt
+\global\vfuzz=.5pt
+
+% Adjust \hoffset for A4 paper
+\global\vsize 25.6cm
+\global\pageheight=\vsize
+\global\hoffset-0.125cm
+@end tex
+
+@titlepage
+@center Swedish Institute of Computer Science
+@sp 3
+@center @titlefont{AKL Engine Internals}
+@sp 2
+@center January 1993
+@sp 4
+@center Sverker Janson, Johan Montelius, Kent Boortz,
+@center Seif Haridi, Per Brand, and Bjorn Danielsson
+@sp
+@center Swedish Institute of Computer Science
+@center Box 1263, S-164 28 KISTA, Sweden
+@sp 3
+@center This manual corresponds to AKL/PS 0.8.
+@center Copyright @copyright{} 1992,1993  Swedish Institute of Computer Science
+@sp 3
+@end titlepage
+@page
+
+@ifinfo
+@node Top
+@top AKL Engine Internals
+@end ifinfo
+
+@chapter Low-Level Debugging
+
+There is an abstract machine level debugger, which can be used if the
+system has been compiled with the @code{DEBUG} option on.
+
+The debugger is turned on by calling the built-in predicate @code{debug/0}.
+This will typically look as follows.
+
+@example
+| ?- debug.
+pc:>>4390028
+andb:>>0x230cac
+chb:>>bagof/2
+Mode:>>read  -- proceed
+>
+@end example
+@noindent
+At this point one of the following commands may be entered.
+
+@table @code
+@item n
+stop debugging
+@item a
+abort (exiting AKL)
+@item q
+quit (exiting AKL)
+@item c
+creep (to next instruction)
+@item l
+leap (to next spypoint, stopping on breakpoints)
++@item 
+add spypoint on instruction at current pc
+-@item 
+remove spypoint on instruction at current pc
+@item ds
+display spypoints
+@item b
+add breakpoint after this instruction
+@item r
+remove breakpoint after this instruction
+@item db
+display breakpoints
+@item dx N
+display register x(N)
+@item dy N
+display register y(N)
+@item py
+display all current y-registers
+@item pa
+display all arguments to current chb
+@item px N
+display x-registers 0 to N
+@item s
+skip (break + leap)
+@item t
+trace (leap and print debug info for all instructions)
+@end table
+@noindent
+This debugger will probably be improved to allow `reductionwise' steps.
+
+@chapter Scavenger Algorithms
+
+This chapter describes the reasoning behind the term-copying algorithm in
+AKL, used in garbage collection and split operations. It is not a guide to
+the actual implementation. If that is what you want, please read the source
+code. However, if you have trouble understanding exactly what is going on,
+reading this first may be of help.
+
+A top-down tree-copying algorithm works by first copying a node, storing a
+forwarding pointer in the original node, and then tree-copying all the
+sub-trees (substructures) of the node. If a node has a forwarding pointer,
+there is no need to copy it again, just use the forwarding pointer. This
+ensures that any shared sub-trees are copied only once, and it also allows
+for circular trees to be copied.
+
+Any non-trivial tree will have nodes that contain more than one sub-tree,
+so a naive algorithm will do recursive calls to itself for each sub-tree in
+a node:
+
+@table @code
+@item 1.
+If the old node has a forwarding pointer,
+return it as the new node.
+@item 2.
+Otherwise, copy the node and store a forwarding pointer in
+the old node.
+@item 3.
+For each argument of the new node, call this procedure
+recursively, and store the result as the new argument.
+@item 4.
+Return a pointer to the new node.
+@end table
+
+A less naive algorithm could maintain a list of sub-tree locations
+to be copied (a scavenge-list), and go into a loop copying the next
+sub-tree in the list:
+
+@table @code
+@item 1.
+Empty the scavenge list.@*
+Store a pointer to the old node in the variable PLACEHOLDER.@*
+Insert the address of PLACEHOLDER into the scavenge list.
+@item 2.
+Put the first list element in the variable SCAVENGE and remove
+it from the list.
+@item 3.
+Look at the contents of the location pointed to by SCAVENGE.@*
+If the node that is referenced contains a forwarding pointer,
+use it as the new node, and go to step 6.
+@item 4.
+Otherwise, copy the node and store a forwarding pointer in
+the old node.
+@item 5.
+For each argument of the new node, insert its address
+into the list.
+@item 6.
+Update the location pointed to by SCAVENGE with the new node.
+@item 7.
+If the stack is empty, return the value of PLACEHOLDER,
+otherwise go to step 2.
+@end table
+
+If the list insertions are done at the front of the list, the algorithm does
+depth-first copying, just as the first algorithm. If the insertions are done
+at the end of the list, you get breadth-first copying instead.
+
+If you can take advantage of knowledge about how the nodes are stored in
+memory, you can have an implicit scavenge list that uses no extra storage.
+A well-known example is Baker's algorithm, which uses a pointer into the
+destination space to represent the list. Each time a node is copied, a number
+of words are written to destination space and thereby implicitly added to
+the scavenge list. This method depends on the regularity of the heap:
+each word in the heap must be recognizable as a node pointer.
+
+A more general method uses a pointer flipping technique to keep track of
+the scavenge locations. This depends only on the condition that the arguments
+of a node are stored in a group of contiguous locations at a known offset
+from the node pointer, and that there is some way to identify the first
+location in such a group (a mark bit in the pointers will do the job).
+
+The scavenge list is represented by a number of vectors, implicitly stored
+in the node arguments. Each vector contains a link to the next vector, and
+the last link contains an end marker.
+
+@table @code
+@item 1.
+Store a pointer to the old node in the variable PLACEHOLDER.@*
+Store the address of PLACEHOLDER in the variable SCAVENGE.@*
+Set the variable LINK to ROOT_MARKER (the end marker).@*
+Set the mark bit in PLACEHOLDER.
+@item 2.
+Fetch the contents of the location pointed to by SCAVENGE.@*
+Remove the mark bit and save it in the variable MARK_BIT.@*
+If the node that is referenced contains a forwarding pointer,
+use it as the new node, and go to step 5.
+@item 3.
+Otherwise, copy the node and store a forwarding pointer in
+the old node. If the node has no arguments, go directly to step 5.
+@item 4.
+Store LINK in the location pointed to by SCAVENGE, without
+touching the mark bit in that location.@*
+Set LINK to SCAVENGE.@*
+Set the mark bit in the first argument of the new node.@*
+Set SCAVENGE to the address of the last argument.@*
+Go to step 2.
+@item 5.
+Update the location pointed to by SCAVENGE with the new node.
+@item 6.
+If MARK_BIT is 0, decrement SCAVENGE and go to step 2.
+@item 7.
+Otherwise, if LINK equals ROOT_MARKER, return the
+value of PLACEHOLDER.
+@item 8.
+Otherwise, reconstruct the node pointer from the value of
+SCAVENGE, which now points to the node's first argument.@*
+Save the contents of the location pointed to by LINK in the
+variable TEMP, and store the node pointer there instead.@*
+Reset the mark bit at this location.@*
+Set SCAVENGE to LINK.@*
+Remove the mark bit from TEMP and save it in MARK_BIT.@*
+Set LINK to TEMP.@*
+Go to step 6.
+@end table
+
+This is essentially the algorithm used in the AKL garbage collector and
+term copy procedure. What has been omitted in the above description is the
+handling of pointer tags, and a variable dereferencing step. The algorithm
+has the advantages that there is no extra cost for having a heterogenous
+objects in the heap, nor for having a segmented heap.
+
+@node Index, Top, Index, Top
+@comment  node-name,  next,  previous,  up
+@unnumbered Index
+@printindex cp
+
+@contents
+
+@bye

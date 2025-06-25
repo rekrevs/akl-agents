@@ -1,0 +1,2254 @@
+/*
+3. ANNOTATED DEFINITION FORMAT
+
+    An annotated program is a program where the following components
+    may be annotated:
+
+	DEFINITION
+	CLAUSE
+	TERM
+
+    For example an annotated CLAUSE is "CLAUSE//Annotation" where
+    Annotation can be any term.
+    The annotations should be easily distinguished by their principal
+    functor. Annotations not understood by a program operating on
+    the abstract syntax should be ignored.
+
+    A component may have several annotations:
+
+	CLAUSE//Annotation1//Annotation2//Annotation3.
+
+    As the ordinary left-associativity of '//' is used, this is to
+    be interpreted as
+
+	((CLAUSE//Annotation1)//Annotation2)//Annotation3.
+
+    An annotated program should be kept on a "balanced" form.
+
+	A number of conversions are possible, and only a few examples
+	of annotations are shown below.
+
+	construct_annotation_template(+PROGRAM,-PROGRAM)
+		constructs all annotations on all levels
+
+	remove_annotations(+PROGRAM,-PROGRAM)
+		removes all annotations on all levels
+
+	unique_program_vars(+PROGRAM,-PROGRAM)
+		all variables are renamed as follows:
+		var(Name) becomes var(t(Name,DefName,Clausenumber))
+
+	original_program_vars(+PROGRAM,-PROGRAM)
+		the converse of the above,
+		fails if some variable is not of 
+		the form var(t(Name,DefName,Clausenumber))
+
+	first_var_occurences(+PROGRAM,-PROGRAM)
+		the first occurence of each variable is annotated with
+		'first'. E.g. var('X') may become var('X')//first
+
+
+4. READING/WRITING ANNOTATIONS
+
+    Annotations are written with a special infix operator $  
+    understood by read_term/3, which ignores the annotations, i.e.
+    if read_term encounters an infix expression A$B this is returned
+    as A. The terms returned by read_term are of ther form term(T)
+    where T is either of the form var(V) or of the form struct(N,I,Args),
+    V is a variable name, N is the name of the structure, I is the arity,
+    and Args is the list of terms.
+      
+    The special version of read_term, a_read_term/3 returns
+    an annotated term.
+
+	struct(foo,1,[var('X')$void_variable])$single_clause
+
+    is written out as
+
+	foo(X	$ void_variable
+	     )	$ single_clause.
+
+    Note that the annotation is directly related to the term via
+    the infix operator.
+
+    a_read_term(A,S0,S1) will return a term of the form aterm(T) where
+    T is either of the terms var(V,Alist) or
+    struct(S,I,Args,Alist), where Args are terms of the same form, 
+    or exception(E), when reading an expression T$A. 
+    Alist contains a list of annotations 
+    represented by nesting of the operator $. If there is no operator $, 
+    Alist=[]. Different readers can thus easily ignore the annotations 
+    when necessary. The annotation is a term also.
+   
+    Example:
+
+    (p(X$ground,Y$alias(Z),Z$alias(Y))$first_head :- 
+	guard(X,Y,Z,L$local)$nondet
+    ->  body(L$(local$metacall),
+	     X$ground,
+	     Y$ground,
+             Z$alias(Y))
+	  $det)
+	$single_clause.
+
+     Will be read by a_read_term/3 to:
+
+    term(struct((:-),2,
+	[struct(p,3,
+		[var(X,[ground]),
+		 var(Y,[alias(Z)]),
+		 var(Z,[alias(Y)])]),
+	    [first_head]),
+	 struct('->',2,[
+		struct(guard,4,
+			[var(X,[]),
+			var(Y,[]),
+			var(Z,[]),
+			var(L,[struct($,2,
+				[struct(local,0,[]),
+				 struct(metacall,0,[])])])],
+			[nondet]),
+		struct(body,4,
+			[var(X,[ground]),
+			var(Y,[ground]),
+			var(Z,[alias(Y)])],
+			[det])],[]),
+	[single_clause]).
+
+while read_term/3 would return:
+
+
+    term(struct((:-),2,
+	[struct(p,3,
+		[var(X),
+		 var(Y),
+		 var(Z)]),
+	 struct('->',2,[
+		struct(guard,4,
+			[var(X),
+			var(Y),
+			var(Z),
+			var(L)]),
+		struct(body,4,
+			[var(X),
+			 var(Y),
+			 var(Z)])
+			])
+	).
+
+
+*/
+/*  Information extraction and conversion in DPROGRAM:
+
+    Conversion:
+
+	unnest_terms(+PROGRAM,-PROGRAM)
+                unnest all composite terms so that goals (except
+		unification) just have variables as arguments.
+
+	unnest_aliases(+PROGRAM,-PROGRAM)
+                unnest all composite terms so that variables occurring
+		in goals have a single occurrence. 
+
+	Both add new variables and explicit unification literals.
+		
+	Variables that are introduced will get names of the form V_N
+	where N is an integer such that V_N does not occur in the
+	clause into which the variable is introduced.
+*/
+
+x12(S,G0,Head0,Guard0) :-
+	akl_conjunction(S,Head,True),
+	akl_true(True)
+    ->	Head0=Head,
+	Guard0=G0.
+x12(S,G0,Head0,Guard0) :-
+	akl_conjunction(S,Eqs,Head)
+    ->	Head0=Head,
+	akl_optimized_conjunction(Eqs,G0,Guard0).
+x12(Head,G,Head0,Guard0) :-
+    ->  Head0=Head,
+	Guard0=G.
+
+start_varno(struct(N,_I,A),I0,I2) :-
+    ->  start_varno(N,I0,I1),
+	smap(start_varno,A,I1,I2).
+start_varno(var(noname(_)),I0,I1) :-
+    ->  I1=I0.
+start_varno(var(sys(N)),I0,I1) :-
+	N>I0
+    ->	I1 is N+1.
+start_varno(var(V),I0,I1) :-
+	atom(V),
+	atom_chars(V,[0'V,0'_|T]),
+	number_chars1(N,T),
+	N>I0
+    ->  I1 is N+1.
+start_varno(_,I0,I1) :-
+    ->  I1=I0.
+
+get_vars(X,V) :-
+    ->  get_vars(X,[],V).
+get_vars(X,V1,V2) :-
+	X=[_|_]
+    ->  smap(get_vars,X,V1,V2).
+get_vars(struct(N,_I,A),V0,V2) :-
+    ->  get_vars(N,V0,V1),
+	smap(get_vars,A,V1,V2).
+get_vars(var(V),V0,V1) :-
+    ->  V1=[var(V)|V0].
+get_vars(_,V0,V1) :-
+    -> V0=V1.
+
+%---unnest_terms(+CLAUSE,-CLAUSE)
+unnest_terms(C0,C1) :-
+	C0=clause(Head,Guard,Guardop,Body),
+	get_vars([Head,Guard,Body],Vs)
+    ->  C1=clause(Head0,Guard0,Guardop,Body0),
+	smap(start_varno,Vs,0,I0),	
+	unnest_terms(Head,H0,I0,I1),
+	unnest_terms(Guard,G0,I1,I2),
+	x12(H0,G0,Head0,Guard0),
+	unnest_terms(Body,Body0,I2,_I3).
+
+%---unnest_terms(+DEFINITION,-DEFINITION)
+unnest_terms(D0,D1) :-
+	D0=N-def(G,C0)
+    ->  D1=N-def(G,C1),
+	map(unnest_terms,C0,C1).
+
+%---unnest_terms(+DPROGRAM,-DPROGRAM)
+unnest_terms(P0,P1) :-
+	P0=prog(Entries,D0)
+    ->  P1=prog(Entries,D1),
+	map(unnest_terms,D0,D1).
+unnest_terms(exception(E),E0) :-
+    ->  E0=exception(E).
+
+unnest_terms(T,Tu,I0,I2) :-
+	akl_conjunction(T,A,B)
+    ->  unnest_terms(A,A0,I0,I1),
+	unnest_terms(B,B0,I1,I2),
+	akl_conjunction(Tu,A0,B0).
+unnest_terms(T,Tu,I0,I2) :-
+	T=struct(N,I,Args)
+    -> 	T0=struct(N0,I,Args0),
+	unnest_terms(N,N0,I0,I1),
+	smap(introduce_vars,Args,Args0,struct(true,0,[]),Eqs,I1,I2),
+	akl_optimized_conjunction(Eqs,T0,Tu).
+
+unnest_terms(T,Tu,I0,I1) :-
+    ->  Tu=T,
+	I0=I1.
+
+
+% replace nested structures with new variables
+introduce_vars(var(V),T,E,E0,I0,I1) :-
+    ->  E=E0,
+	T=var(V),
+	I0=I1.
+introduce_vars(struct(N0,I,Args0),V,E0,E3,I0,I3) :-
+    ->  V=var(sys(I0)),
+	akl_optimized_conjunction(struct(=,2,[V,struct(N1,I,Args1)]),E0,E1),
+	inc(I0,I1),
+	introduce_vars(N0,N1,E1,E2,I1,I2),
+	smap(introduce_vars,Args0,Args1,E2,E3,I2,I3).
+introduce_vars(S,T,E0,E1,I0,I1) :-
+    ->  S=T,
+	E0=E1,
+	I0=I1.		
+
+
+% replace aliased variables with new variables
+introduce_unique_vars(T0,UT,E0,UE1,I0,UI1) :-
+	introduce_unique_vars(T0,T,[],_Vars,E0,E1,I0,I1)
+    ->  UT=T,
+	UE1=E1,
+	UI1=I1.
+
+introduce_unique_vars(var(V),T,V0,V1,E0,E1,I0,I1) :-
+	member(V,V0)       % 2nd or more occurrence
+    ->  T=var(sys(I0)),
+	akl_optimized_conjunction(struct(=,2,[T,var(V)]),E0,E1),
+	inc(I0,I1),
+	V1=V0.
+introduce_unique_vars(var(V),T,V0,V1,E0,E1,I0,I1) :-
+    ->  [V|V0]=V1,
+	E0=E1,
+	T=var(V),
+	I0=I1.
+introduce_unique_vars(struct(N0,I,Args0),T,V0,V3,E0,E3,I0,I3) :-
+    ->  T=struct(N1,I,Args1),
+	introduce_unique_vars(N0,N1,V0,V2,E0,E2,I0,I2),
+	smap(introduce_unique_vars,Args0,Args1,V2,V3,E2,E3,I2,I3).
+introduce_unique_vars(S,T,V0,V1,E0,E1,I0,I1) :-
+    ->  S=T,
+	V0=V1,
+	E0=E1,
+	I0=I1.		
+
+
+%---unnest_aliases(+CLAUSE,-CLAUSE)
+unnest_aliases(C0,C1) :-
+	C0=clause(Head,Guard,Guardop,Body),
+	get_vars([Head,Guard,Body],Vs)
+    ->  C1=clause(Head0,Guard0,Guardop,Body0),
+	smap(start_varno,Vs,0,I0),	
+	unnest_aliases(Head,H0,I0,I1),
+	unnest_aliases(Guard,G0,I1,I2),
+	x12(H0,G0,Head0,Guard0),
+	unnest_aliases(Body,Body0,I2,_I3).
+
+%---unnest_aliases(+DEFINITION,-DEFINITION)
+unnest_aliases(D0,D1) :-
+	D0=N-def(G,C0)
+    ->  D1=N-def(G,C1),
+	map(unnest_aliases,C0,C1).
+
+%---unnest_aliases(+DPROGRAM,-DPROGRAM)
+unnest_aliases(P0,P1) :-
+	P0=prog(Entries,D0)
+    ->  P1=prog(Entries,D1),
+	map(unnest_aliases,D0,D1).
+unnest_aliases(exception(E),E0) :-
+    ->  E0=exception(E).
+
+unnest_aliases(T,Tu,I0,I2) :-
+	akl_conjunction(T,A,B)
+    ->  unnest_aliases(A,A0,I0,I1),
+	unnest_aliases(B,B0,I1,I2),
+	akl_conjunction(Tu,A0,B0).
+unnest_aliases(T,Tu,I0,I2) :-
+	T=struct(N,I,Args)
+    -> 	T0=struct(N0,I,Args0),
+	unnest_aliases(N,N0,I0,I1),
+	smap(introduce_unique_vars,Args,Args0,struct(true,0,[]),Eqs,I1,I2),
+	akl_optimized_conjunction(Eqs,T0,Tu).
+unnest_aliases(T,Tu,I0,I1) :-
+    ->  Tu=T,
+	I0=I1.
+
+
+/*
+	unnest_metacalls(+DEFINITION-list,-DEFINITION-list)
+		Will remove meta-calls to built-in predicates such
+		as ';', if(_->_;_), not(_) etc.
+		The compiler however prefers to keep some simple disjunctions
+		only containing unifications as they are, so a special
+		version of unnest_metacalls is also needed here.
+
+*/
+
+find_highest_meta_clause_num(L,N) :- 
+    ->	find_highest_meta_clause_num(L,0,N).
+
+find_highest_meta_clause_num([],I,N) :-
+    ->  N=I.
+find_highest_meta_clause_num([Metaname/1-def(_,_)|T],I,N) :-
+	metaname0(Metaname,I0),
+	I0>I
+    ->  find_highest_meta_clause_num(T,I0,N).
+find_highest_meta_clause_num([Metaname/1-def(_,_)|T],I,N) :-
+	metaname0(Metaname,I0),
+	I0=<I
+    ->  find_highest_meta_clause_num(T,I,N).
+find_highest_meta_clause_num([_|T],I,N) :-
+    ->  find_highest_meta_clause_num(T,I,N).
+	
+
+%---unnest_metacalls(+DEFINITION-list,-DEFINITION-list)
+
+unnest_metacalls(P,P1) :- 
+	unnest_metacalls0(P,P0), 
+	unnest_metacalls_cont(P,P0,P1).
+unnest_metacalls_cont(P,P0,P1) :-
+	P=P0
+    -> P1=P0.
+unnest_metacalls_cont(_P,P0,P1) :-
+    -> unnest_metacalls(P0,P1).
+
+unnest_metacalls0(prog(Entries,L),P) :-
+	find_highest_meta_clause_num(L,N),
+	I0 is N+1
+    ->  P=prog(Entries,L0),
+	unnest_metacalls0(L,L0,I0,_).
+unnest_metacalls0([],Dl1,I0,I1) :-
+    ->  Dl1=[],
+	I0=I1.
+unnest_metacalls0([H0|T0],Dl1,I0,I2) :-
+    ->  unnest_metacalls0(H0,HDefs,I0,I1),
+	unnest_metacalls0(T0,TDefs,I1,I2),
+	fappend(HDefs,TDefs,Dl1).
+unnest_metacalls0(Name/Arity-def(Guardop,Cls0),Defs,I0,I1) :-
+    ->  D=Name/Arity-def(Guardop,Cls1),
+	unnest_metacalls_in_clauses(Cls0,Cls1,[D],Defs,I0,I1).
+
+unnest_metacalls_in_clauses([],C,A,Defs,I0,I1) :-
+    ->  C=[],
+	A=Defs,
+	I0=I1.
+unnest_metacalls_in_clauses([H|R],Cls1,A,Defs,I0,I2) :-
+   ->   unnest_metacalls_in_clause(H,H0,A,Defs0,I0,I1),
+     	unnest_metacalls_in_clauses(R,Cls0,Defs0,Defs,I1,I2),
+	Cls1=[H0|Cls0].
+
+unnest_metacalls_in_clause(clause(H,G,O,B),Clause,ADefs,Defs,I0,I2) :-
+        replace(G,akl_negation,Xout,Call,G0)
+    ->	akl_negation(Xout,Goal),
+	metaname1(Metaname,I0),
+ 	akl_compound(Metaname,1,[Goal],Call),
+	D=Metaname/1-def(quiet-condition,[Cls0,Cls1]),
+	Cls0=clause(struct(Metaname,1,[Goal]),Goal,quiet-condition,Fail),
+	Cls1=clause(struct(Metaname,1,[Goal]),True,quiet-condition,True), 
+	akl_fail(Fail),
+	akl_true(True),
+    	Clause0=clause(H,G0,O,B),
+	inc(I0,I1),
+	unnest_metacalls_in_clause(Clause0,Clause,[D|ADefs],Defs,I1,I2).
+unnest_metacalls_in_clause(clause(H,G,O,B),Clause,ADefs,Defs,I0,I2) :-
+        replace(B,akl_negation,Xout,Call,B0)
+    ->	akl_negation(Xout,Goal),
+	metaname1(Metaname,I0),
+ 	akl_compound(Metaname,1,[Goal],Call),
+	D=Metaname/1-def(quiet-condition,[Cls0,Cls1]),
+	Cls0=clause(struct(Metaname,1,[Goal]),Goal,quiet-condition,Fail),
+	Cls1=clause(struct(Metaname,1,[Goal]),True,quiet-condition,True), 
+	akl_fail(Fail),
+	akl_true(True),
+    	Clause0=clause(H,G,O,B0),
+	inc(I0,I1),
+	unnest_metacalls_in_clause(Clause0,Clause,[D|ADefs],Defs,I1,I2).
+unnest_metacalls_in_clause(clause(H,G,O,B),Clause,ADefs,Defs,I0,I2) :-
+        replace(G,akl_if_then_else,Xout,Call,G0)
+    ->	akl_if_then_else(Xout,If,Then,Else),
+	metaname1(Metaname,I0),
+ 	akl_compound(Metaname,1,[Xout],Call),
+	D=Metaname/1-def(quiet-condition,[Cls0,Cls1]),
+	Cls0=clause(struct(Metaname,1,[Xout]),If,quiet-condition,Then),
+	Cls1=clause(struct(Metaname,1,[Xout]),True,quiet-condition,Else), 
+	akl_true(True),
+    	Clause0=clause(H,G0,O,B),
+	inc(I0,I1),
+	unnest_metacalls_in_clause(Clause0,Clause,[D|ADefs],Defs,I1,I2).
+unnest_metacalls_in_clause(clause(H,G,O,B),Clause,ADefs,Defs,I0,I2) :-
+        replace(B,akl_if_then_else,Xout,Call,B0)
+    ->	akl_if_then_else(Xout,If,Then,Else),
+	metaname1(Metaname,I0),
+ 	akl_compound(Metaname,1,[Xout],Call),
+	D=Metaname/1-def(quiet-condition,[Cls0,Cls1]),
+	Cls0=clause(struct(Metaname,1,[Xout]),If,quiet-condition,Then),
+	Cls1=clause(struct(Metaname,1,[Xout]),True,quiet-condition,Else), 
+	akl_true(True),
+    	Clause0=clause(H,G,O,B0),
+	inc(I0,I1),
+	unnest_metacalls_in_clause(Clause0,Clause,[D|ADefs],Defs,I1,I2).
+unnest_metacalls_in_clause(clause(H,G,O,B),Clause,ADefs,Defs,I0,I2) :-
+        replace(G,akl_disjunction,Xout,Call,G0)
+    ->	akl_disjunction(Xout,X0,X1),
+	metaname1(Metaname,I0),
+ 	akl_compound(Metaname,1,[Xout],Call),
+	D=Metaname/1-def(noisy-wait,[Cls0,Cls1]),
+	Cls0=clause(struct(Metaname,1,[Xout]),True,noisy-wait,X0),
+	Cls1=clause(struct(Metaname,1,[Xout]),True,noisy-wait,X1), 
+	akl_true(True),
+    	Clause0=clause(H,G0,O,B),
+	inc(I0,I1),
+	unnest_metacalls_in_clause(Clause0,Clause,[D|ADefs],Defs,I1,I2).
+unnest_metacalls_in_clause(clause(H,G,O,B),Clause,ADefs,Defs,I0,I2) :-
+        replace(B,akl_disjunction,Xout,Call,B0)
+    ->	akl_disjunction(Xout,X0,X1),
+	metaname1(Metaname,I0),
+	akl_compound(Metaname,1,[Xout],Call),
+	D=Metaname/1-def(noisy-wait,[Cls0,Cls1]),
+	Cls0=clause(struct(Metaname,1,[Xout]),True,noisy-wait,X0),
+	Cls1=clause(struct(Metaname,1,[Xout]),True,noisy-wait,X1), 
+	akl_true(True),
+    	Clause0=clause(H,G,O,B0),
+	inc(I0,I1),
+	unnest_metacalls_in_clause(Clause0,Clause,[D|ADefs],Defs,I1,I2).
+unnest_metacalls_in_clause(X,C,ADefs,Defs,I0,I1) :- 
+    ->  X=C,
+	ADefs=Defs,
+	I0=I1.
+
+metaname(Metaname,I0) :-
+     	number_chars1(I0,LI0),
+	atom_chars(Metaname,[0'm,0'e,0't,0'a|LI0]).
+
+metaname0(Metaname,I0) :-
+	data(Metaname)
+    -> 	number_chars1(I0,LI0),
+	atom_chars(Metaname,[0'm,0'e,0't,0'a|LI0]).
+metaname1(Metaname,I0) :-
+	data(I0)
+    -> 	number_chars1(I0,LI0),
+	atom_chars(Metaname,[0'm,0'e,0't,0'a|LI0]).
+
+
+
+%replace(+G,+Pattern,-Xout,+Y,-G0)
+% replace occurrence of Xout matching Xin in G with Y
+% return instantiated X and G0, a copy of G with Xout matching Xin
+% replaced with Y, fails if no matching subterm is found
+
+replace(G,Pat,Xout,Y,H0) :-
+	data(G) 
+    ->  replace0(G,Pat,Xout,Y,H0).
+
+replace0([H|T],Pat,Xout,Y,G0) :-
+	replace(H,Pat,Xtmp,Y,H0)
+    ->	G0=[H0|T],
+	Xtmp=Xout.
+replace0([H|T],Pat,Xout,Y,G0) :-
+        replace(T,Pat,Xtmp,Y,T0)
+    ->	G0=[H|T0],
+	Xtmp=Xout.
+replace0(G,akl_if_then_else,Xout,Y,G0) :-
+	akl_if_then_else(G,_,_,_)
+    ->  Xout=G,
+	G0=Y.
+replace0(G,akl_disjunction,Xout,Y,G0) :-
+	akl_disjunction(G,_,_)
+    ->  Xout=G,
+	G0=Y.
+replace0(G,akl_negation,Xout,Y,G0) :-
+	akl_negation(G,_)
+    ->  Xout=G,
+	G0=Y.
+replace0(G,Pat,Xout,Y,G0) :-
+	akl_conjunction(G,A,B),
+        replace(A,Pat,Xtmp,Y,A0)
+    ->	akl_conjunction(G0,A0,B),
+	Xout=Xtmp.
+replace0(G,Pat,Xout,Y,G0) :-
+	akl_conjunction(G,A,B),
+        replace(B,Pat,Xtmp,Y,B0)
+    ->	akl_conjunction(G0,A,B0), 
+	Xout=Xtmp.
+replace0(G,Pat,Xout,Y,G0) :-
+	guardop(Op),
+	akl_compound(Op,2,As,G)
+    ->  replace(As,Pat,Xout,Y,As0),
+	akl_compound(Op,2,As0,G0).
+
+
+/*
+    Other:
+	permute_program(+PROGRAM,-PROGRAM)
+		permutes the order of all conjunctions in program.
+		Most sound programs in AKL should survive such a
+		transformation. This might be used to test
+		whether the program has been written in a robust manner.
+		The transformation is useful in preparing the program for 
+		a parallel execution or for testing whether certain
+		program transformations are valid.
+*/
+
+%--- permute_program(+PROGRAM,-PROGRAM)
+permute_program(prog(Entries,Dlist),P) :-
+    ->  map(permute_definition,Dlist,Dlist0),
+	P=prog(Entries,Dlist0).
+
+permute_definition(Dname-def(Gop,Cls),D) :-
+    ->  map(permute_clause,Cls,Cls0),
+	D=Dname-def(Gop,Cls0).
+
+permute_clause(clause(Head,Guard,Guardop,Body),C) :-
+    ->  permute_conjunction(Guard,Guard0),
+	permute_conjunction(Body,Body0),
+	C=clause(Head,Guard0,Guardop,Body0).
+permute_clause(exception(E),E0) :- 
+    ->	E0=exception(E). 
+
+permute_conjunction(AB,BA) :- 
+	akl_conjunction(AB,A,B),
+    	akl_conjunction(BA,B0,A0)
+    ->	permute_conjunction(A,C),
+	permute_conjunction(B,D),
+	(A0=C,B0=D ; A0=D,B0=C).
+permute_conjunction(A,B) :- 
+    ->  A=B.
+
+/*
+	filter_public(+PROGRAM,-PROGRAM)
+		returns a list of public and a program where the 
+		entry specifications have been moved to the Entries
+		field of prog(Entries,DEFLIST)
+*/
+
+filter_public(prog(E,P),Program) :-
+    ->	filter_public(P,E0,P0),
+	mk_terms(E0,Entries0),
+	fappend(E,Entries0,Entries),
+	Program=prog(Entries,P0).
+
+filter_public([],E,P) :-
+    ->  E=[],
+	P=[].
+filter_public([H|T],E,P) :-
+	H='/'((:-),1)-def(_,Clauses),
+	get_public(Clauses,Public)
+    ->  filter_public(T,R,P),
+	fappend(Public,R,E).
+filter_public([H|T],E,P) :-
+    ->  P=[H|P0],
+	filter_public(T,E,P0).
+
+%---- get_public(P,P0)---
+get_public([],L) :-
+    ->	L=[].
+get_public(Clauses,Public) :-
+	Clauses=[clause(Head,Guard,_,Body)|R],
+	akl_true(Guard),
+	akl_true(Body)
+    ->	Head=struct((:-),1,[struct((public),1,PublicEntries)]),
+	mk_flat_list(PublicEntries,Plist),
+	get_public(R,P),
+	fappend(Plist,P,Public).
+get_public([H|T],P) :-
+    -> stdout(S),
+	writenl('strange public:'(H),S,_), get_public(T,P).
+
+mk_flat_list(L,R) :-
+    -> mk_flat_list(L,[],R).
+mk_flat_list([],L,R) :-
+    ->  L=R.
+mk_flat_list([H|T],A,L) :-
+    ->	mk_flat_list(H,A,H0),
+	mk_flat_list(T,H0,L).
+mk_flat_list(C,A,L) :-
+	akl_conjunction(C,P,Q)
+    ->  mk_flat_list(P,A,A0),
+	mk_flat_list(Q,A0,L).
+mk_flat_list(C,A,L) :-
+    ->  L=[C|A].
+	
+	
+mk_terms([],L) :-
+    -> L=[].
+mk_terms([H|T],L) :-
+	akl_compound(Name,_Arity,List,H)
+    ->  mk_terms(List,List0),
+	Term=..[Name|List0],
+	L=[Term|R],
+	mk_terms(T,R).
+mk_terms([H|T],L) :-
+    ->  L=[H|R],
+	mk_terms(T,R).
+	
+
+xref_program(prog(Entries,Defs),
+	GuardCalls,BodyCalls,UsedFromGuard,UsedFromBody,DataStructures) :-
+    ->  get_clause_call_pairs(Defs,FromGuard,FromBody),
+	sort(FromGuard,UsedFromGuard),
+	sort(FromBody,UsedFromBody),	
+	get_datastructures(Defs,DataStructures).
+
+get_clause_call_pairs(Defs,FromGuard,FromBody).
+get_datastructures(Defs,DataStructures).
+	
+/*
+	xref_program(+PROGRAM,
+			-((DEFNAME-CALLNAME)-list)-list,
+			-((DEFNAME-CALLNAME)-list)-list,
+			-((CALLNAME-DEFNAME)-list)-list,
+			-DSTRUCT-list)
+		returns five lists extracted from the program,
+		- for each definition (NAME/ARITY) 
+		  a unique sorted list of those call names (NAME/ARITY) 
+		  used in the guards of this definition
+		- for each definition (NAME/ARITY) 
+		  a unique sorted list of those call names (NAME/ARITY) 
+		  used in the bodies of this definition
+	        - for each call name a unique sorted list of those definitions
+		  (NAME/ARITY) in which the call is used from a guard
+	        - for each call name a unique sorted list of those definitions
+		  (NAME/ARITY) in which the call is used from a body
+		- a list of the data structures (NAME/ARITY) explicitly 
+		  mentioned in the code	
+
+	get_dead_code(+PROGRAM,-(DEFNAME-list))
+		the difference between the list of unused definitions found
+		with xref and the list of public given in the program
+		is the dead code
+
+	get_definition(+PROGRAM,?DEF_NAME,-DEFINITION)	
+		returns a definition from a program, possibly 
+		nondeterministically
+		fails if wrong definition name is given
+
+	get_simple_modes(+PROGRAM, +DEF_NAME, -MODES)
+		return the modes of a predicate as can be extracted 
+		by simple inspection.
+
+	get_clause(+PROGRAM, +DEF_NAME, ?CLAUSENUMBER, -CLAUSE)
+		returns a clause from a definition, possibly 
+		nondeterministically	
+		fails if wrong clause number is given
+
+	get_guard_goal(+PROGRAM, +DEF_NAME, +CLAUSE, ?GOALNUMBER,-GOAL)
+		returns a goal from a guard in a clause, possibly 
+		nondeterministically	
+		fails if wrong goal number is given
+
+	get_body_goal(+CLAUSE,?GOALNUMBER,-GOAL)
+		returns a goal from a body in a clause, possibly 
+		nondeterministically	
+		fails if wrong goal number is given
+
+	check_program(+PROGRAM,-ERRORS)
+		check for possible errors in the program.
+		Possible errors:
+			NOT_UNIQUE(NAME/ARITY/GUARDOP)
+				Multiply defined definition
+				or guard conflict in different clauses
+			CALLED_BUT_NOT_DEFINED
+			DEFINED_BUT_NOT_CALLED
+			DEAD_CODE
+				the definition cannot be reached with
+				the given entry points
+			OBVIOUS_DEADLOCK(NAME/ARITY/GUARDOP): 
+				a simple inspection can show that 
+				this definition cannot execute regardless 
+				of input 
+*/
+
+
+/*
+	balance_program(+PROGRAM,-PROGRAM)
+		The same conjunction (or a disjunction) may be represented
+		in different ways: (a,(b,c))  ((a,b),c)
+		This routine will make sure that conjunctions and disjunctions
+		are balanced, i.e. on the form (a,(b,c)).
+
+*/
+%---balance_program(+PROGRAM,-PROGRAM)
+balance_program(prog(Entries,Dlist),P) :-
+        map(balance_definition,Dlist,Dlist0),
+	P=prog(Entries,Dlist0).
+balance_definition(Dname-def(Gop,Cls),D) :-
+       map(balance_clause,Cls,Cls0),
+	D=Dname-def(Gop,Cls0).
+
+balance_clause(clause(Head,Guard,Guardop,Body),C) :-
+        balance_conjunction(Guard,Guard0),
+	balance_conjunction(Body,Body0),
+	C=clause(Head,Guard0,Guardop,Body0).
+balance_clause(exception(E),exception(E)).
+
+balance_conjunction(A,B) :-		% bal((A00,A01),A1)=bal(A00,(A01,A1))
+	akl_conjunction(A,A0,A1),
+	akl_conjunction(A0,A00,A01)
+    ->  akl_conjunction(B0,A00,B01),
+	akl_conjunction(B01,A01,A1),
+	balance_conjunction(B0,B).
+balance_conjunction(A,B) :-		% bal((Goal,A1))=(Goal,bal(A1)) 
+	akl_conjunction(A,A0,A1),
+	akl_compound(_,_,_,A0)
+    ->  balance_conjunction(A1,B1),
+	akl_conjunction(B,A0,B1).
+balance_conjunction(A,B) :-		% bal(Goal)=Goal
+	akl_compound(_,_,_,A)
+    ->  A=B.
+
+
+%---unique_program_vars(+DPROGRAM,-DPROGRAM)
+unique_program_vars(P0,P1) :-
+	P0=prog(Entries,D0)
+    ->  P1=prog(Entries,D1),
+	unique_program_vars(D0,D1).
+
+unique_program_vars(D0,D1) :-
+	D0=N-def(G,C0)
+    ->  D1=N-def(G,C1),
+	unique_program_vars(C0,C1,N,0).
+unique_program_vars(exception(E),E0) :-
+    ->  E0=exception(E).
+unique_program_vars([],Defs) :-
+   ->	Defs=[].
+unique_program_vars([H|T],Defs) :-
+	H=_-def(_,_)
+    ->	unique_program_vars(H,H0),
+	unique_program_vars(T,T0),
+	Defs=[H0|T0].
+
+unique_program_vars([],Tu,_Defname,_Cno) :-
+   ->	Tu=[].
+unique_program_vars([H|T],Clauses,Defname,Cno) :-
+	H=clause(_,_,_,_)
+    ->	unique_program_vars(H,H0,Defname,Cno),
+	Cno1 is Cno+1,
+	unique_program_vars(T,T0,Defname,Cno1),
+	Clauses=[H0|T0].
+unique_program_vars([H|T],L,Defname,Cno) :-
+    ->	unique_program_vars(H,H0,Defname,Cno),
+	unique_program_vars(T,T0,Defname,Cno),
+	L=[H0|T0].
+unique_program_vars(C0,C1,Defname,Cno) :-
+	C0=clause(Head,Guard,Guardop,Body)
+    ->  C1=clause(Head0,Guard0,Guardop,Body0),
+	unique_program_vars(Head,Head0,Defname,Cno),
+	unique_program_vars(Guard,Guard0,Defname,Cno),
+	unique_program_vars(Body,Body0,Defname,Cno).
+unique_program_vars(T,Tu,Defname,Cno) :-
+	akl_conjunction(T,A,B)
+    ->  unique_program_vars(A,A0,Defname,Cno),
+	unique_program_vars(B,B0,Defname,Cno),
+	akl_conjunction(Tu,A0,B0).
+unique_program_vars(T,Tu,Defname,Cno) :-
+	T=struct(N,I,Args)
+    -> 	Tu=struct(N0,I,Args0),
+	unique_program_vars(N,N0,Defname,Cno),
+	unique_program_vars(Args,Args0,Defname,Cno).
+unique_program_vars(P,P0,Defname,Cno) :-
+	P=var(Name)
+    ->	P0=var(t(Name,Defname,Cno)).
+unique_program_vars(T,Tu,_Defname,_Cno) :-
+    ->  Tu=T.
+
+
+%---original_program_vars(+DPROGRAM,-DPROGRAM)
+original_program_vars(P0,P1) :-
+	P0=prog(Entries,D0)
+    ->  P1=prog(Entries,D1),
+	original_program_vars(D0,D1).
+original_program_vars([],Defs) :-
+   ->	Defs=[].
+original_program_vars([H|T],Defs) :-
+	H=_-def(_,_)
+    ->	original_program_vars(H,H0),
+	original_program_vars(T,T0),
+	Defs=[H0|T0].
+original_program_vars(D0,D1) :-
+	D0=N-def(G,C0)
+    ->  D1=N-def(G,C1),
+	original_program_vars(C0,C1,N,0).
+original_program_vars(exception(E),E0) :-
+    ->  E0=exception(E).
+
+original_program_vars([],Tu,_Defname,_Cno) :-
+   ->	Tu=[].
+original_program_vars([H|T],Clauses,Defname,Cno) :-
+	H=clause(_,_,_,_)
+    ->	original_program_vars(H,H0,Defname,Cno),
+	Cno1 is Cno+1,
+	original_program_vars(T,T0,Defname,Cno1),
+	Clauses=[H0|T0].
+original_program_vars([H|T],L,Defname,Cno) :-
+    ->	original_program_vars(H,H0,Defname,Cno),
+	original_program_vars(T,T0,Defname,Cno),
+	L=[H0|T0].
+original_program_vars(C0,C1,Defname,Cno) :-
+	C0=clause(Head,Guard,Guardop,Body)
+    ->  C1=clause(Head0,Guard0,Guardop,Body0),
+	original_program_vars(Head,Head0,Defname,Cno),
+	original_program_vars(Guard,Guard0,Defname,Cno),
+	original_program_vars(Body,Body0,Defname,Cno).
+original_program_vars(T,Tu,Defname,Cno) :-
+	akl_conjunction(T,A,B)
+    ->  original_program_vars(A,A0,Defname,Cno),
+	original_program_vars(B,B0,Defname,Cno),
+	akl_conjunction(Tu,A0,B0).
+original_program_vars(T,Tu,Defname,Cno) :-
+	T=struct(N,I,Args)
+    -> 	Tu=struct(N0,I,Args0),
+	original_program_vars(N,N0,Defname,Cno),
+	original_program_vars(Args,Args0,Defname,Cno).
+original_program_vars(P,P0,Defname,Cno) :-
+    	P=var(N)
+    ->	N=t(Name,Defname,Cno), 
+	P0=var(Name).
+original_program_vars(T,Tu,_Defname,_Cno) :-
+    ->  Tu=T.
+%--- Conversion routines:
+
+%-----dterm0_to_dterm1(+DTERM0,-DTERM1)-----------
+/*
+	All variables with name '_' have changed their name into
+	'noname(Integer)' where the various integers distinguish
+	the variables.
+*/
+
+dterm0_to_dterm1(term(T0),D) :- 
+    -> term0_to_term1(T0,T1),
+        D=term(T1).
+dterm0_to_dterm1(exception(T),D) :-
+    ->  D=exception(T).
+
+term0_to_term1(T0,T1) :- 
+    ->	x1(T0,T1,0,_I).
+x1(struct(Name,Arity,Args0),T1,I0,I1) :-
+    ->  smap(x1,Args0,Args1,I0,I1),
+	T1=struct(Name,Arity,Args1).
+x1(var('_'),T1,I0,I1) :- 
+    ->  T1=var(noname(I0)), 
+	I1 is I0+1.
+x1(var(T0),T1,I0,I1) :-
+    ->  T1=var(T0),
+	I0=I1.
+
+
+%----dterm0_to_dterm1(+DTERM0,-DTERM1,-NAME0-list,-NAME0-list)
+/*
+	The same as above, but Once contains
+	the names of the variables that only have one occurence 
+	in the term DTERM0.
+	More contains the names of the variables
+	that occur several times in the term, but nevertheless
+	start with '_'.
+	This predicate is useful for producing warnings when
+	compiling.
+*/
+dterm0_to_dterm1(term(T0),D1,Once,More) :-     
+    ->  term0_to_term1(T0,T1,Once,More),
+	D1=term(T1).
+dterm0_to_dterm1(exception(T),D1,Once,More) :-
+    ->  D1=exception(T),
+	Once=[],
+	More=[].
+
+term0_to_term1(T0,T1,Once,More) :- 
+    ->	x2(T0,T1,0,_I,[],Once0,[],More0),
+	no_voids(Once0,Once),
+	only_voids(More0,More).
+
+only_voids([],T) :- 
+    ->	T=[].
+only_voids([H|T],R) :- 
+	atom_chars(H,[0'_,_|_])
+    ->	R=[H|S], 
+	only_voids(T,S).
+only_voids([_|T],R) :- 
+    ->	R=S, 
+	only_voids(T,S).
+
+no_voids([],T) :- 
+    ->	T=[].
+no_voids([H|T],R) :- 
+	atom_chars(H,[0'_|_])
+    ->	no_voids(T,R).
+no_voids([H|T],R) :- 
+    ->	R=[H|S], 
+	no_voids(T,S).
+
+x2(struct(N,A,Args0),T1,I0,I1,AOnce,Once,AMore,More) :-
+    ->  smap(x2,Args0,Args1,I0,I1,AOnce,Once,AMore,More),
+	T1=struct(N,A,Args1).
+x2(var('_'),T1,I0,I1,AOnce,Once,AMore,More) :-
+    ->  T1=var(noname(I0)), 
+	I1 is I0+1,
+	AOnce=Once,
+	AMore=More.
+x2(var(T0),T1,I0,I1,AOnce,Once,AMore,More) :- 
+    ->	T1=var(T0),
+	I0=I1,
+	x3(T0,AOnce,Once,AMore,More).
+x2(T0,T1,I0,I1,AOnce,Once,AMore,More) :- 
+    ->  T1=T0,
+	I1=I0,
+	Once=AOnce,
+	More=AMore.
+
+x3(X,AOnce,Once,AMore,More) :- 
+	member(X,AMore)
+    ->  Once=AOnce,
+	More=AMore.
+x3(X,AOnce,Once,AMore,More) :- 
+	select(X,AOnce,ROnce)
+    ->  Once=ROnce,
+	More=[X|AMore].
+x3(X,AOnce,Once,AMore,More) :-
+    ->  Once=[X|AOnce], 
+	More=AMore.
+	
+%-----dterm1_to_dterm0(+DTERM1,-DTERM0)-----------
+/*
+	If a variable only occurs once in DTERM1, its name is
+	replaced by a new name, unique within this DTERM0, starting
+	with '_'.
+	If a variable with the name 'noname(Integer)' occurs
+	several times it will receive a new name not starting
+	with '_', unique within this DTERM0.
+*/
+dterm1_to_dterm0(term(T1),D0) :-
+    ->  term1_to_term0(T1,T0),
+	D0=term(T0).
+term1_to_term0(T1,T0) :- 
+	var_occurrences(T1,[],Vtab),
+	highest_vno(Vtab,I0)
+    ->	term1_to_term0(T1,T0,Vtab,I0,_).
+term1_to_term0(T1,T0,Vtab,I0,I1) :-
+	is_var(T1), 
+	access(X,Vtab,_),
+	X=(T1-N)
+    ->  x4(T1,N,T0,I0,I1).
+term1_to_term0(struct(N,A,Ts),T0,Vtab,I0,I2) :-
+    ->  term1_to_term0(N,N0,Vtab,I0,I1),
+	term1_to_term0(Ts,Ts0,Vtab,I1,I2),
+	T0=struct(N0,A,Ts0).
+term1_to_term0([],T0,_Vtab,I0,I1) :-
+    ->  T0=[],
+	I0=I1.
+term1_to_term0([H|T],T0,Vtab,I0,I2) :-
+    ->  term1_to_term0(H,G,Vtab,I0,I1),
+	term1_to_term0(T,S,Vtab,I1,I2),
+	T0=[G|S].
+term1_to_term0(T1,T0,_Vtab,I0,I1) :-
+    ->  T0=T1,
+	I0=I1.
+x4(var(_),1,T0,I0,I1) :-
+    ->  number_chars1(I0,N),
+	atom_chars(U,[0'_|N]),
+	I1 is I0+1,
+	T0=var(U).
+x4(var(V),N,T0,I0,I1) :-
+	V=noname(I),
+	integer(I),
+    	N>1
+    ->  I1 is I0+1,
+	gen_var(v,I1,T0).
+x4(var(V),_N,T0,I0,I1) :-
+    -> T0=var(V),
+	I1=I0.
+
+highest_vno(Vtab,No) :-
+	highest_vno(Vtab,0,No).
+highest_vno(Vtab,I,No) :-
+	access((V-_),Vtab,Rest) 
+    ->  gen_var(v,I0,V),
+	highest_vno0(Rest,I,I0,No).
+highest_vno(_Vtab,I,No) :-
+    ->	I=No.
+highest_vno0(Vtab,I,J,No) :-
+	J>I
+    ->  highest_vno(Vtab,J,No).
+highest_vno0(Vtab,I,_J,No) :-
+    ->  highest_vno(Vtab,I,No).
+
+var_occurrences(var(V),I0,I2) :-
+	access(X,I0,I1),
+	X=(var(V)-N)
+    ->  N1 is N+1,
+	insert((var(V)-N1),I1,I2).
+var_occurrences(var(V),I0,I1) :-
+    ->  insert((var(V)-1),I0,I1).
+var_occurrences(struct(N,_A,Ts),I0,I2) :-
+    ->  var_occurrences(N,I0,I1),
+	smap(var_occurrences,Ts,I1,I2).
+var_occurrences([],I0,I1) :-
+    ->  I0=I1.
+var_occurrences([H|T],I0,I2) :-
+    ->  var_occurrences(H,I0,I1),
+	var_occurrences(T,I1,I2).
+var_occurrences(T,I0,I1) :-
+	atomic(T)
+    ->  I1=I0.
+
+
+%===========================================================================
+/*
+2. PROGRAM FORMAT
+
+    The program is DCG-expanded and apply-expanded. The resulting clauses
+    will not contain any terms with a variable as functor. Guards can
+    contain disjunctive flat constraints as well as defined literals.
+    Other disjunctions are unnested, (see below).
+    Connectives ((A;B), (A->B;C),not(A)) in GUARD and BODY
+    are considered to be built-in metacalls. 
+    They can be unnested in certain cases. 
+
+	DPROGRAM ::= prog(DEFNAME-list,PROGRAM) | exception(EXCEPTION)
+	EXCEPTION ::= end_of_file | ...
+	PROGRAM ::= DEFINITION-list
+	DEFINITION ::= DEFNAME-def(GUARDOP,CLAUSE-list)
+	DEFNAME ::= Atom / Arity
+	CLAUSE ::= clause(HEAD,GUARD,GUARDOP,BODY)
+	HEAD ::= TERM
+	GUARD ::= TERM
+	BODY ::= TERM
+	GUARDOP ::= A-B
+	A ::= noisy | quiet
+	B ::= wait | condition | commit
+
+	The five guards presently in use are
+	  concrete syntax     abstract syntax
+		?               noisy-wait
+		??              quiet-wait
+		->              quiet-condition
+		|               quiet-commit
+		!               noisy-condition
+
+	DEFNAME is NAME/ARITY of a DEFINITION
+	Only one definition is allowed for each NAME/ARITY, 
+	i.e. each definition has a unique guard operation.
+	CALLTERM is a term with the same NAME and ARITY 
+		as the HEAD of a CLAUSE in a DEFINITION
+	CALLNAME is NAME/ARITY of a CALLTERM
+
+	The definition entrypoint/1 contains DEFNAMEs (or lists of
+	DEFNAMEs which are allowed top level agents.
+*/
+
+%--- Conversion routines
+
+%--- dterms1_to_program(+DTERM1-list,-PROGRAM)
+% 	This conversion takes case of special cases, e.g.
+% 	"p.", "p:-?true" both mean "p :- true?true".
+dterms1_to_program(Ds,P) :- 
+	parse_definitions(P,Ds,[]).
+
+
+write_conflicting_prednames(DefinedNames) :-
+	stdout(O),
+	reverse(DefinedNames,RDef)
+    ->	check_unique(RDef,O,_).
+
+check_unique([],S0,S1) :- 
+    ->  S0=S1.
+check_unique([(H-Gop)|T],S0,S2) :-
+	member((H-Gop0),T)
+    ->  writenl('### duplicate definition ###'(H,Gop,Gop0),S0,S1),
+	check_unique(T,S1,S2).
+check_unique([_|T],S0,S1) :-
+    ->  check_unique(T,S0,S1).
+
+parse_definitions(D,S0,S1) :-
+	parse_definitions(D,S0,S1,[],DefinedNames),
+	write_conflicting_prednames(DefinedNames).
+parse_definitions(D,[],S1,A,DefinedNames) :-
+    -> 	D=[],
+       	S1=[],
+	A=DefinedNames.
+parse_definitions(D,S0,S2,A,DefinedNames) :-
+       	parse_definition(D0,S0,S1),
+ 	D0=DefName-def(Gop,_Clauses),
+	guardop(Goptoken,Gop)
+    -> 	D=[D0|R],
+       	parse_definitions(R,S1,S2,[(DefName-Goptoken)|A],DefinedNames).
+parse_definitions(D,S0,S1,A,DefinedNames) :-
+    -> D=[exception(parse_error(S0))],
+       S1=[],
+       A=DefinedNames.
+
+parse_definition(D,S0,S1) :-
+        parse_clauses(C,S0,S2)
+    ->	S2=S1,
+	definition_name(C,Dn,Guardop),
+	D=Dn-def(Guardop,C).
+parse_definition(D,S0,S1) :-
+    ->  D=nodef/0-def('???',[exception(E)]),
+	S0=[E|S1].
+
+definition_name(Cs,Dn,Guardop) :-
+        Cs=[clause(Head,_,Guardop0,_)|_]
+    ->  Head=struct(Name,Arity,_),
+	Dn=Name/Arity,
+	Guardop=Guardop0.
+
+parse_clauses(C,S0,S2) :-
+   ->   parse_clause(Name,Head,Guard,Guardop,Body,S0,S1),
+	parse_clauses(Name,Guardop,T,S1,S2),
+	C=[clause(Head,Guard,Guardop,Body)|T].
+
+parse_clauses(Name,Guardop,Cls,S0,S2) :-
+        parse_clause(Name,Head,Guard,Guardop,Body,S0,S1)
+    ->  Cls=[clause(Head,Guard,Guardop,Body)|T],
+	parse_clauses(Name,Guardop,T,S1,S2).
+parse_clauses(_Name,_Guardop,Cls,S0,S1) :-
+    ->  S0=S1,
+	Cls=[].
+		
+parse_clause(Name,Head,Guard,Guardop,Body,S0,S1) :-
+        S0=[T|R]
+    ->	R=S1, 
+	x8(T,Name,Head,Guard,Guardop,Body).
+
+x8(term(S),Name,Head,Guard,Guardop,Body) :- 
+	S=struct((:-),2,[Head0,struct(Goptoken,2,[Guard0,Body0])]),
+    	guardop(Goptoken,Guardop0)
+    ->	Head0=struct(Name0,Arity0,_),
+	Name=Name0/Arity0,
+        Head0=Head,
+	Guardop0=Guardop,
+	Guard0=Guard,
+	Body0=Body.
+x8(term(S),Name,Head,Guard,Guardop,Body) :- 
+	S=struct((:-),2,[Head0,struct(Goptoken,1,[Body0])]),
+    	guardop(Goptoken,Guardop0)
+    ->	Head0=struct(Name0,Arity0,_),
+	Name=Name0/Arity0,
+        Head0=Head,
+	Guardop0=Guardop,
+	Guard=struct(true,0,[]),
+	Body0=Body.
+x8(term(S),Name,Head,Guard,Guardop,Body) :- 
+	S=struct((:-),2,[Head0,Body0]),
+     	Head0=struct(Name0,Arity0,_)
+    ->  Name=Name0/Arity0,
+	Head0=Head,
+	Body0=Body,
+	guardop((?),Guardop),
+	Guard=struct(true,0,[]).
+x8(term(H), Name,Head,Guard,Guardop,Body) :- 
+    ->  H=struct(Name0,Arity0,_),
+	Head=H,
+	Name=Name0/Arity0,
+	guardop((?),Guardop),
+	Guard=struct(true,0,[]),
+	Body=struct(true,0,[]).
+
+
+%--- program_to_terms1(+PROGRAM,-TERM1-list)
+%program_to_terms1(PROGRAM,TERM1-list) :-
+
+
+%--- dcg_expand(+TERM1,-TERM1)
+% dcg_expand(+TERM1,-TERM1) :-
+
+
+
+/*
+    I/O:
+	read_program(-DPROGRAM,+Stream,-Stream)
+		or possibly
+	read_program(+Filename,-DPROGRAM)
+*/
+
+%---read_program(-DPROGRAM,+Stream,-Stream)
+read_program(P,S0,S1) :-
+    ->  read_dterms1(T,S0,S1),
+	dterms1_to_program(T,D0),
+	P0=prog([],D0),
+	filter_public(P0,P).
+
+
+%---read_program(+Filename,-DPROGRAM)
+read_program(F,P) :-
+    ->	read_dterms1(F,T),
+	dterms1_to_program(T,D0),
+	P0=prog([],D0),
+	filter_public(P0,P).
+
+
+/*
+	write_program(+PROGRAM,+Stream,-Stream)
+		or possibly
+	write_program(+Filename,+PROGRAM)
+		pretty-prints the clause
+*/
+%---write_program(+PROGRAM,+Stream,-Stream)
+write_program(prog(Entries,Defs),S0,S2) :-
+    ->  writenl('%--- program '(Entries),S0,S1),
+	smap(write_definition,Defs,S1,S2).
+write_program(prog(Entries,Defs),S0,S2) :-
+    ->  writenl('%--- couldn''t write program '(Entries),S0,S1),
+	smap(writenl,Defs,S1,S2).
+
+%---write_program(+Filename,+PROGRAM)
+write_program(F,P) :-
+   ->   fopen(F,write,S0),
+	stream(S0),
+	write_program(P,S0,S1),
+	fclose(S1,_S2).
+
+write_definition(nodef/0-def(_Gop,Error),S0,S2) :-
+    ->  nl(S0,S1),
+	writenl('%-- not a definition:'(Error),S1,S2).
+
+write_definition(Dname-def(Gop,Cls),S0,S3) :-
+	length(Cls,N)
+    ->  nl(S0,S1),
+	writenl('%--definition'(Dname,Gop,no_of_clauses(N)),S1,S2),
+	smap(write_clause,Cls,S2,S3).
+
+write_definition(D,S0,S1) :-
+    ->  S0=S1, stdout(Error), writenl(fail(write_definition(D)),Error,_), fail.
+
+write_gop(Gop,S0,S1) :-
+	guardop(Goptoken,Gop),
+	atom_chars(Goptoken,L),
+	fill_gop(L,Gc)
+    ->  write0(Gc,S0,S1).
+fill_gop([A],Gc) :-
+	atom_chars(' ',[S])
+    -> 	L=[S,S,S,S,A,S,S,S],
+	atom_chars(Gc,L).
+fill_gop([A,B],Gc) :-
+	atom_chars(' ',[S])
+    -> 	L=[S,S,S,S,A,B,S,S],
+	atom_chars(Gc,L).
+
+write_clause(clause(Head,struct(true,0,[]),Gop,Body),S0,S5) :-
+    ->  write_term1(Head,S0,S1),
+	writenl(' :- ',S1,S2),
+	write_gop(Gop,S2,S3),
+	write_goals(Body,S3,S4),
+	writenl('.',S4,S5).
+
+write_clause(clause(Head,Guard,Gop,Body),S0,S8) :-
+    ->  write_term1(Head,S0,S1),
+	writenl(' :- ',S1,S2),
+	write0('        ',S2,S3),
+	write_goals(Guard,S3,S4),
+	nl(S4,S5),
+	write_gop(Gop,S5,S6),
+	write_goals(Body,S6,S7),
+	writenl('.',S7,S8).
+
+write_goals([],S0,S1) :-
+    ->  S0=S1.
+write_goals([H|T],S0,S3) :-
+    ->  write_term1(H,S0,S1),
+	nl(S1,S2),
+	write_goals(T,S2,S3).
+write_goals(H,S0,S6) :-
+	akl_conjunction(H,A,B)
+    ->  write0('(',S0,S1),
+	write_goals(A,S1,S2),
+	writenl(',',S2,S3),
+	write0('        ',S3,S4),
+	write_goals(B,S4,S5),
+	write0(')',S5,S6).
+write_goals(H,S0,S1) :-
+    ->  write_term1(H,S0,S1).
+
+% Dan Sahlin, 1993-04-27
+% load(ugraphs), load(ordsets), load(assoc),
+% load(stat)
+
+% :- public find_least_fix_point/3.
+
+/***
+find_least_fix_point(
+	+INITIALIZATION-list,
+	+EQUATION-list,-VALUE-list)
+
+	The last list is the solution and and will have the same length as
+	the second list.
+
+	INITIALIZATION ::= DVAR - VALUE
+	EQUATION ::= DVAR - fun(FUNCTION,DVAR-list)
+	DVAR ::= any ground term representing the name of the variable
+	FUNCTION ::= an atom to be called with a list of domain arguments
+	VALUE ::= a starting value from the domain
+***/
+
+find_least_fix_point(Input,Functions,Results,S) :-
+	stat(on,S),  % stat(off,S) to turn off statistics
+	find_least_fix_point(Input,Functions,Results,S).
+
+% alternative entry point where the statistics variable "S" is available
+find_least_fix_point(Input,Functions,Results,S) :-
+	list_to_assoc(Functions,Fncs),
+	to_value_list(Functions,Valuelist,Results),
+	fappend(Input,Valuelist,Allvalues),
+	list_to_assoc(Allvalues,Values),
+
+	to_graph(Input,Functions,G0),
+	transpose(G0,G1),
+	reduce(G1,G2),
+	top_sort(G2,Tlist),    % to trigger the solvers in a "good" order
+%       Tlist=G2,              % this is actually slower for simple domains
+	setup_solvers(Tlist,Values,Fncs,S).
+
+to_value_list([],Valuelist,Results) :-
+    ->  Valuelist=[], Results=[].
+to_value_list([V-_|Eqs],Valuelist,Results) :-
+    ->  Valuelist=[V-Finalvalue|Valuelist2],
+	Results=[Finalvalue|Results2],
+	to_value_list(Eqs,Valuelist2,Results2).
+
+setup_solvers([],_,_,_) :-
+    ->  true.
+setup_solvers([Node|Tlist],Values,Fncs,S) :-
+	find_functions(Node,Fncs,NodeFcns)
+    ->  get_values(Node,Values,Results),
+	find_least_fix_point2(NodeFcns,Values,Results,S),
+	setup_solvers(Tlist,Values,Fncs,S).
+setup_solvers([_|Tlist],Values,Fncs,S) :- % if a value has been found
+    ->  setup_solvers(Tlist,Values,Fncs,S).    % then find_functions fails
+
+find_functions([],_Fcns,NodeFcns) :-
+    ->  NodeFcns=[].
+find_functions([V|Vs],Fcns,NodeFcns) :-
+    ->  get_assoc(V,Fun,Fcns,_),
+	NodeFcns=[(V-Fun)|NodeFcns2],
+	find_functions(Vs,Fcns,NodeFcns2).
+
+to_graph(Input,Equations,G) :-
+	input_to_graph(Input,G0,G1),
+	equations_to_graph(Equations,G1),
+	keysort(G0,G).
+
+input_to_graph([],G0,G) :-
+    ->  G0=G.
+input_to_graph([V-_Value|Input],G0,G) :-
+    ->  G0=[V-[]|G1],
+	input_to_graph(Input,G1,G).
+
+equations_to_graph([],G) :-
+    ->  G=[].
+equations_to_graph([V-fun(_,Vs)|L],G) :-
+    ->  G=[V-Vs2|G2],
+	sort(Vs,Vs2),
+	equations_to_graph(L,G2).
+
+
+find_least_fix_point2([Eq],Values,[Result],S) :-
+    ->  compute_value(Eq,Values,Result,S).
+find_least_fix_point2(Equations,Values,Results,S) :-
+    ->  find_strong_fix_point(Equations,Values,Results,S).
+
+compute_value(V-fun(Fun,Args),Values,Result,S) :-
+    ->  get_values(Args,Values,V,ArgsValues),
+	compute_function(Fun,ArgsValues,Result,S).
+
+get_values([],_Values,_V,ArgsValues) :-
+    ->  ArgsValues=[].
+get_values([V|Args],Values,V,ArgsValues) :- % special case, directly recursive
+    ->  domain_bottom(ArgsValue),                  % use bottom value
+	ArgsValues=[ArgsValue|ArgsValues2],
+	get_values(Args,Values,V,ArgsValues2).
+get_values([Arg|Args],Values,V,ArgsValues) :-
+    ->  get_assoc(Arg,ArgsValue,Values,_),
+	ArgsValues=[ArgsValue|ArgsValues2],
+	get_values(Args,Values,V,ArgsValues2).
+
+get_values([],_Values,ArgsValues) :-        % extra version...
+    ->  ArgsValues=[].
+get_values([Arg|Args],Values,ArgsValues) :-
+    ->  get_assoc(Arg,ArgsValue,Values,_),
+	ArgsValues=[ArgsValue|ArgsValues2],
+	get_values(Args,Values,ArgsValues2).
+
+compute_function(Function,NewValues,Var,S) :-
+	Function(NewValues,Var),
+	increment(S).
+
+find_strong_fix_point(Equations,Values,Results,S) :-
+	find_all_used_variables(Equations,Vs),
+	to_assoclist(Vs,Values,VsAssoc),
+	length(Equations,N), write('strong: '), write(N), nl,
+	find_least_fix_point_strong(VsAssoc,Equations,Results,S),
+	write(end), nl.
+
+find_all_used_variables(Equations,Vs) :-
+	find_used_and_defined_vars(Equations,VsU,VsD),
+	list_to_ord_set(VsU,VsUS),      % lib(ordsets)
+	list_to_ord_set(VsD,VsDS),      % lib(ordsets)
+	ord_subtract(VsUS,VsDS,Vs).     % lib(ordsets)
+
+to_assoclist([],_Values,VsAssoc) :-
+    ->  VsAssoc=[].
+to_assoclist([V|Vs],Values,VsAssoc) :-
+    ->  get_assoc(V,Value,Values,_),
+	VsAssoc=[V-Value|VsAssoc2],
+	to_assoclist(Vs,Values,VsAssoc2).
+
+find_used_and_defined_vars([],UVs,DVs) :-
+    ->  UVs=[], DVs=[].
+find_used_and_defined_vars([A-fun(_Fun,Args)|Equations],UVs,DVs2) :-
+    ->  fappend(Args,UVs2,UVs),
+	DVs2=[A|DVs1],
+	find_used_and_defined_vars(Equations,UVs2,DVs1).
+
+/*******************************************************************/
+/* Here comes the difficult part, solving the cyclic structures */
+
+find_least_fix_point_strong(Input,Equations,Results,S) :-
+	to_graph(Input,Equations,G0),
+	transpose(G0,G1),
+	ord_list_to_assoc(G1,Dependencies),
+	/*ord_*/list_to_assoc(Input,InputB),
+	update_info(Equations,InputB,Dependencies,Ts0),
+	iterate_fix_point(Ts0,Ts,S),
+	transfer_results(Ts,Results).
+
+% Ts ::= (Variable - t(Value,Dependent,Recompute,fun(Function,TaggedArg-list),Size))-list
+% TaggedArg ::= var(Var) | value(Value)
+
+update_info([],_InputB,_Deps,Ts) :-
+    ->  Ts=[].
+update_info([V-fun(Fun,Args)|Eqs],InputB,Deps,Ts) :-
+    ->  info_args(Args,InputB,Infoargs,no,Recompute),
+	Size=0,
+	get_assoc(V,Dependent,Deps,_),
+	domain_bottom(Value),
+	T=t(Value,Dependent,Recompute,fun(Fun,Infoargs),Size),
+	Ts=[V-T|Ts2],
+	update_info(Eqs,InputB,Deps,Ts2).
+
+not_bottom(Value,Recompute0,Recompute) :-
+	domain_bottom(Value)
+    ->  Recompute0=Recompute.
+not_bottom(_Value,_Recompute0,Recompute) :-
+    ->  Recompute=recompute.
+
+
+iterate_fix_point(Ts0,Ts,S) :-
+	find_best_modified(Ts0,Ts1,Fun,Oldvalue,Newvalue,Newsize,Dependent) % and set Oldsizes=Newsizes
+   ->   compute_function_value(Ts0,Fun,Newvalue,S),  % not Ts1, it is to be filled in!
+	Newsize=0, %?? dummy
+	update_dependent(Oldvalue,Newvalue,Ts1,Dependent,Ts2),
+	iterate_fix_point(Ts2,Ts,S).
+iterate_fix_point(Ts0,Ts,_S) :-
+   ->   Ts=Ts0.
+
+find_best_modified(Ts0,Ts,Function,Oldvalue,Newvalue,Newsize,Dependent) :-   % subopt
+	needs_recomputation(Ts0,
+			    V-t(Oldvalue,Dependent,recompute,Function,_Oldsize),
+			    Ts2),
+	Ts=[V-t(Newvalue,Dependent,no,Function,Newsize)|Ts2].
+
+needs_recomputation([T0|Ts0], T, Ts) :-
+	recompute_t(T0)
+    ->  T=T0, Ts=Ts0.
+needs_recomputation([T0|Ts0],T,Ts) :-
+    ->  Ts=[T0|Ts1],
+	needs_recomputation(Ts0,T,Ts1).
+
+recompute_t(_V-t(_Oldvalue,_Dependent,recompute,_Function,_Oldsize)).
+
+compute_function_value(Ts,fun(Function,Infoarglist),Newvalue,S) :-
+    compute_infoarglist(Infoarglist,Ts,Values),
+    compute_function(Function,Values,Newvalue,S).
+
+compute_infoarglist([],_Ts,Values) :-
+    ->  Values=[].
+compute_infoarglist([value(Value)|Infoarglist],Ts,Values) :-
+    ->  Values=[Value|Values2],
+	compute_infoarglist(Infoarglist,Ts,Values2).
+compute_infoarglist([var(Var)|Infoarglist],Ts,Values) :-
+    ->  find_fun_value(Ts,Var,Value),           % subopt
+	Values=[Value|Values2],
+	compute_infoarglist(Infoarglist,Ts,Values2).
+
+find_fun_value([V-t(Value0,_Dependent0,_Recompute0,_Function0,_Oldsize)|_Ts],V,Value) :-
+    ->  Value=Value0.
+find_fun_value([_|Ts],V,Value) :-
+    ->  find_fun_value(Ts,V,Value).
+
+
+% only update dependent if a new value has been computed
+update_dependent(Value,Value,Ts1,_Dependent,Ts2) :-
+    ->  Ts2=Ts1.
+update_dependent(_Oldvalue,_Newvalue,Ts1,Dependent,Ts2) :-
+    ->  update_dependent(Ts1,Dependent,Ts2).
+
+
+% subopt
+update_dependent([],_Dep,Ts) :-
+    ->  Ts=[].
+update_dependent([V-t(Value,Dependent,_Recompute,fun(Fun,Infoargs),Size)|Ts0],Dep,Ts) :-
+	memberchk(V,Dep)
+    ->  Ts=[V-t(Value,Dependent,recompute,fun(Fun,Infoargs),Size)|Ts1],
+	update_dependent(Ts0,Dep,Ts1).
+update_dependent([T|Ts0],Dep,Ts) :-
+    ->  Ts=[T|Ts1],
+	update_dependent(Ts0,Dep,Ts1).
+
+transfer_results([],Results) :-
+    ->  Results=[].
+transfer_results([_V-t(Value,_Dependent,_Recompute,_Function,_Size)|Ts],Results) :-
+    ->  Results=[Value|Results2],
+	transfer_results(Ts,Results2).
+
+
+%%% test
+
+testfix(Res) :-
+	stat(off,S),
+	find_least_fix_point([s-[]],[x-fun(lub,[y,x,z]),
+		z-fun(lub,[x,y,s]),
+		y-fun(lub,[x,y,z])],Res,S).
+%-------------------------------------------------------------------------
+% map.akl
+% Author: Thomas Sjöland, SICS 1993
+% usage: various definitions of mapping a relation, function or
+% definition over the elements of a list. E.g. in map(P,List)
+% the predicate P(X) is applied to each element X of the list.
+% Variants with the name 'smap' contains accumulator pairs, one, 
+% two or three.
+%-------------------------------------------------------------------------
+% apply P(E) to each element E of a list
+map(_P,[]) :- 
+    ->  true.
+map(P,[H|T]) :-
+    ->  P(H),
+	map(P,T).
+
+% apply P(E,G) to each element E of a list producing L of Gs
+map(_P,[],L) :- 
+    ->  L=[],
+	true.
+map(P,[H|T],L) :- 
+    ->  L=[G|R],
+	P(H,G), 
+	map(P,T,R).
+
+% apply write predicate P(E,S0,S1) successively to a list with comma between
+smapwr(_P,[],S0,S1) :- 
+    ->  S0=S1.
+smapwr(P,[H|T],S0,S2) :- 
+    ->  P(H,S0,S1), 
+	smapwr0(P,T,S1,S2).
+smapwr0(_P,[],S0,S1) :- 
+    ->  S0=S1.
+smapwr0(P,[H|T],S0,S3) :- 
+    ->  write0(',',S0,S1),
+	P(H,S1,S2), 
+	smapwr0(P,T,S2,S3).
+
+% apply P(E,S0,S1) successively to a list, one accumulator
+smap(_P,[],S0,S1) :- 
+    ->  S0=S1.
+smap(P,[H|T],S0,S2) :- 
+    ->  P(H,S0,S1), 
+	smap(P,T,S1,S2).
+
+% apply P(E,G,S0,S1) successively to a list producing L, one acc
+smap(_P,[],L,S0,S1) :- 
+    ->  L=[], S0=S1.
+smap(P,[H|T],L,S0,S2) :- 
+    ->  L=[G|R],
+	P(H,G,S0,S1), 
+	smap(P,T,R,S1,S2).
+
+% apply P(E,I0,I1,S0,S1) successively to a list, two accumulators
+smap(_P,[],I0,I1,S0,S1) :- 
+    ->  I0=I1,
+	S0=S1.
+smap(P,[H|T],I0,I2,S0,S2) :- 
+    ->  P(H,I0,I1,S0,S1), 
+	smap(P,T,I1,I2,S1,S2).
+
+% apply P(E,G,I0,I1,S0,S1) successively to a list producing L, two accs
+smap(_P,[],L,I0,I1,S0,S1) :- 
+    ->  L=[], 
+	I0=I1,
+	S0=S1.
+smap(P,[H|T],L,I0,I2,S0,S2) :- 
+    ->  L=[G|R],
+	P(H,G,I0,I1,S0,S1), 
+	smap(P,T,R,I1,I2,S1,S2).
+
+% apply P(E,I0,I1,S0,S1) successively to a list, three accumulators
+smap(_P,[],I0,I1,A0,A1,S0,S1) :- 
+    ->  I0=I1,
+	A0=A1,
+	S0=S1.
+smap(P,[H|T],I0,I2,A0,A2,S0,S2) :- 
+    ->  P(H,I0,I1,A0,A1,S0,S1), 
+	smap(P,T,I1,I2,A1,A2,S1,S2).
+
+% apply P(E,G,I0,I1,S0,S1) successively to a list producing L,three accs
+smap(_P,[],L,I0,I1,A0,A1,S0,S1) :- 
+    ->  L=[], 
+	I0=I1,
+	A0=A1,
+	S0=S1.
+smap(P,[H|T],L,I0,I2,A0,A2,S0,S2) :- 
+    ->  L=[G|R],
+	P(H,G,I0,I1,A0,A1,S0,S1), 
+	smap(P,T,R,I1,I2,A1,A2,S1,S2).
+
+%-------------------------------------------------------------------------
+% end of map.akl
+%-------------------------------------------------------------------------
+
+% ----------------------- Primitive Term format --------------------
+/*
+	DTERM0 ::= term(TERM0) | exception(EXCEPTION0)
+	EXCEPTION0 ::= end_of_file | ...
+	TERM0 ::= VAR0 | struct(NAME0,Integer,TERM0-list) 
+	NAME0 ::= Atom | VAR0
+	VAR0  ::= var(VNAME0)
+	VNAME0 ::= Atom
+
+   	An 'Atom' in var(Atom) is the name of the variable, which 
+	may be '_' but not an integer. The syntax covers the prior 
+	meta syntax F(A) where F  is a variable.
+*/
+
+
+%--- read_dterm0(-DTERM0,+Stream,-Stream)-----------
+read_dterm0(DTERM0,S0,S1) :-
+    ->	read_term(T,S0,S1), 
+	x0(T,DTERM0).
+
+x0(exception(E),E0) :-
+   ->  E0=exception(E).
+x0(term(T),T0) :- 
+       is_term0(T)
+   ->  T0=term(T).
+x0(E,E0) :-
+   ->  E0=exception(error(E)).
+
+is_term0(T) :-
+        is_var(T)
+    ->  true.
+
+is_term0(struct(N,I,Ts)) :- 
+        is_name0(N)
+    ->	integer(I), 
+	map(is_term0,Ts).
+
+is_name0(N) :- 
+	is_var(N) 
+    ->  true.
+is_name0(N) :- 
+	atomic(N) 
+    ->  true.
+
+is_var(var(V)) :- 
+	is_vname(V)
+    ->  true.
+
+is_vname(V) :- 
+	atom(V) 
+    ->  true.
+
+%--- read_dterms0(-TERM0-list,+Stream,-Stream)
+read_dterms0(Terms,S0,S2) :-
+    ->  read_dterm0(Item,S0,S1),
+        read_dterms0(Item,Terms,S1,S2).
+
+read_dterms0(term(H),Terms0,S0,S1) :-
+    ->  Terms0=[term(H)|T],
+        read_dterms0(T,S0,S1).
+read_dterms0(exception(end_of_file),Terms0,S0,S1) :-
+    ->  Terms0 = [],
+	S0=S1.
+read_dterms0(exception(E),Terms0,S0,S1) :-
+    ->  Terms0 = [exception(E)],
+	S0=S1.
+
+%--- read_dterms0(+Filename,-DTERM1-list)
+read_dterms0(Infile,Terms) :- 
+    ->	fopen(Infile,read,S0), 
+	stream(S0),
+    	read_dterms0(Terms,S0,S1),
+        fclose(S1,_S2).
+
+
+
+
+
+
+
+%--- write_dterm0(+DTERM0,+Stream,-Stream)-----------------
+write_dterm0(term(T),S0,S1) :-
+    ->  write_term0(T,S0,S1).
+write_dterm0(exception(E),S0,S2) :-
+    ->  writenl('-------- Exception -----------',S0,S1),
+	writenl(E,S1,S2).
+%--- write_term0(+TERM0,+Stream,-Stream)-------------------
+write_term0(var(t(V,D,C)),S0,S7) :- 
+	D=Dn/A
+    ->  write_term0(var(V),S0,S1),
+	write0('_',S1,S2),
+	write0(Dn,S2,S3),
+	write0('_',S3,S4),
+	write0(A,S4,S5),
+	write0('_',S5,S6),
+	write0(C,S6,S7).
+write_term0(var(V),S0,S1) :- 
+    ->  write0(V,S0,S1).
+write_term0(struct(N,_I,Ts),S0,S4) :- 
+ 	Ts=[_|_]
+    ->  write0(N,S0,S1), 
+	write0('(',S1,S2),
+	smapwr(write_term0,Ts,S2,S3),
+	write0(')',S3,S4).
+write_term0(struct('.',2,[H,T]),S0,S3) :- 
+    ->  write0('[',S0,S1), 
+	write_term0(H,S1,S2),
+	write_rest0(T,S2,S3).
+write_term0(struct('=',2,[H,T]),S0,S5) :- 
+    ->  write0('(',S0,S1),
+	write_term0(H,S1,S2),
+	write0(' = ',S2,S3),
+	write_term0(T,S3,S4),
+	write0(')',S4,S5).
+write_term0(struct(N,_I,Ts),S0,S4) :- 
+ 	Ts=[_|_]
+    ->  write_name0(N,S0,S1), 
+	write0('(',S1,S2),
+	smapwr(write_term0,Ts,S2,S3),
+	write0(')',S3,S4).
+write_term0(struct(N,_I,[]),S0,S3) :- 
+	current_op(_,_,N)
+    ->  write0('(',S0,S1),
+	write_name0(N,S1,S2),
+	write0(')',S2,S3).
+write_term0(struct(N,_I,[]),S0,S1) :- 
+    ->  write_name0(N,S0,S1).
+
+write_name0('.',S0,S3) :-
+    ->  write0('''',S0,S1), 
+	write0('.',S1,S2), 
+	write0('''',S2,S3).
+write_name0(X,S0,S3) :-
+	current_op(_,_,X)
+    ->  write0('''',S0,S1), 
+	write0(X,S1,S2),
+	write0('''',S2,S3).
+write_name0(X,S0,S1) :-
+    ->  writeq(X,S0,S1).
+
+write_rest0(struct([],0,[]),S0,S1) :-
+    ->  write0(']',S0,S1).
+write_rest0(struct('.',2,[H,struct([],0,[])]),S0,S3) :-
+    ->  write0(',',S0,S1),
+	write_term0(H,S1,S2),
+	write0(']',S2,S3).
+write_rest0(struct('.',2,[H,T]),S0,S3) :-
+    ->  write0(',',S0,S1),
+	write_term0(H,S1,S2),
+	write_rest0(T,S2,S3).
+write_rest0(T,S0,S3) :-
+    ->  write0((|),S0,S1),
+	write_term0(T,S1,S2),
+	write0(']',S2,S3).
+
+
+% ----------------------- Basic Term format -------------------------
+/*
+	DTERM1 ::= term(TERM1) | exception(EXCEPTION1)
+	EXCEPTION1 ::= end_of_file | ...
+	TERM1 ::= VAR1 | struct(NAME1,Integer,TERM1-list)
+	NAME1 ::= Atomic | VAR1
+	VAR1  ::= var(VNAME1)
+	VNAME1 ::= Atomic | noname(INTEGER)
+    	Note that not all variables with numbers are void. Sometimes 
+	the name of a variable is lost but we still want to be able to 
+	represent the term in the abstract syntax.
+*/
+
+%--- I/O routines:
+
+%--- read_dterm1(-DTERM1,+Stream,-Stream) with warning printouts
+read_dterm1(T1,S0,S1) :-
+    ->	read_dterm0(T0,S0,S1),
+	dterm0_to_dterm1(T0,T1,Once,More),
+	stdout(Error),
+	dterm1_warnings(T1,Once,More,Error,_).
+
+dterm1_warnings(_T1,[],[],S0,S1) :-
+    -> 	S0=S1.
+dterm1_warnings(T1,Once,More,S0,S6) :-
+    ->	write('%--- read_dterm1, warning for ---: ',S0,S1),
+	write_dterm1(T1,S1,S2), 
+	nl(S2,S3),
+	warn_void_var_once(Once,S3,S4),
+	warn_void_var_more(More,S4,S5),
+	nl(S5,S6).
+
+warn_void_var_once([],S0,S1) :- -> S0=S1.
+warn_void_var_once([Once],S0,S1) :- 
+    ->	writenl('% -- Single occurrence of a non-void variable:'(Once),S0,S1).
+warn_void_var_once(Once,S0,S1) :-
+    ->	writenl('% -- Single occurrence of non-void variables:'(Once),S0,S1).
+
+warn_void_var_more([],S0,S1) :- 
+    ->	S0=S1.
+warn_void_var_more([More],S0,S1) :-
+    ->	writenl('% -- Named void variable with more than one occurrence:'(More),S0,S1).
+warn_void_var_more(More,S0,S1) :-
+    ->	writenl('% -- Named void variables with more than one occurrence:'(More),S0,S1).
+
+%--- read_dterms1(-DTERM1-list,+Stream,-Stream)
+read_dterms1(Terms,S0,S2) :-
+    ->  read_dterm1(Item,S0,S1),
+        read_dterms1(Item,Terms,S1,S2).
+
+read_dterms1(term(H),Terms1,S0,S1) :-
+    ->  Terms1=[term(H)|T],
+        read_dterms1(T,S0,S1).
+read_dterms1(exception(end_of_file),Terms1,S0,S1) :-
+    ->  Terms1 = [],
+	S0=S1.
+read_dterms1(exception(E),Terms1,S0,S1) :-
+    ->  Terms1 = [exception(E)],
+	S0=S1.
+
+%read_term1(-TERM,+Stream,-Stream)
+read_term1(T,S0,S1) :-
+    ->  read_dterm1(D,S0,S1),
+	x5(D,T).
+
+x5(term(T),T0) :- 
+    ->	T0=T.
+x5(exception(E),E0) :- 
+    ->	E0=exception(E).
+
+%--- read_dterms1(+Filename,-DTERM1-list)
+/*
+     which reads until an end_of_file is reached
+     (not returning the exception end_of_file and
+      stripping off the term(_) tag)
+*/
+read_dterms1(Infile,Terms) :- 
+    ->	fopen(Infile,read,S0),
+	stream(S0),
+        read_dterms1(Terms,S0,S1),
+        fclose(S1,_S2).
+
+%--- read_terms1(-TERM1-list,+Stream,-Stream)
+read_terms1(Terms,S0,S2) :-
+    ->  read_term1(Item,S0,S1),
+        read_terms1(Item,Terms,S1,S2).
+
+read_terms1(H,Terms1,S0,S1) :-
+    ->  Terms1=[H|T],
+        read_terms1(T,S0,S1).
+read_terms1(exception(end_of_file),Terms1,S0,S1) :-
+    ->  Terms1 = [],
+	S0=S1.
+read_terms1(exception(E),Terms1,S0,S1) :-
+    ->  Terms1 = [exception(E)],
+	S0=S1.
+
+%----read_terms1(+Filename,-TERM1-list)
+read_terms1(Infile,Terms) :- 
+    ->	fopen(Infile,read,S0),
+	stream(S0),
+        read_terms1(Terms,S0,S1),
+        fclose(S1,_S2).
+
+%--- write_dterm1(+DTERM1,+Stream,-Stream)
+write_dterm1(term(X),S0,S1) :-
+    ->  write_term1(X,S0,S1).
+write_dterm1(exception(E),S0,S2) :-
+    ->  writenl('---- Exception -----',S0,S1),
+	writenl(E,S1,S2).
+
+%--- write_term1(+TERM1,+Stream,-Stream)
+write_term1(var(noname(I)),S0,S2) :-
+    ->  write0('_',S0,S1),
+	write0(I,S1,S2).
+write_term1(var(sys(I)),S0,S2) :- 
+    ->  write0('V_',S0,S1),
+	write0(I,S1,S2).
+write_term1(var(t(V,D,C)),S0,S7) :- 
+	D=Dn/A
+    ->  write_term1(var(V),S0,S1),
+	write0('_',S1,S2),
+	write0(Dn,S2,S3),
+	write0('_',S3,S4),
+	write0(A,S4,S5),
+	write0('_',S5,S6),
+	write0(C,S6,S7).
+write_term1(var(V),S0,S1) :- 
+    ->  write0(V,S0,S1).
+write_term1(struct('.',2,[H,T]),S0,S3) :- 
+    ->  write0('[',S0,S1), 
+	write_term1(H,S1,S2),
+	write_rest1(T,S2,S3).
+write_term1(struct('=',2,[H,T]),S0,S5) :- 
+    ->  write0('(',S0,S1),
+	write_term1(H,S1,S2),
+	write0(' = ',S2,S3),
+	write_term1(T,S3,S4),
+	write0(')',S4,S5).
+write_term1(struct(N,_I,Ts),S0,S4) :- 
+ 	Ts=[_|_]
+    ->  write_name1(N,S0,S1), 
+	write0('(',S1,S2),
+	smapwr(write_term1,Ts,S2,S3),
+	write0(')',S3,S4).
+write_term1(struct(N,_I,[]),S0,S3) :- 
+	current_op(_,_,N)
+    ->  write0('(',S0,S1),
+	write_name1(N,S1,S2),
+	write0(')',S2,S3).
+write_term1(struct(N,_I,[]),S0,S1) :- 
+    ->  write_name1(N,S0,S1).
+
+write_name1('.',S0,S3) :-
+    ->  write0('''',S0,S1), 
+	write0('.',S1,S2), 
+	write0('''',S2,S3).
+write_name1(X,S0,S3) :-
+	current_op(_,_,X)
+    ->  write0('''',S0,S1), 
+	write0(X,S1,S2),
+	write0('''',S2,S3).
+write_name1(X,S0,S1) :-
+    ->  writeq(X,S0,S1).
+
+write_rest1(struct([],0,[]),S0,S1) :-
+    ->  write0(']',S0,S1).
+write_rest1(struct('.',2,[H,struct([],0,[])]),S0,S3) :-
+    ->  write0(',',S0,S1),
+	write_term1(H,S1,S2),
+	write0(']',S2,S3).
+write_rest1(struct('.',2,[H,T]),S0,S3) :-
+    ->  write0(',',S0,S1),
+	write_term1(H,S1,S2),
+	write_rest1(T,S2,S3).
+write_rest1(T,S0,S3) :-
+    ->  write0((|),S0,S1),
+	write_term1(T,S1,S2),
+	write0(']',S2,S3).
+
+
+%--- write_dterms1(+DTERM1-list,+Stream,-Stream)
+write_dterms1(Ds,S0,S1) :-
+    ->  smapwr(write_dterm1,Ds,S0,S1).
+
+%--- write_terms1(+TERM1-list,+Stream,-Stream)
+write_terms1(Ds,S0,S1) :-
+    ->  smapwr(write_term1,Ds,S0,S1).
+
+%--- write_dterms1(+Filename,+DTERM1-list)
+write_dterms1(Filename,Ts) :- 
+    ->	fopen(Filename,write,S0),
+	stream(S0),
+        smap(write_dterm1,Ts,S0,S1),
+	fclose(S1,_S2).
+
+%--- write_terms1(+Filename,+TERM1-list)
+write_terms1(Filename,Ts) :- 
+    ->	fopen(Filename,write,S0),
+	stream(S0),
+        smap(write_term1,Ts,S0,S1),
+	fclose(S1,_S2).
+
+
+%--- term1_to_term(+TERM1,-T)
+term1_to_term(var(noname(I)),T) :-
+    ->  number_chars1(I,R),
+	atom_chars(T,[0'_|R]).
+term1_to_term(var(V),T) :- 
+    ->  T=V.
+term1_to_term(struct(N,_I,Ts),T) :- 
+	Ts=[_|_]
+    ->  T=..[N|As], 
+	map(term1_to_term,Ts,As).
+term1_to_term(struct(N,_I,[]),T) :-
+    ->  T=N.
+
+% Dan Sahlin 1993-04-27
+% statistics routines used by "fixpoint.akl" to count the number
+% iterations
+
+stat(on,Stat) :-
+    ->  stat(Stat).
+stat(off,Stat) :-
+    ->  open_port(Stat,_L). % ignore all messages
+
+stat(Stat) :-
+	open_port(Stat,L),
+	handle_stat(L,0,S),
+	write_out(iterations(S)).
+
+handle_stat([],I,S) :-
+    ->  S=I.
+handle_stat([inc|L],I,S) :-
+    ->  inc(I,I1),
+	handle_stat(L,I1,S).
+
+increment(S) :-
+	send(S,inc).
+
+write_out(I) :-
+	ground(I)
+    ->  write(I), nl.
+/*
+AKL (abstract) syntax
+*/
+
+% beh|vs inte l{ngre:
+/****
+parts(struct((:-),2,[Head,struct(GuardOp,2,[Guard,Body])]),
+       Head,Guard,GuardOp,Body).
+
+parts_empty_guard(struct((:-),2,[Head,struct(GuardOp,1,[Body])]),
+	Head,GuardOp,Body).
+
+head_body(struct((:-),2,[Head,Body]),Head,Body).
+*****/
+
+guardop(Op) :- guardop(Op,_).
+
+guardop((??),quiet-wait).
+guardop((?),noisy-wait).
+guardop((->),quiet-condition).
+guardop((!),noisy-condition).
+guardop((|),quiet-commit).
+
+akl_conjunction(Term,A,B) :- akl_compound(',',2,[A,B],Term).
+
+% TS
+akl_disjunction(Term,A,B) :- akl_compound(';',2,[A,B],Term).
+
+is_unification(Term,A,B) :- akl_compound((=),2,[A,B],Term).
+
+akl_true(True) :- akl_compound(true,0,[],True).
+
+% TS
+akl_fail(Fail) :- akl_compound(fail,0,[],Fail).
+
+% TS
+akl_negation(X,Goal) :-	akl_compound('\+',1,[Goal],X).
+
+% TS
+akl_if_then_else(X,If,Then,Else) :- 
+	akl_disjunction(X,D0,Else), 
+	akl_compound((->),2,[If,Then],D0).
+
+akl_compound(Name,Arity,List,struct(Name,Arity,List)).
+
+is_variable(var(_)).
+
+akl_variable(var(Name),Name).
+
+akl_optimized_conjunction(A,B,C) :-
+	akl_true(A)
+    ->  C=B.
+akl_optimized_conjunction(A,B,C) :-
+	akl_true(B)
+    ->  C=A.
+akl_optimized_conjunction(A,B,C) :-
+    ->  akl_conjunction(C,A,B).
+
+% ----------------------------------------------------------------------------
+% toplevel.akl
+% Thomas Sjöland, SICS
+% uses: help.akl map.akl syntax.akl 
+% rwrDTERM0.akl convDTERM0toDTERM1.akl convDPROGRAMtoDPROGRAM.akl 
+% annotPROGRAM.akl 
+% ----------------------------------------------------------------------------
+normalize_program(N) :-
+	read_program(N,P),
+	filter_public(P,P0),
+	unnest_metacalls(P0,P1),
+	unnest_aliases(P1,P2),
+	unnest_terms(P2,P3),	
+	balance_program(P3,P4),
+	unique_program_vars(P4,P5),
+	atom_chars(N,L),
+	fappend(L,".norm",L0),
+	atom_chars(N0,L0),
+	write_program(N0,P5).
+
+
+% help routines
+
+% write utilities %%%%%%%%%%%%%%%%%%
+
+write_ground(X) :-
+	ground(X) -> write(X).
+
+write0(T,S0,S1) :-
+	data(T)
+    ->  write(T,S0,S1).
+
+writenl(T,S0,S2) :- 
+    ->  write0(T,S0,S1),
+	nl(S1,S2).
+
+% groundness test %%%%%%%%%%%%%%%%%%
+
+ground(X) :-
+	atomic(X)
+    ->  true.
+ground(X) :-
+	compound(X)
+    ->  compound_extract(X,_Name,_Arity,ArgList),
+	ground_list(ArgList).
+
+ground_list([]) :-
+    ->  true.
+ground_list([X|Xs]) :-
+    ->  ground(X),
+	ground_list(Xs).
+
+
+% list processing %%%%%%%%%%%%%%%%%%
+
+/* USE Library/lists instead!
+
+append([],X,X).
+append([X|Y],Z,[W|U]) :-
+	append(Y,Z,U).
+
+% "functional" append, where the first argument must be a list
+fappend([],R,L) :-
+    ->  R=L.
+fappend([H|T],L0,L) :- 
+    ->  L=[H|R],
+	fappend(T,L0,R).
+
+member(X,[X|_]).
+member(X,[_|R]) :- member(X,R).
+
+nd_member(X,[X|T],T).
+nd_member(X,[H|T],[H|R]) :- nd_member(X,T,R).
+
+reverse([],R) :- 
+    ->	R=[].
+reverse([H|T],R) :- 
+    ->	reverse(T,[H],R).
+reverse([],A,R) :- 
+    ->	R=A.
+reverse([H|T],A,R) :-
+    ->	reverse(T,[H|A],R).
+	
+*****************/
+
+% two data storage/retrieval primitives
+% access(X,T,R) removes X from T and returns the remaining R
+% insert(X,T,R) inserts X into T and returns the resulting R
+% T is now a heap stack
+% could be replaced by better data structure if necessary
+
+access(X,T,R) :-
+    	nd_member(X,T,R).
+
+insert(X,T,R) :-
+    ->	R=[X|T].
+
+
+% construct a variable from a single letter constant A and an integer I 
+% or inversely split a variable into a single letter constant A and  
+% an integer I
+gen_var(A,I,U) :- 
+	atom(A)
+   ->	atom_chars(A,[C]), 
+	number_chars1(I,N), 
+	atom_chars(T,[C|N]), 
+	U=var(T).
+	
+%---------------------------------------------------------------
+
+% sundry %%%%%%%%%%%%%%%%%%
+
+is_intlist([]).
+is_intlist([I|T]) :- integer(I), is_intlist(T).
+
+number_chars1(N,L) :- number_to_list(N,L1) | L = L1.
+number_chars1(N,L) :- number_chars0(N1,L, R) | R = ok, N = N1.
+
+
+number_chars0(N,L,Flag) :-
+        check_elements(L)
+    ->  Flag = ok,
+        list_to_number(L, N).
+
+number_chars0(_N,_L,Flag) :-
+    ->  Flag = no.
+
+check_elements([H|T]) :- 
+    ->  memberchk(H,"0123456789"),
+        check_elements(T).
+check_elements([]) :-
+    ->  true.
+
+list_to_number(L,N):- list_to_integer(L,N1) | N = N1.
+list_to_number(L,N):- list_to_float(L,N1) | N = N1.
+
+number_to_list(N,L):- integer_to_list(N,L1) | L = L1.
+number_to_list(N,L):- float_to_list(N,L1) | L = L1.
+

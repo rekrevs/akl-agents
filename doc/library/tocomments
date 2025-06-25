@@ -1,0 +1,5 @@
+#!/bin/sh
+
+# this script is useful for adding the "texinfo" comment mark to source files
+
+sed 's/^/%i /'

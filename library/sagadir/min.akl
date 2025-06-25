@@ -1,0 +1,155 @@
+% File: 	min.akl
+% Author: 	Anders Andersson
+% Purpose:	Minimalization of DFA
+% Modified:	July 2, 1993
+
+% Takes a assoclist repr. of a DFA and minimalize it
+minimalize_dfa(TransList, MinTransList) :-
+    ->	list_to_ord_set(TransList, TransSet),
+	length(TransSet, N),
+	new_array(N, PInfo),
+	initialize_array(N, TransSet)-PInfo,
+	TransSet = [StateNo-_|_],
+	set(StateNo, _, head(dirty, TransSet, []))@PInfo,
+	split_partitions([TransSet])-PInfo,
+	get_new_states(N, PInfo, _, NewStates),
+	renumber_states(NewStates, MinTransList).
+
+% Takes a stack of partitions and keep splitting until the stack is empty
+split_partitions([X|Xs])-PInfo :-
+    ->  map_interpret(X, PInfo, InterpretedStates),
+	key_sort_set(InterpretedStates, PartList),
+	PartList = [(PartNo-Transitions)-_|Rest],
+	(Rest = []                                  % Just one - no split
+	    ->	extract_values(Transitions, ToState_list),
+		list_to_ord_set(ToState_list, ToState_set),
+		ord_del_element(ToState_set, PartNo, ExternalToStates), 
+		update_dependency_info(ExternalToStates, PartNo)-PInfo,
+		mark_part(clean, PartNo)-PInfo,
+		split_partitions(Xs)-PInfo
+	;     
+		get(PartNo, head(_, _, FromStates))@PInfo,
+		stack_dirty(FromStates, Xs, Xs1)-PInfo,
+		new_partitions(PartList, Xs1, Xs2)-PInfo,
+		split_partitions(Xs2)-PInfo
+	).
+split_partitions([])-_PInfo :-
+    ->	true.
+
+% Takes a list of Interpret-Partition pairs and install them as new
+% partitions. Put them on the stack in the process.
+new_partitions([_-Part|Xs], Stack, Result)-PInfo :-
+    ->	Part = [Repr-_|Rest],
+	set(Repr, _, head(dirty, Part, []))@PInfo,
+	extract_keys(Rest, RestKeys),
+	map_set(RestKeys, Part)-PInfo,
+	new_partitions(Xs, [Part|Stack], Result)-PInfo.
+new_partitions([], Stack, Result)-_PInfo :-
+    ->	Result = Stack.
+
+% Given a set of partition numbers, make the given partition depend on all
+% of the partitions in the set
+update_dependency_info([X|Xs], Repr)-PInfo :-
+    ->  set(X, OldEntry, NewEntry)@PInfo,
+	OldEntry = head(Flag, Part, OldSet),
+	ord_add_element(OldSet, Repr, NewSet),
+	NewEntry = head(Flag, Part, NewSet),
+	update_dependency_info(Xs, Repr)-PInfo.
+update_dependency_info([], _)-_PInfo :-
+    ->	true.
+
+% Given a set of partition numbers, stack the clean ones and mark dirty
+stack_dirty([X|Xs], Ys, Ys2)-PInfo :-
+    ->  get(X, head(Status,Part,_))@PInfo,
+	stack_if_clean(Status, X, Part, Ys, Ys1)-PInfo,
+	stack_dirty(Xs, Ys1, Ys2)-PInfo.
+stack_dirty([], Xs, Xs1)-_PInfo :-
+    ->	Xs1 = Xs.
+
+stack_if_clean(clean, X, Part, Xs, Xs1)-PInfo :-
+    ->	mark_part(dirty, X)-PInfo,
+	Xs1 = [Part|Xs].
+stack_if_clean(_,_,_, Xs, Xs1)-_PInfo :-
+    ->	Xs1 = Xs.
+
+% Given the transitions for a state, interpret it w.r.t. the current
+% partition info, and return a interpretation-state pair.
+interpret(StateNo-TransList, PInfo, Interpretation) :-
+    ->  get(StateNo, Val)@PInfo,
+	find_part(Val, PartNo),
+	interpret_trans(TransList, PInfo, NewTranslist),
+	Interpretation = (PartNo-NewTranslist)-(StateNo-TransList).
+
+interpret_trans([Ch-NewState|Xs], PInfo, Translist) :-
+    ->	get(NewState, Val)@PInfo,
+	find_part(Val, PartNo),
+	Translist = [Ch-PartNo|Translist1],
+	interpret_trans(Xs, PInfo, Translist1).
+interpret_trans([X|Xs], PInfo, Translist) :-
+    ->	Translist = [X|Translist1],
+	interpret_trans(Xs, PInfo, Translist1).
+interpret_trans([], _, Translist) :-
+    ->	Translist = [].
+
+find_part(head(_, [PartNo-_|_],_), Res) :-
+    ->	Res = PartNo.
+find_part([PartNo-_|_], Res) :-
+    ->	Res = PartNo.
+
+% Map interpret on a list
+map_interpret([X|Xs], PInfo, Result) :-
+    ->  interpret(X, PInfo, Trans),
+	Result = [Trans|Result1],
+	map_interpret(Xs, PInfo, Result1).
+map_interpret([], _, Result) :-
+    ->	Result = [].
+
+% Mark the partition with index At with the given flag
+mark_part(Flag, At)-PInfo :-
+    ->	set(At, head(_, Part, Dep), head(Flag, Part, Dep))@PInfo.
+
+% Given the number of original states, N,  and PInfo, construct the new
+% M states, and put them in an assoclist
+get_new_states(N, PInfo, M, NewStates) :-
+    ->	get_new_states1(N, PInfo, [], NewStates),
+	length(NewStates, M).
+
+get_new_states1(0, _, Ac, NewStates) :-
+    ->	NewStates = Ac.
+get_new_states1(N, PInfo, Ac, NewStates) :-
+    ->  dec(N, N1),
+	get(N1, Val)@PInfo,
+	add_head(Val, PInfo, Ac, Ac1),
+	get_new_states1(N1, PInfo, Ac1, NewStates).
+
+add_head(head(_, [Head|_], _), PInfo, Ac, Ac1) :-
+    ->	interpret(Head, PInfo, Final-_),
+	Ac1 = [Final|Ac].
+add_head(_, _, Ac, Ac1) :-
+    ->	Ac1 = Ac.	
+	
+% Given a assoclist of M states, renumber them with numbers 0 to M-1
+renumber_states(States, RenumberedStates) :-
+    ->	extract_keys(States, Keys),
+	sort(Keys, SortedKeys),
+	numbering(SortedKeys, 0, Numbering),
+	ord_list_to_assoc(Numbering, Assoc),
+	renumber_states(States, Assoc, RenumberedStates).
+
+renumber_states([N-Trans|Rest], Assoc, Ren) :-
+    ->  get_assoc(N, M, Assoc, _),
+	renumber_trans(Trans, Assoc, RenTrans),
+	Ren = [M-RenTrans|RenRest],
+	renumber_states(Rest, Assoc, RenRest).
+renumber_states([], _, Ren) :-
+    ->	Ren = [].
+
+renumber_trans([Ch-N|Rest], Assoc, Ren) :-
+    ->  get_assoc(N, M, Assoc, _),
+	Ren = [Ch-M|RenRest],
+	renumber_trans(Rest, Assoc, RenRest).
+renumber_trans([X|Xs], Assoc, Ren) :-
+    ->	Ren = [X|RenRest],
+	renumber_trans(Xs, Assoc, RenRest).
+renumber_trans([], _, Ren) :-
+    ->	Ren = [].

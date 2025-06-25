@@ -1,0 +1,261 @@
+% $Id: xlife.akl,v 1.3 1994/05/25 09:59:10 jm Exp $ %
+
+
+xlife(N, R, C) :-
+	xlife(N, R, C, local).
+
+
+xlife(N, R, C, Host) :-
+	N >= 0,
+	R > 0,
+	C > 0
+->	life(N, R, C, All),
+	xdisplay(Host, N, R, C, All).
+
+
+
+
+/******* window  interface ***************************************/
+
+xdisplay(Host, N, R, C, All):-
+	gmstart(Host, GM),
+	window(R, C, Window, View, Text)-GM,
+	dall(N, R, C, All, View, Text)-GM,
+	message(waitevent(Event),Window)@GM,
+	handle(Event, Window, View, Text)-GM.
+
+handle(menu(_,quit), Window, _, _)-GM :-
+    ->	message(close, Window)@GM.
+handle(_Other, Window, View, Out)-GM :-
+    ->	message(waitevent(Event),Window)@GM,
+	handle(Event, Window, View, Out)-GM.	
+
+
+
+window(R, C, Window, View, Out)-G :-
+	X is C*10,
+	Y is R*10,
+	create(view(X,Y),View)@G,
+	message(batchmode, View)@G,
+	M = menu(["Quit"],[quit]),
+	create(M,Menu)@G,
+	message(enable,View)@G,
+	message(setmenu(Menu),View)@G,
+	create(output("Out"),Out)@G,
+	create(output("Life", "-*-times-bold-r-*-*-20-*-*-*-*-*-*-*"),Life)@G,
+	Header = hbox([Life,space]),
+	Pad = hbox([space,frame(View),space]),
+	Output = hbox([Out,space]),
+	W = hbox([space,vbox([Header,Pad,Output]),space]),
+	create(window("life",W),Window)@G,
+	message(open,Window)@G.
+
+
+% to display the generations
+
+dall(N, X, Y, All, View, Out)-GM:-
+	pad(X, Y, Pad, View)-GM,
+	dgen([], All, 0, N, Pad, View, Out)-GM.
+
+
+dgen([], Lines, G, G, Pad, View, Out)-GM :-
+	integer(G)
+    ->	dlines(Lines, Acc, 1, _, Pad, View)-GM,
+	message(out(G),Out)@GM,
+	message(update, View)@GM,
+        sync(Acc)@GM.
+dgen([], Lines, N, G, Pad, View, Out)-GM :-
+    ->	dlines(Lines, Acc, 1, Next, Pad, View)-GM,
+	message(out(N),Out)@GM,
+	message(update, View)@GM,
+        sync(Acc)@GM,
+	inc(N,N1),
+	dgen(Acc, Next, N1, G, Pad, View, Out)-GM.
+
+dlines([], _, _, Next, _, _)-_S:-
+    ->	Next = [].
+dlines([Line|Lines], Acc, X, Next, Pad, View)-S:-
+    ->	Next = [Nx|Nxt],
+	dline(Line, Acc, X, 1, Nx, Pad, View)-S,
+	inc(X, X1),
+	dlines(Lines, Acc, X1, Nxt, Pad, View)-S.
+
+dline([], _, _, _, Next, _, _)-_S:-
+    ->	Next = [].
+dline([[i(I0,I1,Flag)|Ist]|Line], Acc, X, Y, Next, Pad, View)-S:-
+	integer(I1)
+    ->	Acc = Flag,
+	dnode(I0, I1, X, Y, Pad, View)-S,
+	inc(Y, Y1),
+	Next = [Ist|Nxt],
+	dline(Line, Acc, X, Y1, Nxt, Pad, View)-S.
+
+dnode(0,1, X, Y, Pad, View)-S:- 
+    ->	arg(X, Pad, Row), 
+	arg(Y, Row, R),
+	message(scale(R, 500, 500), View)@S.
+
+dnode(1,0, X, Y, Pad, View)-S:- 
+    ->	arg(X, Pad, Row), 
+	arg(Y, Row, R),
+	message(scale(R, 20, 20), View)@S.
+
+dnode(_,_,_, _, _, _)-_S:- -> true.
+
+
+
+/******* create a pad **************/
+
+pad(R, C, Pad, View)-G :- 
+	functor_to_term(rows, R, Pad),
+	pad_init(R, C, Pad, View)-G.
+
+pad_init(0,_,_Rows,_V)-_G :-
+    ->	true.
+pad_init(N, C, Rows, View)-G :-
+    ->	arg(N, Rows, Row),
+	functor_to_term(row, C, Row),
+	pad_init1(N, C, Row, View)-G,
+	N1 is N-1,
+	pad_init(N1, C, Rows, View)-G.
+
+pad_init1(_, 0, _, _)-_G :-
+    ->	true.
+pad_init1(N, C, Row, View)-G :-
+    ->	arg(C, Row, R),
+	X1 is C*10-4,
+	X2 is X1-2,
+	Y1 is N*10-4,
+	Y2 is Y1-2,
+	message(fillrect(R,X1,Y1,X2,Y2), View)@G,
+	C1 is C-1,
+	pad_init1(N, C1, Row, View)-G.
+
+
+
+
+/******* life  ***************************************/
+
+life(N, R, C, All):-
+    ->  xinit_torus(R, C, N, 1234, All).
+
+
+%%%%%%%%%%%
+% cell(Gen,State,This,NW,N,NE,W,E,SW,S,SE) : 
+%	A node process cell/12, Gen is the remaining generations,
+%	State is the current state, This is the list of states in 
+%	all generations, NW to SE are the neighbours.
+					
+
+cell(0, _, This, _, _, _, _, _, _, _, _):-
+    ->  This = [].
+cell(G, State, This, [i(_,Nw,_)|Nwi], [i(_,N,_)|Ni], [i(_,Ne,_)|Nei], [i(_,W,_)|Wi], [i(_,E,_)|Ei], [i(_,Sw,_)|Swi], [i(_,S,_)|Si], [i(_,Se,_)|Sei]) :- 
+    ->	This = [i(State,New,Acc)|Rest],
+	dec(G,G1),
+	T is Nw + N + Ne + W + E + Sw  + S + Se,
+	change(State, T, New), 
+	acc(Acc, G1, New, Rest, Nwi, Ni, Nei, Wi, Ei, Swi, Si, Sei).
+
+acc([], G1, New, Rest, Nwi, Ni, Nei, Wi, Ei, Swi, Si, Sei):-
+    ->	cell(G1, New, Rest, Nwi, Ni, Nei, Wi, Ei, Swi, Si, Sei).
+
+
+%%%%%%%%%%%
+% change(X,T,Y) : The state transition function.
+%	Y <- f(X,T)
+
+change(0,N,Y):- -> change0(N,Y).
+change(1,N,Y):- -> change1(N,Y).
+
+change0(0,Y) :- -> Y = 0.
+change0(1,Y) :- -> Y = 0.
+change0(2,Y) :- -> Y = 0.
+change0(3,Y) :- -> Y = 1.
+change0(_,Y) :- -> Y = 0.
+
+change1(0,Y) :- -> Y = 0.
+change1(1,Y) :- -> Y = 0.
+change1(2,Y) :- -> Y = 1.
+change1(3,Y) :- -> Y = 1.
+change1(_,Y) :- -> Y = 0.
+
+
+%%%%%%%%%%%
+% init_torus(X, Y, G, Seed, All) :
+%	Will set up each cell in a X*Y torus network.
+%       G is the number of generations, Seed is used
+%       in the random generator and All is a list
+%	of all the states.
+%       Each cell is created with cell/11.
+
+xinit_torus(X, Y, G, Seed, All):-
+    ->  torus(X, Y, Torus),
+	spawn_torus(Torus, G, Seed, All).
+
+spawn_torus([_,_], _, _, All):- 
+    -> All = [].
+spawn_torus([North | Rest], G, Seed0, All0):-
+	Rest = [This, South |_]
+    ->  All0 = [Ring|All1],
+	spawn_ring(North, This, South, G, Seed0, Seed1, Ring),
+	spawn_torus(Rest, G, Seed1, All1).
+
+spawn_ring([_,_], _, _, _, Seed1, Seed, Ring0):-
+    ->  Ring0 = [],
+	Seed1 = Seed.
+spawn_ring([NW | RestN], [W | RestW], [SW | RestS], G, Seed0, Seed, Ring0):-
+	RestN = [N, NE | _], RestW = [This, E | _], RestS = [S, SE | _ ]
+    ->  Ring0 = [This|Ring1],
+        This = [i(0,First,Acc)|Rest],
+	draw(First, 0.4, Seed0, Seed1),
+	acc(Acc, G, First, Rest, NW, N, NE, W, E, SW, S, SE),
+	spawn_ring(RestN, RestW, RestS, G, Seed1, Seed, Ring1).
+
+torus(X, Y, Torus):-
+	X > 0,
+	Y >0
+    ->  Torus = [Last | Rest],
+	Rest = [First | _],
+	ring(Y, Last),
+	ring(Y, First),
+	torus_rest(X, Y, First, Last, Rest).
+
+torus_rest(1, _, First, Last, Torus):-
+    ->	Torus = [Last, First].
+torus_rest(X, Y, First, Last, Torus):-
+    ->  Torus = [Ring|Rest],
+	ring(Y, Ring),
+	dec(X,X1),
+	torus_rest(X1, Y, First, Last, Rest).
+
+ring(N, Ring):- 
+	N >0 
+    ->  Ring = [Last | Rest],
+	Rest = [First | _],
+        ring_rest(N, First, Last, Rest).
+
+ring_rest(1, First, Last, Ring):-
+    ->	Ring = [Last, First].
+ring_rest(N, First, Last, Ring):-
+    ->  Ring = [_|Rest],
+	dec(N,N1),
+	ring_rest(N1, First,Last , Rest).
+
+
+/* random number generator */
+
+draw(Draw, P, Seed0, Seed):-
+	random(R, Seed0, Seed),
+	(R < P -> Draw = 1 ; Draw = 0).
+
+
+random(Random, Seed0, Seed):-
+    ->	A = 16807,
+	M = 2147483647,
+	Q = 127773,		/* M DIV A */
+	R = 2836,		/* M MOD A */
+	Hi is Seed0 // Q,
+	Lo is Seed0 mod Q,
+	Test is A * Lo - R * Hi,
+	(Test > 0 -> Seed = Test ; Seed is M + Test),
+	Random is Seed / M.

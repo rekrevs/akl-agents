@@ -1,0 +1,39 @@
+$Id: README,v 1.2 1992/12/10 20:33:02 sverker Exp $
+
+How to do
+=========
+
+defining a task		-> brainstorming, then entering as task
+proposing a solution	-> brainstorming, then editing task
+being assigned a task	-> check with PL
+implementation		-> should pass testing
+checking in		-> check with PL, edit task correspondingly
+
+
+Possible new tasks  (* means some work has been done)
+==================
+
+analysis
+applications
+code_objects
+debug_engine
+demos*
+documentation_backlog*
+functions
+generational_gc
+graphics*
+if_then_else
+interrupts
+io*
+lambdas*
+macros
+module_system
+native_code
+objects
+parallel_akl
+partial_evaluation
+project_handbook
+project_plan
+resource_engine
+threads
+types*

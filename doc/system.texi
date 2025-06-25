@@ -1,0 +1,1160 @@
+% -*-texinfo-*-
+
+% LaTeX "sloppy"
+\tolerance=3000
+\hfuzz=.5pt
+\vfuzz=.5pt
+
+% Adjust \hoffset for !A4 paper
+\vsize 22.9cm
+\hsize 14.0cm
+%\pageheight=\vsize
+%\hoffset-0.125cm
+
+\raggedbottom
+\input texinfo
+
+@comment %**start of header (This is for running Texinfo on a region.)
+@setfilename akl-system
+@settitle AKL Programming System Manual
+@setchapternewpage odd
+@comment %**end of header (This is for running Texinfo on a region.)
+@c @smallbook
+
+@tex
+% Other paragraphs
+\global\parindent=0pt
+\global\parskip=6pt
+@end tex
+
+@ifinfo
+This file documents the AKL Programming System.
+
+Copyright @copyright{} 1990-1993 SICS, Sweden.  All right reserved.
+@end ifinfo
+
+@syncodeindex fn cp
+
+@titlepage
+@center Swedish Institute of Computer Science
+@sp 3
+@center @titlefont{AKL Programming System Manual}
+@sp 2
+@center June 1993
+@sp 4
+@center Sverker Janson, Johan Montelius, Kent Boortz, Per Brand,
+@center Bj@"orn Carlson, Bj@"orn Danielsson, and Seif Haridi
+@sp
+@center Concurrent Constraint Programming Group
+@center Swedish Institute of Computer Science
+@center Box 1263, S-164 28 KISTA, Sweden
+@sp 3
+@center This manual corresponds to AKL/PS 0.9.
+@center Copyright @copyright{} 1993  Swedish Institute of Computer Science
+@sp 3
+@end titlepage
+@page
+
+@ifinfo
+@node Top, Introduction, (dir), (dir)
+@comment node-name, next, previous, up
+@chapter The AKL Programming System
+
+The Andorra Kernel Language (AKL) is a general purpose concurrent
+constraint programming language designed at SICS.  The basic programming
+paradigm is that of agents communicating over a constraint store, but
+the combinators of AKL make possible also other readings, depending on
+the context, where agents compute functions or relations, serve as
+user-defined constraints, or as objects in object-oriented programs.
+
+The AKL Programming System is an experimental programming environment
+for AKL developed at SICS.  It provides a complete implementation of
+AKL, and numerous experimental extensions.
+
+@end ifinfo
+
+@menu
+* Introduction::                
+* Getting Started::             
+* Debugging::                   
+* Operators::                   
+* System Limits::               
+* Getting::                     
+* Installing::                  
+* Index::                       
+@end menu
+
+@node Introduction, Getting Started, Top, Top
+@chapter Introduction
+
+This manual describes the @emph{AKL Programming System} and corresponds
+to AKL/PS Version 0.9. The language is described in @emph{AKL Language
+Overview} and the libraries are described in @emph{AKL Library Manual}.
+
+AKL/PS is subject to rapid evolution, and many things will be added, modified,
+or removed in the future.
+
+@node Getting Started, Debugging, Introduction, Top
+@chapter Getting Started
+
+In the following sections, we will first briefly describe AKL and
+AKL/PS.  We will then guide you through the writing, compiling, loading,
+running, and debugging of a small AKL program.  We will typographically
+distinguish @code{programs and computer output} from @emph{user input}.
+Hitting the return key is written like @emph{<return>}.
+
+@menu
+* AKL/PS::                      
+* Entering AKL/PS::             
+* Example::                     
+* Compiling::                   
+* Compiling to File::           
+* Running::                     
+* Debugging the Example::       
+* Exiting::                     
+* Top-Level Interaction::       
+* Loading Libraries::           
+@end menu
+
+@node AKL/PS, Entering AKL/PS, Getting Started, Getting Started
+@comment  node-name,  next,  previous,  up
+@section AKL/PS
+@cindex AKL/PS
+
+The AKL Programming System (AKL/PS) is an implementation of AKL for
+UNIX-based computers, which has been developed at the Logic
+Programming and Parallel Systems Laboratory of the Swedish Institute
+of Computer Science.
+
+AKL/PS, with complete source code, is free for research purposes.  If
+you have not yet installed AKL/PS, @pxref{Installing}.  If you do
+not have AKL/PS, but would like to get it, @pxref{Getting}.
+
+@node Entering AKL/PS, Example, AKL/PS, Getting Started
+@comment  node-name,  next,  previous,  up
+@section Entering AKL/PS
+@cindex Top-level interaction
+
+AKL/PS is normally started from one of the UNIX shells.  It is also
+often convenient to run in a GNU Emacs shell window, available by the
+Emacs command M-x shell.  Another convenient alternative is to use a
+front end processor like fep.  To enter the AKL language system, type
+the shell command
+
+@example
+@emph{% akl}
+@end example
+@noindent
+AKL/PS responds with a message of identification and the prompt
+@code{| ?-} as soon as it is ready to accept input.
+
+@example
+AKL/PS 0.9 : Wed Jan 27 20:02:53 MET 1993
+(C) 1990-1993, Swedish Institute of Computer Science
+All rights reserved.
+| ?-
+@end example
+
+If the system was compiled for debugging, various status information,
+such as information about garbage collections, will be printed now and
+then.  Such a printed message typically looks like @code{@{GC, initial
+size 368K, compressed size 0K (0%)@}}.  You can now use standard library
+definitions.
+
+@example
+| ?- @emph{X is Y+2, Y is 3*4.} @emph{<return>}
+@end example
+@noindent
+The AKL system responds with bindings for the variables in the query.
+
+@example
+X = 14,
+Y = 12 ?
+@end example
+
+
+
+@node Example, Compiling, Entering AKL/PS, Getting Started
+@comment  node-name,  next,  previous,  up
+@section A Small Example
+
+@comment @node Writing,  Compiling, Entering AKL/PS, Example
+@comment @comment  node-name,  next,  previous,  up
+@comment @subsection Writing the Program
+
+As a (really trivial) example of an AKL program, we choose a program
+that finds (or enumerates) members in a list.
+
+@example
+member(X, [X|_]).
+member(X, [_|R]) :- member(X, R).
+@end example
+
+@noindent
+Use your favourite editor to create a file containing this program.
+Save the file as @code{example.akl}.
+
+
+
+@node Compiling, Compiling to File, Example, Getting Started
+@comment  node-name,  next,  previous,  up
+@section Compiling the Example
+
+You can compile the source and load the executable code into AKL/PS
+with one single command.
+
+@example
+| ?- @emph{compile(example).} @emph{<return>}
+@end example
+
+
+
+@node Compiling to File, Running, Compiling, Getting Started
+@comment  node-name,  next,  previous,  up
+@section Compiling to File
+
+You can compile the source to a file instead for later loading.
+
+@example
+| ?- @emph{compilef(example).} @emph{<return>}
+@{compiling /usr/boortz/akl/example.akl...@}
+@{/usr/boortz/akl/example.akl compiled, 55 ms@}
+
+yes 
+| ?-
+@end example
+
+@noindent
+Note that the extension @file{.akl} may be omitted.
+The compiled form of the program is now stored in the file @file{example.pam}.
+We can load the the program from the file.
+
+@example
+| ?- @emph{load(example).} @emph{<return>}
+@{loading /usr/boortz/example.pam...@}
+@{/usr/boortz/example.pam loaded, 10 msec, 28 bytes@}
+
+yes 
+| ?-
+@end example
+
+@noindent
+Note that the extension @file{.pam} may be omitted.
+
+
+@node Running, Debugging the Example, Compiling to File, Getting Started
+@comment  node-name,  next,  previous,  up
+@section Running the Example
+
+@example
+| ?- @emph{member(X, [a, b, c]).} @emph{<return>}
+X = a ? @emph{;} @emph{<return>}
+X = b ? @emph{;} @emph{<return>}
+X = c ? @emph{;} @emph{<return>}
+no
+| ?-
+@end example
+
+Top-level interaction is described in Section @ref{Top-Level Interaction}.
+From now on we will show the output together with the input, and often
+also omit the confirmation @code{yes} and the new prompt.
+
+@node Debugging the Example, Exiting, Running, Getting Started
+@comment  node-name,  next,  previous,  up
+@section Debugging the Example
+
+You can step through the execution in the debugger. First turn on
+the tracing.
+
+@example
+| ?- @emph{trace.} @emph{<return>}
+@{The debugger will first creep -- showing everything (trace)@}
+    Exit: trace ? @emph{<return>}
+
+yes
+| ?-
+@end example
+@noindent
+Now run the goal and step the execution with the return key.
+
+@example
+| ?- member(b, [a,b,c]). @emph{<return>}
+    Call: member(b, [a,b,c]) ? @emph{<return>}
+    [Create:1] :member ? @emph{<return>}
+    [Fail:1] :member ? @emph{<return>}
+    [Create:2] :member ? @emph{<return>}
+    [Promote:2] :member ? @emph{<return>}
+    Call: member(b, [b,c]) ? @emph{<return>}
+    [Create:1] :member ? @emph{<return>}
+    [Suspend:1] :member ? @emph{<return>}
+    [Create:2] :member ? @emph{<return>}
+    [Suspend:2] :member ? @emph{<return>}
+    Suspend: member(b, [b,c]) ? @emph{<return>}
+    [Up:  ] :Root ? @emph{<return>}
+    Exit: member(b, [a,b,c]) ? @emph{<return>}
+    Nondet-Pre : Mother=[ROOT], Cand=[member:1] ? @emph{<return>}
+    Nondet-Post: Mother=[ROOT], Cand=[member:1] ? @emph{<return>}
+    [Promote:1] :member ? @emph{<return>}
+    Exit: member(b, [b,c]) ? @emph{<return>}
+
+yes 
+@{trace@}
+| ?-
+@end example
+
+The debugger is described in Chapter @ref{Debugging}.
+
+
+
+@node Exiting, Top-Level Interaction, Debugging the Example, Getting Started
+@comment  node-name,  next,  previous,  up
+@section Exiting AKL/PS
+
+To exit from AKL/PS, and return to the shell (or other program) from
+which it was started, use the @code{halt} command.
+
+@example
+| ?- @emph{halt.} @emph{<return>}
+@{ End of AKL execution, user time 5.190 @}
+%
+@end example
+
+It is also possible to signal end-of-file, often with
+@key{^D} (control-D), to achieve the same effect.
+
+@example
+| ?- @key{^D}
+@{ End of AKL execution, user time 5.190 @}
+%
+@end example
+
+There are demonstration programs with the distribution in the directory
+@file{/usr/local/lib/akl0.9/demos/} (installation dependent).  You load
+@file{queens.akl} by giving AKL the goal:
+
+@example
+| ?- load('/usr/local/lib/akl0.9/demos/queens').
+@end example
+
+
+@node Top-Level Interaction, Loading Libraries, Exiting, Getting Started
+@comment  node-name,  next,  previous,  up
+@section Top-Level Interaction
+@cindex Top-level interaction
+
+From the top-level you type in goals for execution by the AKL system.
+The result from the execution, if not stuck in an endless loop or
+suspended, is reported to the user immediately before giving the new
+input prompt @code{| ?-}.  The result could be one of the following:
+
+@table @code
+@item yes
+The goal was sucessful. The resulting values of the variables 
+included in the goal are reported.
+
+@item no
+The goal was unsucessful.
+
+@end table
+
+@noindent
+There are a few direct commands that could be given to the Top-Level that
+are not ordinary goals:
+
+@table @code
+@item halt
+End the AKL/PS execution.
+
+@item h
+(history) Lists the goals given to the AKL system since it was started. Each
+line is preceeded by a number. Identical goals share the same entry
+in the table.
+
+@item @var{N}
+A number that instructs the Top-Level to pick up the goal in the history
+list with the identifier @var{N} and execute it.
+@end table
+
+
+@node Loading Libraries,  , Top-Level Interaction, Getting Started
+@comment  node-name,  next,  previous,  up
+@section Loading Libraries
+@cindex Libraries, loading
+@cindex Loading libraries
+
+The AKL library comprises a number of packages which are thought to be
+useful in a number of applications.  To load a library package
+@var{Package}, you enter a query
+
+@example
+| ?- load(library(@var{Package})). @emph{<return>}
+@end example
+@noindent
+where @var{Package} is the PAM-file name.
+
+Observe that some libraries such as @emph{The Graphic Manager Library}
+must be installed in AKL/PS in advance (@pxref{Installing}).
+
+
+@node Debugging, Operators, Getting Started, Top
+@chapter Debugging
+@comment @cindex Debugging
+
+AKL/PS provides a debugger reminiscent of the four-port debugger of
+Prolog.  The purpose of this debugger is to provide information
+concerning the control flow of your program.  However, it is currently
+somewhat incomplete, and at times even confusing if the execution order 
+of AKL/PS is not already well understood.
+The main features of the debugging package are as follows:
+
+@itemize @bullet
+@item
+A @emph{box model} of AKL execution.  Control flow is viewed both at
+the agent level, and at the level of individual clauses.  The
+ports correspond to steps in the AKL computation model.
+@item
+The ability to exhaustively trace your program or to selectively set
+@emph{spy-points}.  Spy-points allow you to nominate interesting
+predicates; upon calling such predicates the program pauses to allow for
+user interaction.
+@item
+The ability to trace execution threads. When a traced thread suspends the
+user can with @emph{monitor} commands resume tracing when the current thread
+is reactivated.
+@item
+A reasonable choice of control and information options available
+during debugging.
+@end itemize
+
+@menu
+* The AKL Box Model::           
+* Basic Debugging Agents::      
+* Tracing::                     
+* Spy-points::                  
+* Monitors and threads::        
+* Format of Debugging Messages::  
+* Options available during Debugging::  
+* Port filter::                 
+@end menu
+
+@node The AKL Box Model, Basic Debugging Agents, Debugging, Debugging
+@section The AKL Box Model
+
+During debugging AKL/PS prints out a sequence of goals to show the
+state the program has reached in its execution.  However, in order to
+understand what is occurring it is necessary to understand when and
+why it prints out goals.
+
+As in other programming languages, some points of interest are
+procedure entry and return, but in AKL there is the additional
+complexity of guard execution, which may fail, suspend, be promoted, or
+woken. Procedure calls themselves may also suspend and be resumed.
+
+The box model of AKL execution views program control flow in terms of
+movement about the computation state, the @emph{configuration}.  This
+model provides a basis for the debugging mechanism, and enables the
+user to view the behavior of the program in a consistent way.
+
+There are 15 ports, divided into five types. 
+
+@itemize @bullet
+@item
+Goal-related: Actions on atomic goals and the resulting choice-boxes: 
+Call, Exit, Suspend, Reenter, and Fail.
+
+@item
+Guard-related:  Actions on guards and the resulting and-boxes:
+[Create], [Fail], [Suspend], and [Wake].
+
+@item
+Movement-related: Movement between and-boxes: 
+[Up], [Down].
+
+@item
+Promotion-related: Promotion actions on guards that effect the parent
+choice-box: [Promote], [Noisy Promote].
+
+@item
+Nondeterminism-related: Actions on and-boxes and choice-box that effect
+several levls of the configuration: Nondet-Pre, Nondet-Post
+
+@end itemize
+
+
+These ports have the following meaning.
+@table @code
+@item Call 
+The goal is about to be executed (unfolded). 
+
+@item Exit  
+The goal was executed completely.
+
+@item Suspend 
+The goal suspended. 
+
+@item Reenter
+The suspended goal is to be retried.
+
+@item Fail 
+The goal failed. 
+
+@item [Create] 
+A guard (and a corresponding AND-box) is created. 
+
+@item [Fail] 
+The guard failed.
+
+@item [Suspend] 
+The guard suspended.
+
+@item [Wake] 
+The guard was woken.
+
+@item [Up] 
+The worker moves up to surrounding AND-box. This occurs, typically after the current goal suspends.
+
+@item [Down] 
+The worker moves down through some child and-box  of some choice-box in the current AND-box. 
+Typically a worker may have to move down in order to reach a woken guard, or to perform
+non-determinstic choice.
+
+@item Nondet-Pre
+Nondeterminate choice is about to be applied, i.e one suspended guard of a suspended goal
+is to be promoted in a partial copy of the configuration.
+
+@item Nondet-Post
+Nondeterminate choice has been applied.
+
+@item [Promote]
+A guarded goal is about to be promoted.
+
+@item [Noisy Promote]
+A guarded goal is about to be promoted due to noisy pruning.
+
+
+@end table
+
+@node Basic Debugging Agents, Tracing, The AKL Box Model, Debugging
+@section Basic Debugging Agents
+
+The system provides a range of commands for control of the debugging
+facilities.  The most basic are as follows:
+
+@table @code
+
+@item debug
+@findex debug/0
+Switches the debugger on.  (It is initially off.)  You can switch
+debug mode on in the middle of execution from within your
+program.
+@comment or after a control-C \bf [NYI: ctrl-C].
+
+@item nodebug
+@findex nodebug/0
+Switches the debugger off.  If there are any spy-points set then they
+will be kept but disabled.
+
+@item debugging
+@findex debugging/0
+Prints onto the terminal information about the current debugging
+state.  This will show:
+
+@itemize @bullet
+@item
+Whether the debugger is switched on.
+@item
+What spy-points have been set (see below).
+@end itemize
+
+@item failcatch
+@findex failcatch/0
+Turns on the failcatch flag. A set failcatch flag causes the debugger to
+be switched on, breaking execution, when and if the entire program
+execution is about to fail.  This allows the user to inspect the
+execution state before the failure context is destroyed by returning
+control to the user in the top-level loop.
+
+@item nofailcatch
+@findex nofailcatch/0
+Turns off the failcatch flag.
+
+@end table
+
+@node Tracing, Spy-points, Basic Debugging Agents, Debugging
+@section Tracing
+
+The following command may be used to commence an exhaustive
+trace of a program.
+
+@table @code
+@item trace
+@findex trace/0
+Switches the debugger on, if it is not on already, and ensures that the
+next time control passes through a control port, a message will be
+produced and you will be asked to interact.
+@comment The effect of trace can also be achieved
+@comment by typing @key{t} after a control-C interruption of a program.
+
+At this point you have a number of options.  In particular, you can
+just type RET (carriage-return) to @emph{creep} (or single-step) into
+your program.  If you continue to creep through your program you will
+see every entry and exit to/from every invocation box.  You will
+notice that execution stops at all ports.
+
+@item notrace
+@findex notrace/0
+Equivalent to @code{nodebug/0}.
+@end table
+
+@node Spy-points, Monitors and threads, Tracing, Debugging
+@section Spy-points
+
+For programs of any size, it is clearly impractical to creep through the
+entire program.  @emph{Spy-points} make it possible to stop the program
+whenever it gets to a particular agent which is of interest.  Once
+there, one can set further spy-points in order to catch the control flow
+a bit further on, or one can start creeping.
+
+Setting a spy-point on an agent indicates that you wish to see all
+control flow through the various ports.  When control passes through
+any port belonging to a procedure with a spy-point set on it, a
+message is output and the user is asked to interact.
+
+Spy-points are set and removed by the following commands which
+are also standard operators:
+
+@table @code
+@item spy @var{+Spec}
+@findex spy/1
+Sets spy-points on all the defintions given by Spec, which can
+have the forms:
+
+@table @code
+@item @var{Name}
+all definitions of that name no matter what arity 
+@item @var{Name/Arity}
+the definition of that name and arity
+@end table
+
+You can place a spy-point on an undefined agent that is referred
+to from existing code.  If you set some spy-points when the debugger
+is switched off then it will be automatically switched on.
+
+@item nospy @var{+Spec}
+@findex nospy/1
+This is similar to spy Spec except that all the definitions given by
+Spec will have previously set spy-points removed from them.
+
+@item nospyall
+@findex nospyall/0
+This removes all the spy-points that have been set.  @refill
+@end table
+
+The options available when the user arrives at a spy-point are the same as the options had
+the user stepped through the program to that point.
+
+@node Monitors and threads, Format of Debugging Messages, Spy-points, Debugging
+@section Monitors and threads
+
+When an interesting goal is reached in a debugging session, it may be
+that the goal suspends, waiting for input that is generated by other
+goals yet to be run (or possibly nondeterminstic choice). The monitor
+option allows the user to specify that debugging is to be resumed when
+the current goal or thread is resumed, hiding the execution of the
+input-generating goals.
+
+Making a monitor mark differs from a spypoint marking in that execution
+only pauses when one particular instance of a goal is reactivated rather
+than all goals with the same principal functor.
+
+When modelling iterative processes it also convenient to monitor not
+only the goal but all its children ad infinitum. For instance, to trace
+the process p, defined below, a spypoint can be set to stop execution on
+the first call to p/3. The monitor children marking will then ensure
+that all recursive invocations of p will be trapped.
+
+@example
+p([],O1,O2):- -> O1=[], O2=[].
+p([X|Xs],O1,O2):- -> O1=[X|NO1], O2=[X|NO2], p(Xs,NO1,NO2).
+@end example
+
+@node Format of Debugging Messages, Options available during Debugging, Monitors and threads, Debugging
+@section Format of Debugging Messages
+
+A port is printed as follows.
+
+@example
+Goal-related ports:              Info Port: Goal(Args) ?
+Other ports:                     Info Port: ChoiceGoal ?
+@end example
+
+@code{Port} is the name of a port, @code{Goal(Args)} is the current
+(atomic) goal with its arguments, and @code{ChoiceGoal} is the atomic
+goal associated with the parent choice-box of the current and-box.
+
+The @code{Info} field provides information about spypoints and monitors.
+In particular @code{+} indicates that the goal has an associated
+spypoint, and @code{*} indicates that the goal is monitored, and
+@code{**} indicates that the goal is children-monitored.  Also a goal
+may be both spied and monitored (@code{+*} and @code{+**}).
+
+
+@node Options available during Debugging, Port filter, Format of Debugging Messages, Debugging
+@section Options available during Debugging
+
+This section describes the particular options that are available when
+the system prompts you after printing out a debugging message.  All
+the options are one letter mnemonics (or carriage return). 
+Some options are not available at all ports. 
+
+The write options are useful when entire traces, or entire traces
+involving spied predicates are printed, for later appraisal with an
+editor.  Currently, no means of piping this output to a file is
+implemented.  Output can be saved by running AKL/PS from within Emacs.
+
+The only option which you really have to remember is @emph{h} (followed
+by @key{RET}).  This provides help in the form of the following list of
+available options (edited to remove those options not valid for the
+particular port).
+
+@example
+Debugging options:
+   <cr>   creep            c      creep
+    s     skip             S      skip all
+    l     leap             m      monitor stop
+    u     unleash          U      unleash, show only spied
+    n     nodebug          a      abort
+    +     spy this         -      nospy this
+    *     monitor this     \      nomonitor this
+    !     monitor children |      nomonitor children
+    #     nomonitor andbox
+    x     manual update    f      filter
+    A     show andbox      D      show configuration
+    P     show path        E      show full configuration
+    w     write goal
+    ?     help             h      help
+@end example
+
+@table @code
+@item c
+@emph{creep} causes AKL/PS to single-step to the very next port and
+print a debug message.
+@item l
+@emph{leap} causes the interpreter to resume running your program, only
+stopping when a spy-point or monitor is reached (or when the program
+terminates).  Leaping can thus be used to follow the execution at a
+higher level than exhaustive tracing.  All you need to do is to set
+spy-points on an evenly-spread set of pertinent definitions, and then
+follow the control flow through these by leaping from one to the other.
+@item s
+@emph{skip} is only valid for Call ports.  It skips over the entire
+execution of the agent.  Control comes back to this agent (at either the
+Exit port or the Fail port \bf [NYI: fail]).  Skip is particularly
+useful while creeping since it guarantees that control will be returned
+after the (possibly complex) execution of the procedure.  If you skip
+then no messages at all will appear until a spy-point or monitor is
+reach or when control returns. Execution will stop when control returns
+even if spy-points or monitors were encountered during the execution of
+the goal.
+@item S
+@emph{skip all} differs from @emph{skip} only in that spypoints are ignored during
+the execution of the goal
+@item m
+with @emph{monitor stop} execution is stopped only upon resumption of monitored goals
+@item u
+with @emph{unleash} execution continues to the end of the program but
+the debug messages are printed out (currently only on the terminal).
+(Monitored goals are ignored).
+@item U
+with @emph{unleash (show spied)} execution continues to the end of the
+program but the debug messages associated with spied goals are printed
+out anyway. (Monitored goals are ignored).
+@item n
+@emph{nodebug} switches the debugger off.
+@item +
+@emph{spy this}.  Set a spy-point on the current goal. This is only an option at
+                 goal-related and promotion-related ports.
+@item -
+@emph{nospy this}.  Remove spy-point from the current goal. This is only an option at
+                 goal-related and promotion-related ports.
+@item *
+@emph{monitor this}.  Monitors current goal. Available only at the Suspend port.
+@item \
+@emph{nomonitor this}.  Remove monitor. Available only at the Suspend port
+@item !
+@emph{monitor children}.  Monitors current goal and all its children, ad
+infinitum.  Not available at guard or movement-related ports.
+@item |
+@emph{nomonitor children}.  Remove monitor on current goal, and all new
+children.  Already created children will still be monitored.  Not
+available at guard or movement-related ports.
+@item #
+@emph{nomonitor andbox}.  Remove monitor on current goal, and all new
+children.  Also removes all monitors and all suspended goals within the
+current and-box.  Not available at guard or movement-related ports.
+@item f
+@emph{filter}.  Invoke the port filter (see next section).
+@item A
+@emph{show andbox}.  Shows the current and-box
+@item D
+@emph{show configuration}.  Shows the entire configuration
+@item P
+@emph{show path}.  Shows the full path, i.e full predicate names of the atomic goals that
+were unfolded to become the ancestor choice-boxes.
+@item x
+@emph{manual update}.  Information about changes in the debugging
+functions as compared to the last release of the manual.
+@item w
+@emph{write} goal in port without print-depth abbreviation.
+@item ?
+@emph{help} displays the table of options given above.
+@item h
+@emph{help} as above.
+@end table
+
+
+@node Port filter,  , Options available during Debugging, Debugging
+@section Port filter
+
+The @code{f}-filter debugging option invokes the port filter, which
+allows the user to limit the ports at which execution will
+stop. Irrespective of whatever other command the debugger is given,
+execution can only pause at the ports within the limits set by the
+user. This is probably most useful in conjunction with the creep and
+write debugger options.
+
+The port filter has its own help option invoked by @key{h} or @key{?},
+and is self-explanatory.
+
+The use of the port filter will be illustrated with 2 examples:
+
+@itemize @bullet
+@item
+Nondeterminism-related ports are set to on. All other ports are off.
+Using the creep debugger option the user can conveniently step through all 
+nondeterminstic steps.
+
+@item
+Reenter and Suspend ports are set to on. All other ports are off.
+Using the write debugger option the user can conveniently evaluate the
+co-routining aspects of an execution.
+@end itemize
+
+
+@node Operators, System Limits, Debugging, Top
+@chapter Operators
+
+@example
+:- op( 1200, xfx, [ :-]).
+:- op( 1200, xfx, [ :-, -->, := ]).
+:- op( 1200,  fx, [ :-, ?- ]).
+:- op( 1150,  fx, [ public ]).
+:- op( 1100, xfy, [ ; ]).
+:- op( 1050, xfy, [ ':' ]).
+:- op( 1050, xfx, [ '|', ->, ?, ??, ! ]).
+:- op( 1050,  fx, [ '|', ->, ?, ??, ! ]).
+:- op( 1025, xfy, [ & ]).
+:- op( 1000, xfy, [ ',' ]).      /* See note below */
+:- op(  900, xfx, [ @@ ]).
+:- op(  900,  fy, [ \+, spy, nospy ]).
+:- op(  700, xfx, [ =, is, =.., ==, \==, @@<, @@>, @@=<, @@>=,
+                                =:=, =\=, <, >, =<, >= ]).
+:- op(  500, xfx, [ \, \\]).
+:- op(  500, yfx, [ +, -, #, /\, \/ ]).
+:- op(  500,  fx, [ +, - ]).
+:- op(  400, yfx, [ *, /, //, <<, >> ]).
+:- op(  300, xfx, [ mod ]).
+:- op(  200, xfy, [ ^ ]).
+:- op(  100, yfx, [ $ ]).
+@end example
+
+Note that a comma written literally as a punctuation character can be
+used as though it were an infix operator of precedence 1000 and type
+@code{xfy}, i.e. @refill
+
+@example
+X,Y    ','(X,Y)
+@end example
+
+@noindent
+represent the same compound term.
+
+
+
+@node System Limits, Getting, Operators, Top
+@chapter System Limits
+
+@noindent
+Some limits:
+
+@table @code
+@item Atoms
+An atom can have 255 characters in the name.
+
+@item Integers
+AKL currently uses 26 bit integers. The range is 
+@code{[-33554432, 33554431]}.
+
+@item Floats
+The range of floats is the one provided by the C @code{double} type,
+typically @code{[4.9e-324, 1.8e+308]} (plus or minus).
+
+@item Structures
+You can have approximately 50 000 arguments to a structure.
+
+@item Calls
+There are 256 internal registers shared for argument passing and local
+storage. This gives you the opportunity to have a large number of
+arguments to a call.
+
+@end table
+@noindent
+Most other memory consumers are limited by the memory available on the system.
+
+
+
+@node Getting, Installing, System Limits, Top
+@chapter Getting AKL/PS
+
+To contact SICS to obtain or ask questions about this software you 
+send email to @w{@code{akl-request@@sics.se}} or send facsimile to 
+@w{+46-8-7517230}.
+
+@node Installing, Index, Getting, Top
+@chapter Installing AKL/PS
+
+@menu
+* Basic Installation::          
+* Library Installation::        
+* Documentation::               
+* Emacs Interface::             
+* GNU MP::                      
+* Known Bugs and Inconsistencies::  
+@end menu
+
+@node Basic Installation, Library Installation, Installing, Installing
+@section Basic Installation
+
+@enumerate
+@item
+Select a directory as an installation directory.  We suggest
+/usr/local/lib/akl. Unloading the tape in /usr/local/lib will 
+create the above directory.
+
+@item
+You received a tape in "tar" format from a tape or via FTP downloaded
+from SICS. To unload it, type the following commands (substituting the 
+path name and device parameter if necessary):
+
+@example
+cd /usr/local/lib
+tar xvf /dev/rst8
+cd akl
+@end example
+
+@item
+Run the configure script by typing
+
+@example
+./configure <full pathname of AKL installation directory>
+@end example
+
+It will create the files Makefile and version.pam.
+
+@item
+Due to the possibility of different views of the installation
+directory from the filesystem and the user, it cannot be obtained
+automatically.
+
+@item
+You are now about to build AKL/PS.  Some systems need changes in
+@file{Makefile}.  For advice see the comments near the beginning
+of that file.  AKL/PS will run without change on DECstations and
+SUNs.
+
+@item
+Typing the command:
+
+@example
+make all
+@end example
+
+@noindent
+will build the AKL/PS system including the libraries.  Typing the
+command @file{./akl} should start AKL/PS and enter an interactive
+toplevel loop. Typing 'halt.' to AKL/PS should get back to the
+shell.
+
+@item
+To make @code{akl} generally available as a command you do
+
+@example
+ln -s /usr/local/lib/akl/akl /usr/local/bin/akl
+@end example
+
+@item
+This completes the installation procedure.  Optionally, you may want
+to reclaim some file space by typing:
+
+@example
+make clean
+@end example
+
+@noindent
+This deletes most object files and the like.
+
+@item
+If you, for some reason, want to delete everything that was not in
+the distribution, type:
+
+@example
+make realclean
+@end example
+
+@end enumerate
+
+
+@node Library Installation, Documentation, Basic Installation, Installing
+@section Library Installation
+
+All libraries except @emph{The Graphic Manager Library} are preloaded
+into the system. To create another AKL/PS including the graphics do:
+
+@example
+cd /usr/local/lib/akl
+./akl library/gm/procomm.c library/gm/procomm.fd library/gm.pam -o gmakl
+@end example
+
+@noindent
+This should create three files, the startup script @file{gmakl},
+the executable @file{gmakl.exe} and the boot file @file{gmakl.pam}.
+
+@noindent
+To make @code{gmakl} generally available as as the @code{akl} command you do
+
+@example
+ln -s /usr/local/lib/akl/gmakl /usr/local/bin/akl
+@end example
+
+
+
+@node Documentation, Emacs Interface, Library Installation, Installing
+@section Documentation
+
+There are two manuals available on-line,
+@emph{AKL Programming System Manual} and @emph{AKL Library Manual}.
+The manuals are in Texinfo format.
+To create paper versions of the manuals you:
+
+@example
+cd /usr/local/lib/akl/documentation/manual
+make
+dvips manenv.dvi
+dvips manlib.dvi
+@end example
+
+Online manuals can be produced as nodes for insertion in the 
+Info subsystem of GNU Emacs from those source files.  To produce 
+the online manuals, type the commands:
+
+@example
+C-x C-f /usr/local/lib/akl/documentation/manual/manenv.texi
+M-x texinfo-format-buffer
+C-x s
+C-x C-f /usr/local/lib/akl/documentation/manual/manlib.texi
+M-x texinfo-format-buffer
+C-x s
+@end example
+
+@noindent
+inside GNU Emacs, after editing the absolute file names at the top of
+the files if needed.  Finally, edit '/src/gnu/emacs/info/dir'
+inserting menu items
+
+@example
+* AKL-System: (akl-environment).
+                AKL Programming System Manual
+* AKL-Library: (akl-library).
+                AKL Library Manual
+@end example
+
+The file @file{akl.1} contains a manual page.  
+Copy it to @file{/usr/local/man/man1} or some such appropriate place 
+to make it publicly available.
+
+
+@node Emacs Interface, GNU MP, Documentation, Installing
+@section Emacs Interface
+
+A GNU Emacs mode for AKL is also included.  Inserting the following
+lines in your @file{~/.emacs} will make Emacs use this mode
+automatically when editing files with a @file{.akl} extension:
+
+@example
+(setq load-path (cons "/usr/local/lib/akl" load-path))
+(autoload 'run-akl "akl"
+        	  "Start an AKL sub-process." t)
+(autoload 'akl-mode "akl"
+	       	  "Major mode for editing AKL programs" t)
+@end example
+
+@noindent
+The Emacs mode will use the value of the environment variable AKLSYSTEM
+(or the value of the Emacs variable @code{akl-system}) as a shell
+command to invoke AKL.  This value defaults to "akl".  The Emacs mode
+provides the following commands:
+
+@example
+	M-x run-akl
+	Run an inferior AKL process, input and output via buffer *akl*.
+
+	C-c K           akl-compile-buffer
+	C-c k           akl-compile-region
+	C-c C-k         akl-compile-predicate
+	C-c C           akl-consult-buffer
+	C-c c           akl-consult-region
+	C-c C-c         akl-consult-predicate
+@end example
+
+@noindent
+The Emacs mode requires the comint package by Olin Shivers, which is
+not part of the standard GNU Emacs distribution.
+
+Neither the Emacs mode nor the comint package are part of AKL proper,
+but are included in the distribution for your convenience.
+
+@node GNU MP, Known Bugs and Inconsistencies, Emacs Interface, Installing
+@section GNU MP
+
+The GNU MP package is used for the arbitrary precision arithmetic
+library. It is included in this distribution. If for some reason
+you can't build an AKL/PS system because the GNU MP package won't
+compile or run on your system you can exclude GNU MP. See the
+beginning of the top directory @file{Makefile} for details.
+
+
+@node Known Bugs and Inconsistencies,  , GNU MP, Installing
+@section Known Bugs and Inconsistencies
+
+The system is under development and we don't have the resources
+needed to make the system rock solid. If you have problems please
+let us know and we will try to find time to fix it.
+
+Send bug reports to
+
+@example
+akl-bug@@sics.se
+@end example
+
+Bugs tend actually to be fixed if they can be isolated, so it is in
+your interest to report them in such a way that they can be easily
+reproduced.
+
+
+@node Index,  , Installing, Top
+@unnumbered Index
+@printindex cp
+
+@contents
+
+@bye

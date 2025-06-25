@@ -1,0 +1,2765 @@
+\documentstyle[a4,11pt]{report}
+
+\font\ssi=cmssi10 at 11pt
+
+\def\inp{\ssi}
+
+\begingroup
+\catcode`\|=13
+\catcode`\_=13
+\catcode`\<=13
+\catcode`\>=13
+
+\gdef\prog{\sf%
+\catcode`\|=13%
+\def|{{\tt \char`|}}%
+\catcode`\_=13%
+\def_{{\tt \char`_}}%
+\catcode`\<=13%
+\def<{{\tt \char`\<}}%
+\catcode`\>=13%
+\def>{{\tt \char`\>}}%
+}
+\endgroup
+
+\def\sub#1{$#1$}
+
+\newenvironment{program}{%
+\begingroup%
+\prog%
+\def\nl{\\[\medskipamount]}%
+\begin{tabbing}%
+\hskip1cm\=\hskip1cm\=\hskip1cm\=\hskip1cm\=\kill}{%
+\end{tabbing}\endgroup\noindent}
+
+\def\pdef{\mathrel{\mbox{:-}}}
+\def\rewriteto{\Rightarrow}
+\def\transit{\rightarrow}
+\def\AND{\mbox{\bf and}}
+\def\OR{\mbox{\bf or}}
+\def\CHOICE{\mbox{\bf choice}}
+\def\TRUE{\mbox{\bf true}}
+\def\FAIL{\mbox{\bf fail}}
+\def\FALSE{\mbox{\bf false}}
+\def\wait{\mathrel{\mbox{:}}}
+\def\cut{\mathrel{\mbox{!}}}
+\def\commit{\mid}
+\def\guard{\mathrel{\mbox{\%}}}
+\def\AGGREGATE{\mbox{\bf aggregate}}
+\def\BAGOF{\mbox{\bf bagof}}
+\def\nt#1{\langle\mbox{\em #1\/}\rangle}
+\def\bnf{\mathrel{::=}}
+\def\logand{\mathrel{\&}}
+\def\implies{\supset}
+
+\def\instruction#1{\medskip\noindent{\bf #1}}
+
+\title{Design of a\\
+Sequential Prototype Implementation\\
+of the Andorra Kernel Language\\
+(DRAFT)}
+
+\author{Bj\"orn Danielsson, Sverker Janson, Johan Montelius, Seif Haridi\vspace{0.3cm}\\
+Swedish Institute of Computer Science\\
+Box 1263, S-164 28 KISTA, Sweden\\
+E-mail: \{bd, sverker, jm, seif\}@sics.se}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+
+\chapter{Introduction} \label{ch:intro}
+
+The Andorra Kernel Language (AKL) is a general combination of
+search-orien\-ted nondeterministic languages, such as Prolog, and
+process-oriented com\-mit\-ted-choice languages, such as GHC.  For an
+introduction to AKL from this perspective, see \cite{jaha91PEPMA}.
+For an extensive formal treatment, see \cite{fra91PEPMA}.  A brief
+formal language definition is provided in appendix \ref{app:akldef}.
+
+This paper describes a sequential prototype implementation of AKL.  It consists
+of a compiler from AKL to an abstract machine, an emulator for this
+abstract machine written in C, a run-time system for the emulator, and
+a library written in AKL.
+
+\section{Design Space}
+
+The design space for programming language implementation is vast.
+The following sections contain a few highlights.
+
+\subsection{Interpreter or Compiler}
+
+Although writing an interpreter usually means less implementation
+work, the execution overhead of an interpreter can hide severe
+inefficiencies of a language and its implementation.  As the purpose
+was to evaluate the efficiency of AKL, we decided that the
+implementation should be based on a compiler.  The next question is
+whether the target should be a real machine, or an emulator of an
+abstract machine.  The first alternative is of course the ``real''
+solution, but is not portable.  The second alternative is less
+efficient than the first, but still an order of magnitude faster than
+an interpreter.  Development time is also much shorter.
+
+We chose to compile AKL to a high level abstract machine similar in
+spirit to the Warren Abstract Machine (WAM) \cite{wam}.  The emulator
+of the abstract machine is written in C.  The cost of this approach is
+well understood.  It allows inefficiencies to be spotted and
+optimizations to be designed in the framework of the abstract machine.
+By keeping the abstract machine close to WAM, we have been able to
+make good use of a simple existing compiler from Prolog to WAM.  This
+compiler was adapted for the Prototype Abstract Machine (PAM) with
+minor changes only, and is still written in Prolog.
+
+PAM has no optimizations for common cases, such as flat guards.  By
+providing specialized instructions for flat guards, an optimization
+can be achieved which is similar to a shallow backtracking
+optimization in Prolog \cite{shallow}, but of greater importance in
+AKL.  It has been omitted from this design, as being a complication of
+importance in principal, but will be discussed.
+
+\subsection{Memory Management}
+
+Although the use of many data objects would allow stack-based memory
+allocation in the implementation, this would restrict the
+implementation, and in particular it would complicate future
+experiments with the execution order.
+
+We decided that heap-based memory allocation would be sufficient for
+our purposes.  As it turns out, garbage collection does not impair the
+efficiency of the implementation, and there has been little need to
+optimize it.  In an improved implementation, and when the requirements
+of real applications are considered, garbage collection is likely to
+need renewed attention, and when the issue of execution order is
+completely investigated, it will be desirable to employ stack-based
+memory allocation whenever possible.
+
+\subsection{Nondeterminism}
+
+AKL provides don't know nondeterminism through the non-determinate
+promotion rule.  The two obvious alternatives for implementing this
+mechanism are either to use copying as suggested by the formulation of
+the rule, or to use some sharing scheme, reminiscent of trailing and
+backtracking in Prolog.
+
+We decided to use copying, for simplicity.  However, because copying
+can change the computational complexity of a program, we have also
+designed schemes for sharing.  An ideal implementation should probably
+use a sharing scheme.
+
+
+\chapter{A Sequential Execution Model} \label{ch:exemodel}
+
+Write down an initial configuration. Make transitions with respect to
+the leftmost possible subgoal. Stop when no transition is possible.
+This is a perfectly viable {\em execution model}, which respects the
+computation model but makes specific decisions about which step to
+make when.
+
+Thus, by an execution model we mean a refinement of the computation model, 
+where more specific control principles are used.  By an execution we mean a 
+computation following these control principles.
+
+The execution model presented here tries to avoid frequent context
+switches.  It goes as follows.  Use two pens, one red (``active'') and
+one black (``suspended'').  Use red for the initial configuration, for
+the goals created by local forking, and for the atoms promoted by
+determinate promotion.  The environment of a goal only takes black
+constraint atoms into account.  Keep your finger pointing at the goal
+which was most recently introduced by a computation rule, starting by
+pointing to the outermost and-box in the initial configuration.  The
+box which is pointed at is called the current box.
+
+Repeat the following steps.
+%
+\begin{enumerate}
+\item
+Take the leftmost transition with respect to a red goal in the
+current box, moving your finger as necessary.
+\item
+If no transition is possible with respect to a red goal, make
+any transition with respect to a black goal in the current box, moving
+your finger as necessary.
+\item
+Otherwise, rewrite the current box in black, and move your
+finger to the parent box.
+\end{enumerate}
+%
+By making a distinction between active and suspended goals, and
+postponing actions on suspended goals, context switches are avoided.
+The active goals are processed in an unbroken left to right manner,
+allowing efficient implementation.
+
+The following sections formalise the execution model, introducing the
+notions of a worker and tasks and their execution.
+
+The philosophy of the execution model is that each operation should,
+intuitively, have the same algorithmic complexity as a corresponding
+operation in an abstract machine.  Therefore auxiliary control
+information is added, which is not strictly necessary to express the
+control desired.  The reasons for adding control information will be
+explained.
+
+\section{Goals}
+
+Goals are given {\em labels}, a label being anything which may serve
+as an identifier.  Labels allow us to identify, informally, goals in
+different, subsequent configurations, in a manner not unlike the way
+you, dear reader, identify yourself with the person who started
+reading this chapter a minute ago.  A suitable mental model is to
+think of a label as the address of a computer representation of the
+goal.
+
+Conceptually, upon creation, each goal is given a label which is
+unique for the current computation.  Rewriting the interior of a goal
+does not change its label.  How rules preserve labels should be quite
+intuitive except maybe for the choice splitting rule which copies
+goals. (The left copy is new, and is given new labels.)
+
+Goals occurring in a computation state are {\em live} (in this
+computation state).  Other goals are {\em dead}.  When a goal is newly
+created, it is {\em untried}; later it may be regarded as {\em tried}.
+
+\section{Tasks}
+
+A {\em task} is a pair of a procedure and a goal.  The purpose of the
+procedure is to evaluate the applicability of some computation rules
+to the goal, and if they are applicable, also apply them.  The
+procedure may also create new tasks.  By {\em processing} a task we
+mean executing the procedure with respect to the goal.
+
+Variables have associated with them a list of tasks that should be
+considered when a variable is constrained.  Associating a task with a
+variable is called {\em suspending} it on the variable.  The associated
+tasks are called {\em suspensions}.
+
+\section{Workers}
+
+A {\em worker} is an automaton that processes tasks.
+
+A worker is located in an and-box or in a choice-box (the {\em current
+box}).  The current box is changed by {\em moving} between boxes.  When
+moving to a box which is contained within the current box, the worker
+is said to move {\em down}.  When moving to a box containing the
+current box, the worker is said to move {\em up}.  Otherwise, the
+worker moves up to the closest and-box containing the destination box,
+and then down.  When moving, the worker moves step by step, to each
+intermediate box.
+
+A worker has associated with it a {\em constraint window}, which is a
+representation of the constraint environment of the goals in the
+current box.  When a worker moves down to an and-box, the constraints
+it contains are {\em installed} in the window.  When a worker moves up
+from an and-box, the constraints it contains are {\em deinstalled}.
+When a worker promotes the current and-box, the constraints it
+contains are {\em promoted}.  The nature of these operations
+(installation, deinstallation, and promotion) depend on the constraint
+system.
+
+A worker associates {\em tasks} with and-boxes and with choice-boxes.
+Tasks are said to be {\em in} boxes (from the point of view of a
+worker).  A worker keeps track of its tasks, and which tasks are in
+which boxes.  When a task has been processed, or when it is in a box
+which is deleted because of failure, it is deleted.  In this execution
+model, tasks are processed in a {\em last-in first-out} fashion.  The
+worker processes all the tasks in a box before moving to a parent box.
+This allows the worker to keep its tasks in a stack.
+
+The first task is always to try the and-box which is the initial
+configuration.  This procedure is defined in the next section.
+The worker continues processesing tasks until the task stack
+is empty.
+
+\section{Task Procedures} \label{sec:taskproc}
+
+In this section, the {\em task procedures} are described.  We also
+describe auxiliary procedures for establishing stability of and-boxes,
+and for finding a candidate for nondeterminate promotion.
+
+The main kind of task procedures are called {\em trying an X}, where
+{\em X} is a goal.  There is one procedure for each kind of goal.
+When the worker processes a task of this kind, it implicitly moves to
+{\em X} if {\em X} is an and-box or a choice-box, and otherwise to the
+closest surrounding and-box or choice-box.
+
+The procedures are described in informal pseudo-code.  Blocks,
+conditionals, and repetition statements, etc., have C syntax, but
+natural language is used for most statements and expressions.  We will
+make use of anaphora and implicit references to boxes to keep the
+language informal.
+
+For brevity, when a task is created which will be the next to be
+processed, we simply say that it is tried.  Other tasks that are
+created are implicitly entered in the current box.
+
+\paragraph{Trying an And-Box} This procedure finds all non-suspended work
+in an and-box, and creates appropriate tasks.
+%
+\begin{program}
+try an andbox \{\\
+\>if (the and-box contains untried atomic goals)\\
+\>\>try the first;\\
+\>else if (there are tasks in the and-box)\\
+\>\>continue with them;\\
+\>else if (the and-box is solved)\\
+\>\>try the parent guarded goal;\\
+\>else if (the and-box is known to be stable)\\
+\>\>attempt choice splitting;\\
+\}
+\end{program}
+
+\paragraph{Trying a Program Atom}
+\begin{program}
+try a program atom \{\\
+\>apply the local forking rule to the atom;\\
+\>move to the new choice-box;\\
+\>create tasks for trying each of the and-boxes\\
+\>\>in the new guarded goals, from the last to the first\\
+\}
+\end{program}
+
+\paragraph{Trying a Constraint Atom} 
+\begin{program}
+try a constraint atom \{\\
+\>install the constraint atom;\\
+\>if (installation fails)\\
+\>\>propagate failure;\\
+\>else \{\\
+\>\>examine suspensions on variables that were constrained;\\
+\>\>if (external variables were constrained)\\
+\>\>\>suspend the current and-box on these variables;\\
+\>\>try the current and-box;\\
+\>\}\\
+\}
+\end{program}
+
+\paragraph{Trying a Wait Guarded Goal}
+\begin{program}
+try a wait guarded goal \{\\
+\>if (the parent choice-box is determinate)\\
+\>\>promote the guard;\\
+\}
+\end{program}
+
+\paragraph{Trying a Cut Guarded Goal}
+\begin{program}
+try a cut guarded goal \{\\
+\>if (the guard is quiet)\\
+\>\>apply the cut rule;\\
+\>\>remove all tasks from the parent choice-box;\\
+\>\>if (the parent choice-box is determinate)\\
+\>\>\>promote the guard;\\
+\>\}\\
+\}
+\end{program}
+
+\paragraph{Trying a Commit Guarded Goal}
+\begin{program}
+try a commit guarded goal \{\\
+\>if (the guard is quiet)\\
+\>\>apply the commit rule;\\
+\>\>promote the guard;\\
+\>\}\\
+\}
+\end{program}
+
+\paragraph{Attempting Choice Splitting} An attempt is made to
+apply choice splitting within a stable and-box, and create appropriate
+tasks.  If this is not possible, its parent choice-box is tried.  (The
+references to the boxes involved are maybe a little hard to follow.)
+%
+\begin{program}
+attempt choice splitting \{\\
+\>try to find a candidate for choice splitting in the and-box;\\
+\>if (there is no candidate)\\
+\>\>try the parent choice-box;\\
+\>else \{\\
+\>\>call the candidate A, its parent choice-box B,\\
+\>\>\>B's parent and-box C, and C's parent choice-box D;\\
+\>\>apply the choice splitting rule wrt A;\\
+\>\>call the copy of A, A';\\
+\>\>move to choice-box D;\\
+\>\>if (choice-box B is determinate)\\
+\>\>\>create a task for promotion of the remaining branch;\\
+\>\>else if (and-box C is stable)\\
+\>\>\>create a task for attempting choice splitting\\
+\>\>\>\>within C;\\
+\>\>promote the and-box A';\\
+\>\}\\
+\}
+\end{program}
+
+\paragraph{Examine Supensions on a Variable}
+\begin{program}
+examine suspensions on a variable \{\\
+\>for (each of the suspensions on the variable)\\
+\>\>if (the associate goal is in the current box)\\
+\>\>\>move the task to the current box;\\
+\}
+\end{program}
+
+\paragraph{Propagating Failure}
+On the entry to this procedure, either the condition for environment
+synchronisation or the condition for failure propagation is met.  Both
+rewrite an and-box to $\FAIL$.
+\begin{program}
+propagate failure \{\\
+\>apply either environment syncronisation or failure propagation;\\
+\>the deleted and-box is now dead;\\
+\>move to the parent choice-box;\\
+\>apply the choice elimination rule;\\
+\>if (there is only one guarded goal in the choice-box)\\
+\>\>try this guarded goal;\\
+\>else if (there are no guarded goals in the choice-box)\\
+\>\>propagate failure;\\
+\}
+\end{program}
+
+\paragraph{Promotion}
+\begin{program}
+promote a solved and-box \{\\
+\>move to the parent and-box of the solved and-box;\\
+\>apply the determinate promotion rule;\\
+\>if (\=there are promoted constraints\\
+\>    \>for variables that are external to the solved and-box)\\
+\hskip1cm\=\hskip1cm\=\hskip1cm\=\hskip1cm\kill
+\>\>move their associated tasks that refer to subgoals\\
+\>\>\>of the current box to the current box;\\
+\>try the current box;\\
+\}
+\end{program}
+
+\paragraph{Waking Supensions on a Variable}
+\begin{program}
+wake suspensions on a variable \{\\
+\>for (each of the tasks suspended on the variable)\\
+\>\>if (the associate goal is alive)\\
+\>\>\>if (its associated goal is in the current box)\\
+\>\>\>\>move the task to the current box;\\
+\}
+\end{program}
+
+\paragraph{Establishing Stability}
+There are several possible schemes for establishing stability that
+vary in precision.  With each and-box is associated information about
+suspensions on external variables occurring within it.  When creating
+a suspension on an external variable, this has to be recorded in all
+ancestor and-boxes for which the variable is external.  The schemes
+vary in what degree they take care of the waking of a suspension and
+the failure of an and-box.  When a suspension is woken, this should be
+recorded in ancestor and-boxes.  When an and-box fails, it should be
+recorded in all ancestor and-boxes that all suspensions on external
+variables in the and-box have disappeared.  If either of these last
+two cases is not taken care of, boxes will be deemed to be unstable
+where they are not---it can not be established that they are stable.
+
+\paragraph{Finding a Candidate}
+By a {\em candidate} is meant a solved and-box that may be promoted by
+the nondeterminate promotion rule (or here singled out by the choice
+splitting rule).  In the execution model, the left-most candidate
+should be chosen.  This involves examining the ``leaves'' in the
+stable and-box left-to-right, choosing the first candidate.
+
+\section{Some Properties of the Execution Model}
+
+Untried atomic goals in an and-box are always a {\em contiguous
+sub-sequence} of the local goals, which is accessed from the left to
+the right.  This can be realised by reasoning as follows.  Initially,
+all goals in an and-box are untried atomic goals.  A body (consisting
+of untried atomic goals) will only be promoted when trying the
+left-most atomic goal, and will then replace this goal.  Suspended
+goals within the and-box are only retried when all untried atomic
+goals have been tried.
+
+In the implementation, this property makes it possible to have a
+single-linked list representation for untried atomic goals.  The
+position of this list within the other local goals can be kept in a
+register.
+
+Only constraints on external variables need to be explicit.
+Constraints on local variables are only referred to quite implicitly.
+For example, instead of creating a binding $X = t$ of a local variable
+$X$, the term $t$ can be {\em substituted} for all occurrences of the
+variable $X$.  Also note that the position of a tried binding among
+the local goals is quite irrelevant.
+
+In the implementation, substituting a value for a local variable only
+involves replacing the value slot in the object representing the
+variable with the value.  Also, the constraints (for external
+variables) can be kept in a separate list.  The test for quietness is
+to see if this list is empty.  The test for being solved is to see if
+the list of other goals is empty.
+
+With the adapted computation model, there are {\em no or-boxes}, and
+there is always exacly one and-box per guarded goal.
+
+In the implementation, we may collapse the notions of guarded goal and
+and-box, and let them be represented by a single object (which, by
+abuse of terminology, is called an and-box).
+
+
+\chapter{A Prototype Abstract Machine} \label{ch:absmachine}
+
+The abstract machine of the prototype implementation, the Prototype
+Abstract Machine (PAM), is an implementation of the execution model.
+The abstract machine describes requirements on the representations of
+programs, of the configuration and of the binding window. The abstract
+machine also describes how a worker executes tasks given these
+requirements.
+
+The abstract machine is deliberately not detailed.
+The description does not specify how constituents are stored nor how
+they are explicitly represented. The abstract machine only specifies the 
+requirements on the constituents; the exact representation is up to 
+the implementation. 
+
+By making a distinction between an abstract machine and its
+implementation, the abstract machine is not impaired by
+implementation-dependent details. We can concentrate on its
+functionality.
+
+The design decisions taken for the abstract machine are:
+%
+\begin{itemize}
+\item Only support the execution of a single worker. This simplifies the
+representation of goals in and-boxes and the representation of variable
+bindings.
+\item Handle equality in the domain of rational trees explicitly. 
+Specialised instructions improve efficiency as usual.
+\end{itemize}
+%
+The first section describes the properties of the configuration but
+not how or why constituents are created. The second section describes
+the logical properties of the binding window. This includes the
+constraint system, how guarded goals are suspended and how the stability 
+property is maintained.  The third section describes how choice
+splitting is handled. The fourth section describes the execution state
+and the steps taken by a worker. The last section describes the
+instructions of the abstract machine.
+
+
+\section{The Configuration}
+
+In the abstract machine we collapse the notions of a guarded goal and
+the and-box it has in its guard, and represent them using a single
+object, which will, by abuse of terminology, be called an {\em
+and-box}.
+
+The configuration consists of a tree of choice-boxes and and-boxes.
+Each box can reach its children and its parent.  The root of the tree
+is a choice-box called {\em root}.
+
+In a choice-box the tried guarded goals are represented by a sequence
+of and-boxes. The untried guarded goals are represented implicitly by
+a sequence of instructions and the arguments of the program atom. In
+an and-box the untried program atoms and constraint atoms are
+represented implicitly by a sequence of abstract machine instructions
+and a tuple of permanent registers.
+
+\subsection*{Choice-Boxes}
+
+A choice-box contains the representation of tried guarded goals (i.e.,
+and-boxes), the information needed to try the remaining guarded goals
+and a reference to its parent and-box.
+
+\begin{center} \begin{tabular}{|l|l|} \hline
+Choice-box \\
+\hline
+\hline
+and-boxes \\
+choice continuation \\
+parent and-box\\
+\hline
+\end{tabular} \end{center}
+
+Untried guarded goals are represented implicitly by a {\em choice
+continuation}. When the choice continuation is consumed, we refer to
+it as a {\em null continuation}.
+
+\begin{center} \begin{tabular}{|l|l|} \hline
+Choice-continuation\\
+\hline
+\hline
+instructions of remaining guarded goals\\
+arguments of the guarded goal \\
+\hline
+\end{tabular} \end{center}
+
+The root choice-box needs only the list of tried guarded goals. It has
+no parent and-box and a null continuation.
+
+\subsection*{And-Boxes}
+
+An and-box contains the state of the guard computation, stability
+information for the and-box, constraints, a sequence of choice-boxes,
+a sequence of and-continuations and a reference to its parent
+choice-box.
+
+\medskip
+\begin{center} \begin{tabular}{|l|l|} \hline
+And-box \\
+\hline
+\hline
+state\\
+stability\\
+constraints \\
+choice-boxes \\
+and-continuations \\
+parent choice-box \\
+\hline
+\end{tabular} \end{center}
+
+An and-box is either {\em alive} or {\em dead}. This is called the
+{\em state} of the and-box.  An and-box is initially alive and can
+become dead.
+
+The {\em stability information} maintained in an and-box
+is a (possibly approximate) account of the constraints on variables
+external to the and-box occurring in the subtree it forms.  How to
+represent and maintain this information is described in section
+\ref{absstab}.
+
+The {\em constraints} in an and-box represent constraints on external
+variables. (Constraints on local variables are only recorded on the
+variables.)
+
+The {\em choice-boxes} in an and-box are ordered. The representation
+of this sequence should allow left-to-right traversal.  This is
+necessary in order to find the leftmost candidate for choice
+splitting.
+
+The sequence of {\em and-continuations} represents a sequence of
+untried program atoms and constraint atoms.
+The last continuation includes the representation of
+the guard operator and body of the guarded goal. 
+
+The sequence of and-continuations has an implicit position in the
+sequence of choice-boxes.  This position is called the {\em insertion
+point}. The insertion point is maintained by the worker, and is not
+represented in the and-box.
+
+\medskip
+\begin{center} \begin{tabular}{|l|l|} \hline
+And-continuation \\
+\hline
+\hline
+instructions\\
+permanent registers \\
+\hline
+\end{tabular} \end{center}
+
+The untried atomic goals are represented by a sequence of instructions
+and a tuple of {\em permanent registers} with respect to which the
+instructions are to be executed.
+
+
+\subsection*{Constraints}
+
+In this prototype abstract machine, constraints are restricted to
+equality on rational trees.  A constraint structure, representing an
+equality, contains a variable and a term.
+
+\medskip
+\begin{center} \begin{tabular}{|l|l|} \hline
+Constraint \\
+\hline
+\hline
+variable \\
+term \\
+\hline
+\end{tabular} \end{center}
+
+
+\subsection*{Terms}
+
+There are three types of terms: atomic, structures and
+variables.  Implicitly, all terms have an identity.  This is the only
+property of an atomic term. A structure has two additional properties:
+a functor and an argument tuple. A variable has three additional
+properties: the current value, a set of suspensions and an environment
+identifier.
+
+\begin{center} \begin{tabular}{|l|l|} \hline
+Variable\\
+\hline
+\hline
+current value\\
+suspensions\\
+environment\\
+\hline
+\end{tabular} \end{center}
+
+A variable is either {\em unbound} or {\em bound}.  If the set of
+suspensions is empty the variable is {\em unconstrained}; if the set
+is not empty the variable is {\em constrained}.
+
+The environment identifier of a variable identifies the and-box in
+which the variable is local.  A variable is local to the and-box in
+which it was created; if the and-box is promoted the variable becomes
+local to the parent and-box.
+
+\begin{center} \begin{tabular}{|l|}\hline
+Suspension\\
+\hline
+\hline
+and-box\\
+\hline
+\end{tabular} \end{center}
+
+Each suspension refers to a constrained and-box which contains
+constraints on this variable.
+
+\subsection*{Definitions}
+
+A definition is represented by a sequence of instructions.
+Subsequences are used to represent untried guarded goals and untried
+atomic goals. The instructions of the abstract machine can be divided
+into four groups: decision, procedural, guard and term instructions.
+
+The decision instructions are used to select a sequence of guarded
+goals. The instructions also set up the configuration to execute
+the instructions of the guarded goal. This means building the
+choice-box of the goal and the and-boxes of the guarded goals.
+
+The term instructions represent constraint atoms, and perform the
+related actions.  The procedural instructions pass control to a
+definition or the next and-continuation.  The guard instructions
+determine whether or not the and-box is to be promoted and/or if
+sibling and-boxes are to be pruned.
+
+A complete description of the instructions is found in section
+\ref{absinstr}.
+
+\section{Binding window}
+
+The notion of a {\em binding window} is a restriction of a constraint
+window to bindings, i.e., equalities relating variables to terms.
+
+Execution is restricted to a single and-box or choice-box at a time.
+The and-box or choice-box in which execution takes place is called the
+{\em current and-box} or the {\em current choice-box}. The branch from
+the root to the current box is called the {\em current branch}. 
+
+The binding window is a worker's view of the constraints of the current
+branch. This view changes as the worker moves around in the
+configuration. The most complex aspect of the abstract machine is how to
+represent and maintain the binding window of a worker.
+
+\subsection*{Constraint system}
+
+To start with we must describe the constraint system.  The abstract
+machine only describes how equality in the domain of rational
+trees is handled. This is a simple yet powerful constraint
+system. Other constraint systems are easily added in a uniform manner.
+
+When a constraint atom is tried the two terms of the equality are {\em
+unified}. A variable is unified with a term by making the term the
+current value of the variable, the variable is {\em bound} to the
+term.  By {\em dereferencing} a variable we mean following any
+variable bindings until a non-variable or an unbound is reached.
+
+A unification of two terms is always done with respect to the current
+and-box. The description of unification is therefore in terms of local
+and external variables. To determine whether a variable is local the
+environment of the variable must be examined. If the environment
+identifier refers to the current and-box, the variable is a {\em local
+variable}, otherwise it is an {\em external variable}. The requirement
+on a unification is simple.
+
+\begin{itemize}
+\item[U] A unification must never bind an external variable 
+to a local variable.
+\end{itemize}
+
+
+
+\subsection*{Moving around}
+
+To maintain a consistent binding window as the worker moves around in
+the configuration the following procedures are performed.
+
+
+\begin{itemize}
+
+\item[M1] An and-box is installed by examining the constraints of the and-box. 
+If the variable is unbound it is bound to the term. If the variable is
+bound the constraint is removed and the two terms are unified. If the
+unification fails the remaining uninstalled constraints are removed and the
+installation terminates with failure
+
+\item[M2] If an external variable is bound, a constraint is added 
+to the and-box. The constraint contains the variable and the term to
+which it was bound.
+
+\item[M3] An and-box is de-installed by unbinding the variables of the 
+constraints.
+
+\item[M4] When an and-box is promoted the constraints containing a variable 
+that is external to the parent and-box are moved to the parent and-box.
+
+\item[M5] If an and-box fails the variables of the constraints are unbound.
+
+\end{itemize}
+
+The procedures described allow a worker to maintain a consistent
+binding window. It does not however solve the problem of {\em suspending}
+an and-box on a variable or waking an and-box when a variable becomes bound. 
+
+\subsection*{Waking}
+
+To {\em wake} a {\em suspended} and-box a {\em wake stack} is used. The
+wake stack is divided into segments. Each segment belongs to an and-box
+in the current branch. A wake entry consists of a reference to a suspended 
+and-box.
+
+\begin{center} \begin{tabular}{|l|}\hline
+Wake entry \\
+\hline
+\hline
+and-box\\
+\hline
+\end{tabular} \end{center}
+
+Before describing the procedures for the wake stack we need a
+definition of {\em scope}. The current and-box is in the scope of
+itself. An and-box is said to be in the scope of the current and-box
+if the and-box is alive and the parent of the parent choice-box is in
+the scope of the current and-box.
+
+To detect if an and-box is in the scope of the current and-box the
+path from the and-box to the root is examined. If there is a path of
+living and-boxes from the and-box to the current and-box the and-box is 
+in the scope of the current and-box.
+
+
+\begin{itemize}
+
+\item[W1] If an external unconstrained variable is bound or if an
+external variable is bound to an external unconstrained variable a
+constraint is added to the current and-box and a suspension is added
+to the variable.
+
+\item[W2] If an external constrained variable is bound or if an external 
+variable is bound to an external constrained variable the suspensions
+referring to and-boxes in the scope of the current and-box are
+removed. For each removed suspension a wake entry is created for each
+of the suspended and-box.  A constraint is added to the current
+and-box and a suspension is added to the variable.
+
+\item[W3] If a local constrained variable is bound 
+all suspensions are removed and a wake entry is
+created for each of the suspended and-boxes. The state of the variable is
+changed to unconstrained.
+
+\end{itemize}
+
+To handle suspensions correctly the same considerations must be observed
+when an and-box is promoted. When an and-box is promoted we will say
+that the bindings recorded in the constraints are promoted.
+
+\begin{itemize}
+
+\item[W4] If a binding of an external constrained variable is promoted,
+the suspensions referring to and-boxes in the scope of the current
+and-box are removed. For each removed suspension a wake entry is
+created for the suspended and-box. A constraint is added to the
+current and-box and a suspension is added to the variable.
+
+\item[W5] If a binding of a local constrained variable is promoted 
+all suspensions are removed and a wake entry is created for each of the
+suspended and-boxes. 
+
+\end{itemize}
+
+All wake entries of an and-box must be handled before the worker is
+allowed to move up to the parent choice-box.
+
+
+\subsection*{Stability} \label{absstab}
+
+A naive way of detecting stability of the current and-box is to
+traverse all and-boxes in the scope of the current and-box. If a
+constraint is found for a variable that is external to the current
+and-box the current and-box is unstable. The overhead of this
+procedure is in the general case unacceptable. Instead of doing a
+traversal when stability should be detected one may choose to incur the
+inevitable penalty when variables are constrained.
+
+The stability information in an and-box can contain a set of {\em
+marks}. Each mark represents a constraint in the scope of (but not
+including) the and-box. All marks of a constraint are connected and 
+associated to the constraint.  An and-box is stable if (and
+only if) the set of constraints is empty and the set is marks is
+empty. The set of marks can be maintained as follows.
+
+
+\begin{itemize}
+
+\item[S1] When a constraint is added to an and-box a mark is added to 
+all and-boxes in the path from (but not including) the and-box to (but not
+including) the and-box for which the variable is local. The set of marks
+is associated to the constraint.
+
+\item[S2] If a constraint is removed from an and-box the marks of the 
+constraint are removed in all and-boxes.
+
+\item[S3] If an and-box fails the constraints of the and-box and the 
+marks of the and-box are examined. The marks of all constraints are
+removed in all and-boxes. The marks connected to the marks of the
+and-box are removed in all and-boxes above the and-box.
+
+\end{itemize}
+
+An and-box thus maintains a record of all constraints on external
+variables in any and-box that is in the scope of the and-box. A
+penalty is only incured when a constraint is added or removed. Observe that
+marks are created only if a constraint is added for a variable that is
+external not only to the current and-box but to the parent of the
+current and-box.
+
+This scheme can be modified if one relaxes the requirement that
+stability always should be detected. If an and-box only records if a
+constraint has been added, not which constraint was added, the
+stability information is reduced to a counter.
+
+
+\begin{itemize}
+
+\item[S'1] When a constraint is added to an and-box the counter is 
+incremented in all and-boxes in the path from (but not including) the
+and-box to (but not including) the and-box for which the variable is
+local.
+
+\item[S'2] If a constraint is removed from an and-box the counters 
+are decremented in all and-boxes in the path from (but not including) the
+and-box to (but not including) the and-box for which the constrained
+variable is local.
+
+\item[S'3] If an and-box fails the counters are decremented for each 
+constraint of the and-box in all and-boxes in the path from (but not
+including) the failing and-box to (but not including) the and-box for
+which the constrained variable is local.
+
+\end{itemize}
+
+This scheme is not complete. If an and-box fails the counters are only
+decremented for each of the constraints of the failing and-box. The
+constraints of and-boxes in the scope of the failing and-box are not
+considered. The counter scheme is however complete if no constraint is
+added for a variable that is external not only to the current and-box
+but also to the parent of the current and-box.
+
+One can simplify the scheme even further. The counter can be reduced
+to a flag or a dirty bit.
+
+\begin{itemize}
+
+\item[S''1] When a constraint is added to an and-box all and-boxes in the 
+path from (but not including) the and-box to (but not including) the and-box
+for which the variable is local are marked as unstable.
+
+\end{itemize}
+
+An and-box that has been marked as unstable will never be marked as
+stable again.  An and-box marked as unstable is thus not necessarily unstable.
+The information of stability is lost once an and-box has become unstable. 
+
+
+\subsection*{Adding a trail}
+
+One can observe that the binding of an external variable is an
+expensive operation. The constraint added to the and-box and the
+suspension added to the variable are only needed if the and-box is
+suspended and later installed. The stability of parent and-boxes must
+only be updated when an and-box suspends. To improve efficiency in the
+common case where an and-box fails or is promoted without being
+suspended a {\em trail stack} is used.
+
+\begin{center} \begin{tabular}{|l|}\hline
+Trail entry \\
+\hline
+\hline
+variable \\
+\hline
+\end{tabular} \end{center}
+
+The trail stack is a sequence of sets. Each set belongs to an and-box
+of the current branch. Each trail entry contains a reference to a
+variable. The trail stack is used as follows.
+
+
+\begin{itemize}
+
+\item[T1] If an external variable is bound no constraint is added 
+to the and-box. Instead the variable is recorded on the trail.
+Wake entries are added if needed.
+
+\item[T2] If an and-box is suspended a new constraint is added for 
+each trailed variable. Suspensions are added to the variables and
+the  stability information is updated.
+
+\item[T3] When an and-box is promoted the trail entries containing a variable 
+that is external to the parent and-box are moved to the parent and-box.
+The trailed bindings are promoted to the parent and-box adding wake 
+entries if necessary.
+
+\item[T4] If an and-box fails the trailed variables are unbound.
+
+
+
+\end{itemize}
+
+The common case where no suspension occurs now avoids many expensive
+operations performed in the original scheme. Observe that tests for
+stability must be modified. An and-box is unstable if the trail contains
+trail entries.
+
+\section{Choice Splitting}
+
+Choice splitting can be done if the current and-box is stable.  An
+and-box is selected as a {\em candidate}. If no candidate is found the
+current and-box is suspended. The candidate is found by traversing
+and-boxes in the scope of (but not including) the current and-box. An
+and-box is qualified as a candidate if it is {\em solved} and the
+guard operator of the and-box is a wait guard. An and-box is solved if
+the sequence of tried program atoms is empty. The guard operator of
+the and-box is a wait guard if the first instruction of the
+and-continuation refers to a wait guard instruction.
+
+Notice that there is no requirement that the candidate should be 
+stable nor that the parent and-box is stable. The only requirement is that
+the current and-box is stable.
+
+
+\subsection*{Copying}
+
+The parent choice-box of the candidate is called the {\em fork} and
+the parent and-box of the fork is called the {\em mother}. The mother is the
+root of the subtree to be copied, or the {\em original} subtree. A new
+and-box is created which is inserted to the left of the mother. The
+new and-box is the root of the {\em copy} of the subtree. The copy is
+identical to the original except for the copy of the fork. The copy of the
+fork has a copy of the candidate as its only and-box. The candidate is
+removed from the original fork which is left with the remaining
+siblings.
+
+Copying a subtree is straightforward. Choice-boxes and and-boxes can
+be copied recursively. The only problem arises when terms are copied.
+When the copy is created all terms, except variables external to the
+subtree, are copied. This means that new variables will be created for
+the copy. A copy of a suspended and-box must constrain the copy of 
+a constrained variable and the suspensions of a copy of a constrained
+variable must refer to the copies of the suspended and-boxes.
+
+When an external variable is encountered no copy should be made, but if
+the variable is constrained the set of suspensions must be examined.  If
+an  and-box of the original tree is suspended on the variable a new
+suspension must be added for the copy of the and-box.
+
+\subsection*{Scheduling}
+
+Explicit scheduling information is needed to guide the execution after
+a choice splitting. To maintain the scheduling information a {\em task
+stack} is used. The task stack is a sequence of sets. Each set contains
+the {\em task-entries} of a choice-box of the current branch.
+
+
+\begin{center} \begin{tabular}{|l|}\hline
+Task entry \\
+\hline
+\hline
+and-box \\
+\hline
+\end{tabular} \end{center}
+
+The choice-box above the mother is the current choice-box during the
+copying procedure. If the original fork only has one remaining and-box
+an entry for the deterministic and-box is added to the task stack.  If
+the mother and-box is a stable and-box a task entry for the mother is
+added. 
+
+\section{The worker}
+
+
+\subsection*{The execution state}
+
+The execution state represents the information needed by a worker.
+
+
+\begin{center} \begin{tabular}{|l|l|}\hline
+Execution state\\
+\hline
+\hline
+current and-box \\
+current choice-box \\
+argument registers\\
+program counter \\
+insertion point \\
+trail stack \\
+wake stack\\
+task stack\\
+\hline
+\end{tabular} \end{center}
+
+The {\em program counter} holds the next instruction to be executed.
+The {\em argument registers} are used to set up the arguments of a
+goal. The {\em insertion point} is the location at which the
+next choice-box should be inserted. The insertion point need only be
+explicitly recorded for the current and-box. The insertion point of
+and-boxes in the current branch is implicitly represented by the
+branch itself.
+
+\subsection*{The execution phases}
+
+The execution can be divided into several phases.
+
+\begin{description}
+
+\item[Initialize] Construct the root of the configuration.
+
+\item[Decode] Decode instructions, perform promotions. If an inconsistent 
+constraint is tried, fail the current and-box. If a guard instruction
+does not allow promotion, wake suspended and-boxes.
+
+\item[Wake] If a wake-entry is referring to a living and-box install the 
+and-box.
+
+\item[Split] If the and-box is stable and a candidate is found, perform
+a choice-splitting. Install the copy of the candidate.
+
+\item[Suspend] Undo all bindings on external variables, add constraints, 
+suspensions and update stability.
+
+\item[Schedule] If a schedule-entry refers to a living and-box, 
+install the and-box. If the choice-continuation is nonempty the next
+guarded goal is tried.
+
+\item[Move up] If the choice-box is the root of the configuration,
+terminate. Otherwise move to the parent and-box and set the insertion
+point to the position to the right of the choice-box. Resume decoding.
+
+\item[Install] Install each and-box in the branch from (but not including) the 
+current and-box to the and-box. If the installation of an and-box
+fails the and-box fails. Resume execution by decoding the first
+instruction of the and-continuation.
+
+\item[Fail] Undo all external bindings and mark the and-box as dead. 
+If the parent choice-box only has one remaining and-box and the
+and-continuation of the parent choice-box is empty, install the and-box.
+Otherwise move to the scheduler for the parent choice-box.
+
+\end{description}
+
+
+
+\subsection*{Initialize}
+
+The abstract machine is given a goal to execute. The goal is
+represented by a definition and the arguments to the goal.
+A root choice-box is constructed. An and-box is constructed
+and added to the sequence of tried guarded goals of the root. The
+and-box is the current and-box of the execution. The arguments of the
+goal are constructed and stored in the argument registers.
+Variables in the argument structures are all local to the and-box.
+
+An and-continuation is added to the and-box. The permanent registers
+of the and-continuation contain the variables of the arguments. The
+next instruction of the and-continuation is a special guard
+instruction that will never allow promotion (there is no and-box to
+promote to). The insertion point is set to the first position
+in the empty sequence of tried goals and the program counter is set to the
+first instruction of the definition. The execution then continues by
+decoding the first instruction.
+
+
+\subsection*{Decoding}
+
+When the execution of the decision instructions starts,
+ the current
+and-box and insertion point for the next choice-box is known.  The
+program counter is pointing to the first instruction of the
+definition. The decision instructions will determine a sequence of
+guarded goals. If the sequence is empty the execution continues with a
+failure of the current and-box.  If the sequence is nonempty a
+choice-box is created and inserted at the insertion point. If the
+sequence contains more than one guarded goal a choice-continuation is
+created and the argument registers are saved in  the
+choice-continuation. An and-box is created for the first guarded goal.
+This and-box becomes the current and-box of the worker.
+
+Instructions representing a program atom will construct the arguments
+of the program atom and hand control over to the definition of the
+atom.  Before control is transferred the program counter is saved in
+the and-continuation. 
+
+The instructions representing constraint atoms unify terms and
+add bindings. If a unification fails the worker proceeds by failing
+the current and-box.
+
+If the guard instruction is reached all program atoms and constraint
+atoms have been tried. The worker can then decide if a pruning operation
+or a promotion should be performed. The conditions for each guard
+instruction are found in \ref{absinstr}. 
+
+Pruning is easy: by modifying the parent choice-box guarded goals can
+effectively be removed. The and-boxes of tried guarded goals are
+marked as dead and removed from the sequence. Untried guarded goals
+can be removed by replacing the choice-continuation with a
+null-continuation.
+
+When an and-box is promoted the parent choice-box is removed from the
+sequence of tried program atoms and the insertion point is set to the
+position of the removed choice-box. The and-continuation of the
+promoted and-box contains all information needed for the body of the
+guarded goal.  The and-continuation is moved to the parent and-box. It
+is inserted as the first and-continuation in the sequence of
+and-continuations. Decoding can be resumed directly since the program
+counter is referring to the first instruction of the body.
+
+The last instruction of an and-continuation will discard the continuation. 
+The execution is resumed by decoding the first instruction of the next
+and-continuation. The insertion point need not be modified. 
+
+\subsection*{Wake}
+If a promotion cannot be performed the wake entries of the and-box
+are examined. When all wake entries have been handled the and-box is
+suspended. 
+
+\subsection*{Schedule}
+If no schedule entries exist for the parent choice-box 
+the next instruction of the choice-continuation is decoded. 
+
+
+\subsection*{Failing}
+
+If an and-box fails it is marked as dead and removed from the sequence
+of and-boxes. If the parent choice-box only has one remaining and-box
+this and-box is tried. This must be done since the and-box may have
+become leftmost or deterministic. The and-box is installed and, if the
+installation succeeds, execution is resumed by decoding the first
+instruction of the and-continuation. If the parent choice-box has more
+than one and-box execution continues by moving up to the choice-box
+and performing the scheduling tasks of the choice-box.
+
+
+
+\section{Instructions} \label{absinstr}
+
+The instruction set presented here is one of many possible
+sets. The set presented is not very efficient, but is mainly an
+adaption of the WAM instruction set. 
+
+The instructions are divided into four groups: {\em decision},
+{\em procedural}, {\em guard} and {\em term instructions}. The term
+instructions are further divided into {\em get}, {\em put} and {\em
+unify instructions}.
+
+\medskip
+\begin{center}\begin{tabular}{|l|l|l|} \hline
+Decision instructions & Procedural instructions & Guard instructions \\
+\hline
+switch\_on\_term Lv La Ln Ll Ls & allocate N	& guard\_cut \\
+try L 				& call P	& guard\_commit \\
+retry L 			& execute P     & guard\_wait \\
+trust L 			& proceed 	& guard\_halt\\
+try\_single L			&		& \\
+fail         			&		& \\
+\hline
+\end{tabular} \end{center}
+
+\medskip
+\begin{center} \begin{tabular}{|l|l|l|} \hline
+Get instructions & Put instructions & Unify instructions \\
+\hline
+get\_variable xi/yi xi  & put\_variable xi/yi xi        & unify\_variable xi/yi \\
+get\_value xi/yi xi     & put\_value xi/yi xi           & unify\_value xi/yi \\
+get\_constant C xi      & put\_constant C xi            & unify\_constant xi/yi \\
+get\_structure S xi     & put\_structure S xi           & unify\_structure xi/yi \\
+get\_list xi            & put\_list xi                  & unify\_list xi/yi  \\
+get\_nil xi             & put\_nil xi                   & unify\_nil xi/yi \\
+                        & put\_void xi                  & unify\_void xi/yi \\
+\hline
+\end{tabular} \end{center}
+
+
+\subsection*{Coding of Definitions}
+
+An example of a definition coding is shown below.  As one can see it
+is in many ways similar to a WAM \cite{wam} coding.  The coding
+generation rules are not described.  An example will have to do for
+the time being.
+
+\begin{verbatim}
+append([],Y,Y).
+append([H|X],Y,[H|Z]):- append(X,Y,Z).
+\end{verbatim}
+
+\begin{verbatim}
+append/3:
+    switch_on_term Lv,La,Ln,Ll,Ls
+        Lv:     try A
+                trust B
+        La:     try_single A
+        Ln:     fail
+        Ll:     try_single B
+        Ls:     fail
+        A:      allocate 0
+                get_nil x0
+                get_variable x3 x1
+                get_value x3 x2
+                guard_wait
+                proceed
+        B:      allocate 3
+                get_list x0
+                unify_variable x3
+                unify_variable y0
+                get_variable y1 x1
+                get_list x2
+                unify_value x3
+                unify_variable y2
+                guard_wait
+                put_value y0 x0
+                put_value y1 x1
+                put_value y2 x2
+                execute append/3
+\end{verbatim}
+
+
+
+\subsection*{Decision instructions}
+
+The decision instructions perform more than just indexing; they are
+also responsible for building the choice-box of the goal and the
+and-box for each guarded goal. The code for a guarded goal must
+therefore, unlike in the WAM, always begin with a {\em try}
+instruction. If only one clause is applicable the {\em try\_single}
+instruction is used.
+
+
+\instruction{switch\_on\_term Lv, Ln, La, Ll, Ls}
+This instruction performs indexing on the type of the argument in the
+first argument register.  Given that the argument is a variable, an
+integer, an atom, a list, or a structure the code is
+found at addresses {\em Lv}, {\em Ln}, {\em La}, {\em Ll}, or {\em
+Ls}, respectively. 
+
+\instruction{try L} 
+A choice-box and choice-continuation is created. The choice-box is
+inserted at the insertion point. The arguments to the goal are stored
+in the choice-continuation.  The continuation instruction is set to
+the value of the program counter, i.e. the address of the instruction for
+the next guarded goal.  Finally an and-box is created and inserted as
+the first and-box and control is transferred to the code for the first
+guarded goal.
+
+\instruction{retry L} 
+The argument registers are restored from those saved in the
+choice-continu\-ation.  An and-box is created and inserted at the end of
+the list of and-boxes and control is transferred to the code of the
+guarded goal.
+
+\instruction{trust L}
+The trust instruction is equal to the {\em retry} instruction except that
+the choice-box continuation is changed to a null-continuation.
+
+\instruction{try\_single L} 
+This instruction is used if only one clause is applicable. The
+instruction is equal to the try instruction but a null-continuation is
+used as a continuation.
+
+\instruction{fail} The fail procedure is executed for the current and-box.
+
+\subsection*{Procedural instructions}
+
+The procedural instructions are responsible for the flow of control in 
+an and-box.
+
+\instruction{allocate N}
+This instruction creates an and-continuation with room for {\em N} permanent
+registers. The instruction should always follow a try instruction even for a
+clause with no permanent variables since the continuation also includes the
+continuation code pointer.
+
+
+\instruction{call P}
+The instruction initiates the calling of a goal.  The address to the
+next instruction is saved in the current and-continuation. Control is
+then transferred to the code of the definition.
+
+
+\instruction{execute P} The instruction is different from {\em
+call(L)} only in that it pertains to the last goal in the body of a
+clause.  Therefore, it does not save the program counter, but instead
+discards the current and-continuation. The result is the same as
+executing a call instruction followed by a proceed instruction.
+      
+\instruction{proceed} The last instruction of a body.  The current
+and-continuation is discarded, and control is transferred to code at
+the address stored in the next and-continuation.
+
+
+\subsection*{Guard instructions}
+
+The guard instruction is the last instruction of the guard.
+
+\instruction{guard\_cut }
+If the and-box is quiet and leftmost the siblings of the and-box are
+marked as dead and the and-box is promoted.  If the
+and-box is quiet but not leftmost the and-boxes to the right of it
+are removed and marked as dead.
+
+\instruction{guard\_commit }
+If the and-box is quiet the and-box is promoted. The siblings of 
+the and-box are marked as dead.
+
+\instruction{guard\_wait }
+If the and-box is the last and-box it is promoted. The and-box is the
+last and-box if it has not got any siblings and the parent choice box
+has not got a choice-continuation.
+
+\instruction{guard\_halt} A special guard instruction  only used in the and-box
+immediately below the root choice-box. It will never allow promotion.
+
+\subsection*{Term instructions}
+
+The term instructions are unification specific i.e. specialized for
+equality over rational trees ( {\em get\_variable}, {\em put\_value}
+and {\em put\_variable} are general). 
+
+The term instructions need an extra register called the {\em
+structure pointer}. The register is used when lists and structures are
+unified. The unify instructions can be executed in {\em read mode} or {\em
+write mode} depending on whether a list or structure is created or not.
+
+The arguments of the term instructions refer to the argument
+registers of the execution state ({\em Xi}) and the permanent
+registers ({\em Yi}) of the and-continuation.
+
+The instructions are all quite similar to the corresponding WAM instructions. 
+
+\subsubsection{Get instructions}
+
+\instruction{get\_variable Xi/Yi, Xj }
+The value in register Xj is moved to register Xi/Yi. 
+
+\instruction{get\_value Xi/Yi, Xj}
+The value in register Xj is unified with the value in register
+Xi/Yi. 
+
+\instruction{get\_constant C, Xj }
+The constant value C is unified with the value in register Xj.
+
+\instruction{get\_structure F, Xj }
+If register Xj contains a variable, then a template for a
+structure with functor F is created, and it is bound to the
+variable.  Also, the structure pointer is set to refer to the first
+argument of the structure, and the execution enters write mode.  If the
+value in Xj is a structure, and its functor is equal to F, the
+structure pointer is set to refer to the first argument of the
+structure.  Otherwise, failure is performed.
+
+\instruction{get\_list Xj }
+If register Xj contains a variable, then a template for a list
+cell is created, and it is bound to the variable.  Also, the structure
+pointer is set to refer to its first argument, and instruction
+decoding enters write mode.  If the value in Xj is a list, the
+structure pointer is set to refer to the first argument of the list.
+Otherwise, failure is performed.
+
+\instruction{get\_nil Xj }
+The constant value nil is unified with the value in register Xj.
+
+\subsubsection{Unify instructions}
+
+The unify instructions are executed in read or write mode. 
+
+\instruction{unify\_variable Xi/Yi }
+In read mode, the value referred to by the structure pointer is
+moved to register Xi/Yi.  In write mode, a new variable is
+created and is stored both in register Xi/Yi and in the argument
+referred to by the structure pointer.  In both cases the structure
+register is incremented.
+
+\instruction{unify\_value Xi/Yi }
+In read mode, the value referred to by the structure pointer is
+unified with the value in register Xi/Yi.  In write mode, the
+value in Xi/Yi is stored in the argument referred to by the structure
+register.  In both cases the structure pointer is incremented.
+
+\instruction{unify\_constant C}
+In read mode the value referred to by the structure register is
+unified with the constant C. In write mode the constant C is stored in
+the argument referred to by the structure pointer. In both cases the
+structure pointer is incremented.
+
+\instruction{unify\_structure F}
+In read mode the value referred to by the structure register is
+unified with a template for a structure with functor F. In write mode
+such a template is created  and stored in the
+argument referred to by the structure pointer. In both cases the
+structure pointer is set to refer to the first argument of the
+structure.
+
+\instruction{unify\_list}
+In read mode the value referred to by the structure register is
+unified with a template for a list structure. In write mode such a template
+is created and stored in the argument referred to by
+the structure pointer. In both cases the structure pointer is set to
+refer to the first argument of the list.
+
+\instruction{unify\_nil}
+In read mode the value referred to by the structure register is
+unified with the constant nil. In write mode the constant nil is stored in
+the argument referred to by the structure pointer. In both cases the
+structure pointer is incremented.
+
+\instruction{unify\_void }
+In read mode the structure register is incremented. In write mode, a new
+variable is created and stored in the argument referred to by the structure
+pointer. The structure pointer is then incremented.
+
+\subsubsection{Put instructions}
+
+\instruction{put\_variable Xi/Yi, Xj }
+A new variable is created and is stored both in register Xi/Yi and in
+register Xj. 
+
+\instruction{put\_value Xi/Yi, Xj }
+The value in register Xi/Yi is stored in register Xj. 
+
+\instruction{put\_constant C, Xj }
+The constant C is stored in register Xj. 
+
+\instruction{put\_structure F, Xj } 
+A template for a structure with functor F is created, and it is moved
+to register Xj.  The structure register is set to refer to the first
+argument of the structure, and the worker enters write mode.
+
+\instruction{put\_list Xj }
+A template for a list cell is created, and it is moved to register Xj.
+The structure register is set to refer to its first argument, and the
+worker enters write mode.
+
+\instruction{put\_nil Xj }
+The constant nil is stored in  register Xj.
+
+\instruction{put\_void Xj }
+A new variable is created and is stored in register Xj. 
+
+
+\chapter{Implementation}\label{ch:impl}
+
+
+The implementation favors flexibility over efficiency.  It is intended to be
+highly portable and to serve as a test bed for further extensions. These
+requirements have lead us to implement the abstract machine in terms
+of an emulator. An emulator is fairly simple in its structure while still
+allowing a high performance implementation.
+
+\section{The Configuration}
+
+While the previous chapter described the properties of the
+configuration this chapter describes how the properties are explicitly
+represented. 
+
+\subsection*{Choice-boxes}
+
+A choice-box contains a pointer to a {\em choice-continuation},
+pointers to the next and the previous choice-box, a pointer to the father
+and-box and a pointer to the tried and-boxes. 
+
+\begin{verbatim}
+struct choicebox {
+    struct choicecont *cont;
+    struct choicebox  *next, *previous;
+    struct andbox     *father;
+    struct predicate  *def;
+    struct andbox     *tried;
+    choiceboxtype     type;
+}
+\end{verbatim}
+
+Choice-boxes under an and-box are doubly linked. This is done in order
+to easily remove a choice-box and find the insertion point after a
+promotion. 
+
+\begin{verbatim}
+struct choicecont {
+    union {
+       code           *label;
+       bool           (*cinfo)();
+    } instr;
+    int               arity;
+    Term              arg[ANY];
+}
+\end{verbatim}
+
+A choice-continuation contains an instruction reference, the number of
+argument registers and the argument registers. The instruction
+reference is either a instruction pointer or a pointer to a C function.
+The C function version is used to represent suspended builtin
+definitions.
+
+\subsection*{And-boxes}
+
+The and-box contains a status field, an environment pointer, a pointer
+to the first continuation, a pointer to the first unify constraint,
+pointers to the next and the previous and-box, a pointer to the parent
+choice-box and a pointer to the first choice-box in the tried
+choice-boxes. The list of and-boxes under a choice-box is doubly
+linked in order for eentries to be easily added and removed.
+
+\begin{verbatim}
+struct andbox {
+    sflag              status;
+    struct envid       *env;
+    struct unifier     *unify;
+    struct lsuspension *lsusp;
+    struct choicebox   *tried;
+    struct andcont     *cont;
+    struct choicebox   *father;
+    struct andbox      *next, *previous;
+}
+\end{verbatim}
+
+
+The {\em status} field records whether the and-box is {\em dead}, {\em
+stable} or {\em unstable}. The environment pointer is used to handle
+variable environments. In a living and-box the environment pointer is
+a null pointer. If the and-box is promoted it is set to point to the
+environment field of the parent and-box. The use of the environment
+will be explained further when variables are described.
+
+
+The and-continuation contains: a instruction pointer, a pointer to
+next continuation, the number of permanent register and the permanent
+registers. There can be any number of permanent registers but the
+number is fixed once the permanent registers have been created.
+
+\begin{verbatim}
+struct andcont {
+    code              *label;
+    struct andcont    *next;
+    int	              ysize;
+    Term              yreg[ANY];
+}
+\end{verbatim}
+
+The permanent registers could be allocated on a stack. Only if the
+and-box is suspended would the and-continuation be created and the registers 
+saved. This would improve the performance for non-suspending programs.
+
+\subsection*{Constraints}
+
+A unify constraint contains the arguments of the unification. 
+Unify constraints are linked in single linked lists.
+
+\begin{verbatim}
+struct unifier {
+    struct unifier    *next;
+    Term              var
+    Term              binding;
+}
+\end{verbatim}
+
+\subsection*{Terms}
+
+Terms are represented as tagged pointers. The current tag scheme uses primary
+and secondary tags in the low bits, one high GC mark bit, and integers in the
+address parts of pointers. Primary tags are two bits, and need only be subtracted
+in order to produce an address, since all addresses point to 4-byte aligned
+objects. A secondary tag consists of two more bits above the primary tag,
+which means that the tagged pointer must be shifted to the right in order to
+get the address.
+
+\begin{verbatim}
+typedef unsigned long Term;
+\end{verbatim}
+
+There are seven types of terms: {\em variable}, {\em integer}, {\em atom},
+{\em list}, {\em structure}, {\em float}, and {\em generic object}.
+
+Variables use three primary tags: One for the variable reference ($REF$),
+which points to a variable cell, and two more ($UVA$, $GVA$) which may be
+used only within a variable cell to mark it as an unbound unconstrained or
+constrained variable, respectively. The tag values are selected so that no tag
+removal is necessary in order to dereference a variable, and only a single bit
+test is required to distinguish a bound variable from an unbound one.
+
+The fourth primary tag enables a secondary tag to come into play. One is used
+for lists ($LST$), one for structures ($STR$), one is shared by atoms and
+integers ($IMM$), and the last one is shared by floats and generic objects ($GEN$).
+
+
+\begin{verbatim}
+        REF           0 0
+        UVA           0 1
+        GVA           1 1
+        LST       0 0 1 0
+        IMM     x 0 1 1 0
+        STR       1 0 1 0
+        GEN       1 1 1 0
+\end{verbatim}
+
+
+\subsection*{Variables}
+
+A variable is a pointer to a memory cell that may or may not be part of a
+structure or list. As long as the variable is unbound, the contents of
+the cell is a pointer with a $UVA$ or $GVA$ tag. If the tag is $UVA$, then
+the pointer is an environment identifier. If the tag is $GVA$, then the
+pointer points to a {\em gvainfo} structure, which consists of a pointer
+to a method vector, an environment identifier and constraint-specific private
+data. For AKL's builtin constraint system of rational tree equalities,
+the private data consists of a pointer to a list of suspensions, and the
+method pointer is $NULL$ since all methods are open-coded in this case.
+This type of variable is called $SVA$ ({\em suspended variable}), when it
+is needed to distinguish it from the more general case.
+
+\begin{verbatim}
+struct gvainfo {
+  struct gvamethod    *method;
+  struct envid        *env;
+  struct suspension   *susp;            /* constraint-specific data */
+} gvainfo;
+\end{verbatim}
+
+The environment of a variable points to the environment field of the
+local and-box. It is set to the environment of the current and-box
+when the variable is created. If a variable is local to an and-box
+this can be determined simply by comparing the address of the and-box
+environment with the environment of the variable.
+
+\begin{verbatim}
+struct envid {
+    struct envid      *env;
+}
+\end{verbatim}
+
+If the environment of the variable does not point to the environment
+of the and-box, the variable environment must be dereferenced i.e.
+one must follow the possibly redirected environment link until a null pointer
+is reached. The dereferenced environment is then compared with the
+environment of the and-box for which locality should be detected. The
+dereferenced environment pointer is saved in the variable environment
+to allow a simple comparison the next time the variable is used.
+Notice that the most frequent case, an unpromoted local variable,
+only needs a simple comparison.
+
+\begin{verbatim}
+struct suspension {
+  susptag               type;
+  struct suspension     *next;
+  union {
+    struct andbox       *andb;
+    struct choicebox    *chb;
+  } susp;
+}
+\end{verbatim}
+
+Constrained variables have a pointer to a singly linked list of
+suspensions.  Each suspension has a pointer to the and-box or
+choice-box that is suspended on the variable. Suspensions are added
+when an and-box is suspended or when a call to a builtin definition
+suspends. This is different from the description of the abstract
+machine where only and-boxes could be suspended.
+
+When a variable becomes unconditionally bound, its memory cell is simply
+overwritten with a term. For a conditional binding, the previous contents
+of the memory cell must be saved in case the binding must be undone.
+This is done either by value-trailing the variable, or by swapping the
+contents of the memory cell with the binding in a unify constraint.
+
+
+\subsection*{Atoms, integers, floats, lists and structures}
+
+Atoms and integers share the same secondary tag. They are distinguished
+by the bit next to the secondary tag, in a sense a 1-bit tertiary tag.
+The address part of an atom term is a pointer to an 8-byte aligned object,
+but an index into a table would work just as well.
+
+An atom object a pointer to a print name and a saved hash value. The hash
+value is used to avoid rehashing when looking up definitions. The definition
+hash table is used when programs are loaded and when the {\em meta-call}
+instruction is used.
+
+An integer is represented by 26 bits stored immediately in the address part
+of a tagged pointer.
+
+A list consists of two consecutive words for the arguments.
+
+A structure has a pointer to a functor, containing the name (an atom) and
+arity, and a tuple of arguments. There is also provision for an optional
+environment identifier, which may reduce the amount of copying during choice
+splitting.
+
+A generic object consist of a pointer to a method vector, followed by
+object-specific data. The method vector contains pointers to procedures
+to be used for copying, garbage collecting, printing, and other things.
+
+A float is distinguished from a generic object by having a special reserved
+constant in the first word, instead of a method vector.
+
+
+\subsection*{Definitions}
+
+Each definition that has been defined or that is referred to by a call
+instruction is represented by a {\em definition structure}.  There are
+three types of definitions: {\em emulated}, {\em builtin} and {\em
+undefined}. All definitions are represented by the same structure. The
+structure contains an enter instruction, name and arity, type and an
+instruction pointer. The enter instruction determines the action of
+the emulator when the definition is called. The instruction pointer for
+an emulated definition is a pointer to the instructions of the
+definition. A builtin definition has a C function pointer in the
+instruction field.
+
+\begin{verbatim}
+struct definition {
+    enter_instruction enter_instruction;
+    int               arity;
+    struct atom       *name;
+    definition_type   type;
+    union {
+       code           *label;
+       bool           (*cinfo)();
+    } instr;
+}
+\end{verbatim}
+
+Builtin definitions are created at boot time. The 
+emulated definitions are created at load time. Undefined 
+definitions are created when {\em call} instructions are loaded or
+when the {\em meta call} instruction is used. 
+
+When a {\em call} instruction is loaded the name space server is 
+used to find the right definition. If the definition  
+is not yet defined a undefined definition is created. When the 
+definition later is defined  the undefined definition is 
+changed to an emulated definition. The same thing happens if 
+a {\em meta call} instruction refers to an undefined definition.
+
+\section{The Stacks}
+
+The worker uses five stacks to maintain its execution state. The wake,
+trail and task stacks are described by the abstract machine. In
+addition to these stacks a {\em recall stack} is used. The entries on
+the recall stack refer to suspended choice-boxes that must be retried.
+The choice-boxes were created by suspending builtin definitions.
+
+The task entries are different from their description in the abstract
+machine. There are four possible tasks {\em start}, {\em root}, {\em
+stable} and {\em promote}. The stable and promote tasks are used to
+guide the worker after a choice splitting. These tasks contain an
+and-box pointer.  The start and root tasks have no and-box pointer.
+The start task is used only when the execution is started. The root
+task is used to prevent the worker from moving up from the root
+choice-box. The use of the  tasks is described in \ref{impleng}.
+
+The trail, wake, recall and task stacks are divided into segments by
+{\em context entries}. The context entries are allocated on a stack,
+and each choice-box/and-box pair in the current branch has a
+corresponding context entry.
+
+When the choice-box is created or entered a context entry is added to
+the stack. The entry contains the current stack pointers of the trail,
+wake, recall and task stacks. Entries added to the task stack will
+belong to the choice-box. Entries added to the trail, wake and recall
+stacks belong to the and-box below the choice-box in the current
+path.
+
+If an and-box fails the trail will be used to reset the variables. The
+trail entries contain both a pointer to the variable and the value to reset
+it with. The entries in the wake and recall stacks can be discarded. The task
+entries will remain on the stack since these belong to the parent choice-box.
+The same thing applies in a promotion: the trail is promoted but entries on
+the wake and recall stack can be discarded.
+
+
+\section{The Worker}
+
+The execution state of the worker is collected in a structure. The
+implementation can handle multiple execution states. Each execution state
+represents an independent computation with its own configuration and
+stacks. A worker may create a new execution state to encapsulate a 
+computation. The worker is protected from any errors occurring in the
+encapsulated computation while it can receive the results.
+
+The execution states are linked in a tree. The first execution state
+created is the root of the tree. All executions started by the root
+will be linked in a singly linked list.  Each of these execution
+states can have its own sub-states. The linking of execution states is
+important for garbage collection and correct handling of operating
+system resources.
+
+\begin{verbatim}
+struct exstate {
+  struct exstate        *father;
+  struct exstate        *next;
+  struct exstate        *child:
+  struct choicebox      *root;
+  struct andbox         *andb;
+  struct choicebox      *chb;
+  code                  *pc;
+  struct choicebox      *insert;
+  struct trailhead      trail;
+  struct wakehead       wake;
+  struct recallhead     recall;
+  struct taskhead       task;
+  struct contexthead    context;
+  Term                  areg[MAX_AREGS];
+}
+\end{verbatim}
+
+The configuration is referred to by five pointers: root, current
+and-box, current choice-box, insertion point and program counter.
+These pointers are sufficient to represent the computation at
+positions where we may want to save the state.
+
+
+\section{The Engine}
+
+The heart of the implementation is the engine. It consist of an
+instruction emulator and procedures to carry out all operation on the
+execution state. An invocation of the engine is self contained; all
+parameters are local to the engine. This allows an engine to invoke an
+engine recursively.
+
+
+\subsection*{Initialization}
+
+The input to the initialization is a definition and a tuple of
+arguments. An execution state is created, all stacks are initialized
+and a context entry is pushed on the context stack. A choice-box with
+null continuation is created and added as the root of the execution
+state.
+
+Two tasks, a {\em root task} and a {\em start task} are pushed on the
+task stack.  The root task works as a sentinel, and will be described
+further in the following sections. The start task will be the first
+task to be executed, and is only added in the initialization phase. 
+
+An and-box is created and inserted as the only tried and-box of the
+root. The and-box is called the {\em main and-box} and will be given
+special attention in the execution. Its and-continuation contains the
+local variables of the main goal and an instruction label refering to an
+{\em guard\_halt} instruction. 
+
+The engine is given the initialized execution state and starts the
+execution. The engine will first move to the {\em choice handler}, a
+procedure which decodes the entries on the task stack.  To start
+the execution with a task instead of an instruction gives the freedom
+to provide more complex start procedures.
+
+
+\subsection*{Emulator}
+
+The emulator reads the next instruction pointed to by the program
+counter. The program counter is not updated by the read instruction.
+Updating is done when the instruction is decoded, since only then do
+we know the size of the instruction.
+
+If a unification fails or if an undefined definition is called the
+engine will move to the {\em fail handler}. If a guard instruction is
+executed and an immediate promotion is not allowed the engine will move
+to the {\em guard handler}. If the guard halt instruction is executed
+the engine will move to the {\em main handler}.
+
+\subsection*{Guard handler}
+
+The guard handler examines the entries on the wake stack.  If a wake
+entry refers to a living and-box the engine moves to the {\em wake
+handler}. If the wake stack is empty  the recall stack is
+examined. If a recall entry refers to a choice-box with a
+continuation and a living father the engine moves to the {\em recall
+handler}.
+
+If the current and-box is not solved, marked as stable and has an
+empty trail a choice splitting is tried. If a candidate is found the
+engine moves to the {\em split handler} otherwise the engine moves to the
+{\em suspend handler}.
+
+\subsection*{Main handler}
+
+The main and-box is slightly different from the general guard handler.
+If all wake and recall entries have been handled and the current
+and-box is solved the engine should terminate. A solution is found to
+the original goal (there might be more solutions) and should be reported to 
+the invoker of the engine.
+
+If the current and-box is not solved and a choice splitting could not
+be performed  the engine terminates and reports a suspended computation.
+
+\subsection*{Wake handler}
+
+The program counter is stored in the and-continuation of the current
+and-box and the woken and-box is installed. If the installation fails
+the failing and-box is made the current and-box and the engine moves to 
+the fail handler.  If the installation succeeds the and-box
+is made the current and-box, the program counter is set to the first 
+instruction of the and-continuation and the engine moves to the emulator.
+
+
+\subsection*{Recall handler}
+
+The program counter is stored in the and-continuation of the current
+and-box and the parent and-box of the woken choice-box is installed.
+If the installation fails the failing and-box is made the current
+and-box and execution proceed with the failure procedure.  If the
+installation succeeds the and-box is made the current and-box,
+Execution continues by calling the C function of the choice
+continuation.
+
+The choice continuation is set to null to stop other recall entries
+from invoking the same procedure. If the builtin definition fails the 
+engine moves to the fail handler. If the definition succeeds the 
+program pointer is set to the first instruction of the
+and-continuation and the engine moves to the emulator.
+
+
+\subsection*{Split handler}
+
+The worker moves to the choice box immediately above the mother
+and-box.  After the subtree has been copied  an entry could be added to
+the task stack. If the fork has only one remaining and-box a promote
+task is added. Otherwise, if the mother is stable, a stable task is
+added. The copy of the candidate is installed, the program counter is
+set to the first instruction of the and-continuation and the engine
+moves to the emulator.
+
+\subsection*{Suspend handler}
+
+The current and-box is suspended, the worker moves to the 
+parent choice-box. The engine then moves to the choice handler.
+
+\subsection*{Choice handler} \label{impleng}
+
+The choice handler examines the task entries on the task stack.  The
+start task is only used once to initialize registers and start the
+execution. A root task will cause the engine to terminate with
+failure.  Observe that by using a root task the engine does not need
+to examine whether a choice-box is the root or not.
+
+A split or promote task will cause the and-box of the task to be
+installed, the program counter is set to the first instruction of the
+and-continuation and the engine moves to the emulator.
+
+By tagging the task a promote task refers to an
+and-box two levels below the current choice-box. A stable and-box is
+immediately below the current choice-box.
+
+If the task stack is empty the next guarded goal of the
+choice-continuation is tried. The program counter is set to the first
+instruction of the continuation and the engine moves to the emulator.
+
+If the choice continuation is empty and the list of and-boxes is empty 
+the choice-box fails. The engine moves to the fail handler.
+
+\subsection*{Fail handler}
+
+The trailed variables and variables bound in the constraint list are
+unbound. Entries on the wake and recall stacks are discarded and the
+current and-box is removed. If the parent choice-box only contains a
+single and-box and its continuation is empty the and-box is installed.
+The program counter is set to the first instruction of the
+and-continuation and the engine moves to the emulator.
+
+If the failing and-box is the only and-box of the parent
+choice-box and the choice-continuation is empty the parent and-box
+fails. The problem is that the choice-box could be the root
+choice-box. If it is the root there is no parent and-box to fail. 
+Instead of testing whether the choice box is the root the engine
+moves to the choice-handler. 
+
+\section{Memory management}
+
+The {\em code area} holds the instructions of definitions. An {\em
+atom heap} is used to allocate atoms, functor names, definition names
+and load time integers. The code area and atom heap have a fixed size,
+neither is subject to garbage collection.
+
+All run time terms are allocated on the general heap, from 
+here on referred to as the {\em heap}. The heap is also used 
+for the allocation of choice-boxes, choice-continuations, 
+and-boxes, and-continuations, constraints and suspensions.  
+The heap is automatically expanded if needed and is 
+subject to garbage collection.
+
+
+\subsection*{Name space servers}
+
+Three name spaces are maintained: atom space, functor space and
+definition space. Each name space is accessed through a hash table.
+Each hash table holds a bucket of entries where each entry is a
+pointer to an atom, a functor or a definition respectively.
+The tables are fixed in size and are not subject to garbage
+collection.
+
+The atom space and functor space servers are used when new atoms and
+functors are created. This happens at boot time and at load time when new
+definition are defined. It can also happen at runtime if new atoms or
+functors are constructed explicitly by the builtin definitions.
+
+
+The definition name server is used when definitions are 
+defined or referenced. This happens at boot time, at load 
+time or when the meta call instruction is executed.  Ordinary 
+calls do not use the name server.
+
+\subsection*{Code area}
+
+The code area has a static size. The default size can be 
+changed by parameters given at execution time.  The area is 
+not subjected to garbage collection so once we run out of 
+space there is no other option but to restart the system.
+
+Each element in the area is a 32 bit word. It holds either the op-code
+of the instruction, a pointer to an atomic value, a pointer to a
+definition or an index. It is clearly wasteful to use a full word in
+each case but it avoids problems of alignment.
+
+
+\subsection*{Constant area}
+
+The constant area is used for structures that will not become garbage
+during the execution, i.e. atoms and integers created at load time.
+
+The constant area is not subject to garbage collection and does not
+increase in size. Two things may cause the structures in the constant
+area to become garbage. If a definition is redefined, structures that
+are only referenced by the old definition will become unreferenced.
+Also if atoms and integers defined at runtime are no longer referred to, they
+become garbage.
+
+\subsection*{Heap}
+
+The heap is organized as a set of blocks. Each block header 
+keeps a pointer to the start of the block, a pointer to the end 
+of the block and a pointer to the next block.  The blocks need 
+not be kept in any specific order; the addresses of items are 
+never used for anything but equality.
+
+Two lists are maintained: free blocks and used blocks.  Blocks are
+removed from the list of free blocks as long as the number of used
+blocks does not exceed a certain limit.  When the limit is reached a
+garbage collection flag is raised. The garbage collection uses a
+copying strategy where the remaining free blocks are used.
+
+The segmented heap allows an efficient implementation of 
+incremental heap space. If a larger heap is needed new blocks 
+are requested from the operating system. New blocks can be 
+used directly and old blocks will not be deallocated.  
+
+The segmented heap furthermore  allows a better memory 
+utilization than the fifty percent normally obtained by a 
+copying garbage collector.  We can allow the system to use up 
+to eighty percent of the blocks before a garbage collection is 
+performed. The remaining twenty percent normally 
+sufficient to hold the living data. If more blocks are needed 
+new blocks are requested from the operating system.
+
+The block size, the number of blocks and the garbage collection limit can be 
+passed as parameters to the program. The only requirement is 
+that the size of the blocks must not be smaller than the largest 
+object. 
+
+\subsection*{Copying} \label{implcopy}
+
+The implementation of the copying procedure is fairly straightforward.
+An and-box is copied by copying the box, the continuation, the
+suspensions and the tried choice-boxes.  A choice-box is copied by
+copying the box, the choice-continuation and the tried and-boxes.
+When an and-box or a choice-box is copied the father pointer is set to
+null and the previous pointer is set to the copy of the box. This is
+done to identify a copied box and to find the copy of the box. It is
+important that this is done as the first step in copying a box.
+
+To copy the terms a scavenger algorithm is used. First a duplicate of
+the term is created, and a forwarding pointer is stored in the original
+structure. This allows circular structures to be copied. A pointer to
+the original structure is pushed on a stack, together with the data that
+was overwritten by the forwarding pointer. When the copying procedure
+is finished, the original structures are restored.
+
+The arguments of a term are scavenged with an algorithm that uses
+pointer reversal to traverse the tree depth-first, right-to-left.
+References to variables that have not yet been copied are registered
+on a stack to be processed after all other terms have been copied. This
+way, if the variable cell is part of a structure that gets copied, no extra
+storage needs to be allocated for that variable.
+
+A high mark bit is used to identify forwarding pointers. The same bit is
+also used to mark the leftmost word of an argument tuple that is being
+scavenged.
+
+A constrained variable that is external to the copied subtree should
+not be copied. The variable is external if it is local to an uncopied
+and-box. A pointer to the the variable's gvainfo structure is pushed on
+a stack. A special mark bit is set in the gvainfo structure to avoid it
+from being pushed twice.
+
+A constrained variable that is local to the subtree is copied
+but the copying of the suspensions is postponed until the whole
+subtree has been copied.
+
+When the subtree has been copied the constrained external variables
+are examined.  Any suspension that refers to a copied box must be
+duplicated. A pointer to the copy of the box is found in its previous
+field. The suspensions of constrained local variables must be copied to
+the copy of the variable. The suspensions can refer to uncopied boxes
+in which case they are ignored.
+
+When the variables have been handled the forwarding pointers of the original
+terms can be reset. The last step is to traverse the copied subtree and reset
+all boxes.
+
+
+\subsection*{Garbage collection} \label{implgc}
+
+All execution states share the same storage allocator. This means that
+garbage collection is done for all execution states at the same time.
+
+Unused heap space is reclaimed by a stop-and-copy garbage collection.
+The implementation has two advantages: the time to perform a garbage
+collection is proportional to the size of the living structures and it
+is easy to implement. The major disadvantage of a copying approach,
+the low utilization of heap space, is largely avoided by the use of a
+segmented heap.
+
+The garbage collector uses the same algorithm as the copying
+procedure. The difference is that the garbage collector does not need
+to reset the copied tree. 
+
+The garbage collection flag is examined at every {\em call}, {\em execute},
+and {\em proceed} instruction, and also before suspending an and-box.
+
+
+\appendix
+
+\chapter{Definition of AKL} \label{app:akldef}
+
+The following language definition is adapted from \cite{fra91PEPMA}.
+It is included here to make this report more self-contained.  The
+first few sections define the standard computation model.  In the
+final section of this appendix, we introduce adaptions of the
+computation model that simplify the exposition of the execution model.
+
+\section{The Syntax of Clauses and Goals}\label{REF1}
+
+A {\em program atom} is an atomic formula of the form
+$p(x_1,\dots,x_n)$ with different variables $x_1,\dots,x_n$, called
+{\em head parameters}. A {\em constraint atom} is any atomic formula
+without function symbols in some constraint language. More about
+constraints in section \ref{REF2}. It is assumed that these two
+classes of atomic formulas are disjoint. The remaining syntactic
+categories pertaining to programs are the following.
+%
+$$\arraycolsep 2pt%
+\renewcommand{\arraystretch}{1.3}%
+\begin{array}{rcl}
+\nt{guarded clause}&\bnf&\nt{head}\pdef\nt{guard}\nt{guard operator}\nt{body}\\
+\nt{head}&\bnf&\nt{program atom}\\
+\nt{guard}&\bnf&\nt{non-empty sequence of atoms}\\
+\nt{atom}&\bnf&\nt{program atom}\mid\nt{constraint atom}\\
+\nt{body}&\bnf&\nt{sequence of atoms}\\
+\nt{guard operator}&\bnf&\mbox{`$\wait$'}\mid\mbox{`$\cut$'}\mid\mbox{`$\commit$'}\mbox{\quad(wait, cut, commit)}
+\end{array}$$%
+%
+A {\em definition} is a finite sequence of guarded clauses with the
+same head atom and the same guard operator, defining the predicate of
+the head atom. We speak of wait-definitions, cut-definitions, and
+commit-definitions. Cut and commit are the {\em pruning} guard
+operators. A {\em program} is a finite set of definitions where no two
+definitions define the same predicate, and the predicate of every
+program atom occurring in a clause in the program has a definition in
+the program. The {\em local parameters} of a clause are those
+variables that are not head parameters.
+
+`\%' below stands for any of the guard operators.
+
+The execution of an Andorra program will be represented as a series of
+rewrites of goal expressions. The syntax of these expressions is
+defined as follows.
+%
+$$\arraycolsep 2pt%
+\renewcommand{\arraystretch}{1.3}%
+\begin{array}{rcl}
+\nt{and-box}&\bnf&\AND(\nt{non-empty sequence of local goals})_{\nt{set of variables}}\\
+\nt{local goal}&\bnf&\nt{atom}\mid\nt{choice-box}\\
+\nt{choice-box}&\bnf&\CHOICE(\nt{sequence of guarded goals})\\
+\nt{guarded goal}&\bnf&\nt{configuration}\nt{guard operator}\nt{seq. of atoms}\\
+\nt{or-box}&\bnf&\OR(\nt{sequence of configurations})\\
+\nt{configuration}&\bnf&\nt{and-box} \mid \nt{or-box}\\
+\nt{open goal}&\bnf&\nt{configuration}\mid\nt{local goal}\\
+\nt{goal}&\bnf&\nt{open goal}\mid\nt{guarded goal}
+\end{array}%
+$$
+%
+The guarded goals in a choice-box have the same guard operator.
+
+In the following, the letters $R$, $S$, and $T$ stand for sequences of
+goals, $A$ for a sequence of atoms, and $C$ for a sequence of
+constraint atoms. Any of these may stand for the empty sequence. The
+letter $G$ (occasionally $X$) will be used for goals, and for the
+guard in a guarded clause.  Concatenation of sequences will be written
+using comma, which is not likely to be confused with the use of comma
+for separating arguments.
+
+The symbol $\FAIL$ will be used to denote the empty or-box and the
+empty choice-box, regarded as collapsing to the same object. $G$ is a
+{\em total failure} if $G$ is either $\FAIL$ or an or-box
+$\OR(G_1,\dots,G_n)$ where each $G_i$ is a total failure.
+
+The set of variables attached to an and-box contains the variables
+{\em local} to that box, introduced in local forking or in defining an
+initial goal, as described below. An and-box of the form $\AND(C)_V$
+will normally be written as $C_V$.
+
+A variable in $G$ is {\em external} to a subgoal $G'$ of $G$ if it is
+local to some and-box properly containing $G'$, or if it is not local
+to any and-box.
+
+In a guarded goal, the configuration preceding the guard operator is
+the {\em guard} of the goal. The atoms following the guard operator
+are not regarded as goals, but become such when one of the promotion
+rules defined in section \ref{REF3} is applied to the goal.
+
+We will speak of {\em subgoals} of goals in the obvious sense. That is,
+%
+\begin{itemize}
+\item $G$ is a subgoal of $G$,
+\item The subgoals of $G_1,\dots,G_n$ are subgoals of
+$\AND(G_1,\dots,G_n)_V$, $\OR(G_1,\dots,G_n)$, and
+$\CHOICE(G_1,\dots,G_n)$,
+\item The subgoals of $G$ are subgoals of $G \guard A$.
+\end{itemize}
+%
+Subgoals of $G$ other than $G$ itself are called {\em proper} subgoals.
+
+Usually, we will be talking about {\em occurrences} of subgoals,
+rather than of just the syntactic form of a subgoal. So the
+definitions below should in most cases be read as dealing with
+occurrences of goals.  Since confusion between form and occurrence is
+unlikely, the distinction will mostly be implicit.
+
+In the case where $G$ is an and-box, an or-box, or a choice-box, we
+will speak of subgoals of $G$ (including $G$ itself) as occurring {\em
+in} $G$, and of $G$ as a {\em surrounding} box.  Again the
+qualification ``properly'' excludes $G$ itself.
+
+\section{Constraints}\label{REF2}
+
+Constraints will be regarded as formulas in some constraint language.
+The only constraint formulas that occur in goals are atomic
+constraints without function symbols.  The letters $\sigma$, $\tau$,
+and $\theta$ will be used for conjunctions of such constraints.
+
+In the following, $\exists \sigma$ stands for the existential closure
+of $\sigma$, and $\exists V$, where $V$ is the set $\{x_1,\dots,x_n\}$,
+for (any permutation of) the quantifier sequence $\exists x_1 \cdots
+\exists x_n$.  We allow $V$ to be empty, in which case $\exists V$ is mere
+decoration.
+
+We assume given some complete and consistent constraint theory
+\mbox{\bf TC} defining the following logical properties of constraints:
+%
+\begin{itemize}
+\item $\sigma$ is {\em satisfiable} iff $\mbox{\bf TC} \models \exists \sigma$,
+\item $\theta$ is {\em unconstrained by} $\sigma$ (or: $\sigma$ {\em does not restrict} $\theta$) {\em outside} $V$ iff $$\mbox{\bf TC} \models \theta \implies\exists V (\sigma \land \theta)$$
+\end{itemize}
+%
+This latter condition will also be expressed by saying that $\sigma$
+does not restrict $\theta$ with respect to the complement of $V$.
+
+The symbol $\TRUE$ is used to denote a variable-free atomic formula
+for which it holds that $\mbox{\bf TC} \models \TRUE$. It will also be
+assumed that there is a variable-free atomic formula $\FALSE$ for
+which $\mbox{\bf TC} \models \neg\FALSE$. No further assumptions
+concerning the properties of {\bf TC} will be made unless explicitly
+stated.
+
+That {\bf TC} is assumed to be complete is just a matter of
+theoretical convenience.  Function symbols are excluded from
+constraint atoms because they have no role to play in the
+interpretation or execution of a program. This is no restriction from
+a theoretical point of view, since any definitions of the constraint
+atoms may be part of {\bf TC}. In specifying a particular language
+following the AKL model we need to define not only the constraint
+theory {\bf TC} but also the class of constraint atoms. In the
+familiar cases of Herbrand terms (or finite trees) and rational trees,
+we will speak of ``AKL with Herbrand equalities'' and ``AKL with
+rational tree equalities'', meaning that the predicate $p$ of a
+constraint atom either is equality, or else has a definition in the
+constraint theory of the form
+%
+$$\forall x (p(x_1, \dots, x_n) \equiv s=t)$$
+%
+where s and t are terms containing no variable not in $x_1, \dots,
+x_n$.  The constraint theories are in these cases {\bf HC}, the
+complete elementary theory of Herbrand terms, and {\bf RC}, the
+complete elementary theory of rational trees, both extended with the
+above definitions.
+
+For a sequence $R$ of goals, $\sigma(R)$ denotes the conjunction of
+the constraint atoms in the sequence, or true if there are no
+constraint atoms in $R$. The {\em environment} of (an occurrence of) a
+subgoal of a configuration $G$, or more explicitly its environment in
+$G$, is the conjunction of $\sigma(R)$ for every properly surrounding
+and-box $\AND(R)_V$ in $G$, or $\TRUE$ if there is no such and-box.
+
+Constraints $\sigma$ and $\tau$ are {\em incompatible} if
+$\sigma\land\tau$ is unsatisfiable. An occurrence of $C_V$ in $G$ is
+{\em quiet} if $\sigma(C)$ does not restrict the environment of $C_V$
+outside $V$.
+
+\section{Rewrite Rules}\label{REF3}
+
+The rewrite rules below are to be understood as being applicable to any
+subgoal of a goal.  That is, we define the rewrite relation on goals
+%
+$$G \transit G'$$
+%
+as meaning that $G'$ is obtainable from $G$ by rewriting one
+occurrence of some subgoal $X$ of $G$ as $X'$ in accordance with one
+of the rewrite rules
+%
+$$X \rewriteto X'$$
+%
+defined below. (We will say that $G \transit G'$ via $X \rewriteto
+X'$.)  So references to the environment of $X$ refer to the
+environment of $X$ as a subgoal of $G$.  In speaking of the goal to
+which a rule is applied, we will always mean $X$ rather than $G$; an
+application of a rule to a subgoal of G is an application within $G$.
+A deterministic operation is an application of any rule other than
+non-determinate promotion.
+
+Note that $X$ and $X'$ are always open goals, and $X$ is never an
+or-box.
+
+\subsection*{Local Forking}
+
+A program atom subgoal $A$ is rewritten by
+%
+$$A \rewriteto \CHOICE(\AND(G_1)_{V_1} \guard A_1,\dots,\AND(G_n)_{V_n} \guard A_n)$$
+%
+where $H \pdef G_i \guard A_i\quad(i=1,\dots,n)$ is the sequence of
+clauses defining the predicate of $A$, with the arguments of $A$
+substituted for the head parameters, and the local parameters of the
+$i$:th clause replaced by the variables in the set $V_i$. When $G$ is
+rewritten to $G'$ by applying local forking to an atomic subgoal of
+$G$, the sets $V_i$ are chosen to be disjoint from the set of
+variables in $G$.
+
+\subsubsection*{Failure Propagation}
+
+$$\AND(R,\FAIL,S)_V \rewriteto \FAIL$$
+
+\subsubsection*{Choice Elimination}
+
+$$\CHOICE(R,\FAIL\guard A,S) \rewriteto \CHOICE(R,S)$$
+
+\subsubsection*{Environment Synchronization}
+
+$$\AND(R)_V \rewriteto \FAIL$$ 
+%
+if $\sigma(R)$ is incompatible with the environment of the and-box.
+
+\subsubsection*{Guard Distribution}
+
+$$\CHOICE(R,\OR(G,S) \guard A,T) \rewriteto \CHOICE(R,G \guard A,\OR(S) \guard A,T)$$
+
+\subsubsection*{Determinate Promotion}
+
+$$\AND(R,\CHOICE(C_V \guard A),S)_W \rewriteto \AND(R,C,A,S)_{V \cup W}$$
+%
+if $C_V$ is satisfiable, and in case $\guard$ is cut or commit is also
+quiet.  The rewrite is performed {\em with respect to} $C_V$, and also
+{\em with respect to} $\CHOICE(C_V \guard A)$.
+
+\subsubsection*{Cut}
+
+$$\CHOICE(R,C_V \cut A,S) \rewriteto \CHOICE(R,C_V \cut A)$$
+%
+if $S$ is non-empty and $C_V$ is satisfiable and quiet.
+
+\subsubsection*{Commit}
+
+$$\CHOICE(R,C_V \commit A,S) \rewriteto \CHOICE(C_V \commit A)$$
+%
+if $R$ or $S$ is non-empty and $C_V$ is satisfiable and quiet.
+
+\subsubsection*{Non-Determinate Promotion}
+
+{\renewcommand{\arraystretch}{1.3}%
+\begin{eqnarray*}
+\lefteqn{\AND(T_1, \CHOICE(R, C_V \wait A, S), T_2)_W \rewriteto}\\
+\mbox{\qquad}& &\OR(\AND(T_1, C, A, T_2)_{V\cup W}, \AND(T_1, \CHOICE(R, S), T_2)_W)
+\end{eqnarray*}}%
+%
+if $R$ or $S$ is non-empty. The condition for non-determinate
+promotion to be applicable is a bit complicated and merits separate
+treatment.
+
+\section{Stability and Non-Determinate Promotion}\label{REF4}
+
+A couple of definitions are useful in discussing non-determinate
+promotion: a cut-guard or commit-guard in $G$ of the form $C_V$ is
+{\em suspended} if it is not quiet. A step {\em unfreezes} a suspended
+guard if the guard is quiet after that step. An application of cut,
+commit, or environment synchronization is {\em non-trivial} if the
+environment of the goal to which the operation is applied is
+consistent. Other operations are always non-trivial.
+
+In an application of non-determinate promotion as exhibited above we
+will say that the rule is applied {\em with respect} to the guard
+$C_V$.  Also, an and-box of the form $$\AND(T_1, \CHOICE(R, C_V \wait
+A, S), T_2)_W$$ where $R$ or $S$ is non-empty will be called a {\em
+candidate} for non-determinate promotion.  We can refer to
+$C_V$ as the {\em candidate solution}.
+
+The basic Andorra principle of performing determinate promotion in
+preference to non-determinate promotion translates into a necessary
+condition for applying non-determinate promotion, viz. that no
+deterministic operation is applicable to or within the and-box. This
+will be called the non-determinacy condition.
+
+In AKL, the basic Andorra principle is given a stronger
+interpretation: non-determinate promotion is to be delayed until (i)
+the non-determinacy condition is satisfied, and (ii) non-trivial
+deterministic operations on or within the and-box cannot become
+possible as a result of any future changes in the environment of the
+and-box through deterministic operations. This will be called the AKL
+principle.
+
+The AKL principle will be seen to be a consequence of the restrictions
+on non-determinate promotion now to be formulated. We distinguish
+between the AKL principle and the particular restrictions to be
+described here, since these restrictions, although guided by the AKL
+principle, also incorporate specific ideas concerning what is useful
+in programming. We need the concept of {\em stability}: an and-box $G$
+which is a subgoal of an and-box $G'$ is stable (relative to $G'$) if
+\begin{itemize}
+\item[i)] no deterministic operation is applicable to or within $G$, and
+\item[ii)] no series of rewrites of $G'$, in which no restriction is imposed
+on non-deter\-min\-ate promotion apart from the non-determinacy
+condition, can lead to a goal in which a non-trivial deterministic
+operation is applicable to or within $G$.
+\end{itemize}
+In speaking of stable and-boxes below, we will mean boxes stable
+relative to the whole configuration being rewritten.  Note that the
+property of stability is well-defined (although in general
+undecidable) since this definition does not invoke any further
+restrictions on non-determinate promotion.
+
+The conditions on non-determinate promotion can now be stated:
+non-deter\-min\-ate promotion is applicable to an and-box $$G =
+\AND(T_1, \CHOICE(R, C_V \wait A, S), T_2)_W$$ if and only if $G$
+has a nearest surrounding stable choice-box $G'$ such that every
+candidate for non-determinate promotion in $G'$ has $G'$ as its
+nearest surrounding stable and-box.
+
+Given these restrictions, it easily follows that the AKL principle
+will be satisfied. For no deterministic operation is applicable to or
+within a subgoal of a stable and-box, and if $G$ is a subgoal of a stable
+and-box, further rewrites may enable non-trivial deterministic operations
+within $G$ only as a result of applications of non-determinate promotion
+to surrounding and-boxes.
+
+Additional conditions may be imposed on non-determinate promotion,
+stipulating e.g. that non-determinate promotion must be applied
+with respect to the leftmost possible solved guard, or that it must
+be applied to an innermost eligible candidate.
+
+In an implementation of AKL one will need to replace the abstract
+definition of stability by a more managable sufficient condition for
+stability. Of course the part of the definition stipulating that no
+deterministic operation be applicable to $G$ is non-problematic.  What
+we need to consider are sufficient conditions for ruling out any
+future non-trivial application of the rules for cut, commit, and
+environment synchronization.
+
+To deal with environment synchronization, we can give a condition that
+is independent of the constraint theory TC. It is easily shown that
+any future non-trivial environment synchronization in G can be ruled
+out if the following {\em environment condition} holds:
+\begin{quote}
+For every and-box $\AND(R)_V$ in $G$ with environment $\tau$ in $G$,
+$\sigma(R) \land \tau$ does not restrict the environment of $G$ with
+respect to the variables external to $G$.
+\end{quote}
+
+We also need to formulate a {\em suspension stability condition}, that
+is, a condition that will ensure that no future deterministic step
+will unfreeze any suspended guard in $G$, unless the environment of
+$G$ becomes inconsistent. The environment condition is not in general
+itself a suspension stability condition. For a counterexample, suppose
+$G$ has external variables $y_1$ and $y_2$, on which the environment
+of $G$ imposes no condition, and a suspended constraint $x<y_1$, where
+the environment of the constraint in $G$ is $x<y_2$.  Assuming $<$ to
+refer to real numbers, the conjunction of these does not restrict the
+environment of $G$, but if $y_2<y_1$ is added to that environment,
+$x<y_1$ will become quiet.  Similar counterexamples apply if the
+constraints include equalities in the field of real numbers, or
+inequalities between Herbrand terms. These examples suggest that a
+suspension stability condition that covers many different constraint
+theories must be rather stringent. One sufficient condition is clearly
+that there are in $G$ no suspended constraints containing external
+variables.
+
+In the special cases of Herbrand equalities and rational tree
+equalities it turns out that the environment condition is in fact
+itself a suspension stability condition. These two types of
+constraints seem to be the only naturally occurring ones for which
+this holds.
+
+\section{Computations}
+
+The first thing to note, by an inspection of the rules and of the
+syntax of goals, is that rewriting a goal in accordance with one of
+the rules does in fact result in another goal.  Thus, for example,
+replacing an occurrence of an and-box in a goal by an occurrence of an
+or-box yields a new goal.
+
+An {\em initial} goal has the form $\AND(A)_V$, with $V$ a subset of
+the set of variables occurring in any of the atoms in the non-empty
+sequence $A$ (the existentially quantified variables in the initial
+goal). We define a {\em computation} as a finite or infinite sequence
+$G_1,G_2,\dots$ of goals, where $G_1$ is an initial goal and $G_i
+\transit G_{i+1}$ for every non-final $i$. A derivation
+$G_1',G_2',\dots$ is a {\em subderivation} of $G_1,G_2,\dots$ if each
+$G_i'$ is a subgoal of $G_{k_i}$, for some subsequence
+$G_{k_1},G_{k_2},\dots$ of $G_1,G_2,\dots$.  We will use the notation
+$G \transit^* G'$ to mean that there is a computation in which $G=G_i$
+and $G'=G_j$ for some $i<j$.
+
+It is easily seen that all goals occurring in a computation are
+and-boxes or or-boxes, that is, configurations. In particular, all
+configurations after the first top-level application of
+non-deterministic promotion (if there is such) will be or-boxes, in
+general nested, with no flattening taking place, since there is no
+rule for flattening or-boxes. Or-boxes occurring in guards, on the
+other hand, may be flattened in the course of a computation.  (By
+using the guard distribution rule in combination with the choice
+elimination rule we can also reduce $\OR(G)$ to $G$ and $\OR(R,\FAIL)$
+to $\OR(R)$.)
+
+\section{Adaptations for the Execution Model}
+\label{sec:akldefadapt}
+
+Here we adapt the standard computation model, described in the
+previous sections, for the use as a basis for an execution model.
+
+\subsection{No Or-Boxes}
+
+The top-level box will always be a choice-box, instead of an and-box
+or an or-box, and the non-determinate promotion rule is replaced by
+the new choice splitting rule.  The guard distribution rule is no
+longer needed.  The reason for this change is twofold.  First, in the
+execution model, certain operations that are associated with promotion
+(determinate and non-determinate) will only have to be performed by
+determinate promotion.  Second, we rid ourselves of or-boxes
+altogether.
+
+In the execution model, we do not use the non-determinate promotion
+rule as is.  Instead, we use the {\em choice splitting rule}, defined
+as follows.
+%
+% TeX is high-level type-setting language...
+%
+$$\vbox{\hbox{$\CHOICE(R_1, \AND(S_1, \CHOICE(T_1, C_V\wait A, T_2), S_2)_W \guard B, R_2) \rewriteto$}\vskip2mm\hbox{\hskip1cm\vbox{\hbox{$\CHOICE(R_1, \AND(S_1, \CHOICE(C_V \wait A), S_2)_W \guard B,$}\hbox{\setbox0=\hbox{$\CHOICE(R_1, \hbox{}$}\hskip\wd0$\AND(S_1, \CHOICE(T_1, T_2), S_2)_W \guard B, R_2)$}}}}$$
+%
+The conditions for choice splitting are the derived from those for
+non-determinate promotion.  The sequence $T_1$ or the sequence $T_2$
+has to be non-empty.  The conditions for its applicability are derived
+from those for non-determinate promotion, but the terminology is
+slightly different.
+
+In a choice-box of the form%
+%
+$$\CHOICE(R_1,\AND(S_1, \CHOICE(T_1, C_V \wait A, T_2), S_2)_W \guard B, R_2)$$
+%
+the solved and-box $C_V$ is called a {\em candidate} for choice
+splitting, and the choice splitting rule can be applied {\em with
+respect to} the candidate $C_V$.  The and-box and the choice-box
+matching
+%
+$$\AND(S_1, \CHOICE(T_1, C_V \wait A, T_2), S_2)_W$$
+%
+are called the {\em copied} boxes.  After the application of choice
+splitting, the and-box and the choice-box matching
+%
+$$\AND(S_1, \CHOICE(C_V \wait A), S_2)_W$$
+%
+are called the {\em left} copies and the and-box and the choice-box
+matching
+%
+$$\AND(S_1, \CHOICE(T_1, T_2), S_2)_W$$
+%
+are called the {\em right} copies.
+
+Choice splitting can be applied to a choice-box $G$ with respect to a
+candidate $C_V$ if and only if $C_V$ has a nearest properly
+surrounding stable and-box $G'$ such that every candidate for choice
+splitting in $G'$ has $G'$ as its nearest properly surrounding stable
+and-box.
+
+Putting this slightly more intuitively, we can say that given a stable
+and-box $G$, we may apply choice splitting with respect to a candidate
+in $G$, if there is no stable and-box $G'$ in $G$ in which we can
+apply choice splitting.  We should choose the innermost stable
+and-box.  In the execution model, this condition is slightly relaxed.
+We will refer to the worker's ability to {\em establish stability}.
+The worker should choose the innermost and-box for which it is able to
+establish stability.%  In section \ref{sec:stability} are found
+%different schemes for establishing stability, one of which is
+%complete.
+
+We also add the condition that we should choose the {\em leftmost}
+candidate within the stable and-box.
+
+The effect of the choice splitting rule and the non-determinate
+promotion rule can be related as follows.  If an and-box satisfies the
+conditions for non-determinate promotion, and it occurs in a
+choice-box, this choice-box satisfies the conditions for choice
+splitting.  After applying non-determinate promotion on this and-box,
+subsequently applying guard distribution twice on the branches of the
+new or-box, and finally guard elimination on the remainder, the
+situation is the same as after applying choice splitting, followed by
+determinate promotion of the left copy of the copied choice-box.
+
+As modication of the formal language definition, we state that the
+top-level box should be a choice-box.  Therefore, an {\em initial
+goal} is here of the form
+%
+$$\CHOICE(\AND(G_1, \dots, G_n)_V \wait \TRUE)$$
+%
+As can be easily verified, no applications of rules eliminate the
+top-level choice-box, thus all goals in a computation will have a
+choice-box as the topmost goal, and no or-boxes will be created.
+
+
+\section*{Acknowledgements}
+
+We thank the members of the Andorra group at SICS: Kent Boortz, Per
+Brand, and Torkel Franz\'en.  We would also like to thank Johan
+Bevemyr, who wrote the first versions of the emulator and compiler in
+three months in the summer of 1990.  No-one could have done it
+quicker.
+
+This work was part of ESPRIT Project 2471 (``PEPMA''), in which SICS'
+efforts were supported by the Swedish National Board for Industrial
+and Technical Development (NUTEK), Swedish Telecom, and Ericsson
+Group.  We thank the other members of this project for their
+contributions to this work.
+
+SICS is a non-profit research foundation, sponsored by the Swedish
+National Board for Industrial and Technical Development (NUTEK), Asea
+Brown Boveri AB, Ericsson Group, IBM Svenska AB, NobelTech Systems AB,
+the Swedish Defence Material Administration (FMV), and Swedish
+Telecom.
+
+\bibliographystyle{plain}
+\bibliography{akl}
+
+\end{document}

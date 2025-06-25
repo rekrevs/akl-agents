@@ -1,0 +1,41 @@
+#! /bin/sh
+
+# Create a "shadow" directory structure with symbolic links to all files in an
+# original.
+#
+# Usage: mkbuilddirs <srcdir> <builddir>
+#
+# <srcdir> must be absolute.  <builddir> must not be in <srcdir> or any subdir
+# thereof.  Files whose names begin with . are not seen.  No link is made if a
+# local file having a given name already exists.
+
+if [ z$1 = z ] ; then
+  echo "Usage: $0 <srcdir> <builddir>"
+  exit 1
+fi
+
+case $1 in
+  /* )
+  ;;
+  * )
+    echo "{FATAL: srcdir must be absolute}"
+    exit 1
+  ;;
+esac
+
+if [ ! -d $2 ]; then
+  mkdir $2
+fi
+
+filelist=`/bin/ls $1` ; export filelist
+for file in $filelist ; do
+  if [ -d $1/$file ] ; then
+    $0 $1/$file $2/$file
+  else
+    if [ -f $2/$file ] ; then
+      true
+    else
+      ln -s $1/$file $2/$file
+    fi
+  fi
+done

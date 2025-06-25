@@ -1,0 +1,79 @@
+% $Id: allocate.akl,v 1.6 1993/11/18 12:15:45 sverker Exp $
+
+allocate_registers(C, VI, Ysize) :-
+	allocate_permanent(VI, Ysize),
+	allocate_temporary(VI, C).
+
+
+allocate_permanent(VI, Ysize) :-
+	allocate_permanent(VI, Ysize, _F).
+
+allocate_permanent([], Y, F) :-
+    ->	Y = 0,
+	F = [].
+allocate_permanent([_-vi(_,last,y(I))|VI], Y, F) :-
+    ->	allocate_permanent(VI, Y0, F0),
+	allocate_permanent(F0, F, I, Y0, Y).
+allocate_permanent([_-vi(_,first,y(I))|VI], Y, F) :-
+    ->	allocate_permanent(VI, Y, F0),
+	F = [I|F0].
+allocate_permanent([_|VI], Y, F) :-
+    ->	allocate_permanent(VI, Y, F).
+
+allocate_permanent([], F, I, Y0, Y) :-
+    ->	I = Y0,
+	Y is Y0+1,
+	F = [].
+allocate_permanent([FI|F0], F, I, Y0, Y) :-
+    ->	I = FI,
+	Y = Y0,
+	F = F0.
+
+
+% A smaller max could easily be found, of course,
+% but the method would still be a kludge...
+
+allocate_temporary(VI, C) :-
+	max_argument_reg(C, M),
+	allocate_temporary(VI, M, []).
+
+max_argument_reg([], M) :-
+    ->  M = -1.
+max_argument_reg([I|C], M) :-
+    ->  max_argument_reg(C, M0),
+	argument_reg(I, R),
+	M is max(M0, R).
+
+argument_reg(get_v(_,R0), R) :-
+	integer(R0)
+    ->  R = R0.
+argument_reg(put_v(_,R0), R) :-
+	integer(R0)
+    ->  R = R0.
+argument_reg(get_s(_,_,R0), R) :-
+	integer(R0)
+    ->  R = R0.
+argument_reg(put_s(_,_,R0), R) :-
+	integer(R0)
+    ->  R = R0.
+argument_reg(_, R) :-
+    ->  R = -1.
+
+allocate_temporary([], _M, _F) :-
+    ->	true.
+allocate_temporary([_-vi(_,first,x(I))|VI], M0, F0) :-
+    ->	allocate_temporary(F0, F, I, M0, M),
+	allocate_temporary(VI, M, F).
+allocate_temporary([_-vi(_,last,x(I))|VI], M, F) :-
+    ->	allocate_temporary(VI, M, [I|F]).
+allocate_temporary([_|VI], M, F) :-
+    ->	allocate_temporary(VI, M, F).
+
+allocate_temporary([], F, I, M0, M) :-
+    ->	M is M0+1,
+	I = M,
+	F = [].
+allocate_temporary([FI|F0], F, I, M0, M) :-
+    ->	I = FI,
+	M = M0,
+	F = F0.

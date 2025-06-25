@@ -1,0 +1,1410 @@
+% Thomas Sjöland, SICS 1993-1994
+% load(library(assoc))
+
+/*  Information extraction and conversion in DPROGRAM:
+
+    Conversion:
+
+	unnest_terms(+PROGRAM,-PROGRAM)
+                unnest all composite terms so that goals (except
+		unification) just have variables as arguments.
+
+	unnest_aliases(+PROGRAM,-PROGRAM)
+                unnest all composite terms so that variables occurring
+		in goals have a single occurrence. 
+
+	unnest_multiple_variable_occurrences(+PROGRAM,-PROGRAM)
+                replace all variables in literals so that no
+                variables occurring in goals have a multiple occurrence. 
+
+	All three add new variables and explicit unification literals.
+	Literals (except struct('=',2,[_,_])), 
+	with Name and Arity matching built_in_literal/2 are unchanged.
+	Direct unifications with void variables, i.e. variables with
+	names starting with '_',  are changed to struct(true,0,[]).
+		
+	Variables that are introduced will get names of the form V_N
+	where N is an integer such that V_N does not occur in the
+	clause into which the variable is introduced.
+*/
+
+:- public unnest_terms/2, unnest_aliases/2, 
+	unnest_multiple_variable_occurrences/2, unnest_metacalls/2, 
+	permute_program/2, filter_public/2, balance_program/2,
+	unique_program_vars/2, original_program_vars/2,
+	construct_herbrand_equal_atoms/2, xref_program/6, xref/1.
+
+
+
+support_routine_x12(S,G0,Head0,Guard0) :-
+	akl_conjunction(S,Head,True),
+	akl_true(True)
+    ->	Head0=Head,
+	Guard0=G0.
+support_routine_x12(S,G0,Head0,Guard0) :-
+	akl_conjunction(S,Eqs,Head)
+    ->	Head0=Head,
+	akl_optimized_conjunction(Eqs,G0,Guard0).
+support_routine_x12(Head,G,Head0,Guard0) :-
+    ->  Head0=Head,
+	Guard0=G.
+
+% an introduced variable is printed as 'Vi' where i is an integer
+% this procedure finds the lowest i such that it is not already used
+start_varno(struct(N,_I,A),I0,I2) :-
+    ->  start_varno(N,I0,I1),
+	smap((X,Ii,Ij)\start_varno(X,Ii,Ij),A,I1,I2).
+start_varno(var(noname(_)),I0,I1) :-
+    ->  I1=I0.
+start_varno(var(N),I0,I1) :-
+	integer(N),
+	N>=I0
+    ->	I1 is N+1.
+start_varno(var(('V',N)),I0,I1) :-
+	integer(N),
+	N>=I0
+    ->	I1 is N+1.
+start_varno(var(V),I0,I1) :-
+	atom(V),
+	atom_to_chars(V,[0'V |T]),
+	number_chars1(N,T),
+ 	N>=I0
+    ->  I1 is N+1.
+start_varno(_,I0,I1) :-
+    ->  I1=I0.
+
+get_vars(X,V) :-
+    ->  get_vars(X,[],V0), sort(V0,V).
+get_vars(X,V1,V2) :-
+	X=[_|_]
+    ->  smap((X,Va,Vb)\get_vars(X,Va,Vb),X,V1,V2).
+get_vars(struct(N,_I,A),V0,V2) :-
+    ->  get_vars(N,V0,V1),
+	smap((X,Va,Vb)\get_vars(X,Va,Vb),A,V1,V2).
+get_vars(var(V),V0,V1) :-
+    ->  V1=[var(V)|V0].
+get_vars(_,V0,V1) :-
+    -> V0=V1.
+
+%---unnest_terms(+CLAUSE,-CLAUSE)
+unnest_terms(C0,C1) :-
+	C0=clause(Head,Guard,Guardop,Body),
+	get_vars([Head,Guard,Body],Vs)
+    ->  C1=clause(Head0,Guard0,Guardop,Body0),
+	smap((V,Ia,Ib)\start_varno(V,Ia,Ib),Vs,0,I0),	
+	unnest_terms(Head,H0,I0,I1),
+	unnest_terms(Guard,G0,I1,I2),
+	support_routine_x12(H0,G0,Head0,Guard0),
+	unnest_terms(Body,Body0,I2,_I3).
+
+%---unnest_terms(+DEFINITION,-DEFINITION)
+unnest_terms(D0,D1) :-
+	D0=N-def(G,PredHead,C0)
+    ->  D1=N-def(G,PredHead,C1),
+	map((Ca,Cb)\unnest_terms(Ca,Cb),C0,C1).
+
+%---unnest_terms(+DPROGRAM,-DPROGRAM)
+unnest_terms(P0,P1) :-
+	P0=prog(Entries,D0)
+    ->  P1=prog(Entries,D1),
+	map((Da,Db)\unnest_terms(Da,Db),D0,D1).
+unnest_terms(exception(E),E0) :-
+    ->  E0=exception(E).
+
+unnest_terms(T,Tu,I0,I2) :-
+	akl_conjunction(T,A,B)
+    ->  unnest_terms(A,A0,I0,I1),
+	unnest_terms(B,B0,I1,I2),
+	akl_conjunction(Tu,A0,B0).
+unnest_terms(T,Tu,I0,I2) :-
+ 	T=struct('=',2,[var(V),_]),
+% '='-literals with void vars, starting with '_', are changed to true
+	atom(V),
+	atom_to_chars(V,[0'_|_])
+    -> 	Tu=struct(true,0,[]),
+	I0=I2.
+unnest_terms(T,Tu,I0,I2) :-
+ 	T=struct('=',2,[_,var(V)]),
+% '='-literals with void vars, starting with '_', are changed to true
+	atom(V),
+	atom_to_chars(V,[0'_|_])
+    -> 	Tu=struct(true,0,[]),
+	I0=I2.
+unnest_terms(T,Tu,I0,I2) :-
+ 	T=struct('=',2,[var(_),var(_)])
+    -> 	Tu=T,
+	I0=I2.
+unnest_terms(T,Tu,I0,I2) :-
+	T=struct('=',2,[var(V),E1])
+    -> 	T0=struct('=',2,[var(V),E2]),
+	start_varno(var(V),I0,I1),
+	introduce_vars(E1,E2,struct(true,0,[]),Eqs,I1,I2),
+	akl_optimized_conjunction(Eqs,T0,Tu).
+unnest_terms(T,Tu,I0,I2) :-
+	T=struct('=',2,[E1,var(V)])
+    -> 	T0=struct('=',2,[E2,var(V)]),
+	start_varno(var(V),I0,I1),
+	introduce_vars(E1,E2,struct(true,0,[]),Eqs,I1,I2),
+	akl_optimized_conjunction(Eqs,T0,Tu).
+unnest_terms(T,Tu,I0,I1) :-
+	T=struct(Name,Arity,_),
+	built_in_literal(Name,Arity)
+    ->  Tu=T,
+	I0=I1.
+unnest_terms(T,Tu,I0,I2) :-
+	T=struct(N,I,Args)
+    -> 	T0=struct(N0,I,Args0),
+	unnest_terms(N,N0,I0,I1),
+	smap((Aa,Ab,Sa,Sb,Ia,Ib)\introduce_vars(Aa,Ab,Sa,Sb,Ia,Ib),
+		Args,Args0,struct(true,0,[]),Eqs,I1,I2),
+	akl_optimized_conjunction(Eqs,T0,Tu).
+unnest_terms(T,Tu,I0,I1) :-
+    ->  Tu=T,
+	I0=I1.
+
+
+
+% replace nested structures with new variables
+introduce_vars(var(V),T,E,E0,I0,I1) :-
+    ->  E=E0,
+	T=var(V),
+	I0=I1.
+introduce_vars(struct(N0,I,Args0),V,E0,E3,I0,I3) :-
+    ->  V=var(I0),
+	akl_optimized_conjunction(struct(=,2,[V,struct(N1,I,Args1)]),E0,E1),
+	I1 is I0+1,
+	introduce_vars(N0,N1,E1,E2,I1,I2),
+	smap((Aa,Ab,Sa,Sb,Ia,Ib)\introduce_vars(Aa,Ab,Sa,Sb,Ia,Ib),
+		Args0,Args1,E2,E3,I2,I3).
+introduce_vars(S,T,E0,E1,I0,I1) :-
+    ->  S=T,
+	E0=E1,
+	I0=I1.		
+
+
+% replace aliased variables with new variables
+introduce_unique_vars(T0,UT,E0,UE1,I0,UI1) :-
+	introduce_unique_vars(T0,T,[],_Vars,E0,E1,I0,I1)
+    ->  UT=T,
+	UE1=E1,
+	UI1=I1.
+introduce_unique_vars(V,T,V0,V1,E0,E1,I0,I1) :-
+	V=var(_),
+	member(V,V0)	% 2nd or more occurrence
+    ->  T=var(I0),
+	akl_optimized_conjunction(struct(=,2,[T,V]),E0,E1),
+	I1 is I0+1,
+	V1=V0.
+introduce_unique_vars(V,T,V0,V1,E0,E1,I0,I1) :-
+	V=var(_)
+    ->  [V|V0]=V1,
+	E0=E1,
+	T=V,
+	I0=I1.
+introduce_unique_vars(struct(N0,I,Args0),T,V0,V3,E0,E3,I0,I3) :-
+    ->  T=struct(N1,I,Args1),
+	introduce_unique_vars(N0,N1,V0,V2,E0,E2,I0,I2),
+	smap((Aa,Ab,Va,Vb,Ea,Eb,Ia,Ib)\introduce_unique_vars(Aa,Ab,Va,Vb,Ea,Eb,Ia,Ib),
+	Args0,Args1,V2,V3,E2,E3,I2,I3).
+introduce_unique_vars(S,T,V0,V1,E0,E1,I0,I1) :-
+    ->  S=T,
+	V0=V1,
+	E0=E1,
+	I0=I1.		
+
+
+%---unnest_aliases(+CLAUSE,-CLAUSE)
+unnest_aliases(C0,C1) :-
+	C0=clause(Head,Guard,Guardop,Body),
+	get_vars([Head,Guard,Body],Vs)
+    ->  C1=clause(Head0,Guard0,Guardop,Body0),
+	smap((V,Ia,Ib)\start_varno(V,Ia,Ib),Vs,0,I0),	
+	unnest_aliases(Head,H0,I0,I1),
+	unnest_aliases(Guard,G0,I1,I2),
+	support_routine_x12(H0,G0,Head0,Guard0),
+	unnest_aliases(Body,Body0,I2,_I3).
+
+%---unnest_aliases(+DEFINITION,-DEFINITION)
+unnest_aliases(D0,D1) :-
+	D0=N-def(G,PredHead,C0)
+    ->  D1=N-def(G,PredHead,C1),
+	map((Ca,Cb)\unnest_aliases(Ca,Cb),C0,C1).
+
+%---unnest_aliases(+DPROGRAM,-DPROGRAM)
+unnest_aliases(P0,P1) :-
+	P0=prog(Entries,D0)
+    ->  P1=prog(Entries,D1),
+	map((Da,Db)\unnest_aliases(Da,Db),D0,D1).
+unnest_aliases(exception(E),E0) :-
+    ->  E0=exception(E).
+
+unnest_aliases(T,Tu,I0,I2) :-
+	akl_conjunction(T,A,B)
+    ->  unnest_aliases(A,A0,I0,I1),
+	unnest_aliases(B,B0,I1,I2),
+	akl_conjunction(Tu,A0,B0).
+unnest_aliases(T,Tu,I0,I2) :-
+ 	T=struct('=',2,[var(V),_]),
+% '='-literals with void vars, starting with '_', are changed to true
+	atom(V),
+	atom_to_chars(V,[0'_|_])
+    -> 	Tu=struct(true,0,[]),
+	I0=I2.
+unnest_aliases(T,Tu,I0,I2) :-
+ 	T=struct('=',2,[_,var(V)]),
+% '='-literals with void vars, starting with '_', are changed to true
+	atom(V),
+	atom_to_chars(V,[0'_|_])
+    -> 	Tu=struct(true,0,[]),
+	I0=I2.
+unnest_aliases(T,Tu,I0,I2) :-
+	T=struct('=',2,Args)
+    -> 	T0=struct('=',2,Args0),
+	I0=I1,
+	smap((Aa,Ab,Va,Vb,Sa,Sb,Ia,Ib)\introduce_unique_vars(Aa,Ab,Va,Vb,Sa,Sb,Ia,Ib),
+		Args,Args0,[],_,struct(true,0,[]),Eqs,I1,I2),
+	akl_optimized_conjunction(Eqs,T0,Tu).
+unnest_aliases(T,Tu,I0,I1) :-
+	T=struct(Name,Arity,_),
+	built_in_literal(Name,Arity)
+    ->  Tu=T,
+	I0=I1.
+unnest_aliases(T,Tu,I0,I2) :-
+	T=struct(N,I,Args)
+    -> 	T0=struct(N0,I,Args0),
+	unnest_aliases(N,N0,I0,I1),
+	smap((Aa,Ab,Va,Vb,Sa,Sb,Ia,Ib)\introduce_unique_vars(Aa,Ab,Va,Vb,Sa,Sb,Ia,Ib),
+		Args,Args0,[],_,struct(true,0,[]),Eqs,I1,I2),
+	akl_optimized_conjunction(Eqs,T0,Tu).
+unnest_aliases(T,Tu,I0,I1) :-
+    ->  Tu=T,
+	I0=I1.
+
+%---unnest_multiple_variable_occurrences(+CLAUSE,-CLAUSE)
+unnest_multiple_variable_occurrences(C0,C1) :-
+	C0=clause(Head,Guard,Guardop,Body),
+	get_vars([Head,Guard,Body],Vs)
+    ->  C1=clause(Head0,Guard0,Guardop,Body0),
+	smap((V,Ia,Ib)\start_varno(V,Ia,Ib),Vs,0,I0),	
+	unnest_multiple_variable_occurrences(Head,H0,[],V1,I0,I1),
+	unnest_multiple_variable_occurrences(Guard,G0,V1,V2,I1,I2),
+	support_routine_x12(H0,G0,Head0,Guard0),
+	unnest_multiple_variable_occurrences(Body,Body0,V2,_V3,I2,_I3).
+
+%---unnest_multiple_variable_occurrences(+DEFINITION,-DEFINITION)
+unnest_multiple_variable_occurrences(D0,D1) :-
+	D0=N-def(G,PredHead,C0)
+    ->  D1=N-def(G,PredHead,C1),
+	map((Ca,Cb)\unnest_multiple_variable_occurrences(Ca,Cb),C0,C1).
+
+%---unnest_multiple_variable_occurrences(+DPROGRAM,-DPROGRAM)
+unnest_multiple_variable_occurrences(P0,P1) :-
+	P0=prog(Entries,D0)
+    ->  P1=prog(Entries,D1),
+	map((Da,Db)\unnest_multiple_variable_occurrences(Da,Db),D0,D1).
+unnest_multiple_variable_occurrences(exception(E),E0) :-
+    ->  E0=exception(E).
+
+unnest_multiple_variable_occurrences(T,Tu,V0,V2,I0,I2) :-
+	akl_conjunction(T,A,B)
+    ->  unnest_multiple_variable_occurrences(A,A0,V0,V1,I0,I1),
+	unnest_multiple_variable_occurrences(B,B0,V1,V2,I1,I2),
+	akl_conjunction(Tu,A0,B0).
+unnest_multiple_variable_occurrences(T,Tu,V0,V2,I0,I2) :-
+ 	T=struct('=',2,[var(V),_]),
+% '='-literals with void vars, starting with '_', are changed to true
+	atom(V),
+	atom_to_chars(V,[0'_|_])
+    -> 	Tu=struct(true,0,[]),
+	V0=V2,
+	I0=I2.
+unnest_multiple_variable_occurrences(T,Tu,V0,V2,I0,I2) :-
+ 	T=struct('=',2,[_,var(V)]),
+% '='-literals with void vars, starting with '_', are changed to true
+	atom(V),
+	atom_to_chars(V,[0'_|_])
+    -> 	Tu=struct(true,0,[]),
+	V0=V2,
+	I0=I2.
+unnest_multiple_variable_occurrences(T,Tu,V0,V2,I0,I2) :-
+	T=struct('=',2,Args)
+    ->  V0=V1,
+	I0=I1,
+	smap((Aa,Ab,Va,Vb,Sa,Sb,Ia,Ib)\introduce_unique_vars(Aa,Ab,Va,Vb,Sa,Sb,Ia,Ib),
+		Args,Args0,V1,V2,struct(true,0,[]),Eqs,I1,I2),
+	T0=struct('=',2,Args0),
+	akl_optimized_conjunction(Eqs,T0,Tu).
+unnest_multiple_variable_occurrences(T,Tu,V0,V1,I0,I1) :-
+	T=struct(Name,Arity,_),
+	built_in_literal(Name,Arity)
+    ->  Tu=T,
+	I0=I1,
+	V0=V1.
+unnest_multiple_variable_occurrences(T,Tu,V0,V2,I0,I2) :-
+	T=struct(N,I,Args)
+    -> 	unnest_multiple_variable_occurrences(N,N0,V0,V1,I0,I1),
+	smap((Aa,Ab,Va,Vb,Sa,Sb,Ia,Ib)\introduce_unique_vars(Aa,Ab,Va,Vb,Sa,Sb,Ia,Ib),
+		Args,Args0,V1,V2,struct(true,0,[]),Eqs,I1,I2),
+	T0=struct(N0,I,Args0),
+	akl_optimized_conjunction(Eqs,T0,Tu).
+unnest_multiple_variable_occurrences(T,Tu,V0,V1,I0,I1) :-
+    ->  Tu=T,
+	V0=V1,
+	I0=I1.
+
+
+/*
+	unnest_metacalls(+DEFINITION-list,-DEFINITION-list)
+		Will remove meta-calls to built-in predicates such
+		as ';', if(_->_;_), not(_) etc.
+		The compiler however prefers to keep some simple disjunctions
+		only containing unifications as they are, so a special
+		version of unnest_metacalls is also needed here.
+
+*/
+
+find_highest_meta_clause_num(L,N) :- 
+    ->	find_highest_meta_clause_num(L,0,N).
+
+find_highest_meta_clause_num([],I,N) :-
+    ->  N=I.
+find_highest_meta_clause_num([Metaname/1-def(_,_,_)|T],I,N) :-
+	metaname0(Metaname,I0),
+	I0>I
+    ->  find_highest_meta_clause_num(T,I0,N).
+find_highest_meta_clause_num([Metaname/1-def(_,_,_)|T],I,N) :-
+	metaname0(Metaname,I0),
+	I0=<I
+    ->  find_highest_meta_clause_num(T,I,N).
+find_highest_meta_clause_num([_|T],I,N) :-
+    ->  find_highest_meta_clause_num(T,I,N).
+	
+
+%---unnest_metacalls(+DEFINITION-list,-DEFINITION-list)
+
+unnest_metacalls(P,P1) :- 
+	unnest_metacalls0(P,P0), 
+	unnest_metacalls_cont(P,P0,P1).
+unnest_metacalls_cont(P,P0,P1) :-
+	P=P0
+    -> P1=P0.
+unnest_metacalls_cont(_P,P0,P1) :-
+    -> unnest_metacalls(P0,P1).
+
+unnest_metacalls0(prog(Entries,L),P) :-
+	find_highest_meta_clause_num(L,N),
+	I0 is N+1
+    ->  P=prog(Entries,L0),
+	unnest_metacalls0(L,L0,I0,_).
+unnest_metacalls0([],Dl1,I0,I1) :-
+    ->  Dl1=[],
+	I0=I1.
+unnest_metacalls0([H0|T0],Dl1,I0,I2) :-
+    ->  unnest_metacalls0(H0,HDefs,I0,I1),
+	unnest_metacalls0(T0,TDefs,I1,I2),
+	fappend(HDefs,TDefs,Dl1).
+unnest_metacalls0(Name/Arity-def(Guardop,PredHead,Cls0),Defs,I0,I1) :-
+    ->  D=Name/Arity-def(Guardop,PredHead,Cls1),
+	unnest_metacalls_in_clauses(Cls0,Cls1,[D],Defs,I0,I1).
+
+unnest_metacalls_in_clauses([],C,A,Defs,I0,I1) :-
+    ->  C=[],
+	A=Defs,
+	I0=I1.
+unnest_metacalls_in_clauses([H|R],Cls1,A,Defs,I0,I2) :-
+   ->   unnest_metacalls_in_clause(H,H0,A,Defs0,I0,I1),
+     	unnest_metacalls_in_clauses(R,Cls0,Defs0,Defs,I1,I2),
+	Cls1=[H0|Cls0].
+
+unnest_metacalls_in_clause(clause(H,G,O,B),Clause,ADefs,Defs,I0,I2) :-
+        pattern_replace(G,akl_negation,Xout,Call,G0)
+    ->	akl_negation(Xout,Goal),
+	metaname1(Metaname,I0),
+ 	akl_compound(Metaname,1,[Goal],Call),
+	mk_predhd(Metaname,1,PredHead),
+	D=Metaname/1-def(quiet-condition,PredHead,[Cls0,Cls1]),
+	Cls0=clause(struct(Metaname,1,[Goal]),Goal,quiet-condition,Fail),
+	Cls1=clause(struct(Metaname,1,[Goal]),True,quiet-condition,True), 
+	akl_fail(Fail),
+	akl_true(True),
+    	Clause0=clause(H,G0,O,B),
+	I1 is I0+1,
+	unnest_metacalls_in_clause(Clause0,Clause,[D|ADefs],Defs,I1,I2).
+unnest_metacalls_in_clause(clause(H,G,O,B),Clause,ADefs,Defs,I0,I2) :-
+        pattern_replace(B,akl_negation,Xout,Call,B0)
+    ->	akl_negation(Xout,Goal),
+	metaname1(Metaname,I0),
+ 	akl_compound(Metaname,1,[Goal],Call),
+	mk_predhd(Metaname,1,PredHead),
+	D=Metaname/1-def(quiet-condition,PredHead,[Cls0,Cls1]),
+	Cls0=clause(struct(Metaname,1,[Goal]),Goal,quiet-condition,Fail),
+	Cls1=clause(struct(Metaname,1,[Goal]),True,quiet-condition,True), 
+	akl_fail(Fail),
+	akl_true(True),
+    	Clause0=clause(H,G,O,B0),
+	I1 is I0+1,
+	unnest_metacalls_in_clause(Clause0,Clause,[D|ADefs],Defs,I1,I2).
+unnest_metacalls_in_clause(clause(H,G,O,B),Clause,ADefs,Defs,I0,I2) :-
+        pattern_replace(G,akl_if_then_else,Xout,Call,G0)
+    ->	akl_if_then_else(Xout,If,Then,Else),
+	metaname1(Metaname,I0),
+ 	akl_compound(Metaname,1,[Xout],Call),
+	mk_predhd(Metaname,1,PredHead),
+	D=Metaname/1-def(quiet-condition,PredHead,[Cls0,Cls1]),
+	Cls0=clause(struct(Metaname,1,[Xout]),If,quiet-condition,Then),
+	Cls1=clause(struct(Metaname,1,[Xout]),True,quiet-condition,Else), 
+	akl_true(True),
+    	Clause0=clause(H,G0,O,B),
+	I1 is I0+1,
+	unnest_metacalls_in_clause(Clause0,Clause,[D|ADefs],Defs,I1,I2).
+unnest_metacalls_in_clause(clause(H,G,O,B),Clause,ADefs,Defs,I0,I2) :-
+        pattern_replace(B,akl_if_then_else,Xout,Call,B0)
+    ->	akl_if_then_else(Xout,If,Then,Else),
+	metaname1(Metaname,I0),
+ 	akl_compound(Metaname,1,[Xout],Call),
+	mk_predhd(Metaname,1,PredHead),
+	D=Metaname/1-def(quiet-condition,PredHead,[Cls0,Cls1]),
+	Cls0=clause(struct(Metaname,1,[Xout]),If,quiet-condition,Then),
+	Cls1=clause(struct(Metaname,1,[Xout]),True,quiet-condition,Else), 
+	akl_true(True),
+    	Clause0=clause(H,G,O,B0),
+	I1 is I0+1,
+	unnest_metacalls_in_clause(Clause0,Clause,[D|ADefs],Defs,I1,I2).
+unnest_metacalls_in_clause(clause(H,G,O,B),Clause,ADefs,Defs,I0,I2) :-
+        pattern_replace(G,akl_disjunction,Xout,Call,G0)
+    ->	akl_disjunction(Xout,X0,X1),
+	metaname1(Metaname,I0),
+ 	akl_compound(Metaname,1,[Xout],Call),
+	mk_predhd(Metaname,1,PredHead),
+	D=Metaname/1-def(noisy-wait,PredHead,[Cls0,Cls1]),
+	Cls0=clause(struct(Metaname,1,[Xout]),True,noisy-wait,X0),
+	Cls1=clause(struct(Metaname,1,[Xout]),True,noisy-wait,X1), 
+	akl_true(True),
+    	Clause0=clause(H,G0,O,B),
+	I1 is I0+1,
+	unnest_metacalls_in_clause(Clause0,Clause,[D|ADefs],Defs,I1,I2).
+unnest_metacalls_in_clause(clause(H,G,O,B),Clause,ADefs,Defs,I0,I2) :-
+        pattern_replace(B,akl_disjunction,Xout,Call,B0)
+    ->	akl_disjunction(Xout,X0,X1),
+	metaname1(Metaname,I0),
+	akl_compound(Metaname,1,[Xout],Call),
+	mk_predhd(Metaname,1,PredHead),
+	D=Metaname/1-def(noisy-wait,PredHead,[Cls0,Cls1]),
+	Cls0=clause(struct(Metaname,1,[Xout]),True,noisy-wait,X0),
+	Cls1=clause(struct(Metaname,1,[Xout]),True,noisy-wait,X1), 
+	akl_true(True),
+    	Clause0=clause(H,G,O,B0),
+	I1 is I0+1,
+	unnest_metacalls_in_clause(Clause0,Clause,[D|ADefs],Defs,I1,I2).
+unnest_metacalls_in_clause(X,C,ADefs,Defs,I0,I1) :- 
+    ->  X=C,
+	ADefs=Defs,
+	I0=I1.
+
+metaname(Metaname,I0) :-
+     	number_chars1(I0,LI0),
+	atom_chars(Metaname,[0'm,0'e,0't,0'a|LI0]).
+
+metaname0(Metaname,I0) :-
+	atom(Metaname)
+    ->  atom_to_chars(Metaname,[0'm,0'e,0't,0'a|LI0]),
+	number_chars1(I0,LI0).
+
+metaname1(Metaname,I0) :-
+	integer(I0)
+    -> 	number_chars1(I0,LI0),
+	chars_to_atom([0'm,0'e,0't,0'a|LI0],Metaname).
+
+
+
+%pattern_replace(+G,+Pattern,-Xout,+Y,-G0)
+% replace occurrence of Xout matching Xin in G with Y
+% return instantiated X and G0, a copy of G with Xout matching Xin
+% replaced with Y, fails if no matching subterm is found
+
+pattern_replace(G,Pat,Xout,Y,H0) :-
+	data(G) 
+    ->  pattern_replace0(G,Pat,Xout,Y,H0).
+
+pattern_replace0([H|T],Pat,Xout,Y,G0) :-
+	pattern_replace(H,Pat,Xtmp,Y,H0)
+    ->	G0=[H0|T],
+	Xtmp=Xout.
+pattern_replace0([H|T],Pat,Xout,Y,G0) :-
+        pattern_replace(T,Pat,Xtmp,Y,T0)
+    ->	G0=[H|T0],
+	Xtmp=Xout.
+pattern_replace0(G,akl_if_then_else,Xout,Y,G0) :-
+	akl_if_then_else(G,_,_,_)
+    ->  Xout=G,
+	G0=Y.
+pattern_replace0(G,akl_disjunction,Xout,Y,G0) :-
+	akl_disjunction(G,_,_)
+    ->  Xout=G,
+	G0=Y.
+pattern_replace0(G,akl_negation,Xout,Y,G0) :-
+	akl_negation(G,_)
+    ->  Xout=G,
+	G0=Y.
+pattern_replace0(G,Pat,Xout,Y,G0) :-
+	akl_conjunction(G,A,B),
+        pattern_replace(A,Pat,Xtmp,Y,A0)
+    ->	akl_conjunction(G0,A0,B),
+	Xout=Xtmp.
+pattern_replace0(G,Pat,Xout,Y,G0) :-
+	akl_conjunction(G,A,B),
+        pattern_replace(B,Pat,Xtmp,Y,B0)
+    ->	akl_conjunction(G0,A,B0), 
+	Xout=Xtmp.
+pattern_replace0(G,Pat,Xout,Y,G0) :-
+	guardop(Op),
+	akl_compound(Op,2,As,G)
+    ->  pattern_replace(As,Pat,Xout,Y,As0),
+	akl_compound(Op,2,As0,G0).
+
+
+/*
+    Other:
+	permute_program(+PROGRAM,-PROGRAM)
+		permutes the order of all conjunctions in program.
+		Most sound programs in AKL should survive such a
+		transformation. This might be used to test
+		whether the program has been written in a robust manner.
+		The transformation is useful in preparing the program for 
+		a parallel execution or for testing whether certain
+		program transformations are valid.
+*/
+
+%--- permute_program(+PROGRAM,-PROGRAM)
+permute_program(prog(Entries,Dlist),P) :-
+    ->  map((Da,Db)\permute_definition(Da,Db),Dlist,Dlist0),
+	P=prog(Entries,Dlist0).
+
+permute_definition(Dname-def(Gop,PredHead,Cls),D) :-
+    ->  map((Ca,Cb)\permute_clause(Ca,Cb),Cls,Cls0),
+	D=Dname-def(Gop,PredHead,Cls0).
+
+permute_clause(clause(Head,Guard,Guardop,Body),C) :-
+    ->  permute_conjunction(Guard,Guard0),
+	permute_conjunction(Body,Body0),
+	C=clause(Head,Guard0,Guardop,Body0).
+permute_clause(exception(E),E0) :- 
+    ->	E0=exception(E). 
+
+permute_conjunction(AB,BA) :- 
+	akl_conjunction(AB,A,B),
+    	akl_conjunction(BA,B0,A0)
+    ->	permute_conjunction(A,C),
+	permute_conjunction(B,D),
+	(A0=C,B0=D ; A0=D,B0=C).
+permute_conjunction(A,B) :- 
+    ->  A=B.
+
+/*
+	filter_public(+PROGRAM,-PROGRAM)
+		returns a list of public and a program where the 
+		entry specifications have been moved to the Entries
+		field of prog(Entries,DEFLIST)
+*/
+
+%-- filter_public(+PROGRAM,-PROGRAM)
+filter_public(prog([],P),Program) :-
+    ->	filter_public(P,E0,P0),
+	default_public(E0,P0,E1),
+	sort(E1,E2),
+	mk_q(E2,0,Entries),
+	Program=prog(Entries,P0).
+filter_public(prog(E,_P),_Program) :-
+    -> stdout(S),
+	writenl('###### filter_public applied in wrong context. Already defined publics'(E),S,_), fail.
+
+filter_public([],E,P) :-
+    ->  E=[],
+	P=[].
+filter_public([H|T],E,P) :-
+	H='/'((:-),1)-def(noisy-wait,_PredHead,Clauses)
+    ->	get_public(Clauses,Public),
+        filter_public(T,R,P),
+	fappend(Public,R,E).
+filter_public([H|T],E,P) :-
+    ->  P=[H|P0],
+	filter_public(T,E,P0).
+
+% if no public declarations were found all entries are public.
+default_public([],P,E) :-
+    ->	all_defnames(P,E).
+default_public(E0,_P,E1) :-
+    ->	E0=E1.
+
+all_defnames([],L) :-
+    ->  L=[].
+all_defnames([H|T],L) :-
+	H=Dn-def(_,_,_)
+    ->  L=[Dn|R],
+	all_defnames(T,R).
+
+get_public([],L) :-
+    ->	L=[].
+get_public(Clauses,Public) :-
+	Clauses=[clause(Head,Guard,_,Body)|R],
+	akl_true(Guard),
+	akl_true(Body)
+    ->	Head=struct((:-),1,[struct((public),1,PublicEntries)]),
+	mk_flat_list(PublicEntries,Plist),
+	get_public(R,P),
+	fappend(Plist,P,Public).
+get_public([H|T],P) :-
+    -> stdout(S),
+	writenl('strange public:'(H),S,_), get_public(T,P).
+
+
+mk_flat_list(L,R) :-
+    -> mk_flat_list(L,[],R).
+mk_flat_list([],L,R) :-
+    ->  L=R.
+mk_flat_list([H|T],A,L) :-
+    ->	mk_flat_list(H,A,H0),
+	mk_flat_list(T,H0,L).
+mk_flat_list(C,A,L) :-
+	akl_conjunction(C,P,Q)
+    ->  mk_flat_list(P,A,A0),
+	mk_flat_list(Q,A0,L).
+mk_flat_list(C,A,L) :-
+	C=struct('/',2,[C0,struct(Arity,0,[])]),
+	C0=struct(Name,_,_)
+   ->	C1=Name/Arity,
+	L=[C1|A].
+	
+
+mk_vars(_Qname/Arity,_Qlitno,I,L) :-
+	Arity=I
+    ->	L=[].
+mk_vars(Qname/Arity,Qlitno,I,L) :-
+	Arity>I
+    ->	L=[var(t(I,query/0,Qlitno))|R],
+	I1 is I+1,
+	mk_vars(Qname/Arity,Qlitno,I1,R).
+
+mk_q([],_,Eqs) :- 
+    -> Eqs=[].
+mk_q([N|T],L,Eqs) :-
+	N=Name/Arity,
+	mk_vars(N,L,0,Args),
+	Qlit=struct(Name,Arity,Args)
+    -> 	L1 is L+1,
+	Eqs=[Qlit|B],
+	mk_q(T,L1,B).
+
+
+mk_terms([],L) :-
+    -> L=[].
+mk_terms([H|T],L) :-
+	akl_compound(Name,_Arity,List,H)
+    ->  mk_terms(List,List0),
+	Term=..[Name|List0],
+	L=[Term|R],
+	mk_terms(T,R).
+mk_terms([H|T],L) :-
+    ->  L=[H|R],
+	mk_terms(T,R).
+	
+
+/*
+	balance_program(+PROGRAM,-PROGRAM)
+		The same conjunction (or a disjunction) may be represented
+		in different ways: (a,(b,c))  ((a,b),c)
+		This routine will make sure that conjunctions and disjunctions
+		are balanced, i.e. on the form (a,(b,c)).
+
+*/
+%---balance_program(+PROGRAM,-PROGRAM)
+balance_program(prog(Entries,Dlist),P) :-
+        map((Da,Db)\balance_definition(Da,Db),Dlist,Dlist0),
+	P=prog(Entries,Dlist0).
+balance_definition(Dname-def(Gop,PredHead,Cls),D) :-
+       map((Ca,Cb)\balance_clause(Ca,Cb),Cls,Cls0),
+	D=Dname-def(Gop,PredHead,Cls0).
+
+balance_clause(clause(Head,Guard,Guardop,Body),C) :-
+        balance_conjunction(Guard,Guard0),
+	balance_conjunction(Body,Body0),
+	C=clause(Head,Guard0,Guardop,Body0).
+balance_clause(exception(E),exception(E)).
+
+balance_conjunction(A,B) :-		% bal((A00,A01),A1)=bal(A00,(A01,A1))
+	akl_conjunction(A,A0,A1),
+	akl_conjunction(A0,A00,A01)
+    ->  akl_conjunction(B0,A00,B01),
+	akl_conjunction(B01,A01,A1),
+	balance_conjunction(B0,B).
+balance_conjunction(A,B) :-		% bal((Goal,A1))=(Goal,bal(A1)) 
+	akl_conjunction(A,A0,A1),
+	akl_compound(_,_,_,A0)
+    ->  balance_conjunction(A1,B1),
+	akl_conjunction(B,A0,B1).
+balance_conjunction(A,B) :-		% bal(Goal)=Goal
+	akl_compound(_,_,_,A)
+    ->  A=B.
+
+
+%---unique_program_vars(+PROGRAM,-PROGRAM)
+unique_program_vars(P0,P1) :-
+	P0=prog(Entries,D0)
+    ->  P1=prog(Entries,D1),
+	unique_program_vars(D0,D1).
+
+unique_program_vars(D0,D1) :-
+	D0=N-def(G,PredHead,C0)
+    ->  D1=N-def(G,PredHead0,C1),
+	unique_program_vars(PredHead,PredHead0,N,0),
+	unique_program_vars(C0,C1,N,1).
+unique_program_vars(exception(E),E0) :-
+    ->  E0=exception(E).
+unique_program_vars([],Defs) :-
+   ->	Defs=[].
+unique_program_vars([H|T],Defs) :-
+	H=_-def(_,_,_)
+    ->	unique_program_vars(H,H0),
+	unique_program_vars(T,T0),
+	Defs=[H0|T0].
+
+unique_program_vars([],Tu,_Defname,_Cno) :-
+   ->	Tu=[].
+unique_program_vars([H|T],Clauses,Defname,Cno) :-
+	H=clause(_,_,_,_)
+    ->	unique_program_vars(H,H0,Defname,Cno),
+	Cno1 is Cno+1,
+	unique_program_vars(T,T0,Defname,Cno1),
+	Clauses=[H0|T0].
+unique_program_vars([H|T],L,Defname,Cno) :-
+    ->	unique_program_vars(H,H0,Defname,Cno),
+	unique_program_vars(T,T0,Defname,Cno),
+	L=[H0|T0].
+unique_program_vars(C0,C1,Defname,Cno) :-
+	C0=clause(Head,Guard,Guardop,Body)
+    ->  C1=clause(Head0,Guard0,Guardop,Body0),
+	unique_program_vars(Head,Head0,Defname,Cno),
+	unique_program_vars(Guard,Guard0,Defname,Cno),
+	unique_program_vars(Body,Body0,Defname,Cno).
+unique_program_vars(T,Tu,Defname,Cno) :-
+	akl_conjunction(T,A,B)
+    ->  unique_program_vars(A,A0,Defname,Cno),
+	unique_program_vars(B,B0,Defname,Cno),
+	akl_conjunction(Tu,A0,B0).
+unique_program_vars(T,Tu,Defname,Cno) :-
+	T=struct(N,I,Args)
+    -> 	Tu=struct(N0,I,Args0),
+	unique_program_vars(N,N0,Defname,Cno),
+	unique_program_vars(Args,Args0,Defname,Cno).
+unique_program_vars(P,P0,Defname,Cno) :-
+	P=var(Name)
+    ->	P0=var(t(Name,Defname,Cno)).
+unique_program_vars(P,P0,Defname,Cno) :-
+	P=arg(Name)
+    ->	P0=arg(t(Name,Defname,Cno)).
+unique_program_vars(T,Tu,_Defname,_Cno) :-
+    ->  Tu=T.
+
+
+%---original_program_vars(+DPROGRAM,-DPROGRAM)
+original_program_vars(P0,P1) :-
+	P0=prog(Entries,D0)
+    ->  P1=prog(Entries,D1),
+	original_program_vars(D0,D1).
+original_program_vars([],Defs) :-
+   ->	Defs=[].
+original_program_vars([H|T],Defs) :-
+	H=_-def(_,_,_)
+    ->	original_program_vars(H,H0),
+	original_program_vars(T,T0),
+	Defs=[H0|T0].
+original_program_vars(D0,D1) :-
+	D0=N-def(G,PredHead,C0)
+    ->  D1=N-def(G,PredHead0,C1),
+	original_program_vars(PredHead,PredHead0,N,0),
+	original_program_vars(C0,C1,N,1).
+original_program_vars(exception(E),E0) :-
+    ->  E0=exception(E).
+
+original_program_vars([],Tu,_Defname,_Cno) :-
+   ->	Tu=[].
+original_program_vars([H|T],Clauses,Defname,Cno) :-
+	H=clause(_,_,_,_)
+    ->	original_program_vars(H,H0,Defname,Cno),
+	Cno1 is Cno+1,
+	original_program_vars(T,T0,Defname,Cno1),
+	Clauses=[H0|T0].
+original_program_vars([H|T],L,Defname,Cno) :-
+    ->	original_program_vars(H,H0,Defname,Cno),
+	original_program_vars(T,T0,Defname,Cno),
+	L=[H0|T0].
+original_program_vars(C0,C1,Defname,Cno) :-
+	C0=clause(Head,Guard,Guardop,Body)
+    ->  C1=clause(Head0,Guard0,Guardop,Body0),
+	original_program_vars(Head,Head0,Defname,Cno),
+	original_program_vars(Guard,Guard0,Defname,Cno),
+	original_program_vars(Body,Body0,Defname,Cno).
+original_program_vars(T,Tu,Defname,Cno) :-
+	akl_conjunction(T,A,B)
+    ->  original_program_vars(A,A0,Defname,Cno),
+	original_program_vars(B,B0,Defname,Cno),
+	akl_conjunction(Tu,A0,B0).
+original_program_vars(T,Tu,Defname,Cno) :-
+	T=struct(N,I,Args)
+    -> 	Tu=struct(N0,I,Args0),
+	original_program_vars(N,N0,Defname,Cno),
+	original_program_vars(Args,Args0,Defname,Cno).
+original_program_vars(P,P0,Defname,Cno) :-
+    	P=var(N)
+    ->	N=v(Name,Defname,Cno), 
+	P0=var(Name).
+original_program_vars(P,P0,Defname,Cno) :-
+    	P=arg(N)
+    ->	N=t(Name,Defname,Cno), 
+	P0=arg(Name).
+original_program_vars(T,Tu,_Defname,_Cno) :-
+    ->  Tu=T.
+
+
+% The conversion unique_short_program_vars/2 allows for
+% the conversion of variable names in a program into a unique 
+% form with short names
+
+new_short_name(N,N0) :- 
+	atom_to_chars(N,A),
+   	name_inc(A,A0),
+	chars_to_atom(A0,N0).
+
+name_inc(A,A0) :-
+    ->	reverse(A,R), 
+	name_inc0(R,R0), 
+	reverse(R0,A0).
+	
+name_inc0([H|T],R) :-
+	H0 is H+1
+    ->  name_inc1(H0,G,T,S), 
+	R=[G|S].
+name_inc0([],N) :-
+    ->	N="A".
+
+name_inc1(H0,G,T,S) :-
+	[H0]@>"Z" 
+    -> 	[G]="A", 
+	name_inc0(T,S).
+name_inc1(H0,G,T,S) :-
+    ->	G=H0,
+	T=S.
+
+
+%---unique_short_program_vars(+PROGRAM,-PROGRAM)
+unique_short_program_vars(P0,P1) :-
+	P0=prog(Entries0,D0)
+    ->  P1=prog(Entries1,D1),
+	empty_assoc(Acc),
+	unique_short_program_vars(Entries0,Entries1,'A',V0,Acc,Acc0),
+	unique_short_program_vars(D0,D1,V0,_,Acc0,_).
+unique_short_program_vars(D0,D2,V0,V2,Acc0,Acc2) :-
+	D0=N-def(G,PredHead,C0)
+    ->  D2=N-def(G,PredHead0,C2),
+	unique_short_program_vars(PredHead,PredHead0,V0,V1,Acc0,Acc1),
+	unique_short_program_vars(C0,C2,V1,V2,Acc1,Acc2).
+unique_short_program_vars(exception(E),E0,V0,V1,Acc0,Acc1) :-
+    ->  E0=exception(E),
+	V0=V1,
+	Acc0=Acc1.
+unique_short_program_vars([],Defs,V0,V1,Acc0,Acc1) :-
+   ->	Defs=[],
+	V0=V1,
+	Acc0=Acc1.
+unique_short_program_vars([H|T],Defs,V0,V2,Acc0,Acc2) :-
+	H=_-def(_,_,_)
+    ->	unique_short_program_vars(H,H0,V0,V1,Acc0,Acc1),
+	unique_short_program_vars(T,T0,V1,V2,Acc1,Acc2),
+	Defs=[H0|T0].
+
+unique_short_program_vars([H|T],Clauses,V0,V2,Acc0,Acc2) :-
+	H=clause(_,_,_,_)
+    ->	unique_short_program_vars(H,H0,V0,V1,Acc0,Acc1),
+	unique_short_program_vars(T,T0,V1,V2,Acc1,Acc2),
+	Clauses=[H0|T0].
+unique_short_program_vars([H|T],L,V0,V2,Acc0,Acc2) :-
+    ->	unique_short_program_vars(H,H0,V0,V1,Acc0,Acc1),
+	unique_short_program_vars(T,T0,V1,V2,Acc1,Acc2),
+	L=[H0|T0].
+unique_short_program_vars(C0,C1,V0,V3,Acc0,Acc3) :-
+	C0=clause(Head,Guard,Guardop,Body)
+    ->  C1=clause(Head0,Guard0,Guardop,Body0),
+	unique_short_program_vars(Head,Head0,V0,V1,Acc0,Acc1),
+	unique_short_program_vars(Guard,Guard0,V1,V2,Acc1,Acc2),
+	unique_short_program_vars(Body,Body0,V2,V3,Acc2,Acc3).
+unique_short_program_vars(T,Tu,V0,V2,Acc0,Acc2) :-
+	akl_conjunction(T,A,B)
+    ->  unique_short_program_vars(A,A0,V0,V1,Acc0,Acc1),
+	unique_short_program_vars(B,B0,V1,V2,Acc1,Acc2),
+	akl_conjunction(Tu,A0,B0).
+unique_short_program_vars(T,Tu,V0,V2,Acc0,Acc2) :-
+	T=struct(N,I,Args)
+    -> 	Tu=struct(N0,I,Args0),
+	unique_short_program_vars(N,N0,V0,V1,Acc0,Acc1),
+	unique_short_program_vars(Args,Args0,V1,V2,Acc1,Acc2).
+unique_short_program_vars(P,P0,V0,V1,Acc0,Acc2) :-
+	P=var(_), 
+	access((P-V),Acc0,Acc1)
+    ->	V0=V1,
+	Acc2=Acc1,
+	P0=var(V).
+unique_short_program_vars(P,P0,V0,V1,Acc0,Acc1) :-
+	P=var(_)
+    ->	new_short_name(V0,V1),
+	insert((P-V0),Acc0,Acc1),
+	P0=var(V0).
+unique_short_program_vars(P,P0,V0,V1,Acc0,Acc2) :-
+	P=arg(_), 
+	access((P-V),Acc0,Acc1)
+    ->	V0=V1,
+	Acc2=Acc1,
+	P0=var(V).
+unique_short_program_vars(P,P0,V0,V1,Acc0,Acc1) :-
+	P=arg(_)
+    ->	new_short_name(V0,V1),
+	insert((P-V0),Acc0,Acc1),
+	P0=var(V0).
+unique_short_program_vars(T,Tu,V0,V1,Acc0,Acc1) :-
+    ->  Tu=T,
+	V0=V1,
+	Acc0=Acc1.
+
+
+new_numeric_name((_N0,I0),(N1,I1)) :- 
+%	new_short_name(N0,N1), 
+	N1='V',
+	I1 is I0+1.
+
+get_var_name(I,V,AssocVars) :-
+    ->	access((_-var((N,I))),AssocVars,_),
+	V=var((N,I)).
+
+
+%---unique_numeric_program_vars(+PROGRAM,-PROGRAM)
+unique_numeric_program_vars(P0,P1) :-
+    ->	unique_numeric_program_vars(P0,P1,_AssocVars).
+unique_numeric_program_vars(P0,P1,AssocVars) :-
+	P0=prog(Entries0,D0)
+    ->  P1=prog(Entries1,D1),
+	empty_assoc(Acc),
+	unique_numeric_program_vars(Entries0,Entries1,('V',0),V0,Acc,Acc0),
+	unique_numeric_program_vars(D0,D1,V0,_,Acc0,AssocVars).
+unique_numeric_program_vars(D0,D2,V0,V2,Acc0,Acc2) :-
+	D0=N-def(G,PredHead,C0)
+    ->  D2=N-def(G,PredHead0,C2),
+	unique_numeric_program_vars(PredHead,PredHead0,V0,V1,Acc0,Acc1),
+	unique_numeric_program_vars(C0,C2,V1,V2,Acc1,Acc2).
+unique_numeric_program_vars(exception(E),E0,V0,V1,Acc0,Acc1) :-
+    ->  E0=exception(E),
+	V0=V1,
+	Acc0=Acc1.
+unique_numeric_program_vars([],Defs,V0,V1,Acc0,Acc1) :-
+   ->	Defs=[],
+	V0=V1,
+	Acc0=Acc1.
+unique_numeric_program_vars([H|T],Defs,V0,V2,Acc0,Acc2) :-
+	H=_-def(_,_,_)
+    ->	unique_numeric_program_vars(H,H0,V0,V1,Acc0,Acc1),
+	unique_numeric_program_vars(T,T0,V1,V2,Acc1,Acc2),
+	Defs=[H0|T0].
+
+unique_numeric_program_vars([H|T],Clauses,V0,V2,Acc0,Acc2) :-
+	H=clause(_,_,_,_)
+    ->	unique_numeric_program_vars(H,H0,V0,V1,Acc0,Acc1),
+	unique_numeric_program_vars(T,T0,V1,V2,Acc1,Acc2),
+	Clauses=[H0|T0].
+unique_numeric_program_vars([H|T],L,V0,V2,Acc0,Acc2) :-
+    ->	unique_numeric_program_vars(H,H0,V0,V1,Acc0,Acc1),
+	unique_numeric_program_vars(T,T0,V1,V2,Acc1,Acc2),
+	L=[H0|T0].
+unique_numeric_program_vars(C0,C1,V0,V3,Acc0,Acc3) :-
+	C0=clause(Head,Guard,Guardop,Body)
+    ->  C1=clause(Head0,Guard0,Guardop,Body0),
+	unique_numeric_program_vars(Head,Head0,V0,V1,Acc0,Acc1),
+	unique_numeric_program_vars(Guard,Guard0,V1,V2,Acc1,Acc2),
+	unique_numeric_program_vars(Body,Body0,V2,V3,Acc2,Acc3).
+unique_numeric_program_vars(T,Tu,V0,V2,Acc0,Acc2) :-
+	akl_conjunction(T,A,B)
+    ->  unique_numeric_program_vars(A,A0,V0,V1,Acc0,Acc1),
+	unique_numeric_program_vars(B,B0,V1,V2,Acc1,Acc2),
+	akl_conjunction(Tu,A0,B0).
+unique_numeric_program_vars(T,Tu,V0,V2,Acc0,Acc2) :-
+	T=struct(N,I,Args)
+    -> 	Tu=struct(N0,I,Args0),
+	unique_numeric_program_vars(N,N0,V0,V1,Acc0,Acc1),
+	unique_numeric_program_vars(Args,Args0,V1,V2,Acc1,Acc2).
+unique_numeric_program_vars(P,P0,V0,V1,Acc0,Acc2) :-
+	P=var(_), 
+	access((P-V),Acc0,Acc1)
+    ->	V0=V1,
+	Acc2=Acc1,
+	P0=var(V).
+unique_numeric_program_vars(P,P0,V0,V1,Acc0,Acc1) :-
+	P=var(_)
+    ->	new_numeric_name(V0,V1),
+	insert((P-V0),Acc0,Acc1),
+	P0=var(V0).
+unique_numeric_program_vars(P,P0,V0,V1,Acc0,Acc2) :-
+	P=arg(_), 
+	access((P-V),Acc0,Acc1)
+    ->	V0=V1,
+	Acc2=Acc1,
+	P0=var(V).
+unique_numeric_program_vars(P,P0,V0,V1,Acc0,Acc1) :-
+	P=arg(_)
+    ->	new_numeric_name(V0,V1),
+	insert((P-V0),Acc0,Acc1),
+	P0=var(V0).
+unique_numeric_program_vars(T,Tu,V0,V1,Acc0,Acc1) :-
+    ->  Tu=T,
+	V0=V1,
+	Acc0=Acc1.
+
+% Collect all sequences of literals of the form X=T and replace
+% such sequences with a literal 'herbrand_equal/1'.
+% the routine herbrand_equal/1 is understood as map('='\2,L0),
+% or as a call to a constraint solver for the herbrand equality theory.
+% This transformation is useful to reduce the number of
+% "callable" literals in a program without changing the semantics.
+% It does not remove terms from argument positions so in order to
+% do that you should first call unnest_terms/2 on the program/def/clause.
+%---construct_herbrand_equal_atom(+DPROGRAM,-DPROGRAM)
+construct_herbrand_equal_atoms(P0,P1) :-
+	P0=prog(Entries,D0)
+    ->  P1=prog(Entries,D1),
+	map((Da,Db)\construct_herbrand_equal_atoms(Da,Db),D0,D1).
+construct_herbrand_equal_atoms(exception(E),E0) :-
+    ->  E0=exception(E).
+
+%---construct_herbrand_equal_atoms(+DEFINITION,-DEFINITION)
+construct_herbrand_equal_atoms(D0,D1) :-
+	D0=N-def(G,PredHead,C0)
+    ->  D1=N-def(G,PredHead,C1),
+	map((Ca,Cb)\construct_herbrand_equal_atoms(Ca,Cb),C0,C1).
+
+%---construct_herbrand_equal_atoms(+CLAUSE,-CLAUSE)
+construct_herbrand_equal_atoms(C0,C1) :-
+	C0=clause(Head,Guard,Guardop,Body)
+    ->  C1=clause(Head,Guard0,Guardop,Body0),
+	construct_herbrand_equal_atoms(Guard,G0,struct([],0,[]),GuardEqs),
+	mk_hb_eq_atom(GuardEqs,Geq),
+	akl_conjunction(G,G0,Geq),
+	akl_very_optimized_conjunction(G,Guard0),
+ 	construct_herbrand_equal_atoms(Body,B0,struct([],0,[]),BodyEqs),
+	mk_hb_eq_atom(BodyEqs,Beq),	
+	akl_conjunction(B,B0,Beq),
+	akl_very_optimized_conjunction(B,Body0).
+
+% the accumulator pair is used to store equality literals found but not yet
+% put in a herbrand constraint literal
+construct_herbrand_equal_atoms(Ti,Tu,I0,I2) :-
+	akl_conjunction(Ti,A,B)
+    ->  construct_herbrand_equal_atoms(A,A0,I0,I1),
+	construct_herbrand_equal_atoms(B,B0,I1,I2),
+	akl_conjunction(Tu,A0,B0).
+construct_herbrand_equal_atoms(Ti,Tu,I0,I1) :-
+ 	Ti=struct('=',2,[_,_])
+    -> 	akl_true(Tu),
+	I1=struct('.',2,[Ti,I0]).
+construct_herbrand_equal_atoms(Ti,Tu,I0,I1) :-
+    ->  mk_hb_eq_atom(I0,Eq),
+	akl_conjunction(Tu,Eq,Ti),
+	I1=struct([],0,[]).
+
+mk_hb_eq_atom(struct([],0,[]),Beq) :- 
+    ->	akl_true(Beq).
+mk_hb_eq_atom(L,Beq) :- 
+	L=struct('.',2,[_,_])
+    ->	Beq=struct(herbrand_equal,1,[L]).
+
+/*
+	xref_program(+PROGRAM,
+			-((DEFNAME-CALLNAME)-list)-list,
+			-((DEFNAME-CALLNAME)-list)-list,
+			-((CALLNAME-DEFNAME)-list)-list,
+			-((CALLNAME-DEFNAME)-list)-list,
+			-DSTRUCT-list)
+		returns five lists extracted from the program,
+		- for each definition (NAME/ARITY) 
+		  a unique sorted list of those call names (NAME/ARITY) 
+		  used in the guards of this definition
+		- for each definition (NAME/ARITY) 
+		  a unique sorted list of those call names (NAME/ARITY) 
+		  used in the bodies of this definition
+	        - for each call name a unique sorted list of those definitions
+		  (NAME/ARITY) in which the call is used from a guard
+	        - for each call name a unique sorted list of those definitions
+		  (NAME/ARITY) in which the call is used from a body
+		- a list of the data structures (NAME/ARITY) explicitly 
+		  mentioned in the code	
+
+	get_dead_code(+PROGRAM,-(DEFNAME-list))
+		the difference between the list of unused definitions found
+		with xref and the list of public given in the program
+		is the dead code
+
+	get_definition(+PROGRAM,?DEF_NAME,-DEFINITION)	
+		returns a definition from a program, possibly 
+		nondeterministically
+		fails if wrong definition name is given
+
+	get_simple_modes(+PROGRAM, +DEF_NAME, -MODES)
+		return the modes of a predicate as can be extracted 
+		by simple inspection.
+
+	get_clause(+PROGRAM, +DEF_NAME, ?CLAUSENUMBER, -CLAUSE)
+		returns a clause from a definition, possibly 
+		nondeterministically	
+		fails if wrong clause number is given
+
+	get_guard_goal(+PROGRAM, +DEF_NAME, +CLAUSE, ?GOALNUMBER,-GOAL)
+		returns a goal from a guard in a clause, possibly 
+		nondeterministically	
+		fails if wrong goal number is given
+
+	get_body_goal(+CLAUSE,?GOALNUMBER,-GOAL)
+		returns a goal from a body in a clause, possibly 
+		nondeterministically	
+		fails if wrong goal number is given
+
+	check_program(+PROGRAM,-ERRORS)
+		check for possible errors in the program.
+		Possible errors:
+			NOT_UNIQUE(NAME/ARITY/GUARDOP)
+				Multiply defined definition
+				or guard conflict in different clauses
+			CALLED_BUT_NOT_DEFINED
+			DEFINED_BUT_NOT_CALLED
+			DEAD_CODE
+				the definition cannot be reached with
+				the given entry points
+			OBVIOUS_DEADLOCK(NAME/ARITY/GUARDOP): 
+				a simple inspection can show that 
+				this definition cannot execute regardless 
+				of input 
+*/
+
+% xref(P) is called with a (full) file name as argument.
+% it will print out various information about the call dependencies
+% and entries in the program P on stdout.
+
+xref(P) :-
+    ->	read_program(P,Prog),
+	Prog=prog(Entries,Definitions),
+	to_name_form(Entries,Entries0),
+	xref_program(Prog,CallsGrds,CallsBodies,GrdsCalls,BodiesCalls,_Dstrs),
+	stdout(S),
+	writenl('#### xref for program'(P))-S,
+	nl-S,
+%
+	write('============= public entries ========================')-S,
+	smap((E,S0,S1)\writepair(E,S0,S1),Entries0)-S,
+	nl-S,		
+%
+%	write('---- clause head vs def called in guard ----')-S,
+%	smap((C,S0,S1)\writepair(C,S0,S1),CallsGrds)-S,
+%	nl-S,
+%
+%	write('---- clause head vs def called in body ----')-S,
+%	smap((C,S0,S1)\writepair(C,S0,S1),CallsBodies)-S,
+%	nl-S,
+%
+%	write('---- guardlit vs clause head of calling def ----')-S,
+%	smap((C,S0,S1)\writepair(C,S0,S1),GrdsCalls)-S,
+%	nl-S,
+%
+%	write('---- bodylit vs clause head of calling def ----')-S,
+%	smap((C,S0,S1)\writepair(C,S0,S1),BodiesCalls)-S,
+%	nl-S,
+%
+%	write('---- Datastructures in unif lits ----')-S,
+%	smap((D,S0,S1)\writepair(D,S0,S1),Dstrs)-S,
+%	nl-S,
+%
+	writenl('======== public but not defined ========================')-S,
+	public_not_defined(Entries0,Definitions,PublicNotDefined),
+	smap((T,S0,S1)\writenl(T,S0,S1),PublicNotDefined)-S,
+%
+	append(CallsGrds,CallsBodies,CallsCls),
+	sort(CallsCls,CallsCls0),
+%
+	writenl('======== defined but not called and not public =========')-S,
+	in_left_not_in_right(CallsCls0,DefinedNotCalled),
+	filter_not_in_list(DefinedNotCalled, Entries0, DefinedNotCalled0),
+	sort(DefinedNotCalled0,DefinedNotCalled1),
+	smap((T,S0,S1)\writenl(T,S0,S1),DefinedNotCalled1)-S,
+%
+	nl-S,
+	writenl('===== called from guards but not defined ===============')-S,
+	in_left_not_in_right(GrdsCalls,CalledFromGuardsNotDefined),
+	sort(CalledFromGuardsNotDefined,CalledFromGuardsNotDefined0),
+	smap((T,S0,S1)\writenl(T,S0,S1),CalledFromGuardsNotDefined0)-S,
+%
+	nl-S,
+	writenl('======= called from bodies but not defined =============')-S,
+	in_left_not_in_right(BodiesCalls,CalledFromBodiesNotDefined),
+	sort(CalledFromBodiesNotDefined,CalledFromBodiesNotDefined0),
+	smap((T,S0,S1)\writenl(T,S0,S1),CalledFromBodiesNotDefined0)-S,
+%
+	writenl('======== end of xref ===================================')-S.
+
+filter_not_in_list([], _Entries0, DefinedNotCalled0) :-
+    ->	DefinedNotCalled0=[].
+filter_not_in_list([H|T], Entries0, DefinedNotCalled0) :-
+	member(H,Entries0)
+    ->	filter_not_in_list(T, Entries0, DefinedNotCalled0).
+filter_not_in_list([H|T], Entries0, DefinedNotCalled0) :-
+    ->	filter_not_in_list(T, Entries0, R),
+	DefinedNotCalled0=[H|R].
+
+public_not_defined([],_Prog,PublicNotDefined) :-
+    ->	PublicNotDefined=[].
+public_not_defined([N/A|T],Prog,PublicNotDefined) :-
+	member(N/A-def(_,_,_),Prog)	
+    ->  public_not_defined(T,Prog,PublicNotDefined).
+public_not_defined([H|T],Prog,PublicNotDefined) :-
+    ->  public_not_defined(T,Prog,R),
+	PublicNotDefined=[H|R].
+
+
+in_left_not_in_right(L0,L1) :-
+    ->	in_left_not_in_right(L0,L0,L1).
+
+in_left_not_in_right([],_L,L1) :-
+    ->	L1=[].
+in_left_not_in_right([N/A-_|T],L,L1) :-
+    	member(_-N/A,L)
+    ->	in_left_not_in_right(T,L,L1).
+in_left_not_in_right([N/A-_|T],L,L1) :-
+    ->	in_left_not_in_right(T,L,R),
+	L1=[N/A|R].
+
+
+to_name_form([],E) :-
+    ->  E=[].
+to_name_form([struct(Name,Arity,_Args)|T],E) :-
+    ->  E=[Name/Arity|R],
+	to_name_form(T,R).
+
+writepair(X)-S :- 
+	nl-S,
+	writepair0(X)-S.
+
+writepair0(A-B)-S :-
+   ->	writepair0(A)-S,
+	write('-')-S,
+	writepair0(B)-S.	
+writepair0(A/B)-S :-
+   ->	write(A)-S,
+	write('/')-S,
+	write(B)-S.	
+writepair0(X)-S :-
+   ->  	write_dterm1(X)-S.
+writepair0(var(N))-S :-
+   ->	write(N)-S.
+writepair0(X)-S :-
+	atom(X)
+   ->	write(X)-S.
+writepair0(X)-S :-
+	X=struct('=',2,[A,B])
+   ->	write('(')-S,
+	writepair0(A)-S,
+	write('=')-S,
+	writepair0(B)-S,
+	write(')')-S.	
+writepair0(X)-S :-
+	X=struct(N,0,_L)
+   ->	write(N)-S.
+writepair0(X)-S :-
+	X=struct(N,A,L),
+	A>0
+    ->	write(N)-S,
+	write('(')-S,
+	smapwr((T,S0,S1)\writepair0(T,S0,S1),L)-S,
+	write(')')-S.
+writepair0(X)-S :-
+    ->	write('?'(X))-S.
+
+
+
+xref_program(prog(_Entries,Defs),
+	GuardCalls,BodyCalls,UsedFromGuard,UsedFromBody,DataStructures) :-
+    ->  get_clause_call_pairs(Defs,FromGuard,FromBody,Data0),
+	swappairs(FromGuard,GuardCalls0),
+	sort(GuardCalls0,GuardCalls),
+	swappairs(FromBody,BodyCalls0),
+	sort(BodyCalls0,BodyCalls),	
+	sort(FromGuard,UsedFromGuard),
+	sort(FromBody,UsedFromBody),
+	sort(Data0,DataStructures).
+
+
+swappairs([],L) :-
+    ->  L=[].
+swappairs([A-B|T],L) :-
+    ->  L=[B-A|R], 
+	swappairs(T,R).
+
+
+% get_clause_call_pairs(+DEFLIST, -(DEFLIT,GOALLIT),-(DEFLIT,GOALLIT))	
+get_clause_call_pairs(D,FromGuard,FromBody,DataStructures) :-
+    ->  get_clause_call_pairs(D,[],FromGuard,[],FromBody,[],DataStructures).
+get_clause_call_pairs([],A1,FromGuard,A2,FromBody,A3,DataStructures) :-
+    ->  FromGuard=A1,
+	FromBody=A2,
+	DataStructures=A3.
+get_clause_call_pairs([H|T],A1,FromGuard,A2,FromBody,A3,DataStructures) :-
+    ->  get_clause_call_pairs0(H,A1,A4,A2,A5,A3,A6),
+	get_clause_call_pairs(T,A4,FromGuard,A5,FromBody,A6,DataStructures).
+
+get_clause_call_pairs0(Defs,A1,FromGuard,A2,FromBody,A3,DataStructs) :-
+    	Defs=_N-def(_G,_PredHead,Cls)
+    ->	get_clause_call_pairs1(Cls,A1,FromGuard,A2,FromBody,A3,DataStructs).
+
+get_clause_call_pairs1([],A1,FromGuard,A2,FromBody,A3,DataStructures) :-
+    ->  FromGuard=A1,
+	FromBody=A2,
+	DataStructures=A3.
+get_clause_call_pairs1([H|T],A1,FromGuard,A2,FromBody,A3,DataStructures) :-
+    ->  get_clause_call_pairs2(H,A1,A4,A2,A5,A3,A6),
+	get_clause_call_pairs1(T,A4,FromGuard,A5,FromBody,A6,DataStructures).
+
+get_clause_call_pairs2(Clause,A1,FromGuard,A2,FromBody,A3,DataStructs) :-
+	Clause=clause(Head,Guard,_Guardop,Body)
+    ->	get_call_literals(Head,A3,Dst0),
+	get_clause_call_pairs3(Head,Guard,A1,FromGuard,Dst0,Dst),
+	get_clause_call_pairs3(Head,Body,A2,FromBody,Dst,DataStructs).
+
+get_clause_call_pairs3(Name,Conj,Acc,Pair,Dacc,DataStructs) :-
+	akl_conjunction(Conj,A,B)
+    ->	get_clause_call_pairs3(Name,A,Acc,Pa,Dacc,Dtmp),
+	get_clause_call_pairs3(Name,B,Pa,Pair,Dtmp,DataStructs).
+get_clause_call_pairs3(Name,Conj,Acc,Pair,Dacc,DataStructs) :-
+  	Conj=struct(CName,CArity,_CArgs),
+	Name=struct(DName,DArity,_DArgs)	
+    ->  Pair=[CName/CArity-DName/DArity|Acc],
+	get_call_literals(Conj,Dacc,DataStructs).
+
+get_call_literals(Lit,Dacc,DataStructs) :-
+	Lit=struct(_Name,_Arity,Args)
+    ->  get_call_literals0(Args,Dacc,DataStructs).
+
+get_call_literals0([],Dacc,DataStructs) :-
+    ->  Dacc=DataStructs.
+get_call_literals0([Lit|T],Dacc,DataStructs) :-
+	Lit=struct(Name,Arity,Args),
+	built_in_literal(Name,Arity)
+    ->  get_call_literals0(Args,Dacc,Dacc0),
+	get_call_literals0(T,Dacc0,DataStructs).
+get_call_literals0([Lit|T],Dacc,DataStructs) :-
+	Lit=struct(Name,Arity,Args)
+    ->  get_call_literals0(Args,[Name/Arity|Dacc],Dacc0),
+	get_call_literals0(T,Dacc0,DataStructs).
+get_call_literals0([_Lit|T],Dacc,DataStructs) :-
+    ->  get_call_literals0(T,Dacc,DataStructs).
+		

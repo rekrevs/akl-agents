@@ -1,0 +1,205 @@
+@node Lists, Ordsets, GM, Top
+@comment  node-name,  next,  previous,  up
+@chapter List Processing
+@cindex lists
+
+This package defines operations on lists.  Lists are a very
+basic data structure, but nevertheless certain very frequent operations
+are provided in this package.
+
+To load the package, enter the query
+
+@example
+| ?- load(library(lists)).
+@end example
+@table @code
+@item append(@var{?Prefix}, @var{?Suffix}, @var{?Combined})
+@findex append/3
+is true when @var{Combined} is the combined list of the elements in
+@var{Prefix} followed by the elements in @var{Suffix}.  It can be used to
+form @var{Combined} or it can be used to find @var{Prefix} and/or
+@var{Suffix} from a given @var{Combined}.
+@item fappend(@var{+Prefix}, @var{+Suffix}, @var{?Combined})
+@findex fappend/3
+Same as append/3, but demands that the two first argments are instantiated
+to lists.
+@item delete(@var{+List}, @var{+Element}, @var{?Residue})
+@findex delete/3
+is true when @var{Residue} is the result of removing all
+@emph{identical} occurrences of @var{Element} in @var{List}.
+@var{List} must be instantiated to a list.
+@item is_list(@var{+List})
+@findex is_list/1
+is true when @var{List} is instantiated to a proper list.
+@item last(@var{?List}, @var{?Last})
+@findex last/2
+is true when @var{Last} is the last element in instantiated @var{List}.  Example:
+@example
+| ?- last(Z, [x,y,z]).
+
+Z = z ? 
+
+yes
+@end example
+@item max_list(@var{+ListOfNumbers}, @var{?Max})
+@findex max_list/2
+is true when @var{Max} is the largest of the elements in @var{ListOfNumbers}.
+It fails for the empty list.
+@item min_list(@var{+ListOfNumbers}, @var{?Min})
+@findex min_list/2
+is true when @var{Min} is the smallest of the numbers in the list
+@var{ListOfNumbers}.
+It fails for the empty list.
+@item member(@var{?Element}, @var{?List})
+@findex member/2
+is true when @var{Element} is a member of @var{List}.  It may be used to test 
+for membership in a list, but it can also be used to enumerate all the 
+elements in @var{List}.  Example:
+@example
+| ?- member(X, [a,b,c]).
+
+X = a ? ;
+
+X = b ? ;
+
+X = c ? 
+
+yes
+@end example
+@item memberchk(@var{+Element}, @var{+List})
+@findex memberchk/2
+is true when @var{Element} is a member of @var{List}, but 
+@code{memberchk/2} only succeeds at most once and can therefore not be used to
+enumerate the elements in @var{List}.
+@item nextto(@var{?X}, @var{?Y}, @var{?List})
+@findex nextto/3
+is true when @var{X} and @var{Y} appear side-by-side in @var{List}.  Example:
+@example
+| ?- nextto(X, Y, [1,2,3]).
+
+X = 1,
+Y = 2 ? ;
+
+X = 2,
+Y = 3 ? ;
+
+no
+@end example
+@item no_doubles(@var{?List})
+@findex no_doubles/1
+is true when @var{List} contains no duplicated elements.  This is true
+when @code{dif(@var{X}, @var{Y})} holds for all pairs of members @var{X}
+and @var{Y} of the list.
+@item non_member(@var{?Element}, @var{?List})
+@findex non_member/2
+is defined as not(member(@var{?Element}, @var{?List})).
+@item nth(@var{?N}, @var{?List}, @var{?Element})
+@findex nth/3
+@code{nth/3} is true when @var{Element} is the @var{N}th element of @var{List}.
+The first element is number 1.  Example:
+@example
+| ?- nth(N, [a,b,c,d,e,f,g,h,i], f).
+
+N = 6 ? 
+
+yes
+@end example
+@item nth(@var{?N}, @var{?List}, @var{?Element}, @var{?Rest})
+@findex nth/4
+is true when @var{Element} is in position @var{N} in the @var{List} and
+@var{Rest} is all elements in @var{List} except @var{Element}.
+@item nth0(@var{?N}, @var{?List}, @var{?Element})
+@findex nth0/3
+is true when @var{Element} is the @var{N}th element of @var{List}, counting 
+the first element as 0. 
+@item nth0(@var{?N}, @var{?List}, @var{?Element}, @var{?Rest})
+@findex nth0/4
+is true when @var{Element} is the @var{N}th element of @var{List},
+counting the first element as 0. @var{Rest} is all the other elements in
+@var{List}.    Example:
+@example
+| ?- nth0(N, [a,b,c,d,e,f,g,h,i,j], f, R).
+
+N = 5,
+R = [a,b,c,d,e,g,h,i,j] ? 
+
+yes
+@end example
+@item permutation(@var{?List}, @var{?Perm})
+@findex permutation/2
+is true when @var{Perm} is a permutation of @var{List}.
+
+@item prefix(@var{?Prefix}, @var{?List})
+@findex prefix/2
+is true when @var{Prefix} is a prefix of @var{List}.  Example:
+@example
+| ?- prefix([1,2,3], [1,2,3,4,5,6]).
+
+yes
+@end example
+@item prefix(@var{?Prefix}, @var{?List})
+@findex prefix/2
+is true when @var{Prefix} is a prefix of @var{List}.  Example:
+@example
+| ?- prefix([1,2,3], [1,2,3,4,5,6]).
+
+yes
+@end example
+@item remove_duplicates(@var{+List}, @var{?Pruned})
+@findex remove_duplicates/2
+is true when @var{Pruned} is the result of removing all identical
+duplicate elements in the instantiated list @var{List}.  Example:
+@example
+| ?- remove_duplicates([1,2,3,2,3,1], P).
+
+P = [1,2,3] ? ;
+
+no
+@end example
+@item reverse(@var{?List}, @var{?Reversed})
+@findex reverse/2
+is true when @var{Reversed} has the same elements as in the
+instantiated list @var{List} but in a reversed order.
+@item same_length(@var{?List1}, @var{?List2})
+@findex same_length/2
+is true when @var{List1} and @var{List2} have the same number of
+elements.
+@item same_length(@var{?List1}, @var{?List2}, @var{?Length})
+@findex same_length/3
+is true when @var{List1} and @var{List2} have the same number of elements
+and that number is @var{Length}.  Example:
+@example
+| ?- same_length([1,2,3], [9,8,7], N).
+
+N = 3 ? ;
+
+no
+@end example
+@item select(@var{?Element}, @var{?List}, @var{?List2})
+@findex select/3
+is true when the result of removing an occurrence of @var{Element} in
+@var{List} is @var{List2}.
+@item sublist(@var{?Sub}, @var{?List})
+@findex sublist/2
+is true when @var{Sub} contains some of the elements of @var{List}, and
+in the same order.
+@item substitute(@var{+X}, @var{+Xlist}, @var{+Y}, @var{?Ylist})
+@findex substitute/4
+is true when instantiated list @var{Xlist} and @var{Ylist} are equal
+except for replacing identical occurrences of @var{X} by @var{Y}.
+Example:
+@example
+| ?- substitute(1, [1,2,3,4], 5, X).
+
+X = [5,2,3,4] ? 
+
+yes
+@end example
+@item sum_list(@var{+ListOfNumbers}, @var{?Sum})
+@findex sum_list/2
+is true when @var{Sum} is the result of adding the @var{ListOfNumbers} 
+together.
+@item suffix(@var{?Suffix}, @var{?List})
+@findex suffix/2
+is true when @var{Suffix} is a suffix of @var{List}.
+@end table

@@ -1,0 +1,430 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%  SUSPEND NODES
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% suspend_node
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+suspend_node(In,Reg,VarCode,ILabel):-
+   sus_collect_ready(In)
+   ->
+   sus_collect(In,Reg,Nodes,[]),
+   VarCode=[Try|Block],
+   suspend_node1(Nodes,Reg,Try,Block,ILabel).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+suspend_node1([X],Reg,Try,Block,ILabel):-
+    X=simple(Is,end(_,JLabel))
+    ->
+    Block=[],
+    simple_trust(Reg,ILabel,JLabel,Try,Is).
+suspend_node1([X|Xs],Reg,Try,Block,ILabel):-
+    X=simple(Is,end(_,JLabel))
+    ->
+    Try=[Try1|Try2],
+    simple_try(Reg,ILabel,JLabel,Try1,Is),
+    suspend_node1(Xs,Reg,Try2,Block,ILabel).
+suspend_node1([X],Reg,Try,Block,ILabel):-
+    X=complex(SoFar,end(_,JLabel))
+     ->
+    complex_trust(Reg,SoFar,ILabel,JLabel,Try,Block).
+suspend_node1([X|Xs],Reg,Try,Block,ILabel):-
+    X=complex(SoFar,end(_,JLabel))
+    ->
+    Try=[Try1|Try2],Block=[Block1|Block2],
+    complex_try(Reg,SoFar,ILabel,JLabel,Try1,Block1),
+    suspend_node1(Xs,Reg,Try2,Block2,ILabel).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% int_suspend_node
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+int_suspend_node(In,Internal,Reg,VarCode,ILabel):-
+   sus_collect_ready(In)
+   ->
+   sus_collect(In,Reg,Nodes,[]),
+   VarCode=[Try|Block],
+   int_suspend_node1(Nodes,Internal,Reg,Try,Block,ILabel).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+int_suspend_node1([X],Internal,Reg,Try,Block,ILabel):-
+    X=simple(Is,End)
+    ->
+    end_extract_jlabel(End,JLabel),
+    Block=[],
+    Internal=[int(IntIs,End)],
+    int_simple_trust(Reg,ILabel,JLabel,Try,Is,IntIs).
+int_suspend_node1([X|Xs],Internal,Reg,Try,Block,ILabel):-
+    X=simple(Is,End)
+    ->
+    end_extract_jlabel(End,JLabel),
+    Try=[Try1|Try2],Internal=[int(IntIs,End)|Internal1],
+    int_simple_try(Reg,ILabel,JLabel,Try1,Is,IntIs),
+    int_suspend_node1(Xs,Internal1,Reg,Try2,Block,ILabel).
+int_suspend_node1([X],Internal,Reg,Try,Block,ILabel):-
+    X=complex(SoFar,End)
+     ->
+    end_extract_jlabel(End,JLabel),
+    Internal=[int(Is,End)],
+    int_complex_trust(Reg,SoFar,ILabel,JLabel,Try,Block,Is).
+int_suspend_node1([X|Xs],Internal,Reg,Try,Block,ILabel):-
+    X=complex(SoFar,End)
+    ->
+    end_extract_jlabel(End,JLabel),Block=[Block1|Block2],
+    Try=[Try1|Try2],Internal=[int(Is,End)|Internal1],
+    int_complex_try(Reg,SoFar,ILabel,JLabel,Try1,Block1,Is),
+    int_suspend_node1(Xs,Internal1,Reg,Try2,Block2,ILabel).
+
+%%%%
+
+end_extract_jlabel(node(up(JLabel),_),Label):-   ->   Label=JLabel.
+end_extract_jlabel(end(_,JLabel),Label):-        ->   Label=JLabel.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% TRY TRUST
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% make_write_block
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+make_write_block(list(Car,Cdr),Block,Int):-
+   ->
+   Int=list(l(Label)),
+   Block=block(label(Label),2,[Car,Cdr]).
+make_write_block(struct(F,A,Args),Block,Int):-
+   ->
+   inc(A,A1),
+   Int=struct(l(Label)),
+   Block=block(label(Label),A1,[functor(F,A)|Args]).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% complex_try
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+complex_try(Reg,Whatever,ILabel,JLabel,Try,Block):-
+   ->
+   Try=try(JLabel,Reg,ILabel,Write),
+   make_write_block(Whatever,Block,Write).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% complex_trust
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+complex_trust(Reg,Whatever,ILabel,JLabel,Try,Block):-
+   ->
+   Try=trust(JLabel,Reg,ILabel,Write),
+   make_write_block(Whatever,Block,Write).   
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% int_complex_try
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+int_complex_try(Reg,Whatever,ILabel,JLabel,Try,Block,ToBe):-
+   ->
+   Try=try(JLabel,Reg,ILabel,ToBe),
+   make_write_block(Whatever,Block,ToBe).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% int_complex_trust
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+int_complex_trust(Reg,Whatever,ILabel,JLabel,Try,Block,ToBe):-
+   ->
+   Try=trust(JLabel,Reg,ILabel,ToBe),
+   make_write_block(Whatever,Block,ToBe).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% simple_try
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+simple_try(Reg,ILabel,JLabel,Try,is(X)):-
+   ->
+   Try=try(JLabel,Reg,ILabel,constant(X)).
+simple_try(Reg,ILabel,JLabel,Try,Is):-
+   Is=typed(_)
+   ->
+   Try=try(JLabel,Reg,ILabel,Is).
+simple_try(Reg,ILabel,JLabel,Try,Is):-
+   Is=reg(_)
+   ->
+   Try=try(JLabel,Reg,ILabel,unbound).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% simple_trust
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+simple_trust(Reg,ILabel,JLabel,Try,is(X)):-
+   ->
+   Try=trust(JLabel,Reg,ILabel,constant(X)).
+simple_trust(Reg,ILabel,JLabel,Try,Is):-
+   Is=typed(_)
+   ->
+   Try=trust(JLabel,Reg,ILabel,Is).
+simple_trust(Reg,ILabel,JLabel,Try,Is):-
+   Is=reg(_)
+   ->
+   Try=trust(JLabel,Reg,ILabel,unbound).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% int_simple_try
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+int_simple_try(Reg,ILabel,JLabel,Try,is(X),IntIs):-
+   ->
+   IntIs=constant(X),
+   Try=try(JLabel,Reg,ILabel,IntIs).
+int_simple_try(Reg,ILabel,JLabel,Try,Is,IntIs):-
+   Is=typed(_)
+   ->
+   Try=try(JLabel,Reg,ILabel,Is),
+   IntIs=reg(Reg,Is).
+int_simple_try(Reg,ILabel,JLabel,Try,Is,IntIs):-
+   Is=reg(Reg)
+   ->
+   Try=try(JLabel,Reg,ILabel,unbound),
+   IntIs=Is.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% simple_trust
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+int_simple_trust(Reg,ILabel,JLabel,Try,Is,IntIs):-
+   Is=is(X)
+   ->
+   IntIs=constant(X),
+   Try=trust(JLabel,Reg,ILabel,IntIs).
+int_simple_trust(Reg,ILabel,JLabel,Try,Is,IntIs):-
+   Is=typed(_)
+   ->
+   Try=trust(JLabel,Reg,ILabel,Is),
+   IntIs=reg(Reg,Is).
+int_simple_trust(Reg,ILabel,JLabel,Try,Is,IntIs):-
+   Is=reg(Reg)
+   ->
+   Try=trust(JLabel,Reg,ILabel,unbound),
+   IntIs=Is.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% COLLECTION
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%  DEBUG %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+sus_collect_write(Ct,CtOut,[]):- -> inc(Ct,CtOut).
+sus_collect_write(Ct,CtOut,[X|Xs]):-
+    ->
+    sus_collect_write(Ct,Ct1,X),
+    sus_collect_write(Ct1,CtOut,Xs).
+sus_collect_write(Ct,CtOut,node(Int,_)):-
+    Int=internal(Reg,IntC)
+    ->
+    write(Ct),write(': '),write(internal(Reg)),nl,
+    sus_collect_write(Ct,CtOut,IntC).
+sus_collect_write(Ct,CtOut,node(X,On)):-
+    ->
+    write(Ct),write(': '),write(X),nl,
+    sus_collect_write(Ct,CtOut,On).
+sus_collect_write(Ct,CtOut,End):-
+    End=end(_,_)
+    ->
+    write(Ct),write(': '),write(End),nl,
+    CtOut=Ct.
+sus_collect_write(Ct,CtOut,int(Is,On)):-
+    ->
+    write(Ct),write(': '),write(int(Is)),nl,
+    sus_collect_write(Ct,CtOut,On).
+sus_collect_write(_Ct,_CtOut,X):-
+    ->
+    error(sus_collect_write(X)).
+
+%%%%
+
+
+sus_collect_ready([]):- -> true.
+sus_collect_ready([X|Xs]):-
+    ->
+    sus_collect_ready(X),
+    sus_collect_ready(Xs).
+sus_collect_ready(node(Int,X)):-
+    Int=internal(Reg,IntC),ground(Reg)
+    ->
+    sus_collect_ready(IntC),
+    sus_collect_ready(X).
+sus_collect_ready(node(up(_),On)):-
+    ->
+    sus_collect_ready(On).
+sus_collect_ready(node(X,On)):-
+    ground(X)
+    ->
+    sus_collect_ready(On).
+sus_collect_ready(End):-
+    End=end(Cl,_),ground(Cl)
+    ->
+    true.
+sus_collect_ready(int(_,On)):-
+    ->
+    sus_collect_ready(On).
+sus_collect_ready(X):- -> error(sus_collect_ready(X)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%  DEBUG  END %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% sus_collect
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+sus_collect([],_ArgNo,B,E):-  -> B=E.
+sus_collect([X|Xs],ArgNo,B,E):-
+   ->
+   sus_collect(X,ArgNo,B,B1),
+   sus_collect(Xs,ArgNo,B1,E).
+sus_collect(Node,ArgNo,B,E):-
+   Node=node(end(ArgNo,Is),End)
+   ->						% Is=is(_) or typed(_)
+   B=[simple(Is,End)|E].
+sus_collect(Node,ArgNo,B,E):-
+   Node=node(abandon(ArgNo),End)
+   ->
+   B=[simple(reg(ArgNo),End)|E].
+sus_collect(Node,ArgNo,B,E):-
+   Node=node(unpack(Number,ArgNo,list),X)
+   ->
+   sus_collect1(Number,X,ArgNo,list(void,void),B,E).
+sus_collect(Node,ArgNo,B,E):-
+   Node=node(unpack(Number,ArgNo,struct(F,A)),X)
+   ->
+   make_c_list(A,void,VoidList),
+   sus_collect1(Number,X,ArgNo,struct(F,A,VoidList),B,E).
+sus_collect(Node,_,_B,_E):-
+   ->
+   error(sus_collect(Node)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% sus_collect1
+%%%%             list or struct looking for next subterm
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+sus_collect1(N,Node,ArgNo,SoFar,B,E):-
+    Node=node(arg(ArgNo,arg(Sub,Reg)),X),
+    N>0
+    ->
+    sus_collect_update(Sub,Reg,SoFar,SoFar1),
+    sus_collect2(N,X,Reg,ArgNo,SoFar1,B,E).
+sus_collect1(0,Node,_ArgNo,SoFar,B,E):-
+    flat_member(Node,[node(up(_),_),end(_,_)])
+    ->
+    B=[complex(SoFar,Node)|E].			
+sus_collect1(N,node(up(_),X),ArgNo,SoFar,B,E):-
+    N>0
+    ->
+    sus_collect1(N,X,ArgNo,SoFar,B,E).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+sus_collect_update(car,Reg,list(void,Cdr),Out):- -> Out=list(reg(Reg),Cdr).
+sus_collect_update(cdr,Reg,list(Car,void),Out):- -> Out=list(Car,reg(Reg)).
+sus_collect_update(Int,Reg,struct(F,A,Args),Out):- integer(Int)
+    -> 
+    Out=struct(F,A,Args1),
+    find_n_elem(Int,Args,void),			% DEBUG 
+    replace_n_elem(Int,Args,reg(Reg),Args1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% sus_collect2
+%%%%             list or struct after reg assigned to subterm
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+sus_collect2(N,Node,Reg,ArgNo,SoFar,B,E):-
+    Node=node(abandon(Reg),X)
+    ->
+    dec(N,N1),
+    sus_collect1(N1,X,ArgNo,SoFar,B,E).
+sus_collect2(N,Node,Reg,ArgNo,SoFar,B,E):-
+    Node=node(internal(Reg,Internal),_)
+    ->
+    dec(N,N1),
+    sus_collect3(N1,Reg,Internal,ArgNo,SoFar,B,E).
+sus_collect2(N,[X|Xs],Reg,ArgNo,SoFar,B,E):-
+    ->
+    sus_collect2(N,X,Reg,ArgNo,SoFar,B,B1),
+    sus_collect2(N,Xs,Reg,ArgNo,SoFar,B1,E).
+sus_collect2(_,[],_,_,_,B,E):- -> B=E.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% sus_collect3
+%%%%             list or struct internals
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+sus_collect3(N,Reg,[X|Xs],ArgNo,SoFar,B,E):-
+    ->
+    sus_collect3(N,Reg,X,ArgNo,SoFar,B,B1),
+    sus_collect3(N,Reg,Xs,ArgNo,SoFar,B1,E).
+sus_collect3(_N,_Reg,[],_ArgNo,_SoFar,B,E):- -> B=E.
+sus_collect3(N,Reg,int(Is,Onwards),ArgNo,SoFar,B,E):- 
+     -> 
+     sus_collect_update2(Is,Reg,SoFar,SoFar1),
+     sus_collect1(N,Onwards,ArgNo,SoFar1,B,E).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+sus_collect_update2(Is,Reg,list(reg(Reg),Cdr),Out):- 
+    -> 
+    Out=list(Is,Cdr).
+sus_collect_update2(Is,Reg,list(Car,reg(Reg)),Out):- 
+    -> 
+    Out=list(Car,Is).
+sus_collect_update2(Is,Reg,struct(F,A,Args),Out):- 
+    -> 
+    Out=struct(F,A,Args1),
+    sus_c_u(Is,Reg,Args,Args1).
+
+%%%%
+
+sus_c_u(Is,Reg,[reg(Reg)|Args],NArgs):-     
+    -> 
+    NArgs=[Is|Args].
+sus_c_u(Is,Reg,[X|Args],NArgs):-       
+    -> 
+    NArgs=[X|NArgs1],
+    sus_c_u(Is,Reg,Args,NArgs1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% MISC
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% count_pushes
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+count_pushes([],NoCells):- -> NoCells=0.
+count_pushes([X|Xs],NoCells):- 
+   ->
+   count_pushes(X,NC1),
+   count_pushes(Xs,NC2),
+   add(NC1,NC2,NoCells).
+count_pushes(process(_,C),NoCells):-
+   ->
+   count_pushes(C,NoCells).
+count_pushes(X,NoCells):-
+   flat_member(X,[push_list_imm,push_list(_),push_structure_imm,push_structure(_),push_reg(_),
+	          set_reg_H_and_push_void(_),set_yvar_H_and_push_void(_),
+	          set_reg_and_yvar_H_and_push_void(_),push_nil,push_yvar(_),
+                  push_void,push_functor(_,_),push_atom(_),push_integer(_)])
+   ->
+   NoCells=1.
+count_pushes(X,NoCells):-
+   flat_member(X,[label(_),return(_),set_reg_H(_),set_yvar_H(_),
+                  set_yvar_reg(_,_),process(_),jump(_),test_level(_,_)])
+   ->
+   NoCells=0.
+

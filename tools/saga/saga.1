@@ -1,0 +1,26 @@
+.TH SAGA 1 "1 October 1993"
+.SH NAME
+saga \- Syntax Analyzer Generator in AKL
+.SH SYNOPSIS
+.B saga
+infile
+.RB "[\|" prefix "\|]"
+.RB "[\|" outfile "\|]"
+.SH DESCRIPTION
+.I saga
+(Syntax Analyzer Generator in AKL) is a tool to generate scanners
+and parsers in the akl(1) programming language from a description based on
+regular expressions and LALR(1) context free grammars, similar to that of
+lex(1) and yacc(1).
+
+The infile must have an extension .saga.
+If the name of the outfile is not provided, it will have the same
+basename as the infile, but with extension .akl.
+If the name of the outfile is provided, the extension .akl will be added
+automatically.
+
+For more information, read the SAGA Report available in the documentation
+area in the AKL source file area.
+
+.SH AUTHOR
+Anders Andersson, SICS, Sweden.

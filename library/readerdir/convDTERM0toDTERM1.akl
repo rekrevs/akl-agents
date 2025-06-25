@@ -1,0 +1,187 @@
+%--- Conversion routines:
+
+:- public dterm0_to_dterm1/2, dterm0_to_dterm1/4, dterm1_to_dterm0/2.
+
+%-----dterm0_to_dterm1(+DTERM0,-DTERM1)-----------
+/*
+	All variables with name '_' have changed their name into
+	'noname(Integer)' where the various integers distinguish
+	the variables.
+*/
+
+dterm0_to_dterm1(term(T0),D) :- 
+    -> term0_to_term1(T0,T1),
+        D=term(T1).
+dterm0_to_dterm1(exception(T),D) :-
+    ->  D=exception(T).
+
+term0_to_term1(T0,T1) :- 
+    ->	x1(T0,T1,0,_I).
+x1(struct(Name,Arity,Args0),T1,I0,I1) :-
+    ->  smap((Aa,Ab,Ia,Ib)\x1(Aa,Ab,Ia,Ib),Args0,Args1,I0,I1),
+	T1=struct(Name,Arity,Args1).
+x1(var('_'),T1,I0,I1) :- 
+    ->  T1=var(noname(I0)), 
+	I1 is I0+1.
+x1(var(T0),T1,I0,I1) :-
+    ->  T1=var(T0),
+	I0=I1.
+
+
+%----dterm0_to_dterm1(+DTERM0,-DTERM1,-NAME0-list,-NAME0-list)
+/*
+	The same as above, but Once contains
+	the names of the variables that only have one occurence 
+	in the term DTERM0.
+	More contains the names of the variables
+	that occur several times in the term, but nevertheless
+	start with '_'.
+	This predicate is useful for producing warnings when
+	compiling.
+*/
+dterm0_to_dterm1(term(T0),D1,Once,More) :-     
+    ->  term0_to_term1(T0,T1,Once,More),
+	D1=term(T1).
+dterm0_to_dterm1(exception(T),D1,Once,More) :-
+    ->  D1=exception(T),
+	Once=[],
+	More=[].
+
+term0_to_term1(T0,T1,Once,More) :- 
+    ->	x2(T0,T1,0,_I,[],Once0,[],More0),
+	no_voids(Once0,Once),
+	only_voids(More0,More).
+
+only_voids([],T) :- 
+    ->	T=[].
+only_voids([H|T],R) :- 
+	atom_to_chars(H,[0'_,_|_])
+    ->	R=[H|S], 
+	only_voids(T,S).
+only_voids([_|T],R) :- 
+    ->	R=S, 
+	only_voids(T,S).
+
+no_voids([],T) :- 
+    ->	T=[].
+no_voids([H|T],R) :- 
+	atom_to_chars(H,[0'_|_])
+    ->	no_voids(T,R).
+no_voids([H|T],R) :- 
+    ->	R=[H|S], 
+	no_voids(T,S).
+
+x2(struct(N,A,Args0),T1,I0,I1,AOnce,Once,AMore,More) :-
+    ->  smap((Aa,Ab,Ia,Ib,Oa,Ob,Ma,Mb)\x2(Aa,Ab,Ia,Ib,Oa,Ob,Ma,Mb),
+		Args0,Args1,I0,I1,AOnce,Once,AMore,More),
+	T1=struct(N,A,Args1).
+x2(var('_'),T1,I0,I1,AOnce,Once,AMore,More) :-
+    ->  T1=var(noname(I0)), 
+	I1 is I0+1,
+	AOnce=Once,
+	AMore=More.
+x2(var(T0),T1,I0,I1,AOnce,Once,AMore,More) :- 
+    ->	T1=var(T0),
+	I0=I1,
+	x3(T0,AOnce,Once,AMore,More).
+x2(T0,T1,I0,I1,AOnce,Once,AMore,More) :- 
+    ->  T1=T0,
+	I1=I0,
+	Once=AOnce,
+	More=AMore.
+
+x3(X,AOnce,Once,AMore,More) :- 
+	member(X,AMore)
+    ->  Once=AOnce,
+	More=AMore.
+x3(X,AOnce,Once,AMore,More) :- 
+	select(X,AOnce,ROnce)
+    ->  Once=ROnce,
+	More=[X|AMore].
+x3(X,AOnce,Once,AMore,More) :-
+    ->  Once=[X|AOnce], 
+	More=AMore.
+	
+%-----dterm1_to_dterm0(+DTERM1,-DTERM0)-----------
+/*
+	If a variable only occurs once in DTERM1, its name is
+	replaced by a new name, unique within this DTERM0, starting
+	with '_'.
+	If a variable with the name 'noname(Integer)' occurs
+	several times it will receive a new name not starting
+	with '_', unique within this DTERM0.
+*/
+dterm1_to_dterm0(term(T1),D0) :-
+    ->  term1_to_term0(T1,T0),
+	D0=term(T0).
+term1_to_term0(T1,T0) :- 
+	constructStore(S),
+	var_occurrences(T1,S,Vtab),
+	highest_vno(Vtab,I0)
+    ->	term1_to_term0(T1,T0,Vtab,I0,_).
+term1_to_term0(T1,T0,Vtab,I0,I1) :-
+	is_var(T1), 
+	access((T1-N),Vtab,_)
+    ->  x4(T1,N,T0,I0,I1).
+term1_to_term0(struct(N,A,Ts),T0,Vtab,I0,I2) :-
+    ->  term1_to_term0(N,N0,Vtab,I0,I1),
+	term1_to_term0(Ts,Ts0,Vtab,I1,I2),
+	T0=struct(N0,A,Ts0).
+term1_to_term0([],T0,_Vtab,I0,I1) :-
+    ->  T0=[],
+	I0=I1.
+term1_to_term0([H|T],T0,Vtab,I0,I2) :-
+    ->  term1_to_term0(H,G,Vtab,I0,I1),
+	term1_to_term0(T,S,Vtab,I1,I2),
+	T0=[G|S].
+term1_to_term0(T1,T0,_Vtab,I0,I1) :-
+    ->  T0=T1,
+	I0=I1.
+x4(var(_),1,T0,I0,I1) :-
+    ->  number_chars1(I0,N),
+	chars_to_atom([0'_|N],U),
+	I1 is I0+1,
+	T0=var(U).
+x4(var(V),N,T0,I0,I1) :-
+	V=noname(I),
+	integer(I),
+    	N>1
+    ->  I1 is I0+1,
+	gen_var(v,I1,T0).
+x4(var(V),_N,T0,I0,I1) :-
+    -> T0=var(V),
+	I1=I0.
+
+highest_vno(Vtab,No) :-
+	highest_vno(Vtab,0,No).
+highest_vno(Vtab,I,No) :-
+	access((V-_),Vtab,Rest) 
+    ->  gen_var(v,I0,V),
+	highest_vno0(Rest,I,I0,No).
+highest_vno(_Vtab,I,No) :-
+    ->	I=No.
+highest_vno0(Vtab,I,J,No) :-
+	J>I
+    ->  highest_vno(Vtab,J,No).
+highest_vno0(Vtab,I,_J,No) :-
+    ->  highest_vno(Vtab,I,No).
+
+var_occurrences(var(V),I0,I2) :-
+	access((var(V)-N),I0,I1)
+    ->  N1 is N+1,
+	insert((var(V)-N1),I1,I2).
+var_occurrences(var(V),I0,I1) :-
+    ->  insert((var(V)-1),I0,I1).
+var_occurrences(struct(N,_A,Ts),I0,I2) :-
+    ->  var_occurrences(N,I0,I1),
+	smap((T,Ia,Ib)\var_occurrences(T,Ia,Ib),Ts,I1,I2).
+var_occurrences([],I0,I1) :-
+    ->  I0=I1.
+var_occurrences([H|T],I0,I2) :-
+    ->  var_occurrences(H,I0,I1),
+	var_occurrences(T,I1,I2).
+var_occurrences(T,I0,I1) :-
+	atomic(T)
+    ->  I1=I0.
+
+

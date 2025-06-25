@@ -1,0 +1,257 @@
+%   Copyright(C) 1993, Swedish Institute of Computer Science
+%   Originally adapted from shared code written by Richard A. O'Keefe
+%   New version using 2-3 trees code adapted from I. Bratko
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%   File   : ASSOC.AKL                                                 %
+%   Updated: 29 July 1993                                              %
+%   Purpose: 23-tree implementation of "association lists".            %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% version with argument order suitable for AKL
+% get_assoc/5 renamed to set_assoc/5
+
+% compatibility with arrays:
+
+% new_array/2
+% set_array/5   set_assoc/5
+% get_array/4   get_assoc/4
+% missing       put_assoc/4
+% missing       empty_assoc/1
+
+% nice renaming not yet introduced:
+%                list_to_assoc -> alist_to_assoc
+%                assoc_to_list -> assoc_to_alist
+%                ord_list_to_assoc -> ord_alist_to_assoc
+
+%   gen_assoc(?Key, +Assoc, ?Value)
+%   assumes that Assoc is a proper "assoc" tree, and is true when
+%   Key is associated with Value in Assoc.  Can be used to enumerate
+%   all Values by ascending Keys.
+
+gen_assoc(Key, Tree, Val) :-
+	gen23(Tree, Key, Val).
+
+gen23(l(Key,Val), Key, Val).
+gen23(n2(T1,_,_), Key, Val) :- gen23(T1, Key, Val).
+gen23(n2(_,_,T2), Key, Val) :- gen23(T2, Key, Val).
+gen23(n3(T1,_,_,_,_), Key, Val) :- gen23(T1, Key, Val).
+gen23(n3(_,_,T2,_,_), Key, Val) :- gen23(T2, Key, Val).
+gen23(n3(_,_,_,_,T3), Key, Val) :- gen23(T3, Key, Val).
+
+
+%   get_assoc(+Key, ?Value, +Assoc, ?OutAssoc)
+%   assumes that Assoc is a proper "assoc" tree.  It is true when
+%   Key is identical to (==) one of the keys in Assoc, and Value
+%   unifies with the associated value.
+%   The OutAssoc returned is identical to the input Assoc and is used
+%   only for synchronization (and compatibility with the array package)
+
+get_assoc(X, V, T, T) :-
+    	acc23(T, X, found(V)).
+
+% Added by Anders Andersson
+%  get_nearest_le_assoc(+Key, ?Value, +Assoc, ?OutAssoc) picks the value
+%  that have the nearest smaller or equal key 
+get_nearest_le_assoc(X, K, V, T, T) :-
+	acc23(T, X, Result),
+    	get_le_lookup(Result, X, K, V).
+
+get_le_lookup(found(V), X, K, R) :-
+    ->  R = V,
+	K = X.
+get_le_lookup(not_found(K, V), X, KR, VR) :-
+	X @> K
+    ->	VR = V,
+	KR = K.
+
+acc23(l(X, W), X, V) :- 
+    ->	V = found(W).
+acc23(l(K, W), _, V) :- 
+    ->	V = not_found(K, W).
+acc23(n2(T1,M,_), X, V) :-
+	M @> X
+    ->	acc23(T1, X, V).
+acc23(n2(_,_,T2), X, V) :-
+    ->	acc23(T2, X, V).
+acc23(n3(T1,M2,_,_,_), X, V) :-
+	M2 @> X
+    ->	acc23(T1, X, V).
+acc23(n3(_,_,T2,M3,_), X, V) :- 
+	M3 @> X
+    ->	acc23(T2, X, V).
+acc23(n3(_,_,_,_,T3), X, V) :-
+    ->	acc23(T3, X, V).
+
+
+%   set_assoc(+Key, ?OldValue, ?NewValue, +OldAssoc, ?NewAssoc)
+%   is true when OldAssoc and NewAssoc are "assoc" trees of the same
+%   shape having the same elements except that the value for Key in
+%   OldAssoc is OldValue and the value for Key in NewAssoc is NewValue.
+
+set_assoc(X, W, V, T0, T) :-
+	set23(T0, X, W, V, T).
+
+set23(l(X,U), X, W, V, T) :-
+    ->	W = U,
+	T = l(X,V).
+set23(n2(T1,M,T2), X, W, V, T) :-
+	X @< M
+    ->	set23(T1, X, W, V, N1),
+	T = n2(N1,M,T2).
+set23(n2(T1,M,T2), X, W, V, T) :-
+	M @=< X
+    ->	set23(T2, X, W, V, N2),
+	T = n2(T1,M,N2).
+set23(n3(T1,M1,T2,M2,T3), X, W, V, T) :-
+	X @< M1
+    ->	set23(T1, X, W, V, N1),
+	T = n3(N1,M1,T2,M2,T3).
+set23(n3(T1,M1,T2,M2,T3), X, W, V, T) :-
+	X @< M2
+    ->	set23(T2, X, W, V, N2),
+	T = n3(T1,M1,N2,M2,T3).
+set23(n3(T1,M1,T2,M2,T3), X, W, V, T) :-
+	M2 @=< X
+    ->	set23(T3, X, W, V, N3),
+	T = n3(T1,M1,T2,M2,N3).
+
+
+%   assoc_to_list(+Assoc, ?List)
+%   assumes that Assoc is a proper "assoc" tree, and is true when
+%   List is a list of Key-Value pairs in ascending order with no
+%   duplicate Keys specifying the same finite function as Assoc.
+%   Use this to convert an assoc to a list.
+
+assoc_to_list(Assoc, List) :-
+	t23_to_list(Assoc, List, []).
+
+t23_to_list(nil)-_List :-
+    ->  true.
+t23_to_list(l(Key,Val))-List :-
+    ->	[Key-Val]-List.
+t23_to_list(n2(T1,_,T2))-List :-
+    ->  t23_to_list(T1)-List,
+	t23_to_list(T2)-List.
+t23_to_list(n3(T1,_,T2,_,T3))-List :-
+    ->	t23_to_list(T1)-List,
+	t23_to_list(T2)-List,
+	t23_to_list(T3)-List.
+
+%   list_to_assoc(+List, ?Assoc)
+%   is true when List is a proper list of Key-Val pairs (in any order)
+%   and Assoc is an association tree specifying the same finite function
+%   from Keys to Values.
+
+list_to_assoc([], T) :-
+    ->	T = nil.
+list_to_assoc([X-V|L], T) :-
+    ->	list_to_assoc(L, T0),
+	put_assoc(X, V, T0, T).
+
+
+%   ord_list_to_assoc(+List, ?Assoc)
+%   is true when List is a proper list of Key-Val pairs (keysorted)
+%   and Assoc is an association tree specifying the same finite function
+%   from Keys to Values.
+
+ord_list_to_assoc(List, Assoc) :-
+	list_to_assoc(List, Assoc).
+
+
+%   map_assoc(:Pred, ?OldAssoc, ?NewAssoc)
+%   is true when OldAssoc and NewAssoc are association trees of the
+%   same shape, and for each Key, if Key is associated with Old in
+%   OldAssoc and with New in NewAssoc, Pred(Old,New) is true.
+
+
+map_assoc(Pred, OldAssoc, NewAssoc) :-
+	map23(OldAssoc, Pred, NewAssoc).
+
+map23(l(X,U), P, T) :-
+    ->  P(U,V),
+	T = l(X,V).
+map23(n2(T1,M,T2), P, T) :-
+    ->	map23(T1, P, N1),
+	map23(T2, P, N2),
+	T = n2(N1,M,N2).
+map23(n3(T1,M1,T2,M2,T3), P, T) :-
+    ->	map23(T1, P, N1),
+    	map23(T2, P, N2),
+	map23(T3, P, N3),
+	T = n3(N1,M1,N2,M2,N3).
+
+
+%   put_assoc(+Key, +Val, +OldAssoc, -NewAssoc)
+%   is true when OldAssoc and NewAssoc define the same finite function,
+%   except that NewAssoc associates Val with Key.  OldAssoc need not
+%   have associated any value at all with Key.
+
+put_assoc(X, V, Tree0, Tree) :-
+	insert23(Tree0, X, V, Trees),
+	make_23tree(Trees, Tree).
+
+make_23tree(t1(T), Tree) :-
+    ->	Tree = T.
+make_23tree(t2(M,T1,T2), Tree) :-
+    ->	Tree = n2(T1, M, T2).
+
+insert23(nil, X, V, Trees) :-
+    ->	Trees = t1(l(X,V)).
+insert23(T, X, V, Trees) :-
+	T = l(M,_),
+	X @< M
+    ->	Trees = t2(M,l(X,V),T).
+insert23(T, X, V, Trees) :-
+	T = l(M,_),
+	M @< X
+    ->	Trees = t2(X,T,l(X,V)).
+insert23(l(X,_), X, V, Trees) :-
+    ->	Trees = t1(l(X,V)).
+insert23(n2(T1,M,T2), X, V, Trees) :-
+	X @< M
+    ->	insert23(T1, X, V, T1s),
+	combine_left2(T1s, M, T2, Trees).
+insert23(n2(T1,M,T2), X, V, Trees) :-
+	M @=< X
+    ->	insert23(T2, X, V, T2s),
+	combine_right2(T2s, M, T1, Trees).
+insert23(n3(T1,M1,T2,M2,T3), X, V, Trees) :-
+	X @< M1
+    ->	insert23(T1, X, V, T1s),
+	combine1(T1s, M1, T2, M2, T3, Trees).
+insert23(n3(T1,M1,T2,M2,T3), X, V, Trees) :-
+	X @< M2
+    ->	insert23(T2, X, V, T2s),
+	combine2(T2s, M1, T1, M2, T3, Trees).
+insert23(n3(T1,M1,T2,M2,T3), X, V, Trees) :-
+	M2 @=< X
+    ->	insert23(T3, X, V, T3s),
+	combine3(T3s, M1, T1, M2, T2, Trees).
+
+combine3(t1(T3), M1, T1, M2, T2, Trees) :-
+    ->	Trees = t1(n3(T1,M1,T2,M2,T3)).
+combine3(t2(M, Ta, Tb), M1, T1, M2, T2, Trees) :-
+    ->	Trees = t2(M2, n2(T1, M1, T2), n2(Ta, M, Tb)).
+
+combine2(t1(T2), M1, T1, M2, T3, Trees) :-
+    ->	Trees = t1(n3(T1,M1,T2,M2,T3)).
+combine2(t2(M, Ta, Tb), M1, T1, M2, T3, Trees) :-
+    ->	Trees = t2(M, n2(T1, M1, Ta), n2(Tb, M2, T3)).
+
+combine1(t1(T1), M1, T2, M2, T3, Trees) :-
+    ->	Trees = t1(n3(T1,M1,T2,M2,T3)).
+combine1(t2(M, Ta, Tb), M1, T2, M2, T3, Trees) :-
+    ->	Trees = t2(M1, n2(Ta, M, Tb), n2(T2, M2, T3)).
+
+combine_left2(t1(T1), M, T2, Trees) :-
+    ->	Trees = t1(n2(T1,M,T2)).
+combine_left2(t2(M1,T1,T2), M2, T3, Trees) :-
+    ->	Trees = t1(n3(T1,M1,T2,M2,T3)).
+
+combine_right2(t1(T2), M, T1, Trees) :-
+    ->	Trees = t1(n2(T1,M,T2)).
+combine_right2(t2(M2,T2,T3), M1, T1, Trees) :-
+    ->	Trees = t1(n3(T1,M1,T2,M2,T3)).
+
+empty_assoc(nil).

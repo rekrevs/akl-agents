@@ -1,0 +1,79 @@
+% $Id: clause.akl,v 1.6 1994/03/29 18:02:44 jm Exp $
+
+% export compile_clause
+% import head_code from head
+% import body_code from body
+% import empty_varinfo, analyze_varinfo from analyze
+
+
+compile_clause(Cl, S0, S)-P :-
+	clause_label(Cl, L),
+	S0 = [label(L)|S1],
+	raw_clause_code(Cl, C, VI)-P,
+	analyze_varinfo(VI),
+	allocate_registers(C, VI, Ysize),
+	real_instructions(C, D),
+	edit_and_peephole(D, Ysize, S1, S).
+
+raw_clause_code(Cl, S0, V0)-P :-
+	clause_head(Cl, Head),
+	head_code(Head, T0, S0, S1, V0, V1)-P,
+	C0 = 0,
+	clause_guard(Cl, Guard),
+	body_code(Guard, C0, C1, T0, T1, S1, S2, V1, V2)-P,
+	C2 is C1+1,
+	clause_op(Cl, Op),
+	guard_op_code(Op, C2, S2, S3, V2, V3),
+	C3 is C2+1,
+	clause_body(Cl, Body),
+	body_code(Body, C3, _C, T1, _T, S3, [], V3, [])-P.
+
+guard_op_code(aggregate(Type), C, S0, S, V0, V) :-
+    ->	guard_op_code_aux(Type, C, S0, S, V0, V).
+guard_op_code(Op, _, S0, S, V0, V) :-
+    ->	V = V0,
+	S0 = [guard_op(Op)|S].
+
+guard_op_code_aux(unorder(X,X1,X2), C2, S0, S, V0, V) :-
+    ->  X = var(A),
+	X1 = var(A1),
+	X2 = var(A2),
+	occurrence(A, B, C2, V0, V1),
+	occurrence(A1, B1, C2, V1, V2),
+	occurrence(A2, B2, C2, V2, V),
+	S0 = [guard_op(unorder(B,B1,B2))|S].
+guard_op_code_aux(order(X,X1,X2), C2, S0, S, V0, V) :-
+    ->  X = var(A),
+	X1 = var(A1),
+	X2 = var(A2),
+	occurrence(A, B, C2, V0, V1),
+	occurrence(A1, B1, C2, V1, V2),
+	occurrence(A2, B2, C2, V2, V),
+	S0 = [guard_op(order(B,B1,B2))|S].
+guard_op_code_aux(unit(X,X1), C2, S0, S, V0, V) :-
+    ->	X = var(A),
+	X1 = var(A1),
+	occurrence(A, B, C2, V0, V1),
+	occurrence(A1, B1, C2, V1, V),
+	S0 = [guard_op(unit(B,B1))|S].
+
+%%% flat
+
+compile_flat_clause(Cl, Ci, S0, S)-P :-
+	S0 = [label(Ci)|S1],
+	raw_flat_clause_code(Cl, C, VI)-P,
+	analyze_varinfo(VI),
+	allocate_registers(C, VI, Ysize),
+	real_instructions(C, D),
+	edit_and_peephole(D, Ysize, S1, S).
+
+raw_flat_clause_code(Cl, S0, V0)-P :-
+	clause_head(Cl, Head),
+	head_code(Head, T0, S0, S1, V0, V1)-P,
+	C0 = 0,
+	clause_guard(Cl, Guard),
+	body_code(Guard, C0, C1, T0, T1, S1, S2, V1, V2)-P,
+	clause_body(Cl, Body),
+	body_code(Body, C1, _C, T1, _T, S2, [], V2, [])-P.
+
+

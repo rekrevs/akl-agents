@@ -1,0 +1,365 @@
+% $Id: cipher.akl,v 1.13 1993/10/22 12:55:48 sverker Exp $
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%    DSSA System - Decoding Simple Substitution ciphers in Andorra-I   
+%%		    		- Rong Yang 
+%%    (C) Jan. 89, Dept. Computer Science Bristol University
+%%    Ref.  Proc. of 6th ICLP pp 113-128
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+
+%%    modified for AKL by Johan Montelius
+
+
+cipher:-  
+	text(Text),
+	format('The cipher is: ~s ~nTry substitution and frequency~n', [Text]).
+
+
+substitution:-
+    statistics(runtime,_),
+    substitution(1,Cipher)
+    ->  statistics(runtime,[_,Time]),
+	format('One possible solution is : ~n ~w ~n~nSolution found in ~w msec. ~n', [Cipher, Time]).
+
+frequency:-
+    statistics(runtime,_),
+    frequency(1,Cipher)
+    ->	statistics(runtime,[_,Time]),
+	format('One possible solution is : ~n ~w ~n~n Solution found in ~w msec. ~n', [Cipher, Time]).
+
+substitution(N,Cipher):- 
+	init(Cipher,Words,Table),
+	alphabet(Alphabet),
+	dictionary(Words,N),
+	indomain(Table,Alphabet),
+	control(Table,Alphabet).
+
+frequency(N,Cipher):- 
+	init(Cipher,Words,Table),
+	alphabet(Alphabet),
+	top(3,Table,Top3,Rest),
+	indomain(Top3,[e,t,n,o,a,i,r]),
+	dictionary(Words,N),
+	indomain(Rest,Alphabet),
+	control(Table,Alphabet).
+
+
+text("tfoe npsf npofz up nf ofyu nffujoh xjmm cf po gsjebz bu pme qmbdf").
+
+init(Cipher, Words, Table):- 
+Cipher = 
+ [T,F,O,E,' ',N,P,S,F,' ',N,P,O,F,Z,' ',
+  U,P,' ',N,F,' ',O,F,Y,U,' ',N,F,F,U,J,O,H,
+  ' ',X,J,M,M,' ',C,F,' ',P,O,' ',G,S,J,E,B,Z,
+  ' ',B,U,' ',P,M,E,' ',Q,M,B,D,F],
+Words =
+ [[N,F], [C,F], [P,O], [T,F,O,E], 
+  [O,F,Y,U], [N,P,S,F], [N,P,O,F,Z], 
+  [U,P], [B,U], [P,M,E], [X,J,M,M],
+  [Q,M,B,D,F], [G,S,J,E,B,Z], [N,F,F,U,J,O,H]],
+Table = 
+ [F,P,O,U,N,M,J,B,E,S,Z,T,C,X,Q,D,G,H,Y].
+
+alphabet([a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z]).
+
+top(0,Rest,[],Rest).
+top(N,[X|Table], [X|Top],Rest):-
+	N >0 ?
+	N1 is N-1,
+	top(N1,Table,Top,Rest).
+
+/* dictionary(Words,N) succeeds if all but N word can be found in the 
+ * dictionary.
+ */
+
+dictionary(Words,N):-
+	open_port(Port,Errors),
+	lookup(Words,Port),
+	length(Words,L),
+	counter(Errors,L,N).
+
+lookup([],_).
+lookup([W|Rest],P):-
+	check(W, P),
+        lookup(Rest,P).
+
+counter(_,0,N):-
+    |	N >= 0.
+counter([ok|Err],L,N):-
+    |	L1 is L-1,
+	counter(Err,L1,N).
+counter([err|Err],L,N):-  
+    N > 0
+    |	L1 is L-1,
+	N1 is N-1,
+	counter(Err,L1,N1). 
+
+
+check([X1],E):- word(X1,M), message(M,E).
+
+check([X1,X2],E):- word(X1,X2,M), message(M,E).
+
+check([X1,X2,X3],E):- word(X1,X2,X3,M), message(M,E).
+
+check([X1,X2,X3,X4],E):- word(X1,X2,X3,X4,M), message(M,E).
+
+check([X1,X2,X3,X4,X5],E):- word(X1,X2,X3,X4,X5,M), message(M,E).
+
+check([X1,X2,X3,X4,X5,X6],E):- word(X1,X2,X3,X4,X5,X6,M), message(M,E).
+
+check([X1,X2,X3,X4,X5,X6,X7],E):- word(X1,X2,X3,X4,X5,X6,X7,M), message(M,E).
+
+
+message(M,E):- data(M) | M@E.
+
+
+
+/* The predicate indomain/2 is used as a generator. The goal 
+ * indomain(Table,Domain) constrains each element in Table to
+ * be a member in Doamin. 
+ */
+
+indomain([],_).
+indomain([X|Rest],Domain):- 
+	member(X,Domain), 
+	indomain(Rest,Domain).
+
+member(X,[X|_]).
+member(X,[_|R]):- member(X,R).
+
+
+/* The predicate control/2 is used to check if a function
+ * is injective. This is done by creating a monitor for
+ * each element in the table. When an element is determined
+ * its value is send to a controller. The controller will 
+ * delete the value from the domain. This implies that only 
+ * N + 1 processes are created. The predicate is passive, it
+ * can not generate solutions.
+ */
+
+control(Table,Domain):-
+	open_port(Port, Stream),
+	spawn(Table, Port),
+	length(Table, N),
+	controller(Stream, N, Domain).
+
+spawn([],_).
+spawn([D|Ds],Port):-
+	monitor(D,Port),
+	spawn(Ds,Port).
+
+monitor(X,P):- data(X) |  X@P.
+
+controller(_,0,_):-
+    ->	true.
+controller([X|S],N,Domain):-
+    ->	del(X,Domain,Rest),
+	N1 is N-1,
+	controller(S,N1,Rest).
+
+del(X,[X|R],Del):-
+    ->	Del = R.
+del(X,[Y|R],Del):-
+    ->	Del = [Y|Rest],
+	del(X,R,Rest).
+
+/* The dictionary:
+ *
+ *
+ */
+
+word(a,ok).
+word(i,ok). 
+
+word(a,m,ok).
+word(a,n,ok).    
+word(a,t,ok).        
+word(b,e,ok).    
+word(b,y,ok).     
+word(d,o,ok).        
+word(g,o,ok).   
+word(h,e,ok).    
+word(i,f,ok).   
+word(i,n,ok).        
+word(i,s,ok).       
+word(i,t,ok).    
+word(m,e,ok).  
+word(m,y,ok). 
+word(n,o,ok).  
+word(o,f,ok).      
+word(o,n,ok).     
+word(o,r,ok).    
+word(s,o,ok).    
+word(t,o,ok).       
+word(u,p,ok).        
+word(w,e,ok).  
+word(u,s,ok).   
+
+
+word(a,c,t,ok). 
+word(a,l,l,ok).  
+word(a,n,y,ok).  
+word(a,n,d,ok).    
+word(a,r,e,ok).   
+word(c,a,n,ok).       
+word(d,a,y,ok).     
+word(d,i,d,ok).    
+word(f,o,r,ok). 
+word(h,a,d,ok). 
+word(h,a,s,ok).  
+word(h,e,r,ok).
+word(h,i,m,ok).  
+word(h,i,s,ok). 
+word(h,o,w,ok).       
+word(i,t,s,ok).  
+word(m,a,n,ok).       
+word(m,a,y,ok).     
+word(m,e,n,ok).      
+word(n,e,w,ok).  
+word(n,o,t,ok). 
+word(n,o,w,ok).      
+word(o,n,e,ok).  
+word(o,l,d,ok). 
+word(o,u,r,ok).     
+word(s,a,w,ok).     
+word(s,a,y,ok).    
+word(s,e,e,ok).   
+word(s,h,e,ok).    
+word(s,i,x,ok).   
+word(t,e,n,ok). 
+word(t,h,e,ok).   
+word(t,r,y,ok).  
+word(t,w,o,ok). 
+word(w,a,s,ok).  
+word(w,h,o,ok).   
+word(w,a,s,ok). 
+word(y,o,u,ok).    
+word(_,_,_,err).
+
+word(a,b,l,e,ok).
+word(b,e,e,n,ok). 
+word(b,i,l,l,ok).       
+word(b,o,o,k,ok).      
+word(b,o,t,h,ok).
+word(d,o,e,s,ok).     
+word(d,o,n,e,ok).   
+word(c,a,l,l,ok).    
+word(c,i,t,y,ok).   
+word(d,a,y,s,ok).   
+word(d,o,w,n,ok). 
+word(f,a,c,t,ok).        
+word(f,i,v,e,ok).   
+word(f,o,u,r,ok).    
+word(f,r,o,m,ok).       
+word(g,a,v,e,ok).      
+word(g,i,v,e,ok).     
+word(g,o,n,e,ok).  
+word(g,o,e,s,ok).
+word(h,a,l,f,ok).
+word(h,a,v,e,ok).  
+word(h,i,g,h,ok). 
+word(i,n,t,o,ok).     
+word(l,a,s,t,ok). 
+word(l,o,v,e,ok).  
+word(m,a,n,y,ok).
+word(m,e,e,t,ok).
+word(m,o,r,e,ok).
+word(n,e,x,t,ok).
+word(n,i,n,e,ok). 
+word(o,v,e,r,ok).  
+word(s,a,i,d,ok).     
+word(s,a,y,s,ok).  
+word(s,e,e,s,ok). 
+word(s,e,e,m,ok). 
+word(s,e,n,d,ok).
+word(s,e,n,t,ok).
+word(s,o,m,e,ok).    
+word(s,u,c,h,ok).
+word(t,a,k,e,ok).  
+word(t,h,a,n,ok).
+word(t,h,a,t,ok).  
+word(t,h,e,m,ok).    
+word(t,h,e,y,ok).   
+word(t,h,i,s,ok).  
+word(t,i,m,e,ok).    
+word(t,o,o,k,ok).  
+word(u,p,o,n,ok).     
+word(v,e,r,y,ok).         
+word(w,h,a,t,ok).    
+word(w,h,o,m,ok). 
+word(w,i,t,h,ok).    
+word(w,i,l,l,ok).
+word(w,h,e,n,ok).        
+word(y,o,u,r,ok).  
+word(w,a,i,t,ok).  
+word(w,e,n,t,ok). 
+word(w,e,r,e,ok).
+word(y,e,a,r,ok).
+word(_,_,_,_,err).
+
+word(a,b,o,u,t,ok).      
+word(a,b,o,v,e,ok).     
+word(a,d,o,p,t,ok).   
+word(a,f,t,e,r,ok).   
+word(a,l,o,n,g,ok). 
+word(a,m,o,n,g,ok).
+word(a,w,a,r,e,ok).
+word(b,e,i,n,g,ok).
+word(b,e,l,o,w,ok).  
+word(b,o,o,k,s,ok).    
+word(c,a,l,l,s,ok). 
+word(c,o,u,l,d,ok).    
+word(e,i,g,h,t,ok). 
+word(f,a,c,t,s,ok).      
+word(f,i,r,s,t,ok). 
+word(g,i,v,e,n,ok).   
+word(g,i,v,e,s,ok).  
+word(l,a,r,g,e,ok).
+word(l,o,v,e,d,ok).
+word(l,o,v,e,s,ok).
+word(m,i,g,h,t,ok).  
+word(m,o,n,e,y,ok).
+word(o,t,h,e,r,ok).
+word(p,l,a,c,e,ok).
+word(r,e,a,c,h,ok).   
+word(s,i,n,c,e,ok).   
+word(s,e,e,m,s,ok).
+word(s,e,v,e,n,ok).  
+word(s,h,a,l,l,ok). 
+word(s,l,e,e,p,ok).
+word(s,l,e,p,t,ok).  
+word(t,a,k,e,s,ok).
+word(t,h,e,i,r,ok).
+word(t,h,i,n,k,ok). 
+word(t,h,r,e,e,ok).    
+word(t,i,m,e,s,ok).  
+word(t,r,a,d,e,ok). 
+word(t,r,i,e,s,ok).    
+word(t,r,i,e,d,ok).  
+word(u,n,d,e,r,ok). 
+word(w,a,t,e,r,ok).
+word(w,h,i,c,h,ok). 
+word(w,a,i,t,s,ok). 
+word(w,h,i,c,h,ok).  
+word(w,h,o,s,e,ok).   
+word(w,o,u,l,d,ok).   
+word(w,o,m,a,n,ok). 
+word(w,o,m,e,n,ok).
+word(y,e,a,r,s,ok). 
+word(_,_,_,_,_,err).
+
+word(X1,X2,X3,i,n,g,E) :- word(X1,X2,X3,E).
+word(_,_,_,_,_,_,err).
+
+word(X1,X2,X3,X4,i,n,g,E) :- word(X1,X2,X3,X4,E).
+word(_,_,_,_,_,_,_,err).
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,75 @@
+
+:- public construct_annotation_template/2,
+	remove_annotations/2, first_var_occurences/2.
+		
+
+%	construct_annotation_template(+PROGRAM,-PROGRAM)
+%		constructs a program where room has been made 
+%		for annotations on all levels
+
+%-- construct_annotation_template(prog(Entries,Dlist),P)
+construct_annotation_template(prog(Entries,Dlist),P) :-
+    ->  map((X,Y)\construct_annotated_literal(X,Y),Entries,Entries0),
+	map((X,Y)\construct_annotated_def(X,Y),Dlist,Dlist0),
+	P=prog(Entries0,Dlist0).
+
+construct_annotated_def(Dname-def(Gop,PredHead,Cls),D) :-
+    ->  map((X,Y)\construct_annotated_clause(X,Y),Cls,Cls0),
+	construct_annotated_literal(PredHead,PredHead0),
+	D=Dname-def(Gop,PredHead0,Cls0).
+
+construct_annotated_clause(Cl,C) :-
+	Cl=clause(Head,Guard,Guardop,Body)
+    ->  construct_annotated_literal(Head,Head0),
+	construct_annotated_conjunction(Guard,Guard0),
+	construct_annotated_conjunction(Body,Body0),
+	C=clause(Head0,Guard0,Guardop,Body0).
+construct_annotated_clause(exception(E),E0) :- 
+    ->	E0=exception(E). 
+
+construct_annotated_conjunction(AB,AB1) :- 
+	akl_conjunction(AB,A,B)
+    ->	construct_annotated_conjunction(A,A0),
+	construct_annotated_conjunction(B,B0),
+	akl_conjunction(AB0,A0,B0),
+	AB1=AB0.
+construct_annotated_conjunction(A,B) :- 
+    ->  construct_annotated_literal(A,B).
+
+construct_annotated_literal(A,B) :- 
+    ->  B=A$_.
+
+%--- remove_annotations(P,R)
+remove_annotations(P,R) :-
+    ->	remove_annotation_template(P,R).
+
+remove_annotation_template(prog(Entries,Dlist),P) :-
+    ->  map((X,Y)\remove_annotated_literal(X,Y),Entries,Entries0),
+	map((X,Y)\remove_annotated_def(X,Y),Dlist,Dlist0),
+	P=prog(Entries0,Dlist0).
+
+remove_annotated_def(Dname-def(Gop,PredHead,Cls),D) :-
+    ->  remove_annotated_literal(PredHead,PredHead0),
+	map((X,Y)\remove_annotated_clause(X,Y),Cls,Cls0),
+	D=Dname-def(Gop,PredHead0,Cls0).
+
+remove_annotated_clause(clause(Head,Guard,Guardop,Body),C) :-
+    ->  remove_annotated_literal(Head,Head0),
+	remove_annotated_conjunction(Guard,Guard0),
+	remove_annotated_conjunction(Body,Body0),
+	C=clause(Head0,Guard0,Guardop,Body0).
+remove_annotated_clause(exception(E),E0) :- 
+    ->	E0=exception(E). 
+
+remove_annotated_conjunction(AB,AB0) :- 
+	akl_conjunction(AB,A,B)
+    ->	remove_annotated_conjunction(A,A0),
+	remove_annotated_conjunction(B,B0),
+	akl_conjunction(AB0,A0,B0).
+remove_annotated_conjunction(A,B) :- 
+    ->  remove_annotated_literal(A,B).
+
+remove_annotated_literal(L$_,B) :- 
+    ->  remove_annotated_literal(L,B).
+remove_annotated_literal(L,B) :- 
+    ->  B=L.

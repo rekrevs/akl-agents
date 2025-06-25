@@ -1,0 +1,2550 @@
+predicate(':-'/1
+label(3)
+	switch_on_term(7,5,5,5,5,5,6)
+label(6)
+	switch_on_structure(1,[('public'/1,7)],5)
+label(5)
+	fail
+label(7)
+	try_single(0)
+label(0)
+	allocate(0)
+	get_structure_x0('public'/1)
+	unify_x_variable(1)
+	get_structure(','/2,1)
+	unify_x_variable(1)
+	unify_x_variable(2)
+	get_structure('/'/2,1)
+	unify_constant('guardop')
+	unify_constant(1)
+	get_structure(','/2,2)
+	unify_x_variable(2)
+	unify_x_variable(1)
+	get_structure('/'/2,2)
+	unify_constant('akl_conjunction')
+	unify_constant(3)
+	get_structure(','/2,1)
+	unify_x_variable(1)
+	unify_x_variable(2)
+	get_structure('/'/2,1)
+	unify_constant('is_unification')
+	unify_constant(3)
+	get_structure(','/2,2)
+	unify_x_variable(2)
+	unify_x_variable(1)
+	get_structure('/'/2,2)
+	unify_constant('akl_true')
+	unify_constant(1)
+	get_structure(','/2,1)
+	unify_x_variable(1)
+	unify_x_variable(2)
+	get_structure('/'/2,1)
+	unify_constant('akl_fail')
+	unify_constant(1)
+	get_structure(','/2,2)
+	unify_x_variable(2)
+	unify_x_variable(1)
+	get_structure('/'/2,2)
+	unify_constant('akl_negation')
+	unify_constant(2)
+	get_structure(','/2,1)
+	unify_x_variable(1)
+	unify_x_variable(2)
+	get_structure('/'/2,1)
+	unify_constant('akl_if_then_else')
+	unify_constant(4)
+	get_structure(','/2,2)
+	unify_x_variable(2)
+	unify_x_variable(1)
+	get_structure('/'/2,2)
+	unify_constant('akl_compound')
+	unify_constant(4)
+	get_structure(','/2,1)
+	unify_x_variable(1)
+	unify_x_variable(2)
+	get_structure('/'/2,1)
+	unify_constant('is_variable')
+	unify_constant(1)
+	get_structure(','/2,2)
+	unify_x_variable(2)
+	unify_x_variable(1)
+	get_structure('/'/2,2)
+	unify_constant('akl_variable')
+	unify_constant(2)
+	get_structure(','/2,1)
+	unify_x_variable(1)
+	unify_x_variable(2)
+	get_structure('/'/2,1)
+	unify_constant('akl_optimized_conjunction')
+	unify_constant(3)
+	get_structure(','/2,2)
+	unify_x_variable(2)
+	unify_x_variable(1)
+	get_structure('/'/2,2)
+	unify_constant('akl_very_optimized_conjunction')
+	unify_constant(2)
+	get_structure('/'/2,1)
+	unify_constant('built_in_literal')
+	unify_constant(2)
+    guard_wait
+	dealloc_proceed
+)
+
+
+predicate('guardop'/1
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(1)
+	get_y_variable(0,0)
+    guard_cond
+	put_y_value(0,0)
+	put_x_void(1)
+	dealloc_execute('guardop'/2)
+)
+
+
+predicate('guardop'/2
+label(11)
+	switch_on_term(16,14,13,13,13,13,13)
+label(14)
+	switch_on_constant(5,[('!',19),('->',18),('?',17),('??',15),('|',20)],13)
+label(13)
+	fail
+label(15)
+	try_single(0)
+label(16)
+	try(0)
+	retry(1)
+	retry(2)
+	retry(3)
+	trust(4)
+label(17)
+	try_single(1)
+label(18)
+	try_single(2)
+label(19)
+	try_single(3)
+label(20)
+	try_single(4)
+label(0)
+	allocate(0)
+	get_constant('??',0)
+	get_structure('-'/2,1)
+	unify_constant('quiet')
+	unify_constant('wait')
+    guard_wait
+	dealloc_proceed
+label(1)
+	allocate(0)
+	get_constant('?',0)
+	get_structure('-'/2,1)
+	unify_constant('noisy')
+	unify_constant('wait')
+    guard_wait
+	dealloc_proceed
+label(2)
+	allocate(0)
+	get_constant('->',0)
+	get_structure('-'/2,1)
+	unify_constant('quiet')
+	unify_constant('condition')
+    guard_wait
+	dealloc_proceed
+label(3)
+	allocate(0)
+	get_constant('!',0)
+	get_structure('-'/2,1)
+	unify_constant('noisy')
+	unify_constant('condition')
+    guard_wait
+	dealloc_proceed
+label(4)
+	allocate(0)
+	get_constant('|',0)
+	get_structure('-'/2,1)
+	unify_constant('quiet')
+	unify_constant('commit')
+    guard_wait
+	dealloc_proceed
+)
+
+
+predicate('akl_conjunction'/3
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(3)
+	get3_y_variable(2,2,1,1,0,0)
+    guard_wait
+	put_constant(',',0)
+	put_constant(2,1)
+	put_list(4)
+	unify_y_value(2)
+	unify_nil
+	put_list(2)
+	unify_y_value(1)
+	unify_x_value(4)
+	put_y_value(0,3)
+	dealloc_execute('akl_compound'/4)
+)
+
+
+predicate('akl_disjunction'/3
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(3)
+	get3_y_variable(2,2,1,1,0,0)
+    guard_wait
+	put_constant(';',0)
+	put_constant(2,1)
+	put_list(4)
+	unify_y_value(2)
+	unify_nil
+	put_list(2)
+	unify_y_value(1)
+	unify_x_value(4)
+	put_y_value(0,3)
+	dealloc_execute('akl_compound'/4)
+)
+
+
+predicate('is_unification'/3
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(3)
+	get3_y_variable(2,2,1,1,0,0)
+    guard_wait
+	put_constant('=',0)
+	put_constant(2,1)
+	put_list(4)
+	unify_y_value(2)
+	unify_nil
+	put_list(2)
+	unify_y_value(1)
+	unify_x_value(4)
+	put_y_value(0,3)
+	dealloc_execute('akl_compound'/4)
+)
+
+
+predicate('akl_true'/1
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(1)
+	get_y_variable(0,0)
+    guard_wait
+	put_constant('true',0)
+	put_constant(0,1)
+	put_nil(2)
+	put_y_value(0,3)
+	dealloc_execute('akl_compound'/4)
+)
+
+
+predicate('akl_fail'/1
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(1)
+	get_y_variable(0,0)
+    guard_wait
+	put_constant('fail',0)
+	put_constant(0,1)
+	put_nil(2)
+	put_y_value(0,3)
+	dealloc_execute('akl_compound'/4)
+)
+
+
+predicate('akl_negation'/2
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(2)
+	get2_y_variable(1,1,0,0)
+    guard_wait
+	put_constant('\+',0)
+	put_constant(1,1)
+	put_list(2)
+	unify_y_value(1)
+	unify_nil
+	put_y_value(0,3)
+	dealloc_execute('akl_compound'/4)
+)
+
+
+predicate('akl_if_then_else'/4
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(4)
+	get4_y_variable(3,3,2,2,1,1,0,0)
+    guard_wait
+	put_y_value(0,0)
+	put_y_variable(0,1)
+	put_y_value(3,2)
+	call('akl_disjunction'/3)
+	put_constant('->',0)
+	put_constant(2,1)
+	put_list(4)
+	unify_y_value(2)
+	unify_nil
+	put_list(2)
+	unify_y_value(1)
+	unify_x_value(4)
+	put_y_value(0,3)
+	dealloc_execute('akl_compound'/4)
+)
+
+
+predicate('akl_compound'/4
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(0)
+	get_x_variable(4,2)
+	get_x_variable(5,1)
+	get_x_variable(6,0)
+	get_structure('struct'/3,3)
+	unify_x_value(6)
+	unify_x_value(5)
+	unify_x_value(4)
+    guard_wait
+	dealloc_proceed
+)
+
+
+predicate('is_variable'/1
+label(3)
+	switch_on_term(7,5,5,5,5,5,6)
+label(6)
+	switch_on_structure(1,[('var'/1,7)],5)
+label(5)
+	fail
+label(7)
+	try_single(0)
+label(0)
+	allocate(0)
+	get_structure_x0('var'/1)
+	unify_void
+    guard_wait
+	dealloc_proceed
+)
+
+
+predicate('akl_variable'/2
+label(3)
+	switch_on_term(7,5,5,5,5,5,6)
+label(6)
+	switch_on_structure(1,[('var'/1,7)],5)
+label(5)
+	fail
+label(7)
+	try_single(0)
+label(0)
+	allocate(0)
+	get_x_variable(2,1)
+	get_structure_x0('var'/1)
+	unify_x_value(2)
+    guard_wait
+	dealloc_proceed
+)
+
+
+predicate('akl_optimized_conjunction'/3
+label(7)
+	switch_on_term(9,9,9,9,9,9,9)
+label(9)
+	try(0)
+	retry(1)
+	trust(2)
+label(0)
+	allocate(2)
+	get2_y_variable(1,2,0,1)
+	get_x_variable(3,0)
+	put_x_value(3,0)
+	call('akl_true'/1)
+    guard_cond
+	put_y_value(1,3)
+	get_y_value(0,3)
+	dealloc_proceed
+label(1)
+	allocate(2)
+	get_y_variable(1,2)
+	get_x_variable(3,1)
+	get_y_variable(0,0)
+	put_x_value(3,0)
+	call('akl_true'/1)
+    guard_cond
+	put_y_value(1,3)
+	get_y_value(0,3)
+	dealloc_proceed
+label(2)
+	allocate(3)
+	get3_y_variable(2,2,0,1,1,0)
+    guard_cond
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('akl_conjunction'/3)
+)
+
+
+predicate('akl_very_optimized_conjunction'/2
+label(5)
+	switch_on_term(7,7,7,7,7,7,7)
+label(7)
+	try(0)
+	trust(1)
+label(0)
+	allocate(3)
+	get_y_variable(0,1)
+	get_x_variable(3,0)
+	put_x_value(3,0)
+	put_y_variable(2,1)
+	put_y_variable(1,2)
+	call('akl_conjunction'/3)
+    guard_cond
+	put_y_value(2,0)
+	put_y_variable(2,1)
+	call('akl_very_optimized_conjunction'/2)
+	put_y_value(1,0)
+	put_y_variable(1,1)
+	call('akl_very_optimized_conjunction'/2)
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('akl_optimized_conjunction'/3)
+label(1)
+	allocate(2)
+	get2_y_variable(0,1,1,0)
+    guard_cond
+	put_y_value(1,2)
+	get_y_value(0,2)
+	dealloc_proceed
+)
+
+
+predicate('built_in_literal'/2
+label(469)
+	switch_on_term(474,472,471,471,471,471,471)
+label(472)
+	switch_on_constant(224,[('$concat',510),('$display',548),('$eq',480),('$find_file',542),('$initialize_varname',524),('$is_debugging',655),('$is_list',509),('$is_tracing',656),('$load',605),('$memberchk',511),('$statistics',639),('$statistics_copytime',633),('$statistics_core',636),('$statistics_gc',637),('$statistics_gctime',635),('$statistics_heap',638),('$statistics_nondet',634),('$statistics_program',631),('$statistics_runtime',632),('$unix_access',538),('$unix_argv',535),('$unix_cd',532),('$unix_chmod',539),('$unix_exit',536),('$unix_mktemp',537),('$unix_modified',541),('$unix_shell',533),('$unix_system',534),('$unix_umask',540),('$var',479),('$var_descriptor',478),('<',556),('=:=',554),('=<',558),('==',520),('=\=',555),('>',557),('>=',559),('@<',516),('@=<',517),('@>',518),('@>=',519),('COLLECTOR',476),('\==',521),('abstraction',475),('acos',576),('acosh',580),('add',560),('adjoin',506),('agents_features',547),('akl_in',525),('and',568),('apply',681),('arg',507),('asin',577),('asinh',581),('atan',578),('atan2',579),('atanh',582),('atmost',682),('atom',482),('atom_char',489),('atom_chars',666),('atom_to_chars',490),('atomic',485),('bagof',675),('big_to_rat',620),('break_to_gdb',543),('call',668),('ceil',583),('chars_to_atom',493),('chars_to_float',495),('chars_to_integer',494),('close_port',608),('com',575),('compare',515),('compile',679),('compilef',680),('compound',486),('cos',584),('cosh',585),('count',669),('data',481),('debug',647),('debugging',654),('dec',598),('dif',512),('div',563),('domain',683),('element',684),('equal',599),('exp',586),('fabs',587),('failcatch',649),('fd',671),('fd_all_different',672),('fd_min',527),('fd_numberof',530),('fd_numberof_ff',531),('fd_one',528),('fd_one_ff',529),('fd_size',526),('float',484),('float_to_chars',492),('float_to_list',663),('floor',588),('fnl',685),('fopen',549),('format',693),('functor',686),('functor_arity',501),('functor_feature',504),('functor_features',503),('functor_name',502),('functor_size',500),('functor_to_term',694),('functor_to_tree',499),('garbage_collect',640),('gmstart',691),('greater',602),('hash_table',545),('hash_value',546),('idiv',564),('inc',597),('innermost',513),('int_greater',690),('int_not_greater',689),('integer',483),('integer_to_chars',491),('integer_to_list',662),('is',553),('lab',670),('leftmost',514),('length',697),('length_to_list',497),('less',601),('list_to_float',661),('list_to_integer',660),('list_to_length',496),('load',678),('load_quietly',677),('log',589),('log10',590),('max',567),('memberchk',667),('min',566),('mod',565),('mul',562),('name_arity_to_functor',505),('neg',573),('new_array',477),('new_hash_table',544),('nl',665),('nodebug',648),('nofailcatch',650),('noprotect',611),('noprotection',614),('nospy',652),('nospyall',653),('not',676),('not_equal',600),('not_greater',603),('not_less',604),('notrace',644),('num',687),('numberof',696),('open_port',607),('or',569),('pam_debug',522),('pam_nodebug',523),('plus',574),('port',606),('pow',591),('protect',610),('protection',613),('rat_add',615),('rat_div',618),('rat_equal',621),('rat_greater',625),('rat_less',623),('rat_mul',617),('rat_not_equal',622),('rat_not_greater',626),('rat_not_less',624),('rat_sub',616),('rat_to_big',619),('read',673),('reflection',627),('reflective_call',628),('reflective_next',629),('reflective_print',630),('send',609),('shl',571),('shr',572),('sin',592),('sinh',593),('sort',688),('spy',651),('sqrt',594),('statistics',692),('stderr',552),('stdin',551),('stdout',550),('sub',561),('suspend_depth',657),('sys_check_trace',646),('sys_generic',488),('sys_notrace',645),('sys_setarg',508),('systime',641),('sysuntil',642),('tan',595),('tanh',596),('term_to_functor',695),('trace',643),('trace_get_print_depth',659),('trace_set_print_depth',658),('tree',487),('tree_to_functor',498),('true',473),('unordered_bagof',674),('unprotectdef',612),('write',664),('xor',570)],471)
+label(471)
+	fail
+label(473)
+	try_single(0)
+label(474)
+	try(0)
+	retry(1)
+	retry(2)
+	retry(3)
+	retry(4)
+	retry(5)
+	retry(6)
+	retry(7)
+	retry(8)
+	retry(9)
+	retry(10)
+	retry(11)
+	retry(12)
+	retry(13)
+	retry(14)
+	retry(15)
+	retry(16)
+	retry(17)
+	retry(18)
+	retry(19)
+	retry(20)
+	retry(21)
+	retry(22)
+	retry(23)
+	retry(24)
+	retry(25)
+	retry(26)
+	retry(27)
+	retry(28)
+	retry(29)
+	retry(30)
+	retry(31)
+	retry(32)
+	retry(33)
+	retry(34)
+	retry(35)
+	retry(36)
+	retry(37)
+	retry(38)
+	retry(39)
+	retry(40)
+	retry(41)
+	retry(42)
+	retry(43)
+	retry(44)
+	retry(45)
+	retry(46)
+	retry(47)
+	retry(48)
+	retry(49)
+	retry(50)
+	retry(51)
+	retry(52)
+	retry(53)
+	retry(54)
+	retry(55)
+	retry(56)
+	retry(57)
+	retry(58)
+	retry(59)
+	retry(60)
+	retry(61)
+	retry(62)
+	retry(63)
+	retry(64)
+	retry(65)
+	retry(66)
+	retry(67)
+	retry(68)
+	retry(69)
+	retry(70)
+	retry(71)
+	retry(72)
+	retry(73)
+	retry(74)
+	retry(75)
+	retry(76)
+	retry(77)
+	retry(78)
+	retry(79)
+	retry(80)
+	retry(81)
+	retry(82)
+	retry(83)
+	retry(84)
+	retry(85)
+	retry(86)
+	retry(87)
+	retry(88)
+	retry(89)
+	retry(90)
+	retry(91)
+	retry(92)
+	retry(93)
+	retry(94)
+	retry(95)
+	retry(96)
+	retry(97)
+	retry(98)
+	retry(99)
+	retry(100)
+	retry(101)
+	retry(102)
+	retry(103)
+	retry(104)
+	retry(105)
+	retry(106)
+	retry(107)
+	retry(108)
+	retry(109)
+	retry(110)
+	retry(111)
+	retry(112)
+	retry(113)
+	retry(114)
+	retry(115)
+	retry(116)
+	retry(117)
+	retry(118)
+	retry(119)
+	retry(120)
+	retry(121)
+	retry(122)
+	retry(123)
+	retry(124)
+	retry(125)
+	retry(126)
+	retry(127)
+	retry(128)
+	retry(129)
+	retry(130)
+	retry(131)
+	retry(132)
+	retry(133)
+	retry(134)
+	retry(135)
+	retry(136)
+	retry(137)
+	retry(138)
+	retry(139)
+	retry(140)
+	retry(141)
+	retry(142)
+	retry(143)
+	retry(144)
+	retry(145)
+	retry(146)
+	retry(147)
+	retry(148)
+	retry(149)
+	retry(150)
+	retry(151)
+	retry(152)
+	retry(153)
+	retry(154)
+	retry(155)
+	retry(156)
+	retry(157)
+	retry(158)
+	retry(159)
+	retry(160)
+	retry(161)
+	retry(162)
+	retry(163)
+	retry(164)
+	retry(165)
+	retry(166)
+	retry(167)
+	retry(168)
+	retry(169)
+	retry(170)
+	retry(171)
+	retry(172)
+	retry(173)
+	retry(174)
+	retry(175)
+	retry(176)
+	retry(177)
+	retry(178)
+	retry(179)
+	retry(180)
+	retry(181)
+	retry(182)
+	retry(183)
+	retry(184)
+	retry(185)
+	retry(186)
+	retry(187)
+	retry(188)
+	retry(189)
+	retry(190)
+	retry(191)
+	retry(192)
+	retry(193)
+	retry(194)
+	retry(195)
+	retry(196)
+	retry(197)
+	retry(198)
+	retry(199)
+	retry(200)
+	retry(201)
+	retry(202)
+	retry(203)
+	retry(204)
+	retry(205)
+	retry(206)
+	retry(207)
+	retry(208)
+	retry(209)
+	retry(210)
+	retry(211)
+	retry(212)
+	retry(213)
+	retry(214)
+	retry(215)
+	retry(216)
+	retry(217)
+	retry(218)
+	retry(219)
+	retry(220)
+	retry(221)
+	retry(222)
+	retry(223)
+	retry(224)
+	retry(225)
+	retry(226)
+	retry(227)
+	retry(228)
+	retry(229)
+	retry(230)
+	retry(231)
+	retry(232)
+	trust(233)
+label(475)
+	try_single(1)
+label(476)
+	try_single(2)
+label(477)
+	try(3)
+	trust(4)
+label(478)
+	try_single(5)
+label(479)
+	try_single(6)
+label(480)
+	try_single(7)
+label(481)
+	try_single(8)
+label(482)
+	try_single(9)
+label(483)
+	try(10)
+	trust(105)
+label(484)
+	try(11)
+	trust(107)
+label(485)
+	try_single(12)
+label(486)
+	try_single(13)
+label(487)
+	try_single(14)
+label(488)
+	try_single(15)
+label(489)
+	try_single(16)
+label(490)
+	try_single(17)
+label(491)
+	try_single(18)
+label(492)
+	try_single(19)
+label(493)
+	try_single(20)
+label(494)
+	try_single(21)
+label(495)
+	try_single(22)
+label(496)
+	try_single(23)
+label(497)
+	try_single(24)
+label(498)
+	try_single(25)
+label(499)
+	try_single(26)
+label(500)
+	try_single(27)
+label(501)
+	try_single(28)
+label(502)
+	try_single(29)
+label(503)
+	try_single(30)
+label(504)
+	try_single(31)
+label(505)
+	try_single(32)
+label(506)
+	try_single(33)
+label(507)
+	try_single(34)
+label(508)
+	try_single(35)
+label(509)
+	try_single(36)
+label(510)
+	try_single(37)
+label(511)
+	try_single(38)
+label(512)
+	try_single(39)
+label(513)
+	try_single(40)
+label(514)
+	try_single(41)
+label(515)
+	try_single(42)
+label(516)
+	try_single(43)
+label(517)
+	try_single(44)
+label(518)
+	try_single(45)
+label(519)
+	try_single(46)
+label(520)
+	try_single(47)
+label(521)
+	try_single(48)
+label(522)
+	try_single(49)
+label(523)
+	try_single(50)
+label(524)
+	try_single(51)
+label(525)
+	try_single(52)
+label(526)
+	try_single(53)
+label(527)
+	try_single(54)
+label(528)
+	try_single(55)
+label(529)
+	try_single(56)
+label(530)
+	try_single(57)
+label(531)
+	try_single(58)
+label(532)
+	try_single(59)
+label(533)
+	try(60)
+	trust(61)
+label(534)
+	try_single(62)
+label(535)
+	try_single(63)
+label(536)
+	try_single(64)
+label(537)
+	try_single(65)
+label(538)
+	try_single(66)
+label(539)
+	try_single(67)
+label(540)
+	try_single(68)
+label(541)
+	try_single(69)
+label(542)
+	try_single(70)
+label(543)
+	try_single(71)
+label(544)
+	try(72)
+	trust(73)
+label(545)
+	try_single(74)
+label(546)
+	try_single(75)
+label(547)
+	try_single(76)
+label(548)
+	try_single(77)
+label(549)
+	try(78)
+	trust(79)
+label(550)
+	try_single(80)
+label(551)
+	try_single(81)
+label(552)
+	try_single(82)
+label(553)
+	try_single(83)
+label(554)
+	try_single(84)
+label(555)
+	try_single(85)
+label(556)
+	try_single(86)
+label(557)
+	try_single(87)
+label(558)
+	try_single(88)
+label(559)
+	try_single(89)
+label(560)
+	try_single(90)
+label(561)
+	try_single(91)
+label(562)
+	try_single(92)
+label(563)
+	try_single(93)
+label(564)
+	try_single(94)
+label(565)
+	try_single(95)
+label(566)
+	try_single(96)
+label(567)
+	try_single(97)
+label(568)
+	try_single(98)
+label(569)
+	try_single(99)
+label(570)
+	try_single(100)
+label(571)
+	try_single(101)
+label(572)
+	try_single(102)
+label(573)
+	try_single(103)
+label(574)
+	try_single(104)
+label(575)
+	try_single(106)
+label(576)
+	try_single(108)
+label(577)
+	try_single(109)
+label(578)
+	try_single(110)
+label(579)
+	try_single(111)
+label(580)
+	try_single(112)
+label(581)
+	try_single(113)
+label(582)
+	try_single(114)
+label(583)
+	try_single(115)
+label(584)
+	try_single(116)
+label(585)
+	try_single(117)
+label(586)
+	try_single(118)
+label(587)
+	try_single(119)
+label(588)
+	try_single(120)
+label(589)
+	try_single(121)
+label(590)
+	try_single(122)
+label(591)
+	try_single(123)
+label(592)
+	try_single(124)
+label(593)
+	try_single(125)
+label(594)
+	try_single(126)
+label(595)
+	try_single(127)
+label(596)
+	try_single(128)
+label(597)
+	try_single(129)
+label(598)
+	try_single(130)
+label(599)
+	try_single(131)
+label(600)
+	try_single(132)
+label(601)
+	try_single(133)
+label(602)
+	try_single(134)
+label(603)
+	try_single(135)
+label(604)
+	try_single(136)
+label(605)
+	try_single(137)
+label(606)
+	try_single(138)
+label(607)
+	try_single(139)
+label(608)
+	try_single(140)
+label(609)
+	try(141)
+	trust(142)
+label(610)
+	try_single(143)
+label(611)
+	try_single(144)
+label(612)
+	try_single(145)
+label(613)
+	try_single(146)
+label(614)
+	try_single(147)
+label(615)
+	try_single(148)
+label(616)
+	try_single(149)
+label(617)
+	try_single(150)
+label(618)
+	try_single(151)
+label(619)
+	try_single(152)
+label(620)
+	try_single(153)
+label(621)
+	try_single(154)
+label(622)
+	try_single(155)
+label(623)
+	try_single(156)
+label(624)
+	try_single(157)
+label(625)
+	try_single(158)
+label(626)
+	try_single(159)
+label(627)
+	try_single(160)
+label(628)
+	try_single(161)
+label(629)
+	try_single(162)
+label(630)
+	try_single(163)
+label(631)
+	try_single(164)
+label(632)
+	try_single(165)
+label(633)
+	try_single(166)
+label(634)
+	try_single(167)
+label(635)
+	try_single(168)
+label(636)
+	try_single(169)
+label(637)
+	try_single(170)
+label(638)
+	try_single(171)
+label(639)
+	try_single(172)
+label(640)
+	try_single(173)
+label(641)
+	try_single(174)
+label(642)
+	try_single(175)
+label(643)
+	try_single(176)
+label(644)
+	try_single(177)
+label(645)
+	try_single(178)
+label(646)
+	try_single(179)
+label(647)
+	try_single(180)
+label(648)
+	try_single(181)
+label(649)
+	try_single(182)
+label(650)
+	try_single(183)
+label(651)
+	try_single(184)
+label(652)
+	try_single(185)
+label(653)
+	try_single(186)
+label(654)
+	try_single(187)
+label(655)
+	try_single(188)
+label(656)
+	try_single(189)
+label(657)
+	try_single(190)
+label(658)
+	try_single(191)
+label(659)
+	try_single(192)
+label(660)
+	try_single(193)
+label(661)
+	try_single(194)
+label(662)
+	try_single(195)
+label(663)
+	try_single(196)
+label(664)
+	try_single(197)
+label(665)
+	try(198)
+	trust(199)
+label(666)
+	try_single(200)
+label(667)
+	try_single(201)
+label(668)
+	try_single(202)
+label(669)
+	try_single(203)
+label(670)
+	try_single(204)
+label(671)
+	try_single(205)
+label(672)
+	try_single(206)
+label(673)
+	try_single(207)
+label(674)
+	try_single(208)
+label(675)
+	try_single(209)
+label(676)
+	try_single(210)
+label(677)
+	try_single(211)
+label(678)
+	try_single(212)
+label(679)
+	try_single(213)
+label(680)
+	try_single(214)
+label(681)
+	try_single(215)
+label(682)
+	try_single(216)
+label(683)
+	try_single(217)
+label(684)
+	try_single(218)
+label(685)
+	try_single(219)
+label(686)
+	try_single(220)
+label(687)
+	try_single(221)
+label(688)
+	try_single(222)
+label(689)
+	try_single(223)
+label(690)
+	try_single(224)
+label(691)
+	try(225)
+	trust(226)
+label(692)
+	try_single(227)
+label(693)
+	try(228)
+	trust(229)
+label(694)
+	try_single(230)
+label(695)
+	try_single(231)
+label(696)
+	try_single(232)
+label(697)
+	try_single(233)
+label(0)
+	allocate(0)
+	get_constant('true',0)
+	get_constant(0,1)
+    guard_cond
+	dealloc_proceed
+label(1)
+	allocate(0)
+	get_constant('abstraction',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(2)
+	allocate(0)
+	get_constant('COLLECTOR',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(3)
+	allocate(0)
+	get_constant('new_array',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(4)
+	allocate(0)
+	get_constant('new_array',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(5)
+	allocate(0)
+	get_constant('$var_descriptor',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(6)
+	allocate(0)
+	get_constant('$var',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(7)
+	allocate(0)
+	get_constant('$eq',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(8)
+	allocate(0)
+	get_constant('data',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(9)
+	allocate(0)
+	get_constant('atom',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(10)
+	allocate(0)
+	get_constant('integer',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(11)
+	allocate(0)
+	get_constant('float',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(12)
+	allocate(0)
+	get_constant('atomic',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(13)
+	allocate(0)
+	get_constant('compound',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(14)
+	allocate(0)
+	get_constant('tree',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(15)
+	allocate(0)
+	get_constant('sys_generic',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(16)
+	allocate(0)
+	get_constant('atom_char',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(17)
+	allocate(0)
+	get_constant('atom_to_chars',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(18)
+	allocate(0)
+	get_constant('integer_to_chars',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(19)
+	allocate(0)
+	get_constant('float_to_chars',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(20)
+	allocate(0)
+	get_constant('chars_to_atom',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(21)
+	allocate(0)
+	get_constant('chars_to_integer',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(22)
+	allocate(0)
+	get_constant('chars_to_float',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(23)
+	allocate(0)
+	get_constant('list_to_length',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(24)
+	allocate(0)
+	get_constant('length_to_list',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(25)
+	allocate(0)
+	get_constant('tree_to_functor',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(26)
+	allocate(0)
+	get_constant('functor_to_tree',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(27)
+	allocate(0)
+	get_constant('functor_size',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(28)
+	allocate(0)
+	get_constant('functor_arity',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(29)
+	allocate(0)
+	get_constant('functor_name',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(30)
+	allocate(0)
+	get_constant('functor_features',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(31)
+	allocate(0)
+	get_constant('functor_feature',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(32)
+	allocate(0)
+	get_constant('name_arity_to_functor',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(33)
+	allocate(0)
+	get_constant('adjoin',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(34)
+	allocate(0)
+	get_constant('arg',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(35)
+	allocate(0)
+	get_constant('sys_setarg',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(36)
+	allocate(0)
+	get_constant('$is_list',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(37)
+	allocate(0)
+	get_constant('$concat',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(38)
+	allocate(0)
+	get_constant('$memberchk',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(39)
+	allocate(0)
+	get_constant('dif',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(40)
+	allocate(0)
+	get_constant('innermost',0)
+	get_constant(0,1)
+    guard_cond
+	dealloc_proceed
+label(41)
+	allocate(0)
+	get_constant('leftmost',0)
+	get_constant(0,1)
+    guard_cond
+	dealloc_proceed
+label(42)
+	allocate(0)
+	get_constant('compare',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(43)
+	allocate(0)
+	get_constant('@<',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(44)
+	allocate(0)
+	get_constant('@=<',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(45)
+	allocate(0)
+	get_constant('@>',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(46)
+	allocate(0)
+	get_constant('@>=',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(47)
+	allocate(0)
+	get_constant('==',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(48)
+	allocate(0)
+	get_constant('\==',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(49)
+	allocate(0)
+	get_constant('pam_debug',0)
+	get_constant(0,1)
+    guard_cond
+	dealloc_proceed
+label(50)
+	allocate(0)
+	get_constant('pam_nodebug',0)
+	get_constant(0,1)
+    guard_cond
+	dealloc_proceed
+label(51)
+	allocate(0)
+	get_constant('$initialize_varname',0)
+	get_constant(0,1)
+    guard_cond
+	dealloc_proceed
+label(52)
+	allocate(0)
+	get_constant('akl_in',0)
+	get_constant(8,1)
+    guard_cond
+	dealloc_proceed
+label(53)
+	allocate(0)
+	get_constant('fd_size',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(54)
+	allocate(0)
+	get_constant('fd_min',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(55)
+	allocate(0)
+	get_constant('fd_one',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(56)
+	allocate(0)
+	get_constant('fd_one_ff',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(57)
+	allocate(0)
+	get_constant('fd_numberof',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(58)
+	allocate(0)
+	get_constant('fd_numberof_ff',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(59)
+	allocate(0)
+	get_constant('$unix_cd',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(60)
+	allocate(0)
+	get_constant('$unix_shell',0)
+	get_constant(0,1)
+    guard_cond
+	dealloc_proceed
+label(61)
+	allocate(0)
+	get_constant('$unix_shell',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(62)
+	allocate(0)
+	get_constant('$unix_system',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(63)
+	allocate(0)
+	get_constant('$unix_argv',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(64)
+	allocate(0)
+	get_constant('$unix_exit',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(65)
+	allocate(0)
+	get_constant('$unix_mktemp',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(66)
+	allocate(0)
+	get_constant('$unix_access',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(67)
+	allocate(0)
+	get_constant('$unix_chmod',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(68)
+	allocate(0)
+	get_constant('$unix_umask',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(69)
+	allocate(0)
+	get_constant('$unix_modified',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(70)
+	allocate(0)
+	get_constant('$find_file',0)
+	get_constant(6,1)
+    guard_cond
+	dealloc_proceed
+label(71)
+	allocate(0)
+	get_constant('break_to_gdb',0)
+	get_constant(0,1)
+    guard_cond
+	dealloc_proceed
+label(72)
+	allocate(0)
+	get_constant('new_hash_table',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(73)
+	allocate(0)
+	get_constant('new_hash_table',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(74)
+	allocate(0)
+	get_constant('hash_table',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(75)
+	allocate(0)
+	get_constant('hash_value',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(76)
+	allocate(0)
+	get_constant('agents_features',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(77)
+	allocate(0)
+	get_constant('$display',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(78)
+	allocate(0)
+	get_constant('fopen',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(79)
+	allocate(0)
+	get_constant('fopen',0)
+	get_constant(4,1)
+    guard_cond
+	dealloc_proceed
+label(80)
+	allocate(0)
+	get_constant('stdout',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(81)
+	allocate(0)
+	get_constant('stdin',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(82)
+	allocate(0)
+	get_constant('stderr',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(83)
+	allocate(0)
+	get_constant('is',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(84)
+	allocate(0)
+	get_constant('=:=',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(85)
+	allocate(0)
+	get_constant('=\=',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(86)
+	allocate(0)
+	get_constant('<',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(87)
+	allocate(0)
+	get_constant('>',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(88)
+	allocate(0)
+	get_constant('=<',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(89)
+	allocate(0)
+	get_constant('>=',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(90)
+	allocate(0)
+	get_constant('add',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(91)
+	allocate(0)
+	get_constant('sub',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(92)
+	allocate(0)
+	get_constant('mul',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(93)
+	allocate(0)
+	get_constant('div',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(94)
+	allocate(0)
+	get_constant('idiv',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(95)
+	allocate(0)
+	get_constant('mod',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(96)
+	allocate(0)
+	get_constant('min',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(97)
+	allocate(0)
+	get_constant('max',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(98)
+	allocate(0)
+	get_constant('and',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(99)
+	allocate(0)
+	get_constant('or',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(100)
+	allocate(0)
+	get_constant('xor',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(101)
+	allocate(0)
+	get_constant('shl',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(102)
+	allocate(0)
+	get_constant('shr',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(103)
+	allocate(0)
+	get_constant('neg',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(104)
+	allocate(0)
+	get_constant('plus',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(105)
+	allocate(0)
+	get_constant('integer',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(106)
+	allocate(0)
+	get_constant('com',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(107)
+	allocate(0)
+	get_constant('float',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(108)
+	allocate(0)
+	get_constant('acos',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(109)
+	allocate(0)
+	get_constant('asin',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(110)
+	allocate(0)
+	get_constant('atan',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(111)
+	allocate(0)
+	get_constant('atan2',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(112)
+	allocate(0)
+	get_constant('acosh',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(113)
+	allocate(0)
+	get_constant('asinh',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(114)
+	allocate(0)
+	get_constant('atanh',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(115)
+	allocate(0)
+	get_constant('ceil',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(116)
+	allocate(0)
+	get_constant('cos',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(117)
+	allocate(0)
+	get_constant('cosh',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(118)
+	allocate(0)
+	get_constant('exp',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(119)
+	allocate(0)
+	get_constant('fabs',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(120)
+	allocate(0)
+	get_constant('floor',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(121)
+	allocate(0)
+	get_constant('log',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(122)
+	allocate(0)
+	get_constant('log10',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(123)
+	allocate(0)
+	get_constant('pow',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(124)
+	allocate(0)
+	get_constant('sin',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(125)
+	allocate(0)
+	get_constant('sinh',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(126)
+	allocate(0)
+	get_constant('sqrt',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(127)
+	allocate(0)
+	get_constant('tan',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(128)
+	allocate(0)
+	get_constant('tanh',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(129)
+	allocate(0)
+	get_constant('inc',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(130)
+	allocate(0)
+	get_constant('dec',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(131)
+	allocate(0)
+	get_constant('equal',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(132)
+	allocate(0)
+	get_constant('not_equal',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(133)
+	allocate(0)
+	get_constant('less',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(134)
+	allocate(0)
+	get_constant('greater',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(135)
+	allocate(0)
+	get_constant('not_greater',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(136)
+	allocate(0)
+	get_constant('not_less',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(137)
+	allocate(0)
+	get_constant('$load',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(138)
+	allocate(0)
+	get_constant('port',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(139)
+	allocate(0)
+	get_constant('open_port',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(140)
+	allocate(0)
+	get_constant('close_port',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(141)
+	allocate(0)
+	get_constant('send',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(142)
+	allocate(0)
+	get_constant('send',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(143)
+	allocate(0)
+	get_constant('protect',0)
+	get_constant(0,1)
+    guard_cond
+	dealloc_proceed
+label(144)
+	allocate(0)
+	get_constant('noprotect',0)
+	get_constant(0,1)
+    guard_cond
+	dealloc_proceed
+label(145)
+	allocate(0)
+	get_constant('unprotectdef',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(146)
+	allocate(0)
+	get_constant('protection',0)
+	get_constant(0,1)
+    guard_cond
+	dealloc_proceed
+label(147)
+	allocate(0)
+	get_constant('noprotection',0)
+	get_constant(0,1)
+    guard_cond
+	dealloc_proceed
+label(148)
+	allocate(0)
+	get_constant('rat_add',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(149)
+	allocate(0)
+	get_constant('rat_sub',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(150)
+	allocate(0)
+	get_constant('rat_mul',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(151)
+	allocate(0)
+	get_constant('rat_div',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(152)
+	allocate(0)
+	get_constant('rat_to_big',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(153)
+	allocate(0)
+	get_constant('big_to_rat',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(154)
+	allocate(0)
+	get_constant('rat_equal',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(155)
+	allocate(0)
+	get_constant('rat_not_equal',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(156)
+	allocate(0)
+	get_constant('rat_less',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(157)
+	allocate(0)
+	get_constant('rat_not_less',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(158)
+	allocate(0)
+	get_constant('rat_greater',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(159)
+	allocate(0)
+	get_constant('rat_not_greater',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(160)
+	allocate(0)
+	get_constant('reflection',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(161)
+	allocate(0)
+	get_constant('reflective_call',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(162)
+	allocate(0)
+	get_constant('reflective_next',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(163)
+	allocate(0)
+	get_constant('reflective_print',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(164)
+	allocate(0)
+	get_constant('$statistics_program',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(165)
+	allocate(0)
+	get_constant('$statistics_runtime',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(166)
+	allocate(0)
+	get_constant('$statistics_copytime',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(167)
+	allocate(0)
+	get_constant('$statistics_nondet',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(168)
+	allocate(0)
+	get_constant('$statistics_gctime',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(169)
+	allocate(0)
+	get_constant('$statistics_core',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(170)
+	allocate(0)
+	get_constant('$statistics_gc',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(171)
+	allocate(0)
+	get_constant('$statistics_heap',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(172)
+	allocate(0)
+	get_constant('$statistics',0)
+	get_constant(0,1)
+    guard_cond
+	dealloc_proceed
+label(173)
+	allocate(0)
+	get_constant('garbage_collect',0)
+	get_constant(0,1)
+    guard_cond
+	dealloc_proceed
+label(174)
+	allocate(0)
+	get_constant('systime',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(175)
+	allocate(0)
+	get_constant('sysuntil',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(176)
+	allocate(0)
+	get_constant('trace',0)
+	get_constant(0,1)
+    guard_cond
+	dealloc_proceed
+label(177)
+	allocate(0)
+	get_constant('notrace',0)
+	get_constant(0,1)
+    guard_cond
+	dealloc_proceed
+label(178)
+	allocate(0)
+	get_constant('sys_notrace',0)
+	get_constant(0,1)
+    guard_cond
+	dealloc_proceed
+label(179)
+	allocate(0)
+	get_constant('sys_check_trace',0)
+	get_constant(0,1)
+    guard_cond
+	dealloc_proceed
+label(180)
+	allocate(0)
+	get_constant('debug',0)
+	get_constant(0,1)
+    guard_cond
+	dealloc_proceed
+label(181)
+	allocate(0)
+	get_constant('nodebug',0)
+	get_constant(0,1)
+    guard_cond
+	dealloc_proceed
+label(182)
+	allocate(0)
+	get_constant('failcatch',0)
+	get_constant(0,1)
+    guard_cond
+	dealloc_proceed
+label(183)
+	allocate(0)
+	get_constant('nofailcatch',0)
+	get_constant(0,1)
+    guard_cond
+	dealloc_proceed
+label(184)
+	allocate(0)
+	get_constant('spy',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(185)
+	allocate(0)
+	get_constant('nospy',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(186)
+	allocate(0)
+	get_constant('nospyall',0)
+	get_constant(0,1)
+    guard_cond
+	dealloc_proceed
+label(187)
+	allocate(0)
+	get_constant('debugging',0)
+	get_constant(0,1)
+    guard_cond
+	dealloc_proceed
+label(188)
+	allocate(0)
+	get_constant('$is_debugging',0)
+	get_constant(0,1)
+    guard_cond
+	dealloc_proceed
+label(189)
+	allocate(0)
+	get_constant('$is_tracing',0)
+	get_constant(0,1)
+    guard_cond
+	dealloc_proceed
+label(190)
+	allocate(0)
+	get_constant('suspend_depth',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(191)
+	allocate(0)
+	get_constant('trace_set_print_depth',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(192)
+	allocate(0)
+	get_constant('trace_get_print_depth',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(193)
+	allocate(0)
+	get_constant('list_to_integer',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(194)
+	allocate(0)
+	get_constant('list_to_float',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(195)
+	allocate(0)
+	get_constant('integer_to_list',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(196)
+	allocate(0)
+	get_constant('float_to_list',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(197)
+	allocate(0)
+	get_constant('write',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(198)
+	allocate(0)
+	get_constant('nl',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(199)
+	allocate(0)
+	get_constant('nl',0)
+	get_constant(0,1)
+    guard_cond
+	dealloc_proceed
+label(200)
+	allocate(0)
+	get_constant('atom_chars',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(201)
+	allocate(0)
+	get_constant('memberchk',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(202)
+	allocate(0)
+	get_constant('call',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(203)
+	allocate(0)
+	get_constant('count',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(204)
+	allocate(0)
+	get_constant('lab',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(205)
+	allocate(0)
+	get_constant('fd',0)
+    guard_cond
+	dealloc_proceed
+label(206)
+	allocate(0)
+	get_constant('fd_all_different',0)
+    guard_cond
+	dealloc_proceed
+label(207)
+	allocate(0)
+	get_constant('read',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(208)
+	allocate(0)
+	get_constant('unordered_bagof',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(209)
+	allocate(0)
+	get_constant('bagof',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(210)
+	allocate(0)
+	get_constant('not',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(211)
+	allocate(0)
+	get_constant('load_quietly',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(212)
+	allocate(0)
+	get_constant('load',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(213)
+	allocate(0)
+	get_constant('compile',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(214)
+	allocate(0)
+	get_constant('compilef',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(215)
+	allocate(0)
+	get_constant('apply',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(216)
+	allocate(0)
+	get_constant('atmost',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(217)
+	allocate(0)
+	get_constant('domain',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(218)
+	allocate(0)
+	get_constant('element',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(219)
+	allocate(0)
+	get_constant('fnl',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(220)
+	allocate(0)
+	get_constant('functor',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(221)
+	allocate(0)
+	get_constant('num',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(222)
+	allocate(0)
+	get_constant('sort',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(223)
+	allocate(0)
+	get_constant('int_not_greater',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(224)
+	allocate(0)
+	get_constant('int_greater',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(225)
+	allocate(0)
+	get_constant('gmstart',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(226)
+	allocate(0)
+	get_constant('gmstart',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(227)
+	allocate(0)
+	get_constant('statistics',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(228)
+	allocate(0)
+	get_constant('format',0)
+	get_constant(1,1)
+    guard_cond
+	dealloc_proceed
+label(229)
+	allocate(0)
+	get_constant('format',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(230)
+	allocate(0)
+	get_constant('functor_to_term',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(231)
+	allocate(0)
+	get_constant('term_to_functor',0)
+	get_constant(3,1)
+    guard_cond
+	dealloc_proceed
+label(232)
+	allocate(0)
+	get_constant('numberof',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+label(233)
+	allocate(0)
+	get_constant('length',0)
+	get_constant(2,1)
+    guard_cond
+	dealloc_proceed
+)
+
+

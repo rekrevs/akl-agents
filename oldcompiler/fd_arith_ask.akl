@@ -1,0 +1,90 @@
+% entailment compilation of linear constraints 
+% by Mats Carlsson and Bjorn Carlson
+% :- load(fd_arith_compile).
+
+fd_ask_lhs(<, C0, C1, C) :-
+    ->	fd_ask_constant(C1, C0, C).
+fd_ask_lhs(_, C0, C1, C) :-
+    ->	fd_ask_constant(C0, C1, C).
+
+fd_ask_constant(struct(C0,0,[]), struct(C1,0,[]), Con) :-
+    ->	C is C0-C1,
+	Con = struct(C,0,[]).
+
+fd_ask_rhs(<, Rel, S, T, R) :-
+    ->	rel_inverse(Rel, Rel0),
+	fd_ask_range(Rel0, T, S, R).
+fd_ask_rhs(_, Rel, S, T, R) :-
+    ->	fd_ask_range(Rel, S, T, R).
+
+fd_ask_range(=, S, T, R) :-
+    ->	fd_ask_eq(S, T, R).
+fd_ask_range(\=, S, T, R) :-
+    ->	fd_ask_neq(S, T, R).
+fd_ask_range(=<, S, T, R) :-
+    ->	fd_ask_leq(S, T, R).
+fd_ask_range(<, S, T, R) :-
+    ->	fd_ask_lt(S, T, R).
+fd_ask_range(>=, S, T, R) :-
+    ->	fd_ask_geq(S, T, R).
+fd_ask_range(>, S, T, R) :-
+    ->	fd_ask_gt(S, T, R).
+
+fd_ask_eq([], T, R) :-
+    ->	fd_sup_sum(T, TS),
+	fd_inf_sum(T, TI),
+	R = struct('..',2,[TS,TI]).
+fd_ask_eq(S, T, R) :-
+    ->	fd_sup_sum(S, SS),
+	fd_inf_sum(S, SI),
+	fd_sup_sum(T, TS),
+	fd_inf_sum(T, TI),
+	R = struct('..',2,[struct('-',2,[TS,SI]),struct('-',2,[TI,SS])]).
+
+fd_ask_neq([], T, R) :-
+    ->	fd_sup_sum(T, TS),
+	fd_inf_sum(T, TI),
+	R = struct('-',1,[struct('..',2,[TI,TS])]).
+fd_ask_neq(S, T, R) :-
+    ->	fd_sup_sum(S, SS),
+	fd_inf_sum(S, SI),
+	fd_sup_sum(T, TS),
+	fd_inf_sum(T, TI),
+	R = struct('-',1,[struct('..',2,[struct('-',2,[TI,SS]),struct('-',2,[TS,SI])])]).
+
+fd_ask_leq([], T, R) :-
+    ->	fd_inf_sum(T, TI),
+	R = struct('..',2,[struct(0,0,[]),TI]).
+fd_ask_leq(S, T, R) :-
+    ->	fd_inf_sum(T, TI),
+	fd_sup_sum(S, SS),
+	R = struct('..',2,[struct(0,0,[]),struct('-',2,[TI,SS])]).
+
+fd_ask_lt([], T, R) :-
+    ->	fd_inf_sum(T, TI),
+	R = struct('..',2,[struct(0,0,[]),
+	                   struct('-',2,[TI,struct(1,0,[])])]).
+fd_ask_lt(S, T, R) :-
+    ->	fd_inf_sum(T, TI),
+	fd_sup_sum(S, SS),
+	R = struct('..',2,[struct(0,0,[]),
+	                   struct('-',2,[struct('-',2,[TI,SS]),
+                                         struct(1,0,[])])]).
+
+fd_ask_geq([], T, R) :-
+    ->	fd_sup_sum(T, TS),
+	R = struct('..',2,[TS,struct(max,0,[])]).
+fd_ask_geq(S, T, R) :-
+    ->	fd_sup_sum(T, TS),
+	fd_inf_sum(S, SI),
+	R = struct('..',2,[struct('-',2,[TS,SI]),struct(max,0,[])]).
+
+fd_ask_gt([], T, R) :-
+    ->	fd_inf_sum(T, TI),
+	R = struct('..',2,[struct('+',2,[TI,struct(1,0,[])]),struct(max,0,[])]).
+fd_ask_gt(S, T, R) :-
+    ->	fd_inf_sum(T, TI),
+	fd_sup_sum(S, SS),
+	R = struct('..',2,[struct('+',2,[struct('-',2,[TI,SS]),
+                                         struct(1,0,[])]),
+                           struct(max,0,[])]).

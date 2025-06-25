@@ -1,0 +1,2066 @@
+predicate('assign_flights'/4
+label(5)
+	switch_on_term(7,7,7,7,7,7,7)
+label(7)
+	try(0)
+	trust(1)
+label(0)
+	allocate(0)
+	get_nil(3)
+    guard_cond
+	dealloc_proceed
+label(1)
+	allocate(6)
+	get4_y_variable(2,3,3,2,4,1,5,0)
+	put_y_value(2,4)
+	get_list(4)
+	unify_void
+	unify_void
+    guard_cond
+	put_y_variable(1,0)
+	put_y_variable(0,1)
+	call('reflection'/2)
+	put_structure('assign_flights_aux'/3,4)
+	unify_y_value(5)
+	unify_y_value(4)
+	unify_y_value(3)
+	put_structure('call'/1,0)
+	unify_x_value(4)
+	put_y_value(1,1)
+	put_y_variable(1,2)
+	send3
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('assign_flights_1'/3)
+)
+
+
+predicate('assign_flights_1'/3
+label(7)
+	switch_on_term(12,10,9,9,9,13,9)
+label(10)
+	switch_on_constant(1,[('[]',11)],9)
+label(9)
+	fail
+label(11)
+	try_single(0)
+label(12)
+	try(0)
+	retry(1)
+	trust(2)
+label(13)
+	try(1)
+	trust(2)
+label(0)
+	allocate(0)
+	get_nil_x0
+    guard_cond
+	dealloc_proceed
+label(1)
+	allocate(5)
+	get_y_variable(1,1)
+	get_list_x0
+	unify_y_variable(4)
+	unify_y_variable(2)
+	get_list(2)
+	unify_x_variable(3)
+	unify_y_variable(0)
+	get_structure('solution'/1,3)
+	unify_y_variable(3)
+    guard_cond
+	put_y_value(4,3)
+	get_structure('solution'/1,3)
+	unify_y_value(3)
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('assign_flights_2'/3)
+label(2)
+	allocate(2)
+	get_list_x0
+	unify_y_variable(1)
+	unify_void
+	get_list(2)
+	unify_y_variable(0)
+	unify_void
+    guard_cond
+	put_y_value(1,3)
+	get_y_value(0,3)
+	dealloc_proceed
+)
+
+
+predicate('assign_flights_2'/3
+label(5)
+	switch_on_term(10,8,7,7,7,11,7)
+label(8)
+	switch_on_constant(1,[('[]',9)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(0)
+	get_nil_x0
+    guard_cond
+	dealloc_proceed
+label(1)
+	allocate(3)
+	get3_y_variable(0,2,1,1,2,0)
+	put_y_value(2,3)
+	get_list(3)
+	unify_void
+	unify_void
+    guard_cond
+	put_constant('next',0)
+	put_y_value(1,1)
+	put_y_variable(1,2)
+	send3
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('assign_flights_1'/3)
+)
+
+
+predicate('assign_flights_aux'/4
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(4)
+	get4_y_variable(1,3,0,2,3,1,2,0)
+    guard_wait
+	put2_y_value(2,0,3,1)
+	put_y_variable(2,2)
+	put_y_value(1,3)
+	call('single_flight_constraints'/4)
+	put_y_value(3,0)
+	put_y_variable(1,1)
+	call('arrange_by_crew'/2)
+	put2_y_value(2,0,1,1)
+	call('two_flight_constraints'/2)
+	put2_y_value(3,0,2,1)
+	put_y_variable(2,2)
+	call('arrange_by_aircraft'/3)
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('many_flight_constraints'/3)
+)
+
+
+predicate('single_flight_constraints'/4
+label(5)
+	switch_on_term(10,8,7,7,7,11,7)
+label(8)
+	switch_on_constant(1,[('[]',9)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(2)
+	get2_y_variable(0,3,1,2)
+	get_nil_x0
+    guard_cond
+	put_y_value(1,4)
+	get_nil(4)
+	put_y_value(0,4)
+	get_nil(4)
+	dealloc_proceed
+label(1)
+	allocate(7)
+	get3_y_variable(4,3,1,2,2,1)
+	get_list_x0
+	unify_y_variable(6)
+	unify_y_variable(3)
+    guard_cond
+	put_y_value(1,7)
+	get_list(7)
+	unify_x_variable(7)
+	unify_y_variable(1)
+	get_structure('poss_aircraft'/2,7)
+	unify_x_variable(7)
+	unify_y_variable(5)
+	put2_y_value(6,0,2,1)
+	put_y_variable(0,2)
+	put_x_value(7,3)
+	call('single_flight_constraint'/4)
+	put_constant('begin',2)
+	put_constant('end',3)
+	put_y_value(0,0)
+	put_x_void(1)
+	put_y_value(5,4)
+	put_y_variable(5,5)
+	put_y_variable(0,6)
+	call('generate_aircraft'/7)
+	put_constant(1,0)
+	put_y_value(6,1)
+	put_x_variable(7,2)
+	call('arg'/3)
+	put_y_value(5,0)
+	put_x_value(7,1)
+	put_y_value(0,2)
+	put_y_variable(0,3)
+	call('assignment'/4)
+	put_y_value(0,0)
+	put_y_variable(0,1)
+	put_y_value(4,2)
+	call('panmerge'/3)
+	put4_y_value(3,0,2,1,1,2,0,3)
+	dealloc_execute('single_flight_constraints'/4)
+)
+
+
+predicate('assignment'/4
+label(5)
+	switch_on_term(7,7,7,7,7,7,7)
+label(7)
+	try(0)
+	trust(1)
+label(0)
+	allocate(4)
+	get4_y_variable(3,3,1,2,2,1,0,0)
+	put_y_value(0,0)
+	call('integer'/1)
+    guard_cond
+	put_y_value(3,4)
+	get_list(4)
+	unify_x_variable(4)
+	unify_nil
+	get_structure('aircraft_for_flight'/3,4)
+	unify_y_value(2)
+	unify_y_value(1)
+	unify_y_value(0)
+	dealloc_proceed
+label(1)
+	allocate(1)
+	get_y_variable(0,3)
+    guard_cond
+	put_y_value(0,4)
+	get_nil(4)
+	dealloc_proceed
+)
+
+
+predicate('single_flight_constraint'/4
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(4)
+	get4_y_variable(1,3,0,2,2,1,3,0)
+    guard_wait
+	put2_y_value(3,0,1,1)
+	put_y_variable(1,2)
+	call('flight_attrib'/3)
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('unary_constrs'/3)
+)
+
+
+predicate('flight_attrib'/3
+label(3)
+	switch_on_term(7,5,5,5,5,5,6)
+label(6)
+	switch_on_structure(1,[('flight'/5,7)],5)
+label(5)
+	fail
+label(7)
+	try_single(0)
+label(0)
+	allocate(7)
+	get2_y_variable(2,2,6,1)
+	get_structure_x0('flight'/5)
+	unify_y_variable(5)
+	unify_y_variable(3)
+	unify_y_variable(4)
+	unify_y_variable(1)
+	unify_y_variable(0)
+    guard_wait
+	put_y_value(6,3)
+	get_structure('flight'/4,3)
+	unify_y_value(5)
+	unify_y_value(3)
+	unify_y_value(4)
+	unify_x_variable(3)
+	put_structure('-'/2,1)
+	unify_y_value(4)
+	unify_y_value(3)
+	put_x_value(3,0)
+	call('is'/2)
+	put_y_value(2,4)
+	get_structure('attrib'/3,4)
+	unify_y_value(1)
+	unify_y_value(0)
+	unify_x_value(3)
+	dealloc_proceed
+)
+
+
+predicate('unary_constrs'/3
+label(7)
+	switch_on_term(12,10,9,9,9,13,9)
+label(10)
+	switch_on_constant(1,[('[]',11)],9)
+label(9)
+	fail
+label(11)
+	try_single(0)
+label(12)
+	try(0)
+	retry(1)
+	trust(2)
+label(13)
+	try(1)
+	trust(2)
+label(0)
+	allocate(1)
+	get_y_variable(0,2)
+	get_nil_x0
+    guard_cond
+	put_y_value(0,3)
+	get_nil(3)
+	dealloc_proceed
+label(1)
+	allocate(10)
+	get2_y_variable(6,2,0,1)
+	get_list_x0
+	unify_x_variable(3)
+	unify_y_variable(1)
+	get_structure('aircraft'/7,3)
+	unify_y_variable(5)
+	unify_y_variable(9)
+	unify_y_variable(7)
+	unify_x_variable(3)
+	unify_y_variable(4)
+	unify_y_variable(3)
+	unify_y_variable(2)
+	put_x_value(3,0)
+	put_y_variable(8,1)
+	call('>='/2)
+	put_y_value(7,0)
+	put_y_variable(7,1)
+	call('>='/2)
+	put_y_value(0,3)
+	get_structure('attrib'/3,3)
+	unify_y_value(9)
+	unify_y_value(8)
+	unify_y_value(7)
+    guard_cond
+	put_y_value(6,3)
+	get_list(3)
+	unify_x_variable(3)
+	unify_x_variable(4)
+	get_structure('aircraft'/4,3)
+	unify_y_value(5)
+	unify_y_value(4)
+	unify_y_value(3)
+	unify_y_value(2)
+	put2_y_value(1,0,0,1)
+	put_x_value(4,2)
+	dealloc_execute('unary_constrs'/3)
+label(2)
+	allocate(3)
+	get2_y_variable(0,2,1,1)
+	get_list_x0
+	unify_void
+	unify_y_variable(2)
+    guard_cond
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('unary_constrs'/3)
+)
+
+
+predicate('item'/7
+label(5)
+	switch_on_term(7,7,7,7,7,7,7)
+label(7)
+	try(0)
+	trust(1)
+label(0)
+	allocate(6)
+	get5_y_variable(3,6,4,5,0,4,1,3,2,2)
+	get_y_variable(5,1)
+	get_y_value(5,0)
+    guard_wait
+	put_constant(1,0)
+	put2_y_value(5,1,4,2)
+	call('arg'/3)
+	put_y_value(3,7)
+	get_structure('assignment'/3,7)
+	unify_y_value(2)
+	unify_y_value(1)
+	unify_y_value(0)
+	put_y_value(2,7)
+	get_constant('begin',7)
+	put_y_value(1,7)
+	get_constant('end',7)
+	put_y_value(0,7)
+	get_constant('on',7)
+	dealloc_proceed
+label(1)
+	allocate(0)
+	get_x_variable(7,3)
+	get_x_value(7,2)
+	get_constant('off',4)
+    guard_wait
+	dealloc_proceed
+)
+
+
+predicate('generate_aircraft'/7
+label(5)
+	switch_on_term(10,8,7,7,7,11,7)
+label(8)
+	switch_on_constant(1,[('[]',9)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(3)
+	get3_y_variable(2,4,0,3,1,2)
+	get_nil_x0
+    guard_cond
+	put_y_value(2,7)
+	get_nil(7)
+	put_y_value(1,7)
+	get_y_value(0,7)
+	dealloc_proceed
+label(1)
+	allocate(8)
+	get5_y_variable(0,6,1,5,2,4,3,3,4,2)
+	get_y_variable(5,1)
+	get_list_x0
+	unify_y_variable(7)
+	unify_y_variable(6)
+    guard_cond
+	put_y_value(2,7)
+	get_list(7)
+	unify_x_variable(7)
+	unify_y_variable(2)
+	get_structure('value'/2,7)
+	unify_y_value(7)
+	unify_x_variable(7)
+	put3_y_value(7,0,5,1,4,2)
+	put_y_variable(4,3)
+	put_x_value(7,4)
+	put2_y_value(1,5,0,6)
+	call('item'/7)
+	put5_y_value(6,0,5,1,4,2,3,3,2,4)
+	put2_y_value(1,5,0,6)
+	dealloc_execute('generate_aircraft'/7)
+)
+
+
+predicate('arrange_by_crew'/2
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(3)
+	get2_y_variable(0,1,2,0)
+    guard_wait
+	put_nil(3)
+	put_y_value(2,0)
+	put_y_variable(2,1)
+	put_y_variable(1,2)
+	call('extract_crew_list'/4)
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('group_by_crew'/3)
+)
+
+
+predicate('extract_crew_list'/4
+label(5)
+	switch_on_term(10,8,7,7,7,11,7)
+label(8)
+	switch_on_constant(1,[('[]',9)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(3)
+	get3_y_variable(0,3,1,2,2,1)
+	get_nil_x0
+    guard_cond
+	put_y_value(2,4)
+	get_nil(4)
+	put_y_value(1,4)
+	get_y_value(0,4)
+	dealloc_proceed
+label(1)
+	allocate(6)
+	get3_y_variable(0,3,1,2,2,1)
+	get_list_x0
+	unify_x_variable(4)
+	unify_y_variable(3)
+	get_structure('aircraft'/7,4)
+	unify_y_variable(5)
+	unify_void
+	unify_void
+	unify_void
+	unify_void
+	unify_void
+	unify_y_variable(4)
+    guard_cond
+	put_y_value(2,4)
+	get_list(4)
+	unify_x_variable(4)
+	unify_y_variable(2)
+	get_structure('aircraft'/2,4)
+	unify_y_value(5)
+	unify_y_value(4)
+	put2_y_value(4,0,0,1)
+	put_y_variable(0,2)
+	call('add_to_list'/3)
+	put4_y_value(3,0,2,1,1,2,0,3)
+	dealloc_execute('extract_crew_list'/4)
+)
+
+
+predicate('add_to_list'/3
+label(7)
+	switch_on_term(12,10,9,9,9,13,9)
+label(10)
+	switch_on_constant(1,[('[]',11)],9)
+label(9)
+	fail
+label(11)
+	try_single(0)
+label(12)
+	try(0)
+	retry(1)
+	trust(2)
+label(13)
+	try(1)
+	trust(2)
+label(0)
+	allocate(2)
+	get2_y_variable(1,2,0,1)
+	get_nil_x0
+    guard_cond
+	put_y_value(1,3)
+	get_y_value(0,3)
+	dealloc_proceed
+label(1)
+	allocate(3)
+	get2_y_variable(0,2,1,1)
+	get_list_x0
+	unify_x_variable(3)
+	unify_y_variable(2)
+	put_x_value(3,0)
+	put_y_value(1,1)
+	call('member'/2)
+    guard_cond
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('add_to_list'/3)
+label(2)
+	allocate(4)
+	get2_y_variable(3,2,0,1)
+	get_list_x0
+	unify_y_variable(2)
+	unify_y_variable(1)
+    guard_cond
+	put_y_value(3,3)
+	get_list(3)
+	unify_y_value(2)
+	unify_x_variable(3)
+	put2_y_value(1,0,0,1)
+	put_x_value(3,2)
+	dealloc_execute('add_to_list'/3)
+)
+
+
+predicate('member'/2
+label(5)
+	switch_on_term(7,7,7,7,7,7,7)
+label(7)
+	try(0)
+	trust(1)
+label(0)
+	allocate(0)
+	get_x_variable(2,0)
+	get_list(1)
+	unify_x_value(2)
+	unify_void
+    guard_cond
+	dealloc_proceed
+label(1)
+	allocate(2)
+	get_y_variable(1,0)
+	get_list(1)
+	unify_void
+	unify_y_variable(0)
+    guard_cond
+	put2_y_value(1,0,0,1)
+	dealloc_execute('member'/2)
+)
+
+
+predicate('group_by_crew'/3
+label(5)
+	switch_on_term(7,7,7,7,7,7,7)
+label(7)
+	try(0)
+	trust(1)
+label(0)
+	allocate(1)
+	get_y_variable(0,2)
+	get_nil(1)
+    guard_cond
+	put_y_value(0,3)
+	get_nil(3)
+	dealloc_proceed
+label(1)
+	allocate(4)
+	get2_y_variable(0,2,2,0)
+	get_list(1)
+	unify_y_variable(3)
+	unify_y_variable(1)
+    guard_cond
+	put_y_value(0,3)
+	get_list(3)
+	unify_x_variable(3)
+	unify_y_variable(0)
+	put2_y_value(2,0,3,1)
+	put_x_value(3,2)
+	call('for_one_crew'/3)
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('group_by_crew'/3)
+)
+
+
+predicate('for_one_crew'/3
+label(7)
+	switch_on_term(12,10,9,9,9,13,9)
+label(10)
+	switch_on_constant(1,[('[]',11)],9)
+label(9)
+	fail
+label(11)
+	try_single(0)
+label(12)
+	try(0)
+	retry(1)
+	trust(2)
+label(13)
+	try(1)
+	trust(2)
+label(0)
+	allocate(1)
+	get_y_variable(0,2)
+	get_nil_x0
+    guard_cond
+	put_y_value(0,3)
+	get_nil(3)
+	dealloc_proceed
+label(1)
+	allocate(4)
+	get2_y_variable(3,2,0,1)
+	get_list_x0
+	unify_x_variable(3)
+	unify_y_variable(1)
+	get_structure('aircraft'/2,3)
+	unify_y_variable(2)
+	unify_x_variable(3)
+	put_y_value(0,0)
+	put_x_value(3,1)
+	call('member'/2)
+    guard_cond
+	put_y_value(3,3)
+	get_list(3)
+	unify_y_value(2)
+	unify_x_variable(3)
+	put2_y_value(1,0,0,1)
+	put_x_value(3,2)
+	dealloc_execute('for_one_crew'/3)
+label(2)
+	allocate(3)
+	get2_y_variable(0,2,1,1)
+	get_list_x0
+	unify_void
+	unify_y_variable(2)
+    guard_cond
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('for_one_crew'/3)
+)
+
+
+predicate('two_flight_constraints'/2
+label(5)
+	switch_on_term(10,8,7,7,7,11,7)
+label(8)
+	switch_on_constant(1,[('[]',9)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(0)
+	get_nil_x0
+    guard_cond
+	dealloc_proceed
+label(1)
+	allocate(3)
+	get_y_variable(0,1)
+	get_list_x0
+	unify_y_variable(2)
+	unify_y_variable(1)
+    guard_cond
+	put3_y_value(2,0,1,1,0,2)
+	call('check'/3)
+	put2_y_value(1,0,0,1)
+	dealloc_execute('two_flight_constraints'/2)
+)
+
+
+predicate('check'/3
+label(5)
+	switch_on_term(7,7,7,7,7,7,7)
+label(7)
+	try(0)
+	trust(1)
+label(0)
+	allocate(0)
+	get_nil(1)
+    guard_cond
+	dealloc_proceed
+label(1)
+	allocate(4)
+	get2_y_variable(0,2,2,0)
+	get_list(1)
+	unify_y_variable(3)
+	unify_y_variable(1)
+    guard_cond
+	put3_y_value(2,0,3,1,0,2)
+	call('binary_constrs'/3)
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('check'/3)
+)
+
+
+predicate('binary_constrs'/3
+label(5)
+	switch_on_term(9,7,7,7,7,7,8)
+label(8)
+	switch_on_structure(1,[('poss_aircraft'/2,9)],7)
+label(7)
+	fail
+label(9)
+	try(0)
+	trust(1)
+label(0)
+	allocate(3)
+	get_y_variable(2,2)
+	get_structure_x0('poss_aircraft'/2)
+	unify_x_variable(3)
+	unify_y_variable(1)
+	get_structure('poss_aircraft'/2,1)
+	unify_x_variable(4)
+	unify_y_variable(0)
+	get_structure('flight'/4,3)
+	unify_void
+	unify_void
+	unify_x_variable(3)
+	unify_void
+	get_structure('flight'/4,4)
+	unify_void
+	unify_x_variable(4)
+	unify_void
+	unify_void
+	put_x_value(3,0)
+	put_x_value(4,1)
+	call('>'/2)
+    guard_cond
+	put2_y_value(1,0,0,1)
+	call('noteq_aircraft'/2)
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('noteq_crew'/3)
+label(1)
+	allocate(4)
+	get_structure_x0('poss_aircraft'/2)
+	unify_y_variable(3)
+	unify_y_variable(2)
+	get_structure('poss_aircraft'/2,1)
+	unify_y_variable(1)
+	unify_y_variable(0)
+    guard_cond
+	put4_y_value(3,0,2,1,1,2,0,3)
+	dealloc_execute('turnaround_constraint'/4)
+)
+
+
+predicate('noteq_aircraft'/2
+label(11)
+	switch_on_term(15,13,16,16,16,17,16)
+label(13)
+	switch_on_constant(1,[('[]',14)],16)
+label(14)
+	try(0)
+	trust(1)
+label(15)
+	try(0)
+	retry(1)
+	retry(2)
+	retry(3)
+	trust(4)
+label(16)
+	try_single(1)
+label(17)
+	try(1)
+	retry(2)
+	retry(3)
+	trust(4)
+label(0)
+	allocate(0)
+	get_nil_x0
+    guard_commit
+	dealloc_proceed
+label(1)
+	allocate(0)
+	get_nil(1)
+    guard_commit
+	dealloc_proceed
+label(2)
+	allocate(4)
+	get_list_x0
+	unify_x_variable(2)
+	unify_y_variable(1)
+	get_structure('value'/2,2)
+	unify_x_variable(2)
+	unify_y_variable(3)
+	get_list(1)
+	unify_x_variable(3)
+	unify_y_variable(0)
+	get_structure('value'/2,3)
+	unify_x_value(2)
+	unify_y_variable(2)
+    guard_commit
+	put2_y_value(3,0,2,1)
+	call('noteq'/2)
+	put2_y_value(1,0,0,1)
+	dealloc_execute('noteq_aircraft'/2)
+label(3)
+	allocate(2)
+	get_y_variable(0,1)
+	get_list_x0
+	unify_x_variable(3)
+	unify_y_variable(1)
+	get_structure('value'/2,3)
+	unify_x_variable(3)
+	unify_void
+	put_y_value(0,4)
+	get_list(4)
+	unify_x_variable(4)
+	unify_void
+	get_structure('value'/2,4)
+	unify_x_variable(4)
+	unify_void
+	put_constant(1,0)
+	put_x_value(3,1)
+	put_x_variable(3,2)
+	call('arg'/3)
+	put_constant(1,0)
+	put_x_value(4,1)
+	put_x_variable(4,2)
+	call('arg'/3)
+	put_x_value(3,0)
+	put_x_value(4,1)
+	call('<'/2)
+    guard_commit
+	put2_y_value(1,0,0,1)
+	dealloc_execute('noteq_aircraft'/2)
+label(4)
+	allocate(2)
+	get_y_variable(1,0)
+	get_list(1)
+	unify_x_variable(3)
+	unify_y_variable(0)
+	get_structure('value'/2,3)
+	unify_x_variable(3)
+	unify_void
+	put_y_value(1,4)
+	get_list(4)
+	unify_x_variable(4)
+	unify_void
+	get_structure('value'/2,4)
+	unify_x_variable(4)
+	unify_void
+	put_constant(1,0)
+	put_x_value(4,1)
+	put_x_variable(4,2)
+	call('arg'/3)
+	put_constant(1,0)
+	put_x_value(3,1)
+	put_x_variable(3,2)
+	call('arg'/3)
+	put_x_value(4,0)
+	put_x_value(3,1)
+	call('>'/2)
+    guard_commit
+	put2_y_value(1,0,0,1)
+	dealloc_execute('noteq_aircraft'/2)
+)
+
+
+predicate('noteq'/2
+label(9)
+	switch_on_term(12,11,15,15,15,15,15)
+label(11)
+	switch_on_constant(2,[('off',14),('on',13)],15)
+label(12)
+	try(0)
+	retry(1)
+	retry(2)
+	trust(3)
+label(13)
+	try(0)
+	retry(1)
+	trust(3)
+label(14)
+	try(1)
+	retry(2)
+	trust(3)
+label(15)
+	try(1)
+	trust(3)
+label(0)
+	allocate(1)
+	get_y_variable(0,1)
+	get_constant('on',0)
+    guard_commit
+	put_y_value(0,2)
+	get_constant('off',2)
+	dealloc_proceed
+label(1)
+	allocate(1)
+	get_y_variable(0,0)
+	get_constant('on',1)
+    guard_commit
+	put_y_value(0,2)
+	get_constant('off',2)
+	dealloc_proceed
+label(2)
+	allocate(0)
+	get_constant('off',0)
+    guard_commit
+	dealloc_proceed
+label(3)
+	allocate(0)
+	get_constant('off',1)
+    guard_commit
+	dealloc_proceed
+)
+
+
+predicate('noteq_crew'/3
+label(5)
+	switch_on_term(10,8,7,7,7,11,7)
+label(8)
+	switch_on_constant(1,[('[]',9)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(0)
+	get_nil_x0
+    guard_cond
+	dealloc_proceed
+label(1)
+	allocate(4)
+	get2_y_variable(0,2,1,1)
+	get_list_x0
+	unify_y_variable(3)
+	unify_y_variable(2)
+    guard_cond
+	put3_y_value(3,0,1,1,0,2)
+	call('check_one_crew'/3)
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('noteq_crew'/3)
+)
+
+
+predicate('check_one_crew'/3
+label(5)
+	switch_on_term(10,8,7,7,7,11,7)
+label(8)
+	switch_on_constant(1,[('[]',9)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(0)
+	get_nil_x0
+    guard_cond
+	dealloc_proceed
+label(1)
+	allocate(6)
+	get2_y_variable(3,2,4,1)
+	get_list_x0
+	unify_y_variable(0)
+	unify_y_variable(2)
+    guard_cond
+	put2_y_value(0,0,4,1)
+	put_y_variable(5,2)
+	put_y_variable(1,3)
+	call('get_aircraft'/4)
+	put3_y_value(2,0,3,1,5,2)
+	call('each_aircraft'/3)
+	put2_y_value(0,0,3,1)
+	put_y_variable(3,2)
+	put_y_variable(0,3)
+	call('get_aircraft'/4)
+	put3_y_value(2,0,4,1,3,2)
+	call('each_aircraft'/3)
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('check_one_crew'/3)
+)
+
+
+predicate('get_aircraft'/4
+label(7)
+	switch_on_term(9,9,9,9,9,9,9)
+label(9)
+	try(0)
+	retry(1)
+	trust(2)
+label(0)
+	allocate(4)
+	get2_y_variable(1,3,3,2)
+	get_x_variable(4,0)
+	get_list(1)
+	unify_x_variable(5)
+	unify_y_variable(0)
+	get_structure('value'/2,5)
+	unify_x_variable(5)
+	unify_y_variable(2)
+	get_structure('aircraft'/4,5)
+	unify_x_value(4)
+	unify_void
+	unify_void
+	unify_void
+    guard_cond
+	put_y_value(3,4)
+	get_y_value(2,4)
+	put_y_value(1,4)
+	get_y_value(0,4)
+	dealloc_proceed
+label(1)
+	allocate(4)
+	get3_y_variable(0,3,1,2,3,0)
+	get_list(1)
+	unify_x_variable(4)
+	unify_y_variable(2)
+	get_structure('value'/2,4)
+	unify_x_variable(4)
+	unify_void
+	get_structure('aircraft'/4,4)
+	unify_x_variable(4)
+	unify_void
+	unify_void
+	unify_void
+	put_y_value(3,0)
+	put_x_value(4,1)
+	call('>'/2)
+    guard_cond
+	put4_y_value(3,0,2,1,1,2,0,3)
+	dealloc_execute('get_aircraft'/4)
+label(2)
+	allocate(3)
+	get3_y_variable(1,3,2,2,0,1)
+    guard_cond
+	put_y_value(2,4)
+	get_constant('off',4)
+	put_y_value(1,4)
+	get_y_value(0,4)
+	dealloc_proceed
+)
+
+
+predicate('each_aircraft'/3
+label(9)
+	switch_on_term(13,11,14,14,14,15,14)
+label(11)
+	switch_on_constant(1,[('[]',12)],14)
+label(12)
+	try(0)
+	retry(1)
+	trust(2)
+label(13)
+	try(0)
+	retry(1)
+	retry(2)
+	trust(3)
+label(14)
+	try(0)
+	trust(2)
+label(15)
+	try(0)
+	retry(2)
+	trust(3)
+label(0)
+	allocate(0)
+	get_constant('off',2)
+    guard_commit
+	dealloc_proceed
+label(1)
+	allocate(0)
+	get_nil_x0
+    guard_commit
+	dealloc_proceed
+label(2)
+	allocate(0)
+	get_nil(1)
+    guard_commit
+	dealloc_proceed
+label(3)
+	allocate(4)
+	get2_y_variable(0,2,3,1)
+	get_list_x0
+	unify_y_variable(1)
+	unify_y_variable(2)
+    guard_commit
+	put2_y_value(1,0,3,1)
+	put_y_variable(3,2)
+	put_y_variable(1,3)
+	call('get_aircraft'/4)
+	put2_y_value(3,0,0,1)
+	call('noteq'/2)
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('each_aircraft'/3)
+)
+
+
+predicate('turnaround_constraint'/4
+label(11)
+	switch_on_term(13,13,13,13,13,13,13)
+label(13)
+	try(0)
+	retry(1)
+	retry(2)
+	retry(3)
+	trust(4)
+label(0)
+	allocate(0)
+	get_nil(1)
+    guard_commit
+	dealloc_proceed
+label(1)
+	allocate(0)
+	get_nil(3)
+    guard_commit
+	dealloc_proceed
+label(2)
+	allocate(7)
+	get2_y_variable(1,2,3,0)
+	get_list(1)
+	unify_x_variable(4)
+	unify_y_variable(2)
+	get_structure('value'/2,4)
+	unify_y_variable(6)
+	unify_y_variable(5)
+	get_list(3)
+	unify_x_variable(4)
+	unify_y_variable(0)
+	get_structure('value'/2,4)
+	unify_y_value(6)
+	unify_y_variable(4)
+    guard_commit
+	put2_y_value(3,0,6,1)
+	put_y_variable(6,2)
+	call('get_next_launch'/3)
+	put4_y_value(6,0,1,1,5,2,4,3)
+	call('check_turnaround'/4)
+	put4_y_value(3,0,2,1,1,2,0,3)
+	dealloc_execute('turnaround_constraint'/4)
+label(3)
+	allocate(4)
+	get3_y_variable(0,3,1,2,3,0)
+	get_list(1)
+	unify_x_variable(4)
+	unify_y_variable(2)
+	get_structure('value'/2,4)
+	unify_x_variable(4)
+	unify_void
+	put_y_value(0,5)
+	get_list(5)
+	unify_x_variable(5)
+	unify_void
+	get_structure('value'/2,5)
+	unify_x_variable(5)
+	unify_void
+	put_constant(1,0)
+	put_x_value(4,1)
+	put_x_variable(4,2)
+	call('arg'/3)
+	put_constant(1,0)
+	put_x_value(5,1)
+	put_x_variable(5,2)
+	call('arg'/3)
+	put_x_value(4,0)
+	put_x_value(5,1)
+	call('<'/2)
+    guard_commit
+	put4_y_value(3,0,2,1,1,2,0,3)
+	dealloc_execute('turnaround_constraint'/4)
+label(4)
+	allocate(4)
+	get3_y_variable(1,2,2,1,3,0)
+	get_list(3)
+	unify_x_variable(4)
+	unify_y_variable(0)
+	get_structure('value'/2,4)
+	unify_x_variable(4)
+	unify_void
+	put_y_value(2,5)
+	get_list(5)
+	unify_x_variable(5)
+	unify_void
+	get_structure('value'/2,5)
+	unify_x_variable(5)
+	unify_void
+	put_constant(1,0)
+	put_x_value(5,1)
+	put_x_variable(5,2)
+	call('arg'/3)
+	put_constant(1,0)
+	put_x_value(4,1)
+	put_x_variable(4,2)
+	call('arg'/3)
+	put_x_value(5,0)
+	put_x_value(4,1)
+	call('>'/2)
+    guard_commit
+	put4_y_value(3,0,2,1,1,2,0,3)
+	dealloc_execute('turnaround_constraint'/4)
+)
+
+
+predicate('get_next_launch'/3
+label(3)
+	switch_on_term(7,5,5,5,5,5,6)
+label(6)
+	switch_on_structure(1,[('flight'/4,7)],5)
+label(5)
+	fail
+label(7)
+	try_single(0)
+label(0)
+	allocate(3)
+	get_y_variable(0,2)
+	get_x_variable(3,1)
+	get_structure_x0('flight'/4)
+	unify_void
+	unify_void
+	unify_y_variable(2)
+	unify_void
+	get_structure('aircraft'/4,3)
+	unify_void
+	unify_y_variable(1)
+	unify_void
+	unify_void
+    guard_commit
+	put_structure('+'/2,1)
+	unify_y_value(2)
+	unify_y_value(1)
+	put_y_value(0,0)
+	dealloc_execute('is'/2)
+)
+
+
+predicate('check_turnaround'/4
+label(5)
+	switch_on_term(7,7,7,7,7,7,7)
+label(7)
+	try(0)
+	trust(1)
+label(0)
+	allocate(2)
+	get2_y_variable(0,3,1,2)
+	get_x_variable(4,0)
+	get_structure('flight'/4,1)
+	unify_void
+	unify_x_variable(5)
+	unify_void
+	unify_void
+	put_x_value(4,0)
+	put_x_value(5,1)
+	call('>'/2)
+    guard_cond
+	put2_y_value(1,0,0,1)
+	dealloc_execute('noteq'/2)
+label(1)
+	allocate(0)
+    guard_cond
+	dealloc_proceed
+)
+
+
+predicate('arrange_by_aircraft'/3
+label(7)
+	switch_on_term(11,9,12,12,12,13,12)
+label(9)
+	switch_on_constant(1,[('[]',10)],12)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try(0)
+	retry(1)
+	trust(2)
+label(12)
+	try_single(1)
+label(13)
+	try(1)
+	trust(2)
+label(0)
+	allocate(1)
+	get_y_variable(0,2)
+	get_nil_x0
+    guard_commit
+	put_y_value(0,3)
+	get_nil(3)
+	dealloc_proceed
+label(1)
+	allocate(1)
+	get_y_variable(0,2)
+	get_nil(1)
+    guard_commit
+	put_y_value(0,3)
+	get_nil(3)
+	dealloc_proceed
+label(2)
+	allocate(5)
+	get2_y_variable(0,2,4,1)
+	get_list_x0
+	unify_y_variable(3)
+	unify_y_variable(2)
+	put_y_value(4,4)
+	get_list(4)
+	unify_void
+	unify_void
+    guard_commit
+	put2_y_value(4,0,3,1)
+	put_y_variable(4,2)
+	put_y_variable(1,3)
+	call('get_tuples'/4)
+	put3_y_value(4,0,3,1,0,2)
+	put_y_variable(0,3)
+	call('check_tuples'/4)
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('arrange_by_aircraft'/3)
+)
+
+
+predicate('check_tuples'/4
+label(5)
+	switch_on_term(8,7,9,9,9,9,9)
+label(7)
+	switch_on_constant(1,[('[]',8)],9)
+label(8)
+	try(0)
+	trust(1)
+label(9)
+	try_single(1)
+label(0)
+	allocate(2)
+	get2_y_variable(0,3,1,2)
+	get_nil_x0
+    guard_commit
+	put_y_value(1,4)
+	get_y_value(0,4)
+	dealloc_proceed
+label(1)
+	allocate(4)
+	get4_y_variable(2,3,3,2,0,1,1,0)
+    guard_commit
+	put_y_value(3,4)
+	get_list(4)
+	unify_x_variable(4)
+	unify_y_value(2)
+	get_structure('aircraft'/3,4)
+	unify_x_variable(4)
+	unify_x_variable(5)
+	unify_y_value(1)
+	put_y_value(0,0)
+	put_x_value(4,1)
+	put_x_value(5,2)
+	dealloc_execute('aircraft_attrib'/3)
+)
+
+
+predicate('aircraft_attrib'/3
+label(3)
+	switch_on_term(7,5,5,5,5,5,6)
+label(6)
+	switch_on_structure(1,[('aircraft'/7,7)],5)
+label(5)
+	fail
+label(7)
+	try_single(0)
+label(0)
+	allocate(0)
+	get_x_variable(3,2)
+	get_x_variable(4,1)
+	get_structure_x0('aircraft'/7)
+	unify_x_value(4)
+	unify_void
+	unify_void
+	unify_void
+	unify_void
+	unify_x_value(3)
+	unify_void
+    guard_wait
+	dealloc_proceed
+)
+
+
+predicate('get_tuples'/4
+label(5)
+	switch_on_term(10,8,7,7,7,11,7)
+label(8)
+	switch_on_constant(1,[('[]',9)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(2)
+	get2_y_variable(0,3,1,2)
+	get_nil_x0
+    guard_cond
+	put_y_value(1,4)
+	get_nil(4)
+	put_y_value(0,4)
+	get_nil(4)
+	dealloc_proceed
+label(1)
+	allocate(6)
+	get3_y_variable(0,3,1,2,2,1)
+	get_list_x0
+	unify_x_variable(7)
+	unify_y_variable(3)
+	get_structure('poss_aircraft'/2,7)
+	unify_y_variable(4)
+	unify_y_variable(5)
+    guard_cond
+	put4_y_value(5,0,2,1,4,2,1,3)
+	put_y_variable(1,4)
+	put_y_value(0,5)
+	put_y_variable(0,6)
+	call('get_tuple'/7)
+	put4_y_value(3,0,2,1,1,2,0,3)
+	dealloc_execute('get_tuples'/4)
+)
+
+
+predicate('get_tuple'/7
+label(9)
+	switch_on_term(12,11,15,15,15,14,15)
+label(11)
+	switch_on_constant(1,[('[]',13)],15)
+label(12)
+	try(0)
+	retry(1)
+	retry(2)
+	trust(3)
+label(13)
+	try(0)
+	trust(3)
+label(14)
+	try(1)
+	retry(2)
+	trust(3)
+label(15)
+	try_single(3)
+label(0)
+	allocate(4)
+	get4_y_variable(0,6,1,5,2,4,3,3)
+	get_nil_x0
+    guard_cond
+	put_y_value(3,7)
+	get_y_value(2,7)
+	put_y_value(1,7)
+	get_y_value(0,7)
+	dealloc_proceed
+label(1)
+	allocate(9)
+	get5_y_variable(2,6,3,5,5,4,6,3,0,2)
+	get_y_variable(8,1)
+	get_list_x0
+	unify_x_variable(7)
+	unify_y_variable(1)
+	get_structure('value'/2,7)
+	unify_y_variable(7)
+	unify_y_variable(4)
+	put_constant('aircraft',1)
+	put_y_value(7,0)
+	put_x_void(2)
+	call('functor'/3)
+	put_constant(1,0)
+	put_y_value(7,1)
+	put_y_variable(7,2)
+	call('arg'/3)
+	put_constant('aircraft',1)
+	put_y_value(8,0)
+	put_x_void(2)
+	call('functor'/3)
+	put_constant(1,0)
+	put2_y_value(8,1,7,2)
+	call('arg'/3)
+    guard_cond
+	put_y_value(6,7)
+	get_list(7)
+	unify_x_variable(7)
+	unify_y_value(5)
+	get_structure('tup'/2,7)
+	unify_x_variable(7)
+	unify_y_value(4)
+	put_y_value(3,8)
+	get_list(8)
+	unify_x_variable(8)
+	unify_y_value(2)
+	get_structure('poss_aircraft'/2,8)
+	unify_y_value(0)
+	unify_y_value(1)
+	put_y_value(0,0)
+	put_x_value(7,1)
+	dealloc_execute('get_flight_length'/2)
+label(2)
+	allocate(7)
+	get5_y_variable(0,6,1,5,2,4,3,3,4,2)
+	get_y_variable(5,1)
+	get_list_x0
+	unify_x_variable(7)
+	unify_y_variable(6)
+	get_structure('value'/2,7)
+	unify_x_variable(7)
+	unify_void
+	put_constant(1,1)
+	put_x_value(7,0)
+	put_x_variable(7,2)
+	call('arg'/3)
+	put_constant(1,1)
+	put_y_value(5,0)
+	put_x_variable(8,2)
+	call('arg'/3)
+	put_x_value(7,0)
+	put_x_value(8,1)
+	call('<'/2)
+    guard_cond
+	put5_y_value(6,0,5,1,4,2,3,3,2,4)
+	put2_y_value(1,5,0,6)
+	dealloc_execute('get_tuple'/7)
+label(3)
+	allocate(6)
+	get5_y_variable(4,6,5,5,0,4,1,3,3,2)
+	get_y_variable(2,0)
+    guard_cond
+	put_y_value(5,7)
+	get_list(7)
+	unify_x_variable(7)
+	unify_y_value(4)
+	get_structure('poss_aircraft'/2,7)
+	unify_y_value(3)
+	unify_y_value(2)
+	put_y_value(1,7)
+	get_y_value(0,7)
+	dealloc_proceed
+)
+
+
+predicate('get_flight_length'/2
+label(3)
+	switch_on_term(7,5,5,5,5,5,6)
+label(6)
+	switch_on_structure(1,[('flight'/4,7)],5)
+label(5)
+	fail
+label(7)
+	try_single(0)
+label(0)
+	allocate(0)
+	get_x_variable(2,1)
+	get_structure_x0('flight'/4)
+	unify_void
+	unify_void
+	unify_void
+	unify_x_value(2)
+    guard_wait
+	dealloc_proceed
+)
+
+
+predicate('many_flight_constraints'/3
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(3)
+	get3_y_variable(0,2,2,1,1,0)
+    guard_wait
+	put_y_value(1,0)
+	call('maxhours_constraint'/1)
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('max_crew_hours'/3)
+)
+
+
+predicate('maxhours_constraint'/1
+label(5)
+	switch_on_term(10,8,7,7,7,11,7)
+label(8)
+	switch_on_constant(1,[('[]',9)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(0)
+	get_nil_x0
+    guard_cond
+	dealloc_proceed
+label(1)
+	allocate(4)
+	get_list_x0
+	unify_x_variable(3)
+	unify_y_variable(0)
+	get_structure('aircraft'/3,3)
+	unify_void
+	unify_y_variable(2)
+	unify_y_variable(3)
+    guard_cond
+	put_list(1)
+	unify_y_value(2)
+	unify_y_variable(1)
+	put_y_value(3,0)
+	put_y_variable(3,2)
+	call('check_flights'/3)
+	put3_y_value(3,0,2,1,1,2)
+	call('current_max'/3)
+	put_y_value(0,0)
+	dealloc_execute('maxhours_constraint'/1)
+)
+
+
+predicate('current_max'/3
+label(5)
+	switch_on_term(10,8,7,7,7,11,7)
+label(8)
+	switch_on_constant(1,[('[]',9)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(1)
+	get_y_variable(0,2)
+	get_nil_x0
+    guard_cond
+	put_y_value(0,3)
+	get_nil(3)
+	dealloc_proceed
+label(1)
+	allocate(5)
+	get2_y_variable(1,2,4,1)
+	get_list_x0
+	unify_y_variable(3)
+	unify_y_variable(2)
+    guard_cond
+	put_y_value(1,3)
+	get_list(3)
+	unify_y_variable(1)
+	unify_y_variable(0)
+	put_structure('-'/2,1)
+	unify_y_value(4)
+	unify_y_value(3)
+	put_y_value(1,0)
+	call('is'/2)
+	put_constant(0,1)
+	put_y_value(1,0)
+	call('>='/2)
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('current_max'/3)
+)
+
+
+predicate('check_flights'/3
+label(5)
+	switch_on_term(10,8,7,7,7,11,7)
+label(8)
+	switch_on_constant(1,[('[]',9)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(1)
+	get_y_variable(0,2)
+	get_nil_x0
+    guard_cond
+	put_y_value(0,3)
+	get_nil(3)
+	dealloc_proceed
+label(1)
+	allocate(4)
+	get2_y_variable(0,2,1,1)
+	get_list_x0
+	unify_y_variable(2)
+	unify_y_variable(3)
+    guard_cond
+	put2_y_value(2,0,1,1)
+	put_y_variable(2,2)
+	call('check_flight'/3)
+	put2_y_value(3,0,1,1)
+	put_y_variable(1,2)
+	call('check_flights'/3)
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('panmerge'/3)
+)
+
+
+predicate('check_flight'/3
+label(9)
+	switch_on_term(13,11,11,11,11,11,12)
+label(12)
+	switch_on_structure(1,[('tup'/2,13)],11)
+label(11)
+	fail
+label(13)
+	try(0)
+	retry(1)
+	retry(2)
+	trust(3)
+label(0)
+	allocate(2)
+	get_y_variable(1,2)
+	get_structure_x0('tup'/2)
+	unify_y_variable(0)
+	unify_constant('on')
+    guard_commit
+	put_y_value(1,3)
+	get_list(3)
+	unify_y_value(0)
+	unify_nil
+	dealloc_proceed
+label(1)
+	allocate(1)
+	get_y_variable(0,2)
+	get_structure_x0('tup'/2)
+	unify_void
+	unify_constant('off')
+    guard_commit
+	put_y_value(0,3)
+	get_nil(3)
+	dealloc_proceed
+label(2)
+	allocate(2)
+	get_y_variable(1,2)
+	get_structure_x0('tup'/2)
+	unify_x_variable(3)
+	unify_y_variable(0)
+	get_list(1)
+	unify_x_variable(4)
+	unify_void
+	put_x_value(3,0)
+	put_x_value(4,1)
+	call('>'/2)
+    guard_commit
+	put_y_value(1,4)
+	get_nil(4)
+	put_y_value(0,4)
+	get_constant('off',4)
+	dealloc_proceed
+label(3)
+	allocate(4)
+	get_y_variable(0,2)
+	get_structure_x0('tup'/2)
+	unify_y_variable(3)
+	unify_y_variable(2)
+	get_list(1)
+	unify_x_variable(3)
+	unify_y_variable(1)
+	put_y_value(3,0)
+	put_x_value(3,1)
+	call('=<'/2)
+    guard_commit
+	put_structure('tup'/2,0)
+	unify_y_value(3)
+	unify_y_value(2)
+	put2_y_value(1,1,0,2)
+	dealloc_execute('check_flight'/3)
+)
+
+
+predicate('max_crew_hours'/3
+label(5)
+	switch_on_term(10,8,7,7,7,11,7)
+label(8)
+	switch_on_constant(1,[('[]',9)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(0)
+	get_nil_x0
+    guard_cond
+	dealloc_proceed
+label(1)
+	allocate(5)
+	get2_y_variable(0,2,1,1)
+	get_list_x0
+	unify_y_variable(4)
+	unify_y_variable(2)
+    guard_cond
+	put_list(2)
+	unify_y_value(0)
+	unify_y_variable(3)
+	put2_y_value(1,0,4,1)
+	put_y_variable(4,3)
+	call('check_crew_flights'/4)
+	put3_y_value(4,0,0,1,3,2)
+	call('current_max'/3)
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('max_crew_hours'/3)
+)
+
+
+predicate('check_crew_flights'/4
+label(11)
+	switch_on_term(15,13,16,16,16,17,16)
+label(13)
+	switch_on_constant(1,[('[]',14)],16)
+label(14)
+	try(0)
+	trust(1)
+label(15)
+	try(0)
+	retry(1)
+	retry(2)
+	retry(3)
+	trust(4)
+label(16)
+	try_single(1)
+label(17)
+	try(1)
+	retry(2)
+	retry(3)
+	trust(4)
+label(0)
+	allocate(1)
+	get_y_variable(0,3)
+	get_nil_x0
+    guard_commit
+	put_y_value(0,4)
+	get_nil(4)
+	dealloc_proceed
+label(1)
+	allocate(1)
+	get_y_variable(0,3)
+	get_nil(1)
+    guard_commit
+	put_y_value(0,4)
+	get_nil(4)
+	dealloc_proceed
+label(2)
+	allocate(5)
+	get2_y_variable(0,3,1,2)
+	get_list_x0
+	unify_x_variable(4)
+	unify_y_variable(4)
+	get_list(1)
+	unify_x_variable(5)
+	unify_y_variable(3)
+	get_structure('aircraft'/3,4)
+	unify_x_value(5)
+	unify_void
+	unify_y_variable(2)
+    guard_commit
+	put2_y_value(2,0,1,1)
+	put_y_variable(2,2)
+	call('check_flights'/3)
+	put3_y_value(4,0,3,1,1,2)
+	put_y_variable(1,3)
+	call('check_crew_flights'/4)
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('panmerge'/3)
+label(3)
+	allocate(5)
+	get2_y_variable(0,3,1,2)
+	get_list_x0
+	unify_x_variable(4)
+	unify_y_variable(2)
+	get_list(1)
+	unify_y_variable(4)
+	unify_y_variable(3)
+	get_structure('aircraft'/3,4)
+	unify_x_variable(4)
+	unify_void
+	unify_void
+	put_x_value(4,0)
+	put_y_value(4,1)
+	call('<'/2)
+    guard_commit
+	put_list(1)
+	unify_y_value(4)
+	unify_y_value(3)
+	put3_y_value(2,0,1,2,0,3)
+	dealloc_execute('check_crew_flights'/4)
+label(4)
+	allocate(5)
+	get2_y_variable(0,3,1,2)
+	get_list_x0
+	unify_y_variable(4)
+	unify_y_variable(3)
+	get_list(1)
+	unify_x_variable(4)
+	unify_y_variable(2)
+	put_y_value(4,5)
+	get_structure('aircraft'/3,5)
+	unify_x_variable(5)
+	unify_void
+	unify_void
+	put_x_value(5,0)
+	put_x_value(4,1)
+	call('>'/2)
+    guard_commit
+	put_list(0)
+	unify_y_value(4)
+	unify_y_value(3)
+	put3_y_value(2,1,1,2,0,3)
+	dealloc_execute('check_crew_flights'/4)
+)
+
+
+predicate('panmerge'/3
+label(9)
+	switch_on_term(12,11,15,15,15,14,15)
+label(11)
+	switch_on_constant(1,[('[]',13)],15)
+label(12)
+	try(0)
+	retry(1)
+	retry(2)
+	trust(3)
+label(13)
+	try(0)
+	retry(1)
+	trust(3)
+label(14)
+	try(1)
+	retry(2)
+	trust(3)
+label(15)
+	try(1)
+	trust(3)
+label(0)
+	allocate(2)
+	get2_y_variable(0,2,1,1)
+	get_nil_x0
+    guard_commit
+	put_y_value(1,3)
+	get_y_value(0,3)
+	dealloc_proceed
+label(1)
+	allocate(2)
+	get2_y_variable(0,2,1,0)
+	get_nil(1)
+    guard_commit
+	put_y_value(1,3)
+	get_y_value(0,3)
+	dealloc_proceed
+label(2)
+	allocate(4)
+	get2_y_variable(3,2,0,1)
+	get_list_x0
+	unify_y_variable(2)
+	unify_y_variable(1)
+    guard_commit
+	put_y_value(3,3)
+	get_list(3)
+	unify_y_value(2)
+	unify_x_variable(3)
+	put2_y_value(1,0,0,1)
+	put_x_value(3,2)
+	dealloc_execute('panmerge'/3)
+label(3)
+	allocate(4)
+	get2_y_variable(3,2,1,0)
+	get_list(1)
+	unify_y_variable(2)
+	unify_y_variable(0)
+    guard_commit
+	put_y_value(3,3)
+	get_list(3)
+	unify_y_value(2)
+	unify_x_variable(3)
+	put2_y_value(1,0,0,1)
+	put_x_value(3,2)
+	dealloc_execute('panmerge'/3)
+)
+
+

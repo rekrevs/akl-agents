@@ -1,0 +1,138 @@
+dnl Process this file with autoconf to produce a configure script.
+AC_INIT(agents.in)
+
+dnl Handle relative srcdir.
+case ${srcdir} in
+  /* )
+  ;;
+  . )
+    srcdir=`pwd`
+  ;;
+  * )
+    echo "{FATAL: srcdir must be absolute - see README}"
+    exit 1
+  ;;
+esac
+
+dnl Handle host.
+for arg do
+  case ${arg} in
+    -host=*  | --host=* | --hos=* | --ho=* | --h=* )
+      if test -z "${host}" ; then
+	host=`echo ${arg} | sed "s/^[[-a-z]]*=//"`
+      else
+	echo "{FATAL: at most one host may be specified}"
+	exit 1
+      fi
+    ;;
+  esac
+done
+if test -z "${host}" ; then
+  host=`${srcdir}/config.guess`
+  if test -z "${host}" ; then
+    echo "{FATAL: unknown hosttype - see README}"
+    exit 1
+  fi
+else
+  tmphost=`${srcdir}/config.sub $host 2>&1`
+  case ${tmphost} in
+    Invalid* )
+      echo "{FATAL: unknown hosttype $host - see README}"
+      exit 1
+    ;;
+    * )
+      host=${tmphost}
+    ;;
+  esac
+fi
+echo "configuring for $host"
+
+dnl Handle gmp exclusion.
+CFLAGS_GMP="-I$(gmpdir)"
+LDFLAGS_GMP="-L$(gmpdir) -lgmp"
+AGENTSFLAGS_GMP=""
+MAKE_GMP=make-gmp
+INSTALL_GMP=install-gmp
+for arg do
+  case ${arg} in
+    -without-gmp | --without-gmp )
+      CFLAGS_GMP=""
+      LDFLAGS_GMP=""
+      AGENTSFLAGS_GMP=-DNOBIGNUM
+      MAKE_GMP=""
+      INSTALL_GMP=""
+    ;;
+  esac
+done
+AC_SUBST(CFLAGS_GMP)
+AC_SUBST(LDFLAGS_GMP)
+AC_SUBST(AGENTSFLAGS_GMP)
+AC_SUBST(MAKE_GMP)
+AC_SUBST(INSTALL_GMP)
+
+AC_PROG_CC
+
+dnl CFLAGS should contain nothing essential - it should be possible for users
+dnl to override it freely on the 'make' command line.  Essential things should
+dnl be aggregated with CFLAGS to form ALL_CFLAGS - see Makefile.in.
+if [[ ${GCC} ]] ; then
+  CFLAGS=-O2
+else
+  CFLAGS=""
+fi
+AC_SUBST(CFLAGS)
+
+AC_PROG_INSTALL
+
+dnl From asinh(3M) on an HP 9000/720:
+dnl   Series 300/400
+dnl     asinh(), acosh(), and atanh() are not supported on Series 300/400
+dnl     systems.
+dnl   Series 700/800
+dnl     asinh(), acosh(), and atanh() are not specified by any standard.  They
+dnl     are provided in the PA1.1 versions of the math library only.  The
+dnl     +DA1.1 linker option (default on Series 700 systems) links in a PA1.1
+dnl     version automatically.  A PA1.1 library can also be linked in
+dnl     explicitly.  For more information, see the HP-UX Floating-Point Guide.
+dnl Heaven knows why they say "default on Series 700 systems".  By experiment,
+dnl it isn't.  Also, "+DA1.1" isn't recognized by ld.  Fortunately, the PA1.1
+dnl version is in a standard place, so we can get it.
+case ${host} in
+  m68k-hp-hpux* )
+    AGENTSFLAGS_MATH=-DNOASINH
+    LDFLAGS_MATH=-lm
+    echo "{NOTE: acosh, asinh, and atanh unavailable}"
+  ;;
+  hppa*-hp-hpux* )
+dnl AGENTSFLAGS_MATH=""
+dnl LDFLAGS_MATH="-L/lib/pa1.1 -lm"
+dnl LDFLAGS_MATH="-L/lib/pa1.1 -lM"
+dnl Incredibly, either of the preceding definitions of LDFLAGS_MATH causes
+dnl acosh etc. to be defined, but the definitions are wrong!  E.g.,
+dnl   | ?- X is acosh(0.0).
+dnl
+dnl   X = 0.0 ? 
+dnl
+dnl (should be nan) and
+dnl
+dnl   | ?- Y is sinh(5.0), 5.0 is asinh(Y).
+dnl
+dnl   no 
+dnl (should succeed with Y = 74.20321057778875).  OK, OK, I give up...
+    AGENTSFLAGS_MATH=-DNOASINH
+    LDFLAGS_MATH=-lm
+    echo "{NOTE: acosh, asinh, and atanh unavailable}"
+  ;;
+  * )
+    AGENTSFLAGS_MATH=""
+    LDFLAGS_MATH=-lm
+  ;;
+esac
+AC_SUBST(AGENTSFLAGS_MATH)
+AC_SUBST(LDFLAGS_MATH)
+
+dnl gmake is preferable on HPs, whose default make is unusually stupid, and is
+dnl fine on others too.
+AC_PROGRAM_CHECK(MAKE,gmake,gmake,make)
+
+AC_OUTPUT(Makefile)

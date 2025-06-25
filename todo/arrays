@@ -1,0 +1,6 @@
+$Id: arrays,v 1.2 1993/06/07 11:02:31 sverker Exp $
+
+Arrays are implemented as generic objects with a message interface.
+
+Other kinds of arrays, such as arrays of floats and chars, with
+untagged elements, should be investigated.

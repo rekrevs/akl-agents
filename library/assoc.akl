@@ -1,0 +1,538 @@
+%   Copyright(C) 1993, 1994, Swedish Institute of Computer Science
+%   Originally adapted from shared code written by Richard A. O'Keefe
+%   New version using 2-3 trees code adapted from I. Bratko
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%   File   : ASSOC.AKL                                                 %
+%   Updated: May 9, 1994                                               %
+%   Purpose: 23-tree implementation of "association lists".            %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% version with argument order suitable for AKL
+% get_assoc/5 renamed to set_assoc/5
+
+% compatibility with arrays:
+
+% new_array/2
+% set_array/5   set_assoc/5
+% get_array/4   get_assoc/4
+% missing       put_assoc/4
+% missing       empty_assoc/1
+
+% nice renaming not yet introduced:
+%                list_to_assoc -> alist_to_assoc
+%                assoc_to_list -> assoc_to_alist
+%                ord_list_to_assoc -> ord_alist_to_assoc
+
+/*
+:- module(assoc, [
+	empty_assoc/1,
+	get_assoc/4,
+	get_def_assoc/5,
+	get_nearest_le_assoc/5,
+	get_min_assoc/4,
+	get_max_assoc/4,
+	set_assoc/5,
+	set_def_assoc/6,
+	put_assoc/4,
+	delete_assoc/4,
+	delete_def_assoc/5,
+	delete_min_assoc/4,
+	delete_max_assoc/4,
+	gen_assoc/3,
+	map_assoc/3,
+	assoc_to_list/2,
+	list_to_assoc/2,
+	ord_list_to_assoc/2
+   ]).
+
+:- meta_predicate
+	map_assoc(:, -, -).
+*/
+
+
+%i @node Assoc, GM, Introduction, Top
+%i @chapter Association Lists
+%i @cindex association lists
+%i @cindex lists, association
+%i 
+%i This package uses 2-3 trees to implement ``association lists'', i.e.
+%i extendible finite mappings from terms to terms.  To load the package,
+%i enter the query
+%i 
+%i @example
+%i | ?- load(library(assoc)).
+%i @end example
+
+%i @table @code
+
+%i @item empty_assoc(@var{-Assoc})
+%i @findex empty_assoc/1
+%i is true if @var{Assoc} is the empty association tree.
+
+empty_assoc(nil).
+
+
+%i @item get_assoc(@var{+Key}, @var{-Value}, @var{+Assoc}, @var{-OutAssoc})
+%i @findex get_assoc/4
+%i is true when @var{Key} is associated with @var{Value} in the association
+%i tree @var{Assoc}. The @var{OutAssoc} returned is identical to the input 
+%i @var{Assoc} and is used only for synchronization (and compatibility with 
+%i the array package).
+
+get_assoc(X, V, T, T) :-
+    	acc23(T, X, found(V)).
+
+acc23(l(X, W), X, V) :- 
+    ->	V = found(W).
+acc23(l(K, W), _, V) :- 
+    ->	V = not_found(K, W).
+acc23(n2(T1,M,_), X, V) :-
+	M @> X
+    ->	acc23(T1, X, V).
+acc23(n2(_,_,T2), X, V) :-
+    ->	acc23(T2, X, V).
+acc23(n3(T1,M2,_,_,_), X, V) :-
+	M2 @> X
+    ->	acc23(T1, X, V).
+acc23(n3(_,_,T2,M3,_), X, V) :- 
+	M3 @> X
+    ->	acc23(T2, X, V).
+acc23(n3(_,_,_,_,T3), X, V) :-
+    ->	acc23(T3, X, V).
+
+
+% Added by Anders Andersson
+%i @item get_def_assoc(@var{+Key}, @var{-Default}, @var{-Value}, @var{+Assoc}, @var{-OutAssoc})
+%i @findex get_def_assoc/5
+%i If @var{Assoc} associates a value with @var{Key}, that value is
+%i @var{OldValue}. If @var{OldAssoc} did not associate any value at all with
+%i @var{Key} then @var{OldValue} is unified with @var{Default}. 
+%i The @var{OutAssoc} returned is identical to the input 
+%i @var{Assoc} and is used only for synchronization (and compatibility with 
+%i the array package).
+get_def_assoc(X, D, V, T, T1) :-
+    ->	T1=T,
+	acc23(T, X, Res),
+	get_def_lookup(Res, D, V).
+
+get_def_lookup(found(V), _, Value) :-
+    ->	Value = V.
+get_def_lookup(_, Def, Value) :-
+    ->	Value = Def.
+
+% Added by Anders Andersson
+%i @item get_nearest_le_assoc(@var{+SearchKey}, @var{-Key}, @var{-Value}, @var{+Assoc}, @var{-OutAssoc})
+%i @findex get_nearest_le_assoc/5
+%i is true if there exists a key in the association tree @var{Assoc} less than
+%i or equal to @var{SearchKey}, and the largest such key is @var{Key} and is
+%i associated with @var{Value}. 
+%i The @var{OutAssoc} returned is identical to the input @var{Assoc} and is
+%i used only for synchronization (and compatibility with the array package).
+
+get_nearest_le_assoc(X, K, V, T, T) :-
+	acc23(T, X, Result),
+    	get_le_lookup(Result, X, K, V).
+
+get_le_lookup(found(V), X, K, R) :-
+    ->  R = V,
+	K = X.
+get_le_lookup(not_found(K, V), X, KR, VR) :-
+	X @> K
+    ->	VR = V,
+	KR = K.
+
+% Added by Anders Andersson
+%i @item get_min_assoc(@var{-Key}, @var{-Value}, @var{+Assoc}, @var{-OutAssoc})
+%i @findex get_min_assoc/4
+%i is true if @var{Key} unifies with the smallest key in the non-empty 
+%i association tree @var{Assoc} and @var{Value} unifies with the associated 
+%i value. 
+%i The @var{OutAssoc} returned is identical to the input @var{Assoc} and is
+%i used only for synchronization (and compatibility with the array package).
+
+get_min_assoc(Key, Value, Old, New) :-
+    ->	New = Old,
+	get_min23(Old, Key, Value).
+
+get_min23(l(K, V), Key, Value) :-
+    ->	Key = K,
+	Value = V.
+get_min23(n2(T1, _, _), Key, Value) :-
+    ->	get_min23(T1, Key, Value).
+get_min23(n3(T1, _, _, _, _), Key, Value) :-
+    ->	get_min23(T1, Key, Value).
+
+% Added by Anders Andersson
+%i @item get_max_assoc(@var{-Key}, @var{-Value}, @var{+Assoc}, @var{-OutAssoc})
+%i @findex get_max_assoc/4
+%i is true if @var{Key} unifies with the largest key in the non-empty
+%i association tree @var{Assoc} and @var{Value} unifies with the associated 
+%i value. 
+%i The @var{OutAssoc} returned is identical to the input @var{Assoc} and is
+%i used only for synchronization (and compatibility with the array package).
+
+get_max_assoc(Key, Value, Old, New) :-
+    ->	New = Old,
+	get_max23(Old, Key, Value).
+
+get_max23(l(K, V), Key, Value) :-
+    ->	Key = K,
+	Value = V.
+get_max23(n2(_, _, T2), Key, Value) :-
+    ->	get_max23(T2, Key, Value).
+get_max23(n3(_, _, _, _, T3), Key, Value) :-
+    ->	get_max23(T3, Key, Value).
+
+%i @item set_assoc(@var{+Key}, @var{-OldValue}, @var{-NewValue}, @var{+OldAssoc}, @var{-NewAssoc})
+%i @findex set_assoc/5
+%i is true when @var{OldAssoc} and @var{NewAssoc} are association trees of
+%i the same shape having the same elements except that the value for
+%i @var{Key} in @var{OldAssoc} is @var{OldValue} and the value for
+%i @var{Key} in @var{NewAssoc} is @var{NewValue}.
+
+set_assoc(X, W, V, T0, T) :-
+	set23(T0, X, W, V, T).
+
+set23(l(X,U), X, W, V, T) :-
+    ->	W = U,
+	T = l(X,V).
+set23(n2(T1,M,T2), X, W, V, T) :-
+	X @< M
+    ->	set23(T1, X, W, V, N1),
+	T = n2(N1,M,T2).
+set23(n2(T1,M,T2), X, W, V, T) :-
+	M @=< X
+    ->	set23(T2, X, W, V, N2),
+	T = n2(T1,M,N2).
+set23(n3(T1,M1,T2,M2,T3), X, W, V, T) :-
+	X @< M1
+    ->	set23(T1, X, W, V, N1),
+	T = n3(N1,M1,T2,M2,T3).
+set23(n3(T1,M1,T2,M2,T3), X, W, V, T) :-
+	X @< M2
+    ->	set23(T2, X, W, V, N2),
+	T = n3(T1,M1,N2,M2,T3).
+set23(n3(T1,M1,T2,M2,T3), X, W, V, T) :-
+	M2 @=< X
+    ->	set23(T3, X, W, V, N3),
+	T = n3(T1,M1,T2,M2,N3).
+
+% Added by Anders Andersson
+%i @item set_def_assoc(@var{+Key}, @var{-Default}, @var{-OldValue}, @var{-NewValue}, @var{+OldAssoc}, @var{-NewAssoc})
+%i @findex set_def_assoc/6
+%i is true when @var{OldAssoc} and @var{NewAssoc} define the same finite
+%i function, except that @var{NewAssoc} associates @var{Val} with @var{Key}.
+%i If @var{OldAssoc} associated a value with @var{Key}, that value is
+%i @var{OldValue}. If @var{OldAssoc} did not associate any value at all with
+%i @var{Key} then @var{OldValue} is unified with @var{Default}. 
+
+set_def_assoc(X, Def, Old, V, Tree0, Tree) :-
+	insert23(Tree0, X, t(V, Def, Old), Trees),
+	make_23tree(Trees, Tree).
+
+
+%i @item put_assoc(@var{+Key}, @var{-Val}, @var{+OldAssoc}, @var{-NewAssoc})
+%i @findex put_assoc/4
+%i is true when @var{OldAssoc} and @var{NewAssoc} define the same finite
+%i function, except that @var{NewAssoc} associates @var{Val} with @var{Key}.
+%i @var{OldAssoc} need not have associated any value at all with @var{Key}.
+
+put_assoc(X, V, Tree0, Tree) :-
+	insert23(Tree0, X, t(V, _, _), Trees),
+	make_23tree(Trees, Tree).
+
+make_23tree(t1(T), Tree) :-
+    ->	Tree = T.
+make_23tree(t2(M,T1,T2), Tree) :-
+    ->	Tree = n2(T1, M, T2).
+
+% Changed by Anders Andersson to support set_def_assoc/6 as well as put_assoc/4
+insert23(nil, X, t(V, Default, OldVal), Trees) :-
+    ->	Trees = t1(l(X,V)),
+	OldVal = Default.
+insert23(T, X, t(V, Default, OldVal), Trees) :-
+	T = l(M,_),
+	X @< M
+    ->	Trees = t2(M,l(X,V),T),
+	OldVal = Default.
+insert23(T, X, t(V, Default, OldVal), Trees) :-
+	T = l(M,_),
+	M @< X
+    ->	Trees = t2(X,T,l(X,V)),
+	OldVal = Default.
+insert23(l(X,Old), X, t(V, _, OldVal), Trees) :-
+    ->	Trees = t1(l(X,V)),
+	OldVal = Old. 
+insert23(n2(T1,M,T2), X, V, Trees) :-
+	X @< M
+    ->	insert23(T1, X, V, T1s),
+	combine_left2(T1s, M, T2, Trees).
+insert23(n2(T1,M,T2), X, V, Trees) :-
+	M @=< X
+    ->	insert23(T2, X, V, T2s),
+	combine_right2(T2s, M, T1, Trees).
+insert23(n3(T1,M1,T2,M2,T3), X, V, Trees) :-
+	X @< M1
+    ->	insert23(T1, X, V, T1s),
+	combine1(T1s, M1, T2, M2, T3, Trees).
+insert23(n3(T1,M1,T2,M2,T3), X, V, Trees) :-
+	X @< M2
+    ->	insert23(T2, X, V, T2s),
+	combine2(T2s, M1, T1, M2, T3, Trees).
+insert23(n3(T1,M1,T2,M2,T3), X, V, Trees) :-
+	M2 @=< X
+    ->	insert23(T3, X, V, T3s),
+	combine3(T3s, M1, T1, M2, T2, Trees).
+
+combine3(t1(T3), M1, T1, M2, T2, Trees) :-
+    ->	Trees = t1(n3(T1,M1,T2,M2,T3)).
+combine3(t2(M, Ta, Tb), M1, T1, M2, T2, Trees) :-
+    ->	Trees = t2(M2, n2(T1, M1, T2), n2(Ta, M, Tb)).
+
+combine2(t1(T2), M1, T1, M2, T3, Trees) :-
+    ->	Trees = t1(n3(T1,M1,T2,M2,T3)).
+combine2(t2(M, Ta, Tb), M1, T1, M2, T3, Trees) :-
+    ->	Trees = t2(M, n2(T1, M1, Ta), n2(Tb, M2, T3)).
+
+combine1(t1(T1), M1, T2, M2, T3, Trees) :-
+    ->	Trees = t1(n3(T1,M1,T2,M2,T3)).
+combine1(t2(M, Ta, Tb), M1, T2, M2, T3, Trees) :-
+    ->	Trees = t2(M1, n2(Ta, M, Tb), n2(T2, M2, T3)).
+
+combine_left2(t1(T1), M, T2, Trees) :-
+    ->	Trees = t1(n2(T1,M,T2)).
+combine_left2(t2(M1,T1,T2), M2, T3, Trees) :-
+    ->	Trees = t1(n3(T1,M1,T2,M2,T3)).
+
+combine_right2(t1(T2), M, T1, Trees) :-
+    ->	Trees = t1(n2(T1,M,T2)).
+combine_right2(t2(M2,T2,T3), M1, T1, Trees) :-
+    ->	Trees = t1(n3(T1,M1,T2,M2,T3)).
+
+
+% Added by Anders Andersson
+%i @item delete_assoc(@var{+Key}, @var{-Val}, @var{+OldAssoc}, @var{-NewAssoc})
+%i @findex delete_assoc/4
+%i is true when @var{OldAssoc} and @var{NewAssoc} define the same finite
+%i function, except that while @var{OldAssoc} associated @var{Val} with 
+%i @var{Key}, @var{NewAssoc} does not associate any value at all with @var{Key}.
+
+delete_assoc(Key, Value, OldAssoc, NewAssoc) :-
+    ->	delete23(OldAssoc, Key, Value, Assoc),
+	fix_root(Assoc, NewAssoc).
+
+% Added by Anders Andersson
+%i @item delete_def_assoc(@var{+Key}, @var{-Default}, @var{-Val}, @var{+OldAssoc}, @var{-NewAssoc})
+%i @findex delete_def_assoc/5
+%i is true when @var{OldAssoc} and @var{NewAssoc} define the same finite
+%i function, except that @var{NewAssoc} does not associate any value at all 
+%i with @var{Key}. 
+%i If @var{OldAssoc} associated a value with @var{Key}, that value is
+%i @var{OldValue}. If @var{OldAssoc} did not associate any value at all with
+%i @var{Key} then @var{OldValue} is unified with @var{Default}. 
+
+delete_def_assoc(Key, _, Value, OldAssoc, NewAssoc) :-
+    	delete23(OldAssoc, Key, V, Assoc)
+    ->	Value = V,
+	fix_root(Assoc, NewAssoc).
+delete_def_assoc(_, Default, Value, OldAssoc, NewAssoc) :-
+    ->	Value = Default,
+	NewAssoc = OldAssoc.
+
+fix_root(n1(Tree), New) :- % remove 1 level in tree
+    ->	New = Tree.
+fix_root(Old, New) :-
+    ->	New = Old.
+
+delete23(l(Key, V), Key, Value, New) :-
+    ->	Value = V,
+	New = nil.
+delete23(n2(T1, M, T2), Key, Value, New) :-
+	M @> Key
+    ->	delete23(T1, Key, Value, NewT1),
+	merge_with_right_sibling(NewT1, T2, M, New).
+delete23(n2(T1, M, T2), Key, Value, New) :-
+    ->	delete23(T2, Key, Value, NewT2),
+	merge_with_left_sibling(NewT2, T1, M, New).
+delete23(n3(T1, M1, T2, M2, T3), Key, Value, New) :-
+	M1 @> Key
+    ->	delete23(T1, Key, Value, NewT1),
+	merge_with_right_sibling(NewT1, T2, M1, NewT),
+	extend_right(NewT, M2, T3, New).
+delete23(n3(T1, M1, T2, M2, T3), Key, Value, New) :-
+	M2 @> Key
+    ->	delete23(T2, Key, Value, NewT2),
+	merge_with_left_sibling(NewT2, T1, M1, NewT),
+	extend_right(NewT, M2, T3, New).
+delete23(n3(T1, M1, T2, M2, T3), Key, Value, New) :-
+    ->	delete23(T3, Key, Value, NewT3),
+	merge_with_left_sibling(NewT3, T2, M2, NewT),
+	extend_left(NewT, M1, T1, New).
+
+extend_right(n1(T1), M, T2, Ext) :-
+    ->	Ext = n2(T1, M, T2).
+extend_right(n2(T1, M1, T2), M2, T3, Ext) :-
+    ->	Ext = n3(T1, M1, T2, M2, T3).
+
+extend_left(n1(T2), M, T1, Ext) :-
+    ->	Ext = n2(T1, M, T2).
+extend_left(n2(T2, M2, T3), M1, T1, Ext) :-
+    ->	Ext = n3(T1, M1, T2, M2, T3).
+
+merge_with_right_sibling(nil, T, _, New) :-
+    ->	New = n1(T).
+merge_with_right_sibling(n1(T1), n2(T2, M2, T3), M1, New) :-
+    ->	New = n1(n3(T1,M1,T2,M2,T3)).
+merge_with_right_sibling(n1(T1), n3(T2, M2, T3, M3, T4), M1, New) :-
+    ->	New = n2(n2(T1,M1,T2), M2, n2(T3, M3, T4)).
+merge_with_right_sibling(T1, T2, M, New) :-
+    ->	New = n2(T1, M, T2).
+
+merge_with_left_sibling(nil, T, _, New) :-
+    ->	New = n1(T).
+merge_with_left_sibling(n1(T3), n2(T1, M1, T2), M2, New) :-
+    ->	New = n1(n3(T1,M1,T2,M2,T3)).
+merge_with_left_sibling(n1(T4), n3(T1, M1, T2, M2, T3), M3, New) :-
+    ->	New = n2(n2(T1,M1,T2), M2, n2(T3, M3, T4)).
+merge_with_left_sibling(T2, T1, M, New) :-
+    ->	New = n2(T1, M, T2).
+
+
+% Added by Anders Andersson
+%i @item delete_min_assoc(@var{-Key}, @var{-Val}, @var{+OldAssoc}, @var{-NewAssoc})
+%i @findex delete_min_assoc/4
+%i is true when @var{OldAssoc} and @var{NewAssoc} define the same finite
+%i function, except that while @var{OldAssoc} associated @var{Val} with 
+%i @var{Key}, which was the smallest key in @var{OldAssoc}, @var{NewAssoc} 
+%i does not associate any value at all with @var{Key}.
+
+delete_min_assoc(Key, Value, OldAssoc, NewAssoc) :-
+    ->	delete_min23(OldAssoc, Key, Value, Assoc),
+	fix_root(Assoc, NewAssoc).
+
+delete_min23(l(K, V), Key, Value, New) :-
+    ->	Key = K,
+	Value = V,
+	New = nil.
+delete_min23(n2(T1, M, T2), Key, Value, New) :-
+    ->	delete_min23(T1, Key, Value, NewT1),
+	merge_with_right_sibling(NewT1, T2, M, New).
+delete_min23(n3(T1, M1, T2, M2, T3), Key, Value, New) :-
+    ->	delete_min23(T1, Key, Value, NewT1),
+	merge_with_right_sibling(NewT1, T2, M1, NewT),
+	extend_right(NewT, M2, T3, New).
+
+
+% Added by Anders Andersson
+%i @item delete_max_assoc(@var{-Key}, @var{-Val}, @var{+OldAssoc}, @var{-NewAssoc})
+%i @findex delete_max_assoc/4
+%i is true when @var{OldAssoc} and @var{NewAssoc} define the same finite
+%i function, except that while @var{OldAssoc} associated @var{Val} with 
+%i @var{Key}, which was the largest key in @var{OldAssoc}, @var{NewAssoc} 
+%i does not associate any value at all with @var{Key}.
+
+delete_max_assoc(Key, Value, OldAssoc, NewAssoc) :-
+    ->	delete_max23(OldAssoc, Key, Value, Assoc),
+	fix_root(Assoc, NewAssoc).
+
+delete_max23(l(K, V), Key, Value, New) :-
+    ->	Key = K,
+	Value = V,
+	New = nil.
+delete_max23(n2(T1, M, T2), Key, Value, New) :-
+    ->	delete_max23(T2, Key, Value, NewT2),
+	merge_with_left_sibling(NewT2, T1, M, New).
+delete_max23(n3(T1, M1, T2, M2, T3), Key, Value, New) :-
+    ->	delete_max23(T3, Key, Value, NewT3),
+	merge_with_left_sibling(NewT3, T2, M2, NewT),
+	extend_left(NewT, M1, T1, New).
+
+
+%i @item gen_assoc(@var{-Key}, @var{+Assoc}, @var{-Value})
+%i @findex gen_assoc/3
+%i is true when @var{Key} is associated with @var{Value} in the association
+%i tree @var{Assoc}.  Can be used to enumerate all @var{Values} by
+%i ascending @var{Keys}.
+
+gen_assoc(Key, Tree, Val) :-
+	gen23(Tree, Key, Val).
+
+gen23(l(Key,Val), Key, Val).
+gen23(n2(T1,_,_), Key, Val) :- gen23(T1, Key, Val).
+gen23(n2(_,_,T2), Key, Val) :- gen23(T2, Key, Val).
+gen23(n3(T1,_,_,_,_), Key, Val) :- gen23(T1, Key, Val).
+gen23(n3(_,_,T2,_,_), Key, Val) :- gen23(T2, Key, Val).
+gen23(n3(_,_,_,_,T3), Key, Val) :- gen23(T3, Key, Val).
+
+
+%i @item map_assoc(@var{:Pred}, @var{-OldAssoc}, @var{-NewAssoc})
+%i @findex map_assoc/3
+%i is true when @var{OldAssoc} and @var{NewAssoc} are association trees of
+%i the same shape, and for each @var{Key}, if @var{Key} is associated with
+%i @var{Old} in @var{OldAssoc} and with @var{New} in @var{NewAssoc},
+%i @var{Pred(Old,New)} is true.
+
+map_assoc(Pred, OldAssoc, NewAssoc) :-
+	map23(OldAssoc, Pred, NewAssoc).
+
+map23(l(X,U), P, T) :-
+    ->  P(U,V),
+	T = l(X,V).
+map23(n2(T1,M,T2), P, T) :-
+    ->	map23(T1, P, N1),
+	map23(T2, P, N2),
+	T = n2(N1,M,N2).
+map23(n3(T1,M1,T2,M2,T3), P, T) :-
+    ->	map23(T1, P, N1),
+    	map23(T2, P, N2),
+	map23(T3, P, N3),
+	T = n3(N1,M1,N2,M2,N3).
+
+
+%i @item assoc_to_list(@var{+Assoc}, @var{-List})
+%i @findex assoc_to_list/3
+%i is true when @var{List} is a list of @var{Key-Value} pairs in ascending
+%i order with no duplicate @var{Keys} specifying the same finite function
+%i as the association tree @var{Assoc}.  Use this to convert an association
+%i tree to a list.
+
+assoc_to_list(Assoc, List) :-
+	t23_to_list(Assoc, List, []).
+
+t23_to_list(nil)-_List :-
+    ->  true.
+t23_to_list(l(Key,Val))-List :-
+    ->	[Key-Val]-List.
+t23_to_list(n2(T1,_,T2))-List :-
+    ->  t23_to_list(T1)-List,
+	t23_to_list(T2)-List.
+t23_to_list(n3(T1,_,T2,_,T3))-List :-
+    ->	t23_to_list(T1)-List,
+	t23_to_list(T2)-List,
+	t23_to_list(T3)-List.
+
+%i @item list_to_assoc(@var{+List}, @var{-Assoc})
+%i @findex list_to_assoc/2
+%i is true when @var{List} is a proper list of @var{Key-Value} pairs (in
+%i any order) and @var{Assoc} is an association tree specifying the same
+%i finite function from @var{Keys} to @var{Values}.
+
+list_to_assoc([], T) :-
+    ->	T = nil.
+list_to_assoc([X-V|L], T) :-
+    ->	list_to_assoc(L, T0),
+	put_assoc(X, V, T0, T).
+
+
+%i @item ord_list_to_assoc(@var{+List}, @var{-Assoc})
+%i @findex ord_list_to_assoc/2
+%i is true when @var{List} is a proper list of @var{Key-Value} pairs
+%i (keysorted) and @var{Assoc} is an association tree specifying the same
+%i finite function from @var{Keys} to @var{Values}.
+
+ord_list_to_assoc(List, Assoc) :-
+	list_to_assoc(List, Assoc).
+
+% last line of texinfo:
+%i @end table

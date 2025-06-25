@@ -1,0 +1,70 @@
+% Example taken from the SAGA Report
+
+/* This example is written in a slightly odd style to demonstrate as many 
+aspects of the syntax as possible */
+
+define                      % Let's define some useful shorthands...
+  letter: [a-zA-Z_]; 	    % A letter is (lower or upper) `a' to `z' or an `_'
+  digit: [0-9];             % Defines digit as `0' to `9'
+  alphanum: letter | digit; % Let alphanum denote either a letter or a digit
+
+lexmode comment;            % We want to treat comments special - use a mode
+
+token                       % Let's define some *named* tokens...
+  blanks: [' '\t]+;         % Space and tab are blanks 
+  newline: \n;              % A normal newline
+  begin_comment: "/*";      % The token that begin a comment
+
+  blanks:      <comment>~['*'\n]+; % Skip unwanted stuff on the line in comment mode
+  blanks:      <comment>'*'+;      % Skip `*'s. Note that "***/" and the like
+                                   % will be matched by end_comment, which can
+                                   % match a longer prefix and thus is chosen
+  newline:     <comment>'*'*\n;    % Count lines in comments as well
+  end_comment: <comment>'*'*'*/';  % The sequence that end the comment
+
+  relop: ">=" | "<=" | ">" | "<" | "<>" | "=";  % These are some operators
+  id: letter alphanum*;                         % Identifiers
+  constant: digit+;                             % Integer constants
+
+global  LineNo;      % A global variable to count line numbers
+
+filter                           % Tokens that require special attention...
+  skip: blanks;                     % Just ignore blanks (skip is predefined)
+  count-LineNo: newline;            % Count line numbers, count is user defined
+  begin_skip(comment)-Lex: begin_comment;  % Change mode and skip token
+  begin_skip(start)-Lex: end_comment;      % Ditto
+
+code
+<< count(_,_,[],[])-LineNo :- inc-LineNo. >>    % A piece of AKL code
+
+expect  1;	    % We know about a "dangling-else" shift/reduce conflict
+start   stmt;       % Input file matches a stmt (decl. actually redundant here)
+
+left   "+" "-";     % Declare operators with increasing precedence
+left   "*" "/";
+right  neg;        % neg is a dummy symbol needed to tell unary "-" from binary
+
+rule                 % OK, here comes the grammar proper...
+% The program builds a syntax tree of AKL terms
+% First a if-then-else statement: 
+  stmt(S) : "if" cond(C) "then" stmt(S1) "else" stmt(S2)<< S = if(C, S1, S2) >>
+% Then the if-then statement:
+	  | "if" cond(C) "then" stmt(S1)            << S = if(C, S1) >>
+% A simple assignment statement:
+          | id(I) ':=' expr(E)    << list_to_atom(I, Id), S = assign(Id, E) >>
+         ;
+% A conditional expression is either a comparison or a boolean variable:
+  cond(relop(R, E1, E2)) : expr(E1) relop(R) expr(E2);
+  cond(boolvar(Id))      : id(I)   << list_to_atom(I, Id) >>
+                       ;
+% The grammar for expressions use operator precedence to fix ambiguities
+  expr(E1+E2) : expr(E1) "+" expr(E2);
+  expr(E1-E2) : expr(E1) "-" expr(E2);
+  expr(E1*E2) : expr(E1) "*" expr(E2);
+  expr(E1/E2) : expr(E1) "/" expr(E2);
+  expr(-E)    : "-" expr(E)   prec neg;  % prec is needed to raise precedence
+  expr(E)     : '(' expr(E) ')' 
+              | id(I)     << list_to_atom(I, Id), E = value(Id) >> % identifier
+              | constant(C) << list_to_integer(C, E) >>        % constant
+           ;
+

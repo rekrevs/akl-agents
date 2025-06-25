@@ -1,0 +1,30 @@
+/* at least L elements of List equal Value,
+   where U and Value are natural numbers */
+atleast(L, List, Value) :- 
+    ->	fd( N in L... ),
+	count_v(N, List, Value).
+
+/* at most U elements of List equal Value, where U and 
+   Value are natural numbers. */
+atmost(U, List, Value) :- 
+    ->	fd( N in 0..U ),
+	count_v(N, List, Value).
+
+/* exactly N elements of List equal Value */
+count_v(N, [], _) :- 
+    ->	fd( N in 0 ).
+count_v(N, [X|List], Value) :- 
+    ->	fd( B in 0..1 ),
+	eq_v(X, Value, B),
+	fd( B+M=N ),
+	count_v(M, List, Value).
+
+
+eq_vv(X, V, B) :-
+	fd( X in ((max(B)..min(B))/\1) => V \/ ((max(B)..min(B))/\0) => (-V),
+	    B in ((max(X)..min(X))/\V) => 1 \/ ((max(X)..min(X))/\(-V)) => 0 ).
+
+eq_v(X, V, B) :-
+	fd( X in (dom(B)/\1) => V \/ ((-dom(B))/\1) => (-V),
+	    B in (dom(X)/\V) => 1 \/ ((-dom(X))/\V) => 0 ).
+

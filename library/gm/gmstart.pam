@@ -1,0 +1,181 @@
+predicate('gmstart'/1
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(1)
+	get_y_variable(0,0)
+    guard_cond
+	put_constant('local',0)
+	put_y_value(0,1)
+	dealloc_execute('gmstart'/2)
+)
+
+
+predicate('gmstart'/2
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(2)
+	get2_y_variable(0,1,1,0)
+    guard_cond
+	put_constant('',1)
+	put2_y_value(1,0,0,2)
+	dealloc_execute('gmstart'/3)
+)
+
+
+predicate('gmstart'/3
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(4)
+	get3_y_variable(0,2,3,1,2,0)
+    guard_cond
+	put2_y_value(2,0,3,1)
+	put_y_variable(3,2)
+	put_y_variable(2,3)
+	call('gm_start'/4)
+	put_y_variable(1,0)
+	call('new_hash_table'/1)
+	put_y_value(1,0)
+	put_y_variable(1,1)
+	put2_y_value(3,2,2,3)
+	call('gmio_open'/4)
+	put2_y_value(1,0,0,1)
+	dealloc_execute('gm_open'/2)
+)
+
+
+predicate('gm_open'/2
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(2)
+	get2_y_variable(1,1,0,0)
+    guard_wait
+	put_y_value(1,0)
+	put_y_variable(1,1)
+	call('open_port'/2)
+	put2_y_value(1,0,0,1)
+	dealloc_execute('gmhandle'/2)
+)
+
+
+predicate('gmhandle'/2
+label(5)
+	switch_on_term(10,8,7,7,7,11,7)
+label(8)
+	switch_on_constant(1,[('[]',9)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(0)
+	get_nil_x0
+    guard_cond
+	dealloc_proceed
+label(1)
+	allocate(3)
+	get_y_variable(0,1)
+	get_list_x0
+	unify_y_variable(2)
+	unify_y_variable(1)
+	put_y_value(0,0)
+	call('data'/1)
+    guard_cond
+	put2_y_value(2,0,0,1)
+	put_y_variable(0,2)
+	call('gmhandle_one'/3)
+	put2_y_value(1,0,0,1)
+	dealloc_execute('gmhandle'/2)
+)
+
+
+predicate('gmhandle_one'/3
+label(11)
+	switch_on_term(16,13,13,13,13,13,14)
+label(14)
+	switch_on_structure(5,[('create'/2,15),('message'/2,19),('nextevent'/1,17),('sync'/1,20),('waitevent'/1,18)],13)
+label(13)
+	fail
+label(15)
+	try_single(0)
+label(16)
+	try(0)
+	retry(1)
+	retry(2)
+	retry(3)
+	trust(4)
+label(17)
+	try_single(1)
+label(18)
+	try_single(2)
+label(19)
+	try_single(3)
+label(20)
+	try_single(4)
+label(0)
+	allocate(4)
+	get2_y_variable(0,2,1,1)
+	get_structure_x0('create'/2)
+	unify_y_variable(3)
+	unify_y_variable(2)
+    guard_cond
+	put_constant('noname',2)
+	put_y_value(3,0)
+	put_x_void(1)
+	put3_y_value(2,3,1,4,0,5)
+	dealloc_execute('gmcreate'/6)
+label(1)
+	allocate(3)
+	get2_y_variable(0,2,1,1)
+	get_structure_x0('nextevent'/1)
+	unify_y_variable(2)
+    guard_cond
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('gmnextevent'/3)
+label(2)
+	allocate(3)
+	get2_y_variable(0,2,1,1)
+	get_structure_x0('waitevent'/1)
+	unify_y_variable(2)
+    guard_cond
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('gmwaitevent'/3)
+label(3)
+	allocate(4)
+	get2_y_variable(0,2,1,1)
+	get_structure_x0('message'/2)
+	unify_y_variable(2)
+	unify_y_variable(3)
+    guard_cond
+	put4_y_value(3,0,2,1,1,2,0,3)
+	dealloc_execute('gmsend'/4)
+label(4)
+	allocate(3)
+	get2_y_variable(0,2,1,1)
+	get_structure_x0('sync'/1)
+	unify_y_variable(2)
+    guard_cond
+	put_structure('sync'/1,0)
+	unify_y_value(2)
+	put2_y_value(1,1,0,2)
+	send3
+	dealloc_proceed
+)
+
+

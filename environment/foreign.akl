@@ -1,0 +1,401 @@
+% $Id: foreign.akl,v 1.18 1994/05/24 18:33:22 jm Exp $
+
+%%%
+%%% FOREIGN FUNCTIONS INTERFACE
+%%%
+
+/* For each predicate write the glue code
+   Write one function to insert predicates into database
+ */
+
+/* Collect information from declarations */
+% how to close even if failing?????
+
+foreign_interface([]) :-
+    ->	true.
+
+foreign_interface([File|Files]) :-
+    ->	foreign_interface(File),
+	foreign_interface(Files).
+
+foreign_interface(InFile) :-			% Debugging
+	atom(InFile),
+	fopen(InFile,r,In)
+    ->	read_declaration(Declaration)-In,
+	collect_declarations(Declaration, Declarations, [])-In,
+	fclose@In,
+	create_stub(Declarations, debug, Stub, []),
+	stdout(Out),
+	write_stub(Stub)-Out.
+
+foreign_interface(file(InFile,OutFile,FName)) :-
+	fopen(InFile,r,In)
+    ->	read_declaration(Declaration)-In,
+	collect_declarations(Declaration, Declarations, [])-In,
+	fclose@In,
+	fopen(OutFile,w,Out),
+	create_stub(Declarations, FName, Stub, []),
+	write_stub(Stub)-Out,
+	fclose@Out.
+
+foreign_interface(File) :-
+    ->	format('~n{ERROR: invalid file or file is empty - ~w}~n~n',[File]),
+	fail.		
+
+
+/* ------------------------------------------------------------------------ */
+
+create_stub(Declarations, FileName)-Stub :-
+    ->	create_header(Declarations)-Stub,
+	create_interface_code(Declarations)-Stub,
+	create_install_code(Declarations, FileName)-Stub.
+
+/* ------------------------------------------------------------------------ */
+
+collect_declarations(end_of_file)-_Decls-_In :-
+    ->	true.
+ 
+collect_declarations(Decl)-Decls-In:-
+	is_declaration(Decl)
+    ->	[Decl]-Decls,
+	read_declaration(NextDecl)-In,
+	collect_declarations(NextDecl)-Decls-In.
+
+is_declaration(foreign_object(_CType,_Name,_Methods)) :-
+    ->	true.
+is_declaration(foreign(_CName,_Head)) :-
+    ->	true.
+
+/* ------------------------------------------------------------------------ */
+
+/* Write interface code for each foreign function */
+
+create_interface_code([])-_S :-
+    ->	true.
+
+create_interface_code([Info|Infos])-S :-
+    ->	create_interface_code(Info)-S,
+	create_interface_code(Infos)-S.
+
+create_interface_code(foreign(CName,Head))-S :-
+    ->	tree_to_functor(Head, Functor),
+	functor_size(Functor, N),
+        create_typelist(Head, 0, N, void, Return, TypeList, []),
+	create_prototype(Return,CName,TypeList)-S,
+	create_fname(CName)-S,
+	create_variables(TypeList)-S,
+	create_pre_conversion(TypeList)-S,
+	create_call(Return,CName,TypeList)-S,
+	create_post_conversion(TypeList)-S,
+	create_fend-S.
+
+/* ------------------------------------------------------------------------ */
+/* Transform Prolog types to C types */
+
+create_typelist(_Head,Pos,Pos)-_RetArg-_Types :- 
+    ->  true.
+create_typelist(Head,Pos0,Pos)-RetArg-Types :-
+    ->	Pos1 is Pos0 + 1,
+	arg(Pos1, Head, Decl),
+	create_type(Decl,Type, Pos0)-RetArg,
+        [Type]-Types,
+	create_typelist(Head, Pos1, Pos)-RetArg-Types.
+
+
+
+
+create_type([Decl], Type, Pos, void, RetType) :-
+	c_ret_type(Decl, CType)
+    ->	Type = type(Decl,CType,Pos),
+	RetType = Type.
+
+create_type(Decl, Type, Pos)-_RetType :-
+	c_type(Decl, CType)
+    ->	Type = type(Decl,CType,Pos).
+
+
+/* ------------------------------------------------------------------------ */
+
+/* Convert input arguments */
+
+create_pre_conversion([])-_S :-
+    |	true.
+
+create_pre_conversion([type(PType,_,Pos)|CTypes])-S :-
+    |	create_pre_conversion(PType,Pos)-S,
+	create_pre_conversion(CTypes)-S.
+
+
+create_pre_conversion(+PType,Pos)-S :-
+    |	create_pre_conv(PType,Pos)-S.
+
+create_pre_conversion(-_,_)-_S :-
+    |	true.
+
+/* ------------------------------------------------------------------------ */
+
+/* Write conversion of C output to Prolog terms */
+
+create_post_conversion([])-_S :-
+    |	true.
+
+create_post_conversion([void|CTypes])-S :-
+    |	create_post_conversion(CTypes)-S.
+
+create_post_conversion([type(PType,_,Pos)|CTypes])-S :-
+    |	create_post_conversion(PType,Pos)-S,
+	create_post_conversion(CTypes)-S.
+
+
+create_post_conversion(+_,_)-_S :-
+    |	true.
+
+create_post_conversion(-PType,Pos)-S :-
+    |	create_post_conv(PType,Pos)-S.
+
+create_post_conversion([-PType],Pos)-S :-
+    |	create_post_convx(PType,Pos)-S.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+create_header(_)-S :-
+	[fm('#include "runtime.h"~n~n'),
+	 fm('Term init_atom_check PROTO((char *));~n'),
+	 fm('void define PROTO((char *,bool (*procedure)(),int));~n~n')]-S.
+
+/* ------------------------------------------------------------------------ */
+
+/* Write function name and end of function */
+
+create_fname(CName)-S :-
+	[fm('bool foreign_~w(Arg)~n',[CName]),
+	 fm('    Argdecl;~n'),
+	 fm('{~n'),
+	 fm('  register Term x, y;~n')]-S.
+
+create_fend-S :-
+	[fm('  return TRUE;~n'),
+	 fm('}~n~n')]-S.
+
+/* ------------------------------------------------------------------------ */
+
+/* Write variables used in interface function */
+
+create_variables([])-S :-
+    |	[nl]-S.
+create_variables([type(_,var(Arg,_,_),Pos)|CTypes])-S :-
+    |	[fm(Arg,[Pos])]-S,
+	create_variables(CTypes)-S.
+
+/* ------------------------------------------------------------------------ */
+
+/* Create installation function */
+
+create_install_code(Infos, Name)-S :-
+    ->	[fm('~nvoid install_foreign_~w()~n{~n',[Name])]-S,
+	create_install_function(Infos)-S,
+	[fm('}~n~n~n')]-S.
+
+/* ------------------------------------------------------------------------ */
+
+create_install_function([])-_S :-
+    |	true.
+
+create_install_function([foreign(CName,Head)|Infos])-S :-
+    |	term_to_functor(Head, PName, Arity),
+	[fm('  define("~w",foreign_~w,~w);~n',[PName,CName,Arity])]-S,
+	create_install_function(Infos)-S.
+
+/* ------------------------------------------------------------------------ */
+
+/* Write out Prototype for foreign function */
+
+create_prototype(void, CName, TypeList)-S :-
+    ->	[fm('void ~w PROTO((',[CName])]-S,
+	create_prototype(TypeList)-S.
+
+create_prototype(type(_,var(_,CType,_),_), CName, TypeList)-S :-
+    ->	[fm('~w ~w(',[CType,CName])]-S,
+	create_prototype(TypeList)-S.
+
+/* ------------------------------------------------------------------------ */
+
+create_prototype([])-S :-
+    ->	[fm('void));~n~n',[])]-S.
+
+create_prototype([type(_,var(_,CType,_),_)])-S :-
+    ->	[fm('~w));~n~n',[CType])]-S.
+
+create_prototype([type(_,var(_,CType,_),_)|CTypes])-S :-
+    ->	[fm('~w,',[CType])]-S,
+	create_prototype(CTypes)-S.
+
+/* ------------------------------------------------------------------------ */
+
+/* Call foreign function */
+
+create_call(void,CName,TypeList)-S :-
+    ->	[fm('  ~w(',[CName])]-S,
+	create_call(TypeList)-S.
+
+create_call(type(_,_,Pos),CName,TypeList)-S :-
+    ->	[fm('  arg~w = ~w(',[Pos,CName])]-S,
+	create_call(TypeList)-S.
+
+/* ------------------------------------------------------------------------ */
+
+create_call([])-S :-
+    ->	[fm(');~n',[])]-S.
+
+create_call([type(_,var(_,_,Arg),Pos)])-S :-
+    ->	[fm('~w~w);~n',[Arg,Pos])]-S.
+
+create_call([type(_,var(_,_,Arg),Pos)|CTypes])-S :-
+    ->	[fm('~w~w,',[Arg,Pos])]-S,
+	create_call(CTypes)-S.
+
+/* ------------------------------------------------------------------------ */
+
+/* Convert input arguments */
+
+create_pre_conv(integer,Pos)-S :-
+    ->	[fm('  Deref(x,A(~w));~n',[Pos]),
+	 fm('  if(!IsINT(x))~n'),
+	 fm('    {~n'),
+	 fm('      IfVarSuspend(x);~n'),
+	 fm('      return FALSE;~n'),
+	 fm('    }~n'),
+	 fm('  arg~w = GetInteger(x);~n~n',[Pos])]-S.
+
+create_pre_conv(string,Pos)-S :-
+    ->	[fm('  Deref(x,A(~w));~n',[Pos]),
+	 fm('  if(!IsATM(x))~n'),
+	 fm('    {~n'),
+	 fm('      IfVarSuspend(x);~n'),
+	 fm('      return FALSE;~n'),
+	 fm('    }~n'),
+	 fm('  arg~w = AtmPname(Atm(x));~n~n',[Pos])]-S.
+
+/* ------------------------------------------------------------------------ */
+
+/* Convert output arguments */
+
+create_post_conv(integer, Pos)-S :-
+    ->	[fm('  MakeIntegerTerm(y, arg~w);~n',[Pos]),
+	 fm('  Deref(x,A(~w));~n',[Pos]),
+	 fm('  if(!unify(x,y,exs->andb,exs))~n'),
+	 fm('    return FALSE;~n')]-S.
+
+create_post_conv(string, Pos)-S :-
+    ->	[fm('  Deref(x,A(~w));~n',[Pos]),
+	 fm('  if(!unify(x,init_atom_check(arg~w),exs->andb,exs))~n',[Pos]),
+	 fm('    return FALSE;~n')]-S.
+
+/* ------------------------------------------------------------------------ */
+
+create_post_convx(integer, Pos)-S :-
+    ->	[fm('  MakeIntegerTerm(y, arg~w);~n',[Pos]),
+	 fm('  Deref(x,A(~w));~n',[Pos]),
+	 fm('  if(!unify(x,y,exs->andb,exs))~n'),
+	 fm('    return FALSE;~n')]-S.
+
+create_post_convx(string,Pos)-S :-
+    ->	[fm('  Deref(x,A(~w));~n',[Pos]),
+	 fm('  if(!unify(x,init_atom_check(arg~w),exs->andb,exs))~n',[Pos]),
+	 fm('    return FALSE;~n')]-S.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%  Type table
+
+c_type(+integer,	var('  long arg~w;~n',	'long ',	arg)).
+c_type(-integer,	var('  long arg~w;~n',	'long *',	'&arg')).
+
+c_type(+float,		var('  double arg~w;~n','double ',	arg)).
+c_type(-float,		var('  double arg~w;~n','double *',	'&arg')).
+
+c_type(+atom,		var('  ulong arg~w;~n',	'ulong ',	arg)).
+c_type(-atom,		var('  ulong arg~w;~n',	'ulong *',	'&arg')).
+
+c_type(+string,		var('  char *arg~w;~n',	'char *',	arg)).
+c_type(-string,		var('  char *arg~w;~n',	'char **',	'&arg')).
+
+c_type(+string(N),	var(Format,  'char *',	arg)) :- 
+	string_format(N, Format).
+
+c_type(-string(N),	var(Format,  'char *',	arg)) :- 
+	string_format(N, Format).
+
+c_type(+address,	var('  char *arg~w;~n',	'char *',	arg)).
+% initiate to NULL ????
+c_type(-address,	var('  char *arg~w;~n',	'char **',	'&arg')). 
+
+c_ret_type(-integer,	var('  long arg~w;~n',	'long ',	arg)).
+c_ret_type(-float,	var('  double arg~w;~n','double ',	arg)).
+c_ret_type(-atom,	var('  ulong arg~w;~n',	'ulong ',	arg)).
+c_ret_type(-string,	var('  char *arg~w;~n',	'char *',	arg)).
+c_ret_type(-string(_),	var('  char *arg~w;~n',	'char *',	arg)).
+
+/* ------------------------------------------------------------------------ */
+
+string_format(N, Format) :-
+	integer_to_chars(N, NChars),
+	'$concat'("char arg~w[",NChars, Form0),
+	'$concat'(Form0,"]",Format).
+
+/* ------------------------------------------------------------------------ */
+
+read_declaration(Decl)-In :-			% read one declaration
+    ->	read(Term, Result)-In,
+	check_err(Result, Term, Decl).
+
+
+check_err(exception(syntax_error(end_of_file)), _Term, Decl) :-
+    ->  Decl = end_of_file.
+check_err(exception(_), _Term, Decl) :-
+    ->  Decl = error.
+check_err(true, Term, Decl) :-
+    ->  Decl = Term.
+
+
+/* ------------------------------------------------------------------------ */
+%% NEEDED???????
+% also check valid argument ?
+
+get_arguments([[-Ret]], R)-_C :-
+    ->	R = [-Ret].
+
+get_arguments([], R)-_C :-
+    ->	R = void.
+
+get_arguments([A|B], Ret)-C :-
+    ->	[A]-C,
+	get_arguments(B, Ret)-C.
+
+/* ------------------------------------------------------------------------ */
+
+write_stub([])-_S :-
+    ->	true.
+
+write_stub([H|T])-S :-
+    ->	write_stub(H)-S,
+	write_stub(T)-S.
+
+write_stub(fm(Format))-S :-
+    ->	format(Format, [])-S.
+
+write_stub(fm(Format,Args))-S :-
+    ->	format(Format, Args)-S.
+
+write_stub(nl)-S :-
+    ->	fnl-S.

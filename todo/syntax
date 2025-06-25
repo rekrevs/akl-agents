@@ -1,0 +1,6 @@
+$Id: syntax,v 1.2 1993/06/07 11:02:54 sverker Exp $
+
+Add combinator syntax by a preprocessor to the compiler.
+
+Add syntax warnings for:
+ - "definitions of the guard operators"

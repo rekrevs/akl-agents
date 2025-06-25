@@ -1,0 +1,28 @@
+/* exactly N elements of List equal Value */
+fd_count(N, [], _) :- 
+    ->	fd( N in 0 ).
+fd_count(N, [X|List], Value) :- 
+    ->	fd( B in 0..1 ),
+	eq_fast(X, Value, B),
+	fd( B+M=N ),
+	fd_count(M, List, Value).
+
+eq_fast(X, Y, B) :-
+	fd( X in (dom(B)/\1) => dom(Y) \/ ((-dom(B))/\1) => (-dom(Y)),
+	    Y in (dom(B)/\1) => dom(X) \/ ((-dom(B))/\1) => (-dom(X)) ),
+	fd( B in (dom(X)/\dom(Y)) => 1 \/ (dom(X)/\(-dom(Y))) => 0 ).
+
+/*
+eq_iff(X, Y, B) :- 
+	fd(ask, X\=Y)
+    |	fd( B in 0 ).
+eq_iff(X, Y, B) :- 
+	fd(ask, X=Y)
+    |	fd( B in 1 ).
+eq_iff(X, Y, B) :- 
+	fd(ask, B=0)
+    |	fd( X\=Y ).
+eq_iff(X, Y, B) :- 
+	fd(ask, B=1)
+    |	fd( X=Y ).
+*/

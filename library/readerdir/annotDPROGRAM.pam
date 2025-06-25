@@ -1,0 +1,492 @@
+predicate(':-'/1
+label(3)
+	switch_on_term(7,5,5,5,5,5,6)
+label(6)
+	switch_on_structure(1,[('public'/1,7)],5)
+label(5)
+	fail
+label(7)
+	try_single(0)
+label(0)
+	allocate(0)
+	get_structure_x0('public'/1)
+	unify_x_variable(1)
+	get_structure(','/2,1)
+	unify_x_variable(1)
+	unify_x_variable(2)
+	get_structure('/'/2,1)
+	unify_constant('construct_annotation_template')
+	unify_constant(2)
+	get_structure(','/2,2)
+	unify_x_variable(2)
+	unify_x_variable(1)
+	get_structure('/'/2,2)
+	unify_constant('remove_annotations')
+	unify_constant(2)
+	get_structure('/'/2,1)
+	unify_constant('first_var_occurences')
+	unify_constant(2)
+    guard_wait
+	dealloc_proceed
+)
+
+
+predicate(0/2/0
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(2)
+	get2_y_variable(0,1,1,0)
+    guard_cond
+	put2_y_value(1,0,0,1)
+	dealloc_execute('construct_annotated_literal'/2)
+)
+
+
+predicate(1/2/0
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(2)
+	get2_y_variable(0,1,1,0)
+    guard_cond
+	put2_y_value(1,0,0,1)
+	dealloc_execute('construct_annotated_def'/2)
+)
+
+
+predicate('construct_annotation_template'/2
+label(3)
+	switch_on_term(7,5,5,5,5,5,6)
+label(6)
+	switch_on_structure(1,[('prog'/2,7)],5)
+label(5)
+	fail
+label(7)
+	try_single(0)
+label(0)
+	allocate(3)
+	get_y_variable(2,1)
+	get_structure_x0('prog'/2)
+	unify_y_variable(1)
+	unify_y_variable(0)
+    guard_cond
+	put_abstraction(0,0)
+	put_y_value(1,1)
+	put_y_variable(1,2)
+	call('map'/3)
+	put_abstraction(1,0)
+	put_y_value(0,1)
+	put_y_variable(0,2)
+	call('map'/3)
+	put_y_value(2,3)
+	get_structure('prog'/2,3)
+	unify_y_value(1)
+	unify_y_value(0)
+	dealloc_proceed
+)
+
+
+predicate(0/2/0
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(2)
+	get2_y_variable(0,1,1,0)
+    guard_cond
+	put2_y_value(1,0,0,1)
+	dealloc_execute('construct_annotated_clause'/2)
+)
+
+
+predicate('construct_annotated_def'/2
+label(3)
+	switch_on_term(7,5,5,5,5,5,6)
+label(6)
+	switch_on_structure(1,[('-'/2,7)],5)
+label(5)
+	fail
+label(7)
+	try_single(0)
+label(0)
+	allocate(5)
+	get_y_variable(4,1)
+	get_structure_x0('-'/2)
+	unify_y_variable(3)
+	unify_x_variable(3)
+	get_structure('def'/3,3)
+	unify_y_variable(2)
+	unify_y_variable(1)
+	unify_y_variable(0)
+    guard_cond
+	put_abstraction(0,0)
+	put_y_value(0,1)
+	put_y_variable(0,2)
+	call('map'/3)
+	put_y_value(1,0)
+	put_y_variable(1,1)
+	call('construct_annotated_literal'/2)
+	put_y_value(4,3)
+	get_structure('-'/2,3)
+	unify_y_value(3)
+	unify_x_variable(3)
+	get_structure('def'/3,3)
+	unify_y_value(2)
+	unify_y_value(1)
+	unify_y_value(0)
+	dealloc_proceed
+)
+
+
+predicate('construct_annotated_clause'/2
+label(5)
+	switch_on_term(10,7,7,7,7,7,8)
+label(8)
+	switch_on_structure(2,[('clause'/4,9),('exception'/1,11)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(5)
+	get_y_variable(4,1)
+	get_x_variable(2,0)
+	get_structure('clause'/4,2)
+	unify_y_variable(3)
+	unify_y_variable(2)
+	unify_y_variable(1)
+	unify_y_variable(0)
+    guard_cond
+	put_y_value(3,0)
+	put_y_variable(3,1)
+	call('construct_annotated_literal'/2)
+	put_y_value(2,0)
+	put_y_variable(2,1)
+	call('construct_annotated_conjunction'/2)
+	put_y_value(0,0)
+	put_y_variable(0,1)
+	call('construct_annotated_conjunction'/2)
+	put_y_value(4,2)
+	get_structure('clause'/4,2)
+	unify_y_value(3)
+	unify_y_value(2)
+	unify_y_value(1)
+	unify_y_value(0)
+	dealloc_proceed
+label(1)
+	allocate(2)
+	get_y_variable(1,1)
+	get_structure_x0('exception'/1)
+	unify_y_variable(0)
+    guard_cond
+	put_y_value(1,2)
+	get_structure('exception'/1,2)
+	unify_y_value(0)
+	dealloc_proceed
+)
+
+
+predicate('construct_annotated_conjunction'/2
+label(5)
+	switch_on_term(7,7,7,7,7,7,7)
+label(7)
+	try(0)
+	trust(1)
+label(0)
+	allocate(4)
+	get_y_variable(1,1)
+	get_x_variable(3,0)
+	put_x_value(3,0)
+	put_y_variable(3,1)
+	put_y_variable(2,2)
+	call('akl_conjunction'/3)
+    guard_cond
+	put_y_value(3,0)
+	put_y_variable(3,1)
+	call('construct_annotated_conjunction'/2)
+	put_y_value(2,0)
+	put_y_variable(2,1)
+	call('construct_annotated_conjunction'/2)
+	put_y_variable(0,0)
+	put2_y_value(3,1,2,2)
+	call('akl_conjunction'/3)
+	put_y_value(1,3)
+	get_y_value(0,3)
+	dealloc_proceed
+label(1)
+	allocate(2)
+	get2_y_variable(0,1,1,0)
+    guard_cond
+	put2_y_value(1,0,0,1)
+	dealloc_execute('construct_annotated_literal'/2)
+)
+
+
+predicate('construct_annotated_literal'/2
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(2)
+	get2_y_variable(1,1,0,0)
+    guard_cond
+	put_y_value(1,2)
+	get_structure('$'/2,2)
+	unify_y_value(0)
+	unify_void
+	dealloc_proceed
+)
+
+
+predicate('remove_annotations'/2
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(2)
+	get2_y_variable(0,1,1,0)
+    guard_cond
+	put2_y_value(1,0,0,1)
+	dealloc_execute('remove_annotation_template'/2)
+)
+
+
+predicate(0/2/0
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(2)
+	get2_y_variable(0,1,1,0)
+    guard_cond
+	put2_y_value(1,0,0,1)
+	dealloc_execute('remove_annotated_literal'/2)
+)
+
+
+predicate(1/2/0
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(2)
+	get2_y_variable(0,1,1,0)
+    guard_cond
+	put2_y_value(1,0,0,1)
+	dealloc_execute('remove_annotated_def'/2)
+)
+
+
+predicate('remove_annotation_template'/2
+label(3)
+	switch_on_term(7,5,5,5,5,5,6)
+label(6)
+	switch_on_structure(1,[('prog'/2,7)],5)
+label(5)
+	fail
+label(7)
+	try_single(0)
+label(0)
+	allocate(3)
+	get_y_variable(2,1)
+	get_structure_x0('prog'/2)
+	unify_y_variable(1)
+	unify_y_variable(0)
+    guard_cond
+	put_abstraction(0,0)
+	put_y_value(1,1)
+	put_y_variable(1,2)
+	call('map'/3)
+	put_abstraction(1,0)
+	put_y_value(0,1)
+	put_y_variable(0,2)
+	call('map'/3)
+	put_y_value(2,3)
+	get_structure('prog'/2,3)
+	unify_y_value(1)
+	unify_y_value(0)
+	dealloc_proceed
+)
+
+
+predicate(0/2/0
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(2)
+	get2_y_variable(0,1,1,0)
+    guard_cond
+	put2_y_value(1,0,0,1)
+	dealloc_execute('remove_annotated_clause'/2)
+)
+
+
+predicate('remove_annotated_def'/2
+label(3)
+	switch_on_term(7,5,5,5,5,5,6)
+label(6)
+	switch_on_structure(1,[('-'/2,7)],5)
+label(5)
+	fail
+label(7)
+	try_single(0)
+label(0)
+	allocate(5)
+	get_y_variable(4,1)
+	get_structure_x0('-'/2)
+	unify_y_variable(3)
+	unify_x_variable(3)
+	get_structure('def'/3,3)
+	unify_y_variable(2)
+	unify_y_variable(1)
+	unify_y_variable(0)
+    guard_cond
+	put_y_value(1,0)
+	put_y_variable(1,1)
+	call('remove_annotated_literal'/2)
+	put_abstraction(0,0)
+	put_y_value(0,1)
+	put_y_variable(0,2)
+	call('map'/3)
+	put_y_value(4,3)
+	get_structure('-'/2,3)
+	unify_y_value(3)
+	unify_x_variable(3)
+	get_structure('def'/3,3)
+	unify_y_value(2)
+	unify_y_value(1)
+	unify_y_value(0)
+	dealloc_proceed
+)
+
+
+predicate('remove_annotated_clause'/2
+label(5)
+	switch_on_term(10,7,7,7,7,7,8)
+label(8)
+	switch_on_structure(2,[('clause'/4,9),('exception'/1,11)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(5)
+	get_y_variable(4,1)
+	get_structure_x0('clause'/4)
+	unify_y_variable(3)
+	unify_y_variable(2)
+	unify_y_variable(1)
+	unify_y_variable(0)
+    guard_cond
+	put_y_value(3,0)
+	put_y_variable(3,1)
+	call('remove_annotated_literal'/2)
+	put_y_value(2,0)
+	put_y_variable(2,1)
+	call('remove_annotated_conjunction'/2)
+	put_y_value(0,0)
+	put_y_variable(0,1)
+	call('remove_annotated_conjunction'/2)
+	put_y_value(4,2)
+	get_structure('clause'/4,2)
+	unify_y_value(3)
+	unify_y_value(2)
+	unify_y_value(1)
+	unify_y_value(0)
+	dealloc_proceed
+label(1)
+	allocate(2)
+	get_y_variable(1,1)
+	get_structure_x0('exception'/1)
+	unify_y_variable(0)
+    guard_cond
+	put_y_value(1,2)
+	get_structure('exception'/1,2)
+	unify_y_value(0)
+	dealloc_proceed
+)
+
+
+predicate('remove_annotated_conjunction'/2
+label(5)
+	switch_on_term(7,7,7,7,7,7,7)
+label(7)
+	try(0)
+	trust(1)
+label(0)
+	allocate(3)
+	get_y_variable(2,1)
+	get_x_variable(3,0)
+	put_x_value(3,0)
+	put_y_variable(1,1)
+	put_y_variable(0,2)
+	call('akl_conjunction'/3)
+    guard_cond
+	put_y_value(1,0)
+	put_y_variable(1,1)
+	call('remove_annotated_conjunction'/2)
+	put_y_value(0,0)
+	put_y_variable(0,1)
+	call('remove_annotated_conjunction'/2)
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('akl_conjunction'/3)
+label(1)
+	allocate(2)
+	get2_y_variable(0,1,1,0)
+    guard_cond
+	put2_y_value(1,0,0,1)
+	dealloc_execute('remove_annotated_literal'/2)
+)
+
+
+predicate('remove_annotated_literal'/2
+label(5)
+	switch_on_term(8,9,9,9,9,9,7)
+label(7)
+	switch_on_structure(1,[('$'/2,8)],9)
+label(8)
+	try(0)
+	trust(1)
+label(9)
+	try_single(1)
+label(0)
+	allocate(2)
+	get_y_variable(0,1)
+	get_structure_x0('$'/2)
+	unify_y_variable(1)
+	unify_void
+    guard_cond
+	put2_y_value(1,0,0,1)
+	dealloc_execute('remove_annotated_literal'/2)
+label(1)
+	allocate(2)
+	get2_y_variable(1,1,0,0)
+    guard_cond
+	put_y_value(1,2)
+	get_y_value(0,2)
+	dealloc_proceed
+)
+
+

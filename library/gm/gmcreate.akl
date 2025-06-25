@@ -1,0 +1,202 @@
+/**************************************************************************
+				CREATE
+ *************************************************************************/
+
+%% Simple objects
+
+gmcreate(output(String), ID, Name, Obj)-M :- ->
+	Obj = gm_output(ID,Name),
+	[0,4,str(String),str(""),getint(ID)]@M.
+
+gmcreate(output(String,Font), ID, Name, Obj)-M :- ->
+	Obj = gm_output(ID,Name),
+	[0,4,str(String),str(Font),getint(ID)]@M.
+
+gmcreate(input(String), ID, Name, Obj)-M :- ->
+	Obj = gm_input(ID,Name),
+	[0,5,str(String),str(""),getint(ID)]@M.
+
+gmcreate(input(String,Font), ID, Name, Obj)-M :- ->
+	Obj = gm_input(ID,Name),
+	[0,5,str(String),str(Font),getint(ID)]@M.
+
+gmcreate(text(Rows,Columns,Tab), ID, Name, Obj)-M :- ->
+	Obj = gm_text(ID,Name),
+	[0,8,Rows,Columns,Tab,str(""),getint(ID)]@M.
+
+gmcreate(text(Rows,Columns,Tab,Font), ID, Name, Obj)-M :- ->
+	Obj = gm_text(ID,Name),
+	[0,8,Rows,Columns,Tab,str(Font),getint(ID)]@M.
+
+gmcreate(slider(Text), ID, Name, Obj)-M :- ->
+	Obj = gm_slider(ID,Name),
+	[0,9,str(Text),getint(ID)]@M.
+
+gmcreate(view(XSize,YSize), ID, Name, Obj)-M :- ->
+	Obj = gm_view(ID,Name),
+	[0,1,XSize,YSize,getint(ID)]@M.
+
+gmcreate(button(Text,Message), ID, Name, Obj)-M :- ->
+	gmcreate(button(Text,Message,[]), ID, Name, Obj)-M.
+
+gmcreate(button(Text,Message,Attributes), ID, Name, Obj)-M :- ->
+	Obj = gm_button(ID,Name),
+	collect_attr(Attributes, W, H, Font, Style),
+	style(Style, StyleCode),
+	[0,6,str(Text),W,H,str(Font),StyleCode,getint(ID),
+		insert(button(ID),Message)]@M.
+
+gmcreate(menu(Strings,Messages), ID, Name, Obj)-M :- ->
+	Obj = gm_menu(ID,Name),
+	length(Strings, Len),
+	length(Messages, Len),
+	strify(Strings, Strings1),
+	[0,7,Len,Strings1,getint(ID),
+		  insert(menu(ID),Messages)]@M.
+
+
+%% Complex
+
+gmcreate(window(Contents), ID, Name, Obj)-M :- -> 
+	Obj = gm_window(ID,Name),
+	gmcreatesub(Contents, IDL)-M,
+	[0,0,str(""),IDL,getint(ID)]@M.
+
+gmcreate(window(WName,Contents), ID, Name, Obj)-M :- ->
+	Obj = gm_window(ID,Name),
+	gmcreatesub(Contents, IDL)-M,
+	[0,0,str(WName),IDL,getint(ID)]@M.
+
+gmcreate(hbox(L), ID, Name, Obj)-M :- ->
+	Obj = gm_hbox(ID,Name),
+	gmcreatelist(L, IDL0, [0,getint(ID)])-M,
+	[0,2|IDL0]@M.
+
+gmcreate(vbox(L), ID, Name, Obj)-M :- ->
+	Obj = gm_vbox(ID,Name),
+	gmcreatelist(L, IDL0, [0,getint(ID)])-M,
+	[0,3|IDL0]@M.
+
+
+
+% Special
+
+gmcreate(name(Name,Contents), ID, _, Obj)-M :- -> 
+	gmcreate(Contents, ID, Name, Obj)-M,
+	[insert(name(Name),Obj)]@M.
+
+
+% Already created
+
+gmcreate(Obj, ID, _, O)-M :- ->
+	number_of(Obj, ID0, _, S),
+	O = Obj,
+	ID = ID0,
+	S@M.
+
+/**************************************************************************
+			BUTTON AND MENU SUPPORT
+ *************************************************************************/
+
+collect_attr(Attributes, W, H, Font, Style) :- ->
+	collect_attr(Attributes, w(W)),
+	collect_attr(Attributes, h(H)),
+	collect_attr(Attributes, font(Font)),
+	collect_attr(Attributes, style(Style)).
+
+collect_attr(w(W0), w(W)) :- -> W = W0.
+collect_attr(h(H0), h(H)) :- -> H = H0.
+collect_attr(font(F0), font(F)) :- -> F = F0.
+collect_attr(style(S0), style(S)) :- -> S = S0.
+collect_attr([H|_], Attr) :- 
+	collect_copy(Attr, Copy),
+	collect_attr(H, Copy)
+	-> Attr = Copy.
+collect_attr([_|T], Attr) :- ->
+	collect_attr(T, Attr).
+
+collect_attr(_, w(W)) :- -> W = -1.
+collect_attr(_, h(H)) :- -> H = -1.
+collect_attr(_, font(F)) :- -> F = "".
+collect_attr(_, style(S)) :- -> S = normal.
+
+collect_copy(w(_W),Copy):- -> Copy = w(_).
+collect_copy(h(_H),Copy):- -> Copy = h(_).
+collect_copy(font(_F),Copy):- -> Copy = font(_).
+collect_copy(style(_S),Copy):- -> Copy = style(_).
+
+style(normal, N) :- -> N = 0.
+style(fancy, N) :- -> N = 1.
+style(radio, N) :- -> N = 2.
+
+strify([], T) :- -> T = [].
+strify([H|T], T0) :- -> T0 = [str(H)|T1], strify(T, T1).
+
+
+
+/**************************************************************************
+			   PARSE WINDOW
+ *************************************************************************/
+
+gmcreatesub(space(frame(Def)), IDL)-M :- ->
+ 	IDL = [-5,ID],
+	gmcreate(Def, ID, noname, _)-M.
+gmcreatesub(frame(space(Def)), IDL)-M :- ->
+ 	IDL = [-6,ID], 
+	gmcreate(Def, ID, noname, _)-M.
+gmcreatesub(space, IDL)-_M :- ->
+	IDL = [-1].
+gmcreatesub(space(Def), IDL)-M :- ->
+	IDL = [-2,ID],
+	gmcreate(Def, ID, noname, _)-M.
+gmcreatesub(border, IDL)-_M :- ->
+	IDL = [-3].
+gmcreatesub(frame(Def), IDL)-M :- ->
+	IDL = [-4,ID],
+	gmcreate(Def, ID, noname, _)-M.
+gmcreatesub(scroller(Def), IDL)-M :- ->
+	in_scroller(Def)-M,
+	IDL = [-7,ID],
+	gmcreate(Def, ID, noname, _)-M.
+gmcreatesub(Spec, IDL)-M :- ->
+	IDL = [ID],
+	gmcreate(Spec, ID, noname, _)-M.
+
+
+gmcreatelist([], IDL0, IDL)-_M :- ->
+	IDL0 = IDL.
+gmcreatelist([H|T], IDL0, IDL)-M :- ->
+	gmcreatesub(H, ID)-M,
+	IDL0 = [ID|IDL1],
+	gmcreatelist(T, IDL1, IDL)-M.
+
+%% I'm not sure if frame and space is permitted
+
+in_scroller(gm_view(_,_))-_M :- -> true.
+in_scroller(gm_text(_,_))-_M :- -> true.
+in_scroller(view(_,_))-_M :- -> true.
+in_scroller(text(_,_,_))-_M :- -> true.
+in_scroller(text(_,_,_,_))-_M :- -> true.
+in_scroller(name(_,Def))-M :- ->
+	in_scroller(Def)-M.
+in_scroller(frame(Def))-M :- ->
+	in_scroller(Def)-M.
+in_scroller(space(Def))-M :- ->
+	in_scroller(Def)-M.
+in_scroller(Name)-M :- 
+    ->	[lookup(name(Name),_)]@M.
+
+number_of(gm_window(ID0,Na), ID, Name, S) :- -> ID0 = ID, Na = Name, S = [].
+number_of(gm_output(ID0,Na), ID, Name, S) :- -> ID0 = ID, Na = Name, S = [].
+number_of(gm_input(ID0,Na), ID, Name, S) :- -> ID0 = ID, Na = Name, S = [].
+number_of(gm_button(ID0,Na), ID, Name, S) :- -> ID0 = ID, Na = Name, S = [].
+%number_of(gm_buttonstate(ID0,Na), ID, Name, S) :- -> ID0 = ID, Na = Name, S = [].
+number_of(gm_menu(ID0,Na), ID, Name, S) :- -> ID0 = ID, Na = Name, S = [].
+number_of(gm_view(ID0,Na), ID, Name, S) :- -> ID0 = ID, Na = Name, S = [].
+number_of(gm_hbox(ID0,Na), ID, Name, S) :- -> ID0 = ID, Na = Name, S = [].
+number_of(gm_vbox(ID0,Na), ID, Name, S) :- -> ID0 = ID, Na = Name, S = [].
+number_of(gm_text(ID0,Na), ID, Name, S) :- -> ID0 = ID, Na = Name, S = [].
+number_of(gm_slider(ID0,Na), ID, Name, S) :- -> ID0 = ID, Na = Name, S = [].
+number_of(Named, ID, Name, S) :-
+    ->	S = lookup(name(Named),Object),
+	number_of(Object, ID, Name, []).

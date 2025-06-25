@@ -1,0 +1,140 @@
+predicate('member'/2
+label(5)
+	switch_on_term(7,7,7,7,7,7,7)
+label(7)
+	try(0)
+	trust(1)
+label(0)
+	allocate(0)
+	get_x_variable(2,0)
+	get_list(1)
+	unify_x_value(2)
+	unify_void
+    guard_wait
+	dealloc_proceed
+label(1)
+	allocate(2)
+	get_y_variable(1,0)
+	get_list(1)
+	unify_void
+	unify_y_variable(0)
+    guard_wait
+	put2_y_value(1,0,0,1)
+	dealloc_execute('member'/2)
+)
+
+
+predicate('nlist'/2
+label(7)
+	switch_on_term(12,9,10,9,9,9,9)
+label(10)
+	switch_on_constant(3,[(1,11),(2,13),(3,14)],9)
+label(9)
+	fail
+label(11)
+	try_single(0)
+label(12)
+	try(0)
+	retry(1)
+	trust(2)
+label(13)
+	try_single(1)
+label(14)
+	try_single(2)
+label(0)
+	allocate(0)
+	get_constant(1,0)
+	get_list(1)
+	unify_constant(1)
+	unify_list
+	unify_constant(2)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(5)
+	unify_nil
+    guard_wait
+	dealloc_proceed
+label(1)
+	allocate(0)
+	get_constant(2,0)
+	get_list(1)
+	unify_constant(1)
+	unify_list
+	unify_constant(6)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(6)
+	unify_list
+	unify_constant(2)
+	unify_nil
+    guard_wait
+	dealloc_proceed
+label(2)
+	allocate(0)
+	get_constant(3,0)
+	get_list(1)
+	unify_constant(1)
+	unify_list
+	unify_constant(6)
+	unify_list
+	unify_constant(1)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(4)
+	unify_nil
+    guard_wait
+	dealloc_proceed
+)
+
+
+predicate('qmember'/2
+label(5)
+	switch_on_term(7,7,7,7,7,7,7)
+label(7)
+	try(0)
+	trust(1)
+label(0)
+	allocate(0)
+	get_x_variable(2,0)
+	get_list(1)
+	unify_x_value(2)
+	unify_void
+    guard_wait
+	put_constant('true',0)
+	dealloc_execute('??'/1)
+label(1)
+	allocate(2)
+	get_y_variable(1,0)
+	get_list(1)
+	unify_void
+	unify_y_variable(0)
+    guard_wait
+	put_structure('qmember'/2,0)
+	unify_y_value(1)
+	unify_y_value(0)
+	dealloc_execute('??'/1)
+)
+
+
+predicate('n'/1
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(2)
+	get_y_variable(1,0)
+    guard_wait
+	put_constant(6,0)
+	put_y_variable(0,1)
+	call('qmember'/2)
+	put2_y_value(1,0,0,1)
+	dealloc_execute('nlist'/2)
+)
+
+

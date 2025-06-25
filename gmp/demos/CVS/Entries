@@ -1,0 +1,13 @@
+/Makefile.am/1.1.1.1/Wed Aug 14 12:21:21 2002//
+/Makefile.in/1.1.1.1/Wed Aug 14 12:21:21 2002//
+/calc.c/1.1.1.1/Wed Aug 14 12:21:21 2002//
+/calc.h/1.1.1.1/Wed Aug 14 12:21:21 2002//
+/calc.y/1.1.1.1/Wed Aug 14 12:21:22 2002//
+/calclex.c/1.1.1.1/Wed Aug 14 12:21:22 2002//
+/calclex.l/1.1.1.1/Wed Aug 14 12:21:22 2002//
+/factorize.c/1.1.1.1/Wed Aug 14 12:21:22 2002//
+/isprime.c/1.1.1.1/Wed Aug 14 12:21:22 2002//
+/pexpr.c/1.1.1.1/Wed Aug 14 12:21:22 2002//
+/primes.c/1.1.1.1/Wed Aug 14 12:21:22 2002//
+/qcn.c/1.1.1.1/Wed Aug 14 12:21:22 2002//
+D

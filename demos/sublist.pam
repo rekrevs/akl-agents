@@ -1,0 +1,106 @@
+predicate('sublist'/2
+label(7)
+	switch_on_term(10,9,13,13,13,12,13)
+label(9)
+	switch_on_constant(1,[('[]',11)],13)
+label(10)
+	try(0)
+	retry(1)
+	trust(2)
+label(11)
+	try(0)
+	trust(2)
+label(12)
+	try(1)
+	trust(2)
+label(13)
+	try_single(2)
+label(0)
+	allocate(0)
+	get_nil_x0
+	get_nil(1)
+    guard_wait
+	dealloc_proceed
+label(1)
+	allocate(2)
+	get_list_x0
+	unify_x_variable(2)
+	unify_y_variable(1)
+	get_list(1)
+	unify_x_value(2)
+	unify_y_variable(0)
+    guard_wait
+	put2_y_value(1,0,0,1)
+	dealloc_execute('sublist'/2)
+label(2)
+	allocate(2)
+	get_y_variable(1,0)
+	get_list(1)
+	unify_void
+	unify_y_variable(0)
+    guard_wait
+	put2_y_value(1,0,0,1)
+	dealloc_execute('sublist'/2)
+)
+
+
+predicate('sub'/2
+label(5)
+	switch_on_term(10,8,7,7,7,11,7)
+label(8)
+	switch_on_constant(1,[('[]',9)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(0)
+	get_nil_x0
+    guard_wait
+	dealloc_proceed
+label(1)
+	allocate(2)
+	get_x_variable(2,1)
+	get_list_x0
+	unify_x_variable(3)
+	unify_y_variable(1)
+	put_list(0)
+	unify_x_value(3)
+	unify_y_variable(0)
+	put_x_value(2,1)
+	call('suffix'/2)
+    guard_wait
+	put2_y_value(1,0,0,1)
+	dealloc_execute('sub'/2)
+)
+
+
+predicate('suffix'/2
+label(5)
+	switch_on_term(7,7,7,7,7,7,7)
+label(7)
+	try(0)
+	trust(1)
+label(0)
+	allocate(0)
+	get_x_variable(2,1)
+	get_x_value(2,0)
+    guard_wait
+	dealloc_proceed
+label(1)
+	allocate(2)
+	get_y_variable(1,0)
+	get_list(1)
+	unify_void
+	unify_y_variable(0)
+    guard_wait
+	put2_y_value(1,0,0,1)
+	dealloc_execute('suffix'/2)
+)
+
+

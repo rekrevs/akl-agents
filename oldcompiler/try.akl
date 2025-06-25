@@ -1,0 +1,362 @@
+% $Id: try.akl,v 1.13 1994/03/30 13:45:09 rch Exp $
+
+% Input:
+%
+% Clauses - list of clauses
+%
+% Output:
+%
+% Used - list of clause labels used
+%	 i for clause i with deep use
+%	 Max+i for clause i with flat use
+%
+% Max  - number of clauses
+
+compile_choice(Clauses, _Modes, Used, Max)-S :-
+	zero_arity_definition(Clauses)
+    ->  all_labels(Clauses, Ls, Max),
+	try_retry_trust(Ls, U, [])-S,
+	sort(U, Used).
+compile_choice(Clauses, Modes, Used, Max)-S :-
+    ->	Switch = switch_on_term(Var,Atm,Int,Flt,Big,Lst,Str),
+	[label(M2)]-S,
+	[Switch]-S,
+	key_clause_pairs(Clauses, KC0),
+	KC = [var-VC,atm-AC,int-IC,flt-FC,big-BC,lst-LC,str-SC|KC0],
+	keysort_and_group(KC, KG),
+	bind_group_headers(KG),
+	compile_constant_group(AC, VC, Atm, atm, TC0, TC1)-S,
+	compile_constant_group(IC, VC, Int, int, TC1, TC2)-S,
+%	no indexing on floats
+%	compile_constant_group(FC, VC, Flt, flt, TC2, TC3)-S,
+	compile_float_group(FC, Flt, TC2, TC3)-S,
+	compile_constant_group(BC, VC, Big, big, TC3, TC4)-S,
+	compile_list_group(LC, Lst, TC4, TC5)-S,
+	compile_structure_group(SC, VC, Str, TC5, [])-S,
+	all_labels(Clauses, AllLabels, Max),
+	merge_in(TC0, VC, TryChains),
+	M1 is Max*2,
+	M2 is M1+1,
+	M3 is M2+1,
+	keysort_and_group([AllLabels-TryAll|TryChains], GroupedTryChains),
+
+	% kludge for experimental treatment of flat guards follows
+
+	classify_clauses(Clauses, Vec),
+	Clauses = [Cl|_],
+	clause_op(Cl, Op),
+	clause_head(Cl, struct(_,_,Args)),
+	length(Args, Arity),
+	make_trys(GroupedTryChains, Op, Vec, Modes, M3, Max, U, [])-S,
+	make_varcase(Var, TryAll, Op, Vec, Modes, M1, M2, Arity)-S,
+	sort(U, Used).
+
+zero_arity_definition([Cl|_]) :-
+	clause_head(Cl, H),
+	H = struct(_, 0, _).
+
+bind_group_headers([]) :-
+    ->	true.
+bind_group_headers([_-[H|G]|R]) :-
+    ->	H = G,
+	bind_group_headers(R).
+
+compile_constant_group(KC, VC, L, Group, TC0, TC)-S :-
+	compile_key_group(KC, VC, switch_on_constant, L, Group, TC0, TC)-S.
+
+compile_float_group(FC, L, TC0, TC)-_S :-
+	remove_keys(FC, FC1),
+	TC0 = [FC1-L|TC].
+
+remove_keys([], KC) :-
+    ->	KC = [].
+remove_keys([_Key-Label|Rest], KC) :-
+    ->	KC = [Label|KC1],
+	remove_keys(Rest, KC1).
+
+compile_list_group(KC, L, TC0, TC)-_S :-
+	TC0 = [KC-L|TC].
+
+compile_structure_group(KC, VC, L, TC0, TC)-S :-
+	compile_key_group(KC, VC, switch_on_structure, L, str, TC0, TC)-S.
+
+compile_key_group([], _VC, _I, L, _G, TC0, TC)-_S :-
+    ->	TC0 = [[]-L|TC].
+compile_key_group(KC, VC, I, L, G, TC0, TC)-S :-
+    ->	keysort_and_group(KC, KG),
+	compile_key_group_aux(KG, VC, I, L, G, TC0, TC)-S.
+
+% compile_key_group_aux([_-Ls], _VC, _I, L, _G, TC0, TC)-_S :-
+%     ->	TC0 = [Ls-L|TC].
+compile_key_group_aux(KC, VC, I, L, G, TC0, TC)-S :-
+    ->	length(KC, Length),
+	Switch =.. [I, Length, KL, VL],
+	TC0 = [G-L,VC-VL|TC1],
+	[label(L),Switch]-S,
+	get_try_chains(KC, KL, TC1, TC).
+
+get_try_chains([], KL, TC0, TC) :-
+    ->	KL = [],
+	TC0 = TC.
+get_try_chains([Key-Chain|Rest], KL0, TC0, TC) :-
+    ->	KL0 = [Key-Label|KL],
+	TC0 = [Chain-Label|TC1],
+	get_try_chains(Rest, KL, TC1, TC).
+
+merge_in([], _MixIn, MergedLists) :-
+    ->	MergedLists = [].
+merge_in([ListLabel|Lists], MixIn, MergedLists0) :-
+    ->	ListLabel = List-Label,
+	maybe_merge(List, MixIn, Merged),
+	MergedLists0 = [Merged-Label|MergedLists],
+	merge_in(Lists, MixIn, MergedLists).
+
+
+maybe_merge([], MixIn, Merged) :-
+    ->	Merged = MixIn.
+maybe_merge([First|Rest], MixIn, Merged) :-
+    ->	x_merge(MixIn, First, Rest, Merged).
+maybe_merge(NonList, _MixIn, Merged) :-
+    ->	Merged = NonList.
+
+
+make_trys([[C1]-Labels], wait, Vec, Modes, _M, Max)-U-_S :-
+	flat_mode(Modes),
+	clause_class(C1, Vec, (_,flat,_))
+    ->	all_same(Labels, UC),
+	UC is C1+Max,
+	[UC]-U.
+make_trys(Groups, Op, Vec, Modes, M, Max)-U-S :-
+    ->	make_trys_aux(Groups, Op, Vec, Modes, M, Max)-U-S.
+
+make_trys_aux([], _Op, _Vec, _Modes, _M, _Max)-_U-S :-
+    ->	[]-S.
+make_trys_aux([Group-[Label]|Rest], Op, Vec, Modes, M, Max)-U-S :-
+	atom(Group)
+    ->	M1 is M+1,
+	Label = M1,
+	make_trys_aux(Rest, Op, Vec, Modes, M1, Max)-U-S.
+make_trys_aux([Group-Labels|Rest], cond, Vec, Modes, M, Max)-U-S :-
+	flat_mode(Modes),
+	Group = [C1|_],
+	clause_class(C1, Vec, (before,flat,_))
+    ->	all_same(Labels, UC),
+	UC is C1+Max,
+	[UC]-U,
+	make_trys_aux(Rest, cond, Vec, Modes, M, Max)-U-S.
+make_trys_aux([Group-Labels|Rest], commit, Vec, Modes, M, Max)-U-S :-
+	flat_mode(Modes),
+	member_is_default(Group, Vec, Ci)
+    ->	all_same(Labels, UC),
+	UC is Ci+Max,
+	[UC]-U,
+	make_trys_aux(Rest, commit, Vec, Modes, M, Max)-U-S.
+make_trys_aux([Group-Labels|Rest], Op, Vec, Modes, M, Max)-U-S :-
+    ->	M1 is M+1,
+	all_same(Labels, M1),
+	[label(M1)]-S,
+	try_retry_trust(Group)-U-S,
+	make_trys_aux(Rest, Op, Vec, Modes, M1, Max)-U-S.
+
+member_is_default([Cl|_Cls], Vec, Ci) :-
+	clause_class(Cl, Vec, (_,flat,var))
+    ->	Ci = Cl.
+member_is_default([_Cl|Cls], Vec, Ci) :-
+    ->	member_is_default(Cls, Vec, Ci).
+
+clause_class(I, Vec, Class) :-
+	I1 is I+1,
+	arg(I1, Vec, Class).
+
+
+make_varcase(Var, _TryAll, cond, Vec, Modes, Here, Top, Arity)-S :-
+	flat_mode(Modes),
+	clause_class(0, Vec, (_,flat,nonvar))
+    ->  [label(Here)]-S,
+	[suspend_flat(0,Top,Arity)]-S,
+	Var = Here.
+make_varcase(Var, _TryAll, commit, Vec, Modes, Here, Top, Arity)-S :-
+	flat_mode(Modes),
+	all_clauses_flat_nonvar(Vec)
+    ->  [label(Here)]-S,
+	[suspend_flat(0,Top,Arity)]-S,
+	Var = Here.
+make_varcase(Var, TryAll, _Op, _Vec, _Modes, _Here, _Top, _Arity)-_S :-
+    ->	Var = TryAll.
+
+
+all_clauses_flat_nonvar(Vec) :-
+	Vec =.. [_|List],
+	all_flat_nonvar(List).
+
+all_flat_nonvar([]) :-
+    ->	true.
+all_flat_nonvar([X|R]) :-
+    ->	X = (_,flat,nonvar),
+	all_flat_nonvar(R).
+
+
+all_labels(Cls, Ls, Max) :-
+	all_labels(Cls, Ls, 0, Max).
+
+all_labels([], Ls, L, Max) :-
+    ->  Ls = [],
+	Max = L.
+all_labels([Cl|Cls], Ls0, L, Max) :-
+    ->	clause_label(Cl, L),
+	Ls0 = [L|Ls1],
+	L1 is L+1,
+	all_labels(Cls, Ls1, L1, Max).
+
+all_same([], _) :-
+    ->	true.
+all_same([X|Xs], Y) :-
+    ->	X = Y,
+	all_same(Xs, Y).
+
+key_clause_pairs([], KC) :-
+    ->  KC = [].
+key_clause_pairs([Cl|Cls], KC0) :-
+    ->	clause_label(Cl, L),
+	key_label_of_clause(Cl, L, KL),
+	KC0 = [KL|KC1],
+	key_clause_pairs(Cls, KC1).
+
+key_label_of_clause(Cl, L, KL) :-
+	clause_head(Cl, H),
+	H = struct(_, _, [Arg0|_]),
+	maybe_examine_guard(Arg0, Cl, X0),
+	key_of_arg(X0, L, KL).
+
+key_of_arg(struct(A,0,_), L, KL) :-
+	atom(A)
+    ->  KL = atm-(A-L).
+key_of_arg(struct(A,0,_), L, KL) :-
+	integer(A)
+    ->  KL = int-(A-L).
+key_of_arg(struct(A,0,_), L, KL) :-
+	float(A)
+    ->	KL = flt-(A-L).
+key_of_arg(struct('.',2,_), L, KL) :-
+    ->  KL = lst-L.
+key_of_arg(struct(F,N,_), L, KL) :-
+    ->	KL = str-(F/N-L).
+key_of_arg(var(_), L, KL) :-
+    ->  KL = var-L.
+
+% kludge, but better than nothing...
+
+maybe_examine_guard(Arg, Clause, X) :-
+	Arg = var(_)
+    ->	clause_guard(Clause, Guard),
+	examine_guard(Guard, Arg, X).
+maybe_examine_guard(Arg, _Clause, X) :-
+    ->	X = Arg.
+
+examine_guard([], Arg, X) :-
+    ->	X = Arg.
+examine_guard([struct(=,2,[Arg,Y])|_], Arg, X) :-
+	Y = struct(_,_,_)
+    ->	X = Y.
+examine_guard([_|Gs], Arg, X) :-
+    ->	examine_guard(Gs, Arg, X).
+
+
+try_retry_trust([])-_U-S :-
+    ->	[fail]-S.
+try_retry_trust([L])-U-S :-
+    ->	[try_single(L)]-S,
+	[L]-U.
+try_retry_trust([L|Ls])-U-S :-
+    ->	[try(L)]-S,
+	[L]-U,
+	retry_trust(Ls)-U-S.
+
+retry_trust([L])-U-S :-
+    ->	[trust(L)]-S,
+	[L]-U.
+retry_trust([L|Ls])-U-S :-
+    ->	[retry(L)]-S,
+	[L]-U,
+	retry_trust(Ls)-U-S.
+
+
+classify_clauses(Cls, Vec) :-
+	classify_clauses(Cls, List, before),
+	Vec =.. [vec|List].
+
+classify_clauses([], List, _Where) :-
+    ->	List = [].
+classify_clauses([Cl|Cls], List0, Where0) :-
+    ->	List0 = [Class|List],
+	classify_clause(Cl, Where0, Where, Class),
+	classify_clauses(Cls, List, Where).
+
+classify_clause(Cl, Where0, Where, Class) :-
+	default_clause(Cl)
+    ->	Where = after,
+	Class = (Where0, flat, var).
+classify_clause(Cl, Where0, Where, Class) :-
+	flat_clause(Cl)
+    ->	Where = Where0,
+	Class = (Where, flat, nonvar).
+classify_clause(Cl, Where0, Where, Class) :-
+	default_head(Cl)
+    ->	Where = after,
+	Class = (Where0, deep, any).
+classify_clause(_Cl, Where0, Where, Class) :-
+    ->	Where = Where0,
+	Class = (Where, deep, any).
+
+flat_clause(Clause) :-
+	flat_head(Clause),
+	clause_guard(Clause, []).
+
+flat_head(Clause) :-
+	clause_head(Clause, struct(_,_,Args)),
+	flat_args(Args).
+
+flat_args([struct(F,_,FirstArgs)|RestArgs]) :-
+	not(float(F)),
+	'$concat'(FirstArgs,RestArgs,Args),
+	list_of_source_variables(Args),
+	all_different(Args).
+
+default_clause(Clause) :-
+	default_head(Clause),
+	clause_guard(Clause, []).
+
+default_head(Clause) :-
+	clause_head(Clause, struct(_,_,Args)),
+	default_args(Args).
+
+default_args(Args) :-
+	list_of_source_variables(Args),
+	all_different(Args).
+
+list_of_source_variables([]) :-
+    ->	true.
+list_of_source_variables([var(_)|Rest]) :-
+    ->	list_of_source_variables(Rest).
+
+all_different(List) :-
+	remove_anonymous_vars(List, List1),
+	sort(List1, Sorted),
+	same_length_list(List1, Sorted).
+
+remove_anonymous_vars([], List1) :-
+    ->	List1 = [].
+remove_anonymous_vars([var('_')|List], List1) :-
+    ->	remove_anonymous_vars(List, List1).
+remove_anonymous_vars([Var|List], List1) :-
+    ->	List1 = [Var|List2],
+	remove_anonymous_vars(List, List2).
+
+
+% this code should really be removed and lists:same_length should be
+% called instead:
+same_length_list([], L) :-
+    ->	L = [].
+same_length_list([_|S], L) :-
+    ->  L = [_|L1],
+	same_length_list(S, L1).

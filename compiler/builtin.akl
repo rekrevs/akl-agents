@@ -1,0 +1,136 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%  BUILTIN 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% builtin_input_output
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+builtin_input_output(struct(int_less,2,Args),Input,Output):-
+   ->
+   Input=Args,Output=[].
+builtin_input_output(struct(int_greater,2,Args),Input,Output):-
+   ->
+   Input=Args,Output=[].
+builtin_input_output(struct(int_not_greater,2,Args),Input,Output):-
+   ->
+   Input=Args,Output=[].
+builtin_input_output(struct(int_not_less,2,Args),Input,Output):-
+   ->
+   Input=Args,Output=[].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% builtin_types
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+builtin_types(Goal,B,E):-
+   Goal=struct(F,A,_)
+   ->
+   classify_builtin(F,A,indexing(Class)),
+   builtin_types1(Class,Goal,B,E).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+builtin_types1(int_compare,Goal,B,E):-
+   ->
+   builtin_input_output(Goal,Input,Output),
+   error_if_not_equal(Output,[],builtin_types1),
+   vars_to_type_cons(Input,integer,B,E).
+builtin_types(_,_,_,_):-
+   ->
+   not_implememented(builtin_types1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% classify_test
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+classify_test(eq(_,_),Out):-          -> Out=test(dynamic,untyped,unsym(3)).
+classify_test(int_compare(_,_),Out):- -> Out=test(static,typed,sym(3)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% indexing_builtin
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+indexing_builtin(Goal):-  classify_builtin_goal(Goal,indexing(_)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% classify_builtin_goal
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+classify_builtin_goal(struct(F,A,_),Out):- -> classify_builtin(F,A,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% classify_builtin.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+classify_builtin(int_greater,2,Out):-      -> Out=indexing(int_compare).
+classify_builtin(int_not_greater,2,Out):-  -> Out=indexing(int_compare).
+classify_builtin(int_less,2,Out):-         -> Out=indexing(int_compare).
+classify_builtin(int_not_less,2,Out):-     -> Out=indexing(int_compare).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%  builtin_goal_to_test
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+make_test_of_builtin_goal(X,Out):- 
+      X=struct(F,2,[A,B]) 
+     ->
+     m_t_builtin2(F,A,B,Out).
+make_test_of_builtin_goal(X,_Out):- 
+     ->
+     not_implemented(make_test_of_builtin_goal(X)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+m_t_builtin2(F,A,B,Out):-
+    classify_builtin(F,2,indexing(Test))
+    ->
+    functor(Out,Test,2),
+    arg(1,Out,A),
+    arg(2,Out,B).
+m_t_builtin2(F,A,B,_Out):-
+    ->
+    not_implemented(m_t_builtin2(F,A,B)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% dec_test_extract_regs
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dec_test_extract_regs(eq(A,B),Regs):-
+   ->
+   dec_test_extract_regs1([A,B],Regs).
+dec_test_extract_regs(int_compare(A,B),Regs):-
+   ->
+   dec_test_extract_regs1([A,B],Regs).
+
+dec_test_extract_regs1([],Regs):-  -> Regs=[].
+dec_test_extract_regs1([reg(R)|Xs],Regs):- 
+   -> 
+   Regs=[R|Regs1],dec_test_extract_regs1(Xs,Regs1).
+dec_test_extract_regs1([_|Xs],Regs):-
+   ->
+   dec_test_extract_regs1(Xs,Regs).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% vars_to_type_cons
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+vars_to_type_cons([],_,B,E):-  -> B=E.
+vars_to_type_cons([var(Name)|Xs],Type,B,E):- 
+    -> 
+    B=[p(Name,Type)|B1],
+    vars_to_type_cons(Xs,Type,B1,E).
+vars_to_type_cons([var_simple(_,_)|_],_,_,_):- 
+    -> 
+    error(var_to_type_cons).
+vars_to_type_cons([unnamed|_],_,_,_):- 
+    -> 
+    error(var_to_type_cons).
+vars_to_type_cons([_|Xs],Type,B,E):- 
+    ->
+    vars_to_type_cons(Xs,Type,B,E).
+
+
+

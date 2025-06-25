@@ -1,0 +1,531 @@
+% flight(Number, Start, End, Type, Crew).
+%
+% aircraft(Id, Type, Endurance, Crew_no, Turnaround, Max_hrs, Crew_list)
+%
+
+/* 'assign_flights' is the main procedure in this program .
+    It generates the structure of the flights , whereby each flight
+   has associated with it a series of aircraft . Each aircraft has
+   a unique variable associated with it .
+   The given constraints are called in parallel from this procedure .
+   3 types of constraints:
+   1. unary constraints, applied on each flight structure independent of other
+      flights. 
+   2. binary constraints applied on each 2 flight structures.
+   3. plural constraints related to each aircraft/crew and thus applied on 
+      several flights. 
+   The procedure terminates when each flight is allocated an aircraft. 
+*/
+
+assign_flights(_, _, _, []) :-
+    ->	true.
+assign_flights(F, A, M, S) :-
+	S = [_|_]
+    ->	reflection(W, R),
+	call(assign_flights_aux(F, A, M))@W,
+	assign_flights_1(S, W, R).
+
+assign_flights_1([], _, _) :-
+    ->	true.
+assign_flights_1([Sols|S], W, [solution(Sols1)|R]) :-
+    ->	Sols = solution(Sols1),
+	assign_flights_2(S, W, R).
+assign_flights_1([Sols|_], _, [A|_]) :-
+    ->	Sols = A.
+
+assign_flights_2([], _, _) :-
+    ->	true.
+assign_flights_2(S, W, R) :-
+	S = [_|_]
+    ->	next@W,
+	assign_flights_1(S, W, R).
+
+assign_flights_aux( Flights, Aircraft, Max_crew_hour, Sols ):-
+   single_flight_constraints(Flights, Aircraft, By_flights, Sols),
+   arrange_by_crew(Aircraft, By_crew),
+   two_flight_constraints( By_flights, By_crew ),
+   arrange_by_aircraft(Aircraft, By_flights, By_aircraft),
+   many_flight_constraints( By_aircraft, By_crew, Max_crew_hour). 
+
+
+/* The required attributes of a flight are extracted by 'flight_attrib' 
+   and passed to 'unary_constr', 
+   all those aircraft that do not satisfy the single flight constraints are 
+   removed from the flight's domain . This is done by assigning the value 'off'
+   to the variables associated with such aircraft .
+   Single flight constraints are:
+
+   1. The Type Constraint: states that a flight can only be allocated 
+      an aircraft if that aircraft has the correct type.
+   2. The Endurance Constraint: states that an aircraft cannot fly longer than 
+      its endurance permits continuously. 
+   3. The Crew Constraint: states that there must be sufficient crew on an 
+      aircraft to fly a requirement .
+*/
+
+single_flight_constraints([], _, By_flights, Sols):-
+    ->	By_flights=[],Sols=[].
+single_flight_constraints([F1|Fs], Aircraft, By_flights,Sols):-
+    ->	By_flights=[poss_aircraft(NewF1,Ons1)|By_flights1],
+	single_flight_constraint(F1, Aircraft, Poss_aircraft, NewF1),
+	generate_aircraft(Poss_aircraft, _, begin, end, Ons1, A_no, Det ),
+	arg(1, F1, F_no),
+	assignment(A_no, F_no, Det, Assign),
+	panmerge(Assign, Sols1, Sols),
+	single_flight_constraints(Fs, Aircraft, By_flights1, Sols1 ).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+/**
+
+The second clause is a dummy, just so that we only execute assignment
+when a solution has been found!
+
+**/
+
+assignment(A_no, F_no, Det, Ass):-
+	integer(A_no)
+    ->	Ass=[aircraft_for_flight(F_no, Det, A_no)].
+assignment(_A_no, _, _, Ass) :- 
+    ->	Ass=[].
+
+%%%%  In: F= one flight      Aircraft=list of aircraft
+%%%%  Out: Poss_aircraft=[aircraft(No,Turnaround,Max_Hrs,CrewList)|_]
+%%%%       NewF=flight(No,Launch,Recovery,Length)
+%%%%
+single_flight_constraint( F, Aircraft, Poss_aircraft, NewF ):-
+	flight_attrib(F, NewF, Attributes),
+	unary_constrs( Aircraft, Attributes, Poss_aircraft). 
+
+flight_attrib(flight( No, Launch, Recovery,Type,Crew),Flight,Att):-
+	Flight=flight(No,Launch,Recovery,Length),
+	Length is Recovery-Launch,
+	Att=attrib(Type,Crew,Length).
+
+unary_constrs( [], _,Poss_Aircraft):-
+    ->	Poss_Aircraft=[].
+unary_constrs([A|Aircraft], Attributes, Poss_Aircraft ) :-
+	A = aircraft(No,Type,Endurance,AvailCrew,Turnaround,MaxHrs,Crew_list),
+	AvailCrew >= Crew,
+	Endurance >= Flight_length,
+	Attributes=attrib(Type, Crew, Flight_length)
+    ->	Poss_Aircraft=[NewA|Poss_Aircraft1],
+	NewA = aircraft(No,Turnaround,MaxHrs,Crew_list),
+	unary_constrs( Aircraft, Attributes, Poss_Aircraft1).
+unary_constrs( [_|Aircraft], Attributes, Poss_aircraft):-
+    ->	unary_constrs( Aircraft, Attributes, Poss_aircraft). 
+
+/* 'generate_aircraft' forms a chain for a particular flight consisting
+   of the aircraft in the input list of available resources , where each
+   aircraft has associated with it a unique variable that may be still
+   uninstantiated , or may have a value 'on' or 'off' . If an aircraft  
+   is 'on' for a flight , it means that the aircraft is allocated to the
+   flight . An aircraft that is 'off' for a flight has been removed from 
+   flight's possible set .
+
+*/ 
+  
+
+item(Aircraft,Aircraft,Left,Right,On,A_no,Ass):-
+    ?	arg(1,Aircraft,A_no),
+	Ass=assignment(Left,Right,On),Left=begin,Right=end,On=on.
+item(_,_,Left,Left,off,_,_) :-
+    ?	true.
+
+%%%% In: A1=list of possible aircraft
+
+generate_aircraft( [], _, Left, Right,X, _, _ ):-
+    ->	X=[],Left=Right.
+generate_aircraft( [A1|Aircraft], Flight, Left, Right, X,A_no,Det):-
+    ->	X=[value(A1,On1)|Ons], 
+	item( A1, Flight, Left, Temp, On1, A_no, Det ) ,
+	generate_aircraft( Aircraft, Flight, Temp, Right, Ons, A_no, Det ).
+
+/* arrange_by_crew takes the list of aircraft and produces a list of crew,
+  each element in the list is a list of aircraft that are sharing the crew
+  member represented by this element.
+*/
+
+arrange_by_crew(Aircraft, By_crew):-
+   extract_crew_list(Aircraft, Tuples, Crew_list, []),
+   group_by_crew(Tuples, Crew_list, By_crew).
+
+/* extract_crew_list returns a list of tuples: (Aircraft_no, Crew), and
+  a list of the different available crew. 
+*/
+
+extract_crew_list([], As, Crew_Out, Crew_list):-
+    ->	As=[],Crew_Out=Crew_list.
+extract_crew_list([aircraft(A_no,_,_,_,_,_,Crew1)|At],As,Crew_list, SoFar):-
+    ->	As=[aircraft(A_no,Crew1)|Tuples],
+	add_to_list(Crew1, SoFar, New_list),
+	extract_crew_list(At, Tuples, Crew_list, New_list).
+
+add_to_list([], SoFar, Crew_list):-
+    ->	Crew_list=SoFar.
+add_to_list([C1|Crew], SoFar, Crew_list) :-
+	member(C1,SoFar)
+    ->	add_to_list(Crew,SoFar,Crew_list).
+add_to_list([C1|Crew], SoFar, Crew_list) :-
+    ->	Crew_list=[C1|Crew2],
+	add_to_list(Crew,SoFar,Crew2).
+                                             
+member(X, [X|_]) :-
+    ->	true.
+member(X, [_|Ys]):-
+    ->	member(X, Ys).
+
+/* for each crew get the list of aircraft which he is member of. The output
+   is a list of these lists.
+*/
+
+group_by_crew(_, [], Out):-
+    ->	Out=[].
+group_by_crew(Tuples, [C1|Crew], Out):-
+    ->	Out=[By_C1|By_crew],
+	for_one_crew(Tuples,C1,By_C1),
+	group_by_crew(Tuples, Crew, By_crew).
+
+for_one_crew([], _, Out):-
+    ->	Out=[].
+for_one_crew([aircraft(A_no,Crew_list)|Tuples], Crew, Out):-
+	member(Crew, Crew_list)
+    ->	Out=[A_no|By_crew],
+	for_one_crew(Tuples, Crew, By_crew).
+for_one_crew([_A|Aircraft], Crew, By_crew):-
+    ->	for_one_crew(Aircraft, Crew, By_crew).
+
+/* If two flights overlap in time , they cannot be assigned the same aircraft,
+   or different aircraft with a shared crew. 
+
+   If two flights do not overlap , then the Turnaround Constraint would be
+   applied to their domains, no need to apply it on overlapping ones .
+*/
+
+two_flight_constraints([], _):-
+    ->	true.
+two_flight_constraints([F1|Flights], By_crew):-
+    ->	check(F1, Flights, By_crew),
+	two_flight_constraints(Flights, By_crew).
+
+check( _, [], _ ):-
+    ->	true.
+check(F1, [F2|Flights], By_crew):-
+    ->	binary_constrs(F1, F2, By_crew),
+	check(F1, Flights, By_crew).
+
+binary_constrs(poss_aircraft(F1, A1), poss_aircraft(F2, A2), By_crew):-
+	F1 = flight(_, _, Recovery_time1, _),
+	F2 = flight(_,Launch_time2, _, _),
+	Recovery_time1 > Launch_time2 % should be overlapping(F1,F2)?
+    ->	noteq_aircraft(A1, A2),
+	noteq_crew(By_crew, A1, A2).
+binary_constrs(poss_aircraft(F1,A1), poss_aircraft(F2,A2), _) :-
+    ->	turnaround_constraint(F1, A1, F2, A2).
+
+/* 'noteq_aircraft' accepts two lists representing the domains of
+   two flights , and succeeds if the same aircraft in the two domains 
+   satisfy the noteq constraint .
+
+   The inputs to the 'noteq' procedure are the two variables associated
+   with two aircraft . If one of them is 'on' , the other is forced to
+   be 'off' . A variable that is found to be 'off' does not affect the
+   value of the second variable .
+*/ 
+ 
+noteq_aircraft( [], _ ) :-
+    |	true.
+noteq_aircraft( _, [] ) :-
+    |	true.
+noteq_aircraft( [value(A,On1)|Ons1], [value(A,On2)|Ons2] ):-
+    |	noteq( On1, On2 ),
+	noteq_aircraft( Ons1, Ons2 ).
+noteq_aircraft( [value(A1,_)|Ons1], Aircraft2):-
+	Aircraft2=[value(A2,_)|_],
+	arg(1,A1,N1),arg(1,A2,N2),
+	N1 < N2
+    |	noteq_aircraft(Ons1,Aircraft2).
+noteq_aircraft(Aircraft1, [value(A2,_On2)|Ons2]):-
+	Aircraft1=[value(A1,_)|_],
+	arg(1,A1,N1),arg(1,A2,N2),
+	N1 > N2
+    |	noteq_aircraft(Aircraft1,Ons2).
+
+noteq( on, On2) :- | On2=off.
+noteq(On1,  on) :- | On1=off.
+noteq(off,   _) :- | true.
+noteq(  _, off) :- | true.
+
+
+/* noteq_crew accepts 3 inputs:
+    1. a list of lists, each consists of the aircraft that are sharing a 
+       particular crew, e.g. [ [1,2,4], [2,3,4]]
+    2. 2 flights' domains that are overlapping
+   The given overlapping flights are prevented from being assigned different
+   aircraft with a common crew.
+*/
+
+noteq_crew([], _, _):-
+    ->	true.
+noteq_crew([Crew1|Crew], F1, F2):-
+    ->	check_one_crew(Crew1, F1, F2),
+	noteq_crew(Crew, F1, F2).
+
+/* For aircraft with a common crew, for each aircraft A1 in this list, A1 in
+   flight F1 is connected to all other aircraft of the list that they exist in
+   flight F2 with noteq constraint so that if A1 is assigned to F1, no one from
+   the other aircraft can be assigned to F2. Similarly, A1 in F2 is connected 
+   to the other aircraft from F1. This process is repeated among the other
+   aircraft in the list.
+
+   Because, aircraft in a flight's domain are arranged increasingly according
+   to their A_no, to find aircraft from the domain, we can always start looking
+   from where the previous aircraft was found instead of looking each time from
+   the begining.
+*/
+
+check_one_crew([], _, _):-
+    ->	true.
+check_one_crew([A1|Aircraft], F1, F2):-
+    ->	get_aircraft(A1, F1, On1, RestF1),
+	each_aircraft(Aircraft, F2, On1),
+	get_aircraft(A1, F2, On2, RestF2),
+	each_aircraft(Aircraft, F1, On2),
+	check_one_crew(Aircraft, RestF1, RestF2).
+
+/* get the On variable of the aircraft A_no from the flight's domain.
+   Also output the rest of aircraft in the domain.
+*/
+
+get_aircraft(A_no, [value(aircraft(A_no,_,_,_),On1)|Aircraft],On2,Rest):-
+    ->	On2=On1,
+	Rest=Aircraft.
+get_aircraft(A_no, [value(aircraft(A_no2,_,_,_),_)|Aircraft],On1,Rest):-
+	A_no > A_no2
+    ->	get_aircraft(A_no, Aircraft, On1, Rest).
+get_aircraft(_, Aircraft, On1, Rest):-
+    ->	On1=off,
+	Rest=Aircraft.
+
+/* connect the aircraft 'On2' with all aircraft in flight F1 and sharing a crew
+   with 'On2'.
+*/
+
+each_aircraft(_, _, off):- | true.
+each_aircraft([], _, _) :- | true.
+each_aircraft(_, [], _) :- | true.
+each_aircraft([A|Aircraft], F1, On2):-
+    |	get_aircraft(A, F1, On1, RestF1),
+	noteq(On1, On2),
+	each_aircraft(Aircraft, RestF1, On2).
+
+
+   
+/* The Turnaround Constraint states that there must be sufficient time between
+   flights of the same aircraft to turn around the aircraft .
+
+   The procedure receives two flights with the representations associated with
+   their domains . The turnaround time of each aircraft in the domain is used  
+   to calculate the next possible launch time for any flight that might want to
+   use that aircraft after the aircraft was allocated to the flight given in the
+   first argument . This calulated value corresponds to the sum of the recovery
+   time of the first flight and the turnaround time of the aircraft . If the
+   second flight's launch time is before this value , the 'noteq' constraint
+   would be applied to the variables associated with that aircraft for the two
+   flights .
+*/
+
+
+turnaround_constraint( _, [], _, _ ) :- | true.
+turnaround_constraint( _, _, _, [] ) :- | true.
+turnaround_constraint(F1,[value(A1,On1)|Air1],F2,[value(A1,On2)|Air2]):-
+    |	get_next_launch(F1, A1, Next_launch),
+	check_turnaround(Next_launch, F2, On1, On2), 
+	turnaround_constraint( F1, Air1, F2, Air2).
+turnaround_constraint( F1,[value(A1,_)|Aircraft1],F2,Aircraft2):-
+	Aircraft2=[value(A2,_)|_],
+	arg(1,A1,N1),arg(1,A2,N2),
+	N1 < N2
+    |	turnaround_constraint(F1, Aircraft1, F2, Aircraft2).
+turnaround_constraint(F1,Aircraft1,F2,[value(A2,_)|Aircraft2] ):-
+	Aircraft1=[value(A1,_)|_],
+	arg(1,A1,N1),arg(1,A2,N2),
+	N1 > N2
+    |	turnaround_constraint(F1,Aircraft1, F2,Aircraft2).
+
+get_next_launch(flight( _, _,Recovery_time1, _),Aircraft,Next_launch):-
+	Aircraft=aircraft( _, Turnaround, _, _)
+    |	Next_launch is Recovery_time1 + Turnaround .
+
+check_turnaround(Next_launch,flight( _, Launch_time, _, _), On1, On2 ):-
+	Next_launch > Launch_time
+    ->	noteq( On1, On2 ).
+check_turnaround( _, _, _, _) :-
+    ->	true.
+
+/* 'arrange_by_aircraft' takes the list of available aircraft, and  
+   the list of flights' domains, and produces a list representing aircraft 
+   that are at least in one flight's domain. Each aircraft in the ouput is
+   a term of the form: aircraft(A_no, MaxHours, Flights). 'Flights' is a
+   list of tuples of the form:tup(Flight_length, ON), representing a flight
+   which the aircraft A_no is a member of its domain. 
+
+  For each available aircraft, get the flights which it is a member of their
+  domains. If the aircraft is not a member in any flight's domain, don't 
+  generate an element for it in the output.
+
+  Since aircraft are ordered in increasing order according to thei A_no,
+  don't fetch the aircraft in a flight's domain from the begining of the
+  domain. Instead, start from where the previous aircraft was found.
+*/
+
+arrange_by_aircraft([], _, Out) :- | Out=[].
+arrange_by_aircraft(_, [], Out) :- | Out=[].
+arrange_by_aircraft([A1|Aircraft], Flights, By_aircraft):-
+	Flights=[_|_]
+    |	get_tuples(Flights, A1, Tuples, NewFlights),
+	check_tuples(Tuples, A1, By_aircraft, By_Tail),
+	arrange_by_aircraft(Aircraft, NewFlights, By_Tail).
+
+check_tuples([], _, Out, Tail) :- 
+    |	Out=Tail.
+check_tuples(Tuples, Aircraft,Out,Tail):-
+    |	Out=[aircraft(A_no,MaxHr,Tuples)|Tail],
+	aircraft_attrib(Aircraft, A_no, MaxHr).
+
+aircraft_attrib(aircraft(A_no,_,_,_,_,MaxHrs,_), A_no, MaxHrs).
+
+/* get tuples of flights in which this aircraft is a member, and return the
+   remaining of the flights domains.
+*/
+
+get_tuples([], _, Tuples, NewFlights):-
+    ->	Tuples=[],
+	NewFlights=[].
+get_tuples([poss_aircraft(F,A)|Flights], Aircraft, Tuples, NewFlights):-
+    ->	get_tuple(A, Aircraft, F, Tuples, TupTail, NewFlights, FlightTail),
+	get_tuples(Flights, Aircraft, TupTail, FlightTail).
+
+get_tuple([], _, _, OutTuples, Tuples, OutFlights, Flights):- 
+    ->	OutTuples=Tuples,
+	OutFlights=Flights. 
+get_tuple([value(A1,On)|Aircraft],A2,F,OutTuples,Tuples,OutFlights,Flights):-
+	functor(A1,aircraft,_), arg(1,A1,X),
+	functor(A2,aircraft,_), arg(1,A2,X)
+    ->	OutTuples=[tup(F_length,On)|Tuples],
+	OutFlights=[poss_aircraft(F,Aircraft)|Flights],
+	get_flight_length(F,F_length).
+get_tuple([value(A1,_)|Aircraft], A2, Flight, TupleH, TupleT, FH, FT):-
+	arg(A1,1,N1),
+	arg(A2,1,N2),
+	N1 < N2
+    ->	get_tuple(Aircraft, A2, Flight, TupleH, TupleT, FH, FT).
+get_tuple(Aircraft, _, Flight, OutTuples, Tuples, OutFlights,Flights):-
+    ->	OutFlights=[poss_aircraft(Flight, Aircraft)|Flights],
+	OutTuples=Tuples.
+
+get_flight_length(flight(_,_,_,Length), Length).
+
+/* 'many_flight_constraints' dynamically checks constraints combining 
+   several flights together:
+   1. Each aircraft is assigned to several flights aslong as it doesn't exceed 
+      the maximum hours it can fly in one day. 
+   2. Each crew shouldn't exceed his maximum flying hours in one day.
+
+   The inputs are:
+   1. By_aircraft = [aircraft(A_no,MaxHr,Flights)|Aircraft]
+   2. By_crew = [[1,2,3]|Aircraft with common crew]
+   3. Max flying hours for a crew
+*/
+
+
+many_flight_constraints(By_aircraft, By_crew, Max_crew_hr):-
+   maxhours_constraint(By_aircraft),
+   max_crew_hours(By_crew, By_aircraft, Max_crew_hr).
+
+
+/* Fo each aircraft, dynamically calculate the current maximum hours it can
+   fly after being assigned to some flights. If a flight's time length is 
+   greater than the current maximum, the aircraft is removed from this flight's
+   domain.
+*/
+
+maxhours_constraint([]):-
+    ->	true.
+maxhours_constraint([aircraft(_,Max,Flights)|Aircraft]):-
+    ->	check_flights(Flights, [Max|MaxStream], FlightsStream),
+	current_max(FlightsStream, Max, MaxStream),
+	maxhours_constraint(Aircraft).
+
+/* modify the current maximum hours of flight whenever the aircraft is assigned
+   to a flight
+*/
+
+
+current_max([], _, Out):-
+    ->	Out=[].
+current_max([Flight_length|Flights], MaxSoFar,Out):-
+    ->	Out=[NewMax|Maxs],
+	NewMax is MaxSoFar-Flight_length,
+	NewMax >= 0,
+	current_max(Flights, NewMax, Maxs).
+
+/* For each flight, if it is assigned an aircraft, add it to On_Flights
+*/
+
+check_flights([], _, Out):-
+    ->	Out=[].
+check_flights([Flight|Flights], MaxStream, On_Flights):-
+    ->	check_flight(Flight, MaxStream, F1),
+	check_flights(Flights, MaxStream, F2),
+	panmerge(F1, F2, On_Flights).
+
+check_flight(tup(F,on), _, Out) :- 
+    |	Out=[F].
+check_flight(tup(_,off), _,Out) :- 
+    |	Out=[].
+check_flight(tup(F,On),[Max|_], Out):-
+	F > Max
+    |	Out=[],
+	On = off.
+check_flight(tup(F,On), [Max|Maxs], Out):-
+	F =< Max
+    |	check_flight(tup(F,On), Maxs, Out).
+
+/* For each crew, do same checks done to each aircraft concerning maximum
+   hours of flights. Take into account that a crew can be a member of several
+   aircraft.
+*/
+
+max_crew_hours([], _, _):-
+    ->	true.
+max_crew_hours([Crew1|Crew], By_aircraft, Max):-
+    ->	check_crew_flights(By_aircraft, Crew1, [Max|MaxStream], FlightStream),
+	current_max(FlightStream, Max, MaxStream),
+	max_crew_hours(Crew, By_aircraft, Max).
+
+check_crew_flights([], _, _, Out) :- | Out=[]. 
+check_crew_flights(_, [], _, Out) :- | Out=[].
+check_crew_flights([Air1|Aircraft], [A_no|Crew], MaxStream,FlightStream):-
+	Air1=aircraft(A_no,_,Flights)
+    |	check_flights(Flights, MaxStream, F1),
+	check_crew_flights(Aircraft, Crew, MaxStream, F2),
+	panmerge(F1, F2, FlightStream).
+check_crew_flights([Air1|Aircraft], [A_no2|Crew], MaxStream,FlightStream):-
+	Air1=aircraft(A_no1,_,_),
+	A_no1 < A_no2
+    |	check_crew_flights(Aircraft, [A_no2|Crew], MaxStream, FlightStream).
+check_crew_flights([Air1|Aircraft], [A_no2|Crew], MaxStream, FlightStream):-
+	Air1=aircraft(A_no1,_,_),
+	A_no1 > A_no2
+    |	check_crew_flights([Air1|Aircraft], Crew, MaxStream, FlightStream). 
+
+panmerge([], Y, Z) :- | Y=Z.
+panmerge(X, [], Z) :- | X=Z.
+panmerge([X|Xs], Y, Z):-
+    |	Z=[X|Zs],
+	panmerge(Xs, Y, Zs).
+panmerge(X, [Y|Ys], Z):-
+    |	Z=[Y|Zs],
+	panmerge(X, Ys, Zs).
+ 

@@ -1,0 +1,297 @@
+% File:         repr.akl
+% Author: 	Anders Andersson
+% Purpose:      Builds internal repr. of tables and actions
+
+% Builds the parser action code
+build_code(Prefix, Ext, N, Red, Action, DD, Grabber, Name, Clause) :-
+    ->  numbered_atom(Prefix, "user_", N, Name),
+	build_head_code(Name, Grabber, DD, Red, Ext, Head),
+	% The silly 'Lex'='Lex' is to avoid singleton warnings 
+	Clause = (Head :- (Action,('SAGA__u1' = Ext),('Lex'='Lex'))).
+
+build_head_code(Name, Grabber, DD, Red, Ext, Head) :-
+	Grabber = [_|_]
+    -> list_to_tree([Name, '_', Red, Grabber, [DD|'SAGA__stack'], Ext,
+		'SAGA__u1'], H),        % DS
+%        compound_construct(Name, 6, ['_', Red, Grabber, [DD|'SAGA__stack'],
+%                           Ext, 'SAGA__u1'], H),
+	Head = H-'Lex'.
+build_head_code(Name, Grabber, DD, Red, Ext, Head) :-
+    -> list_to_tree([Name, 'SAGA__state', Red, Grabber, [DD,
+		'SAGA__state'|'SAGA__stack'], Ext, 'SAGA__u1'], H),   % DS
+%        compound_construct(Name, 6, ['SAGA__state', Red, Grabber,
+%                           [DD, 'SAGA__state'|'SAGA__stack'],
+%                           Ext, 'SAGA__u1'], H),
+	Head = H-'Lex'.
+
+% Bind the goto values of the parser actions
+bind_gotos([Key-X|Xs], [Key-Y|Ys]) :-
+    ->	X = Y,
+	bind_gotos(Xs, Ys).
+bind_gotos(Xs, [_|Ys]) :-
+    ->	bind_gotos(Xs, Ys).
+bind_gotos([], _) :-
+    ->	true.
+
+% For the lexer:
+
+% Given packed lists for base and next/check info, generate tables and actions
+repr_next_check(BaseList, NClist, NextT, CheckT, 
+	        Prefix, CharSetSize, Start, ActAssoc, CodeList) :-
+    ->	ord_list_to_assoc([], SC),
+	process_marks(BaseList, ActionList)-SC,
+	sort-ActionList,
+	numbering(ActionList, 0, AAList),
+	ord_list_to_assoc(AAList, AAssoc),
+	assoclist_to_array(BaseList, _, BaseArr),
+	max_value(BaseList, _, (HighBase-_)),
+	add(HighBase, CharSetSize, UpTo),
+	next_check(NClist, Prefix, BaseArr, AAssoc, UpTo, NextT, CheckT),
+	action_code(AAList, Prefix, ActAssoc, SC, CodeList, []),
+	get_assoc(start, Start1, SC, _),
+	add(Start1, 3, Start).
+
+% Traverse the actions and note all starting states
+process_marks([_-(St-Act)|Xs], ActionList)-SC :-
+    ->	process_mark(Act, St)-ActionList-SC,
+	process_marks(Xs, ActionList)-SC.
+process_marks([], ActionList)-_SC :-
+    ->  ActionList = [].
+
+process_mark(accept(_, mark, Type, Rest), St)-ActionList-SC :-
+    ->  handle_mark(Type, St)-Rest-SC,
+	process_mark(Rest, St)-ActionList-SC.
+process_mark(accept(_, _, match, _), _)-_A-_SC :-
+    ->  true.
+process_mark('false', _)-_A-_SC :-
+    ->	true.
+process_mark(Action, _)-ActionList-_SC :-
+    ->  [Action]-ActionList.
+
+handle_mark(startcond(Name), St)-_Actions-SC :-
+    ->	put_assoc(Name, St)-SC.
+
+% Build the next/check table
+next_check(NClist, Prefix, BaseArr, AAssoc, UpTo, Next, Check) :-
+    ->  split_expand_NC_list(NClist, Prefix, BaseArr, AAssoc, -2, UpTo, N, C),
+	list_to_tree([next|N], Next),                   % DS
+%        length(N, Ln),
+%        compound_construct(next, Ln, N, Next),
+	list_to_tree([check|C], Check).                 % DS
+%        length(C, Lc),
+%        compound_construct(check, Lc, C, Check).
+
+% Fill out the list and so on
+split_expand_NC_list([], _, _, _, Count, UpTo, N, C) :-
+    ->  sub(UpTo, Count, Blks),
+	N = [],
+	fill(Blks, 0, C, []).
+split_expand_NC_list([No-Entry|Xs], Prf, BaseArr, AAssoc, Count, UpTo, N, C) :-
+    ->  sub(No, Count, Diff),
+	fill(Diff, 0)-N,
+	fill(Diff, 0)-C,
+	xlt(Entry, Prf, BaseArr, AAssoc, Ch, Nx),
+	[Nx]-N,
+	[Ch]-C,
+	inc-No,
+	split_expand_NC_list(Xs, Prf, BaseArr, AAssoc, No, UpTo, N, C).
+
+fill(0, _)-_List :-
+    ->	true.
+fill(N, _)-_L :-
+	less(N, 0)
+    -> 	false.
+fill(N, Entry)-List :-
+    ->	[Entry]-List,
+	dec-N,
+	fill(N, Entry)-List.
+
+% Translate the actions into their representations
+xlt(_-(D-Act), Prefix, BaseArr, AAssoc, Action, Def) :-
+    ->  get(D, (Def1-_))@BaseArr,
+	add(Def1, 3, Def),
+	xlt_act(Act, Prefix, AAssoc, Action).
+xlt(St-Goto, _, BaseArr, _, Check, Next) :-
+    ->  get(St, (Ch-_))@BaseArr,
+	get(Goto, (Nx-_))@BaseArr,
+	add(Ch, 3, Check),
+	add(Nx, 3, Next).
+
+xlt_act(accept(_,_,match,_), _, _, Action) :- % for trailing context
+    ->	Action = nop.
+xlt_act('false', _, _, Action) :-
+    ->	Action = act_fail.
+xlt_act(accept(_, mark, Type, Rest), Prefix, AAssoc, Action) :-
+    ->  ord_list_to_assoc([], Dummy),
+	handle_mark(Type, _)-Rest-Dummy,
+	xlt_act(Rest, Prefix, AAssoc, Action).
+xlt_act(Act, Prefix, AAssoc, Action) :-
+    ->	get_assoc(Act, N, AAssoc, _),
+	numbered_atom(Prefix, "act_", N, Action).
+
+% Merge a prefix and a name and a number to an atom
+numbered_atom(Prefix1, Prefix2, N, Atom) :-
+    ->  integer_to_chars(N, L),
+	fappend(Prefix1, Prefix2, Prefix),
+	fappend(Prefix,L, Name),
+	chars_to_atom(Name, Atom).
+
+% Make the code for the actions
+action_code(L,P,A,SC)-CL :-
+    ->	action_code(L,P,P,A,SC)-CL.
+
+action_code([accept(_, custom(Cust, Cond), Action, Unless)-No|Rest],
+	Prefix, P2, ActionAssoc, SC)-CL :- 
+    ->	act_head(P2, No, Head),
+	ccond(Cust, SC, Test),
+	fappend(P2,"c_", CPrefix),	
+	fappend(P2,"cu_", CPrefix2),
+	action_custom_unless(Unless, No, Prefix, CPrefix2, ActionAssoc, SC, 
+	                     CustomUnless)-CL,
+	act_head(CPrefix, No, Custom),
+	Body = (-> (Test,(('SAGA__R' = 'true') -> Custom ; CustomUnless))), 
+ 	[(Head :- Body)]-CL,
+	action_code([accept(_, Cond, Action, Unless)-No], Prefix, CPrefix, 
+	            ActionAssoc, SC)-CL,
+	action_code(Rest, Prefix, P2, ActionAssoc, SC)-CL.
+action_code([accept(_, 'true', Action, _)-No|Rest], Prefix, P2, Act, SC)-CL :- 
+    ->	act_head(P2, No, Head),
+	get_assoc(Action, Code, Act, _),
+	act_succeed(Succ),
+	[(Head :- (-> (Code, Succ)))]-CL, 	
+        action_code(Rest, Prefix, P2, Act, SC)-CL.
+action_code(['false'-No|Rest], Prefix, P2, Act, SC)-CL :-
+    ->  act_head(P2, No, Head),
+	act_fail(Fail),
+	[(Head :- (-> Fail))]-CL,
+	action_code(Rest, Prefix, P2, Act, SC)-CL.
+action_code([], Prefix, Prefix, _, SC)-CL :-
+    ->	assoc_to_list(SC, StartCondList),
+	fappend(Prefix, "xlt", Name),
+	chars_to_atom(Name, Atom),
+	generate_xlt(StartCondList, Atom)-CL.
+action_code([], _, _, _, _)-_CL :-
+    ->	true.
+
+% Handle the 'unless' part of a custom action
+action_custom_unless('false', _,_,_,_,_, CustomUnless)-_CL :- 
+    ->	act_fail(CustomUnless).
+action_custom_unless(Unless, No, Prefix, CPrefix, Act, SC, CustomUnless)-CL :- 
+    ->	action_code([Unless-No], Prefix, CPrefix, Act, SC)-CL,
+	act_head(CPrefix, No, CustomUnless).
+
+% Generate translation agent for the startconditions (=lexmodes) to states
+generate_xlt([Name-State|Xs], Atom)-CL :- 
+    ->  list_to_tree([Atom, Name, 'SAGA__State'], Head),        % DS
+%        compound_construct(Atom, 2, [Name, 'SAGA__State'], Head),
+	add(State, 3, StateOffset),
+	[(Head :- (-> ('SAGA__State' = StateOffset)))]-CL,
+	generate_xlt(Xs, Atom)-CL.
+generate_xlt([], _)-_CL :- 
+    ->	true.
+
+% Generate custom actions
+ccond('^', _, R) :-
+    -> R = (at_bol('SAGA__R')@'Lex').
+ccond('$', _, R) :-
+    -> R = (at_eol('SAGA__R')@'Lex').
+ccond(trailing_context(StateName), SC, R) :-
+    ->	get_assoc(StateName, N, SC, _),
+	add(3)-N,
+	R = (match(N, 'SAGA__R')@'Lex').
+
+% Generate the head of an action
+act_head(Prefix, ActNo, Head) :-
+    ->  numbered_atom(Prefix, "act_", ActNo, Atom),
+	list_to_tree([Atom, 'Token'], T),                       %DS
+%        compound_construct(Atom, 1, ['Token'], T),
+	Head = T-'Lex'.
+
+% The success code
+act_succeed(Succ) :-
+    ->  Succ = (accept('Token')@'Lex').
+
+% The failing code
+act_fail(Fail) :-
+    ->  Fail = (backtrack('Token')@'Lex').
+
+% The default action
+default_action(D) :-
+    ->  D = (token(0, 'Token')@'Lex').
+
+% Makes lambdas of the argument atoms, using arity Arity, leave numbers as is,
+% as well as the special atom 'accept'
+lambdaize(VarString, Term, Result) :-
+    ->	tree_to_list(Term,[Functor|Args]),
+	lambdaize_list(VarString)-Args,
+	list_to_tree([Functor|Args], Result).
+
+lambdaize_list(VarString, [accept|Xs], Result) :-
+    ->  Result=[accept|Rest],
+	lambdaize_list(VarString, Xs, Rest).
+lambdaize_list(VarString, [X|Xs], Result) :-
+	atom(X)
+    ->	atom_to_chars(X,Chars),
+	fappend(Chars, VarString, String),
+	fappend("\")-String,
+	fappend(VarString)-String,
+	chars_to_atom(String, Atom),
+	Result=[Atom|Rest],
+	lambdaize_list(VarString, Xs, Rest).
+lambdaize_list(VarString, [X|Xs], Result) :-
+    ->  Result=[X|Rest],
+	lambdaize_list(VarString, Xs, Rest).
+lambdaize_list(_, [], Result) :-
+    ->	Result=[].
+
+% Dump DFA code to the stream
+dump_code(BaseList, NClist, UsrActs, Prefix, _)-Stream :-
+	data(BaseList),
+	data(NClist),
+	data(UsrActs)
+    ->  list_to_assoc(UsrActs, ActAssoc),
+	repr_next_check(BaseList, NClist, NextT, CheckT, 
+	                Prefix, 256, Start, ActAssoc, CodeList),
+	fappend(Prefix, "dfa", DFAName),
+	chars_to_atom(DFAName, DFAAtom),
+	list_to_tree([DFAAtom, 'D'], Head),             % DS
+%        compound_construct(DFAAtom, 1, ['D'], Head),
+	fappend(Prefix, "xlt(X,Y)", XltName),
+	fappend("(X,Y)\")-XltName,
+	chars_to_atom(XltName, XltAtom),
+	lambdaize("(X,Y,Z)")-CheckT,
+        dump_clauses([(Head :- 
+		      (-> ('D' = dfa(Start,NextT,CheckT,XltAtom))))])-Stream, 
+	dump_clauses(CodeList)-Stream.
+
+% Dump clauses to a stream
+dump_clauses([X|Xs])-Stream :-
+	X = [_|_]	
+    ->	format('~s~n',[X])-Stream,
+	dump_clauses(Xs)-Stream.
+dump_clauses([X|Xs])-Stream :-
+	ground(X, true)
+    ->	format('~w.~n',[X])-Stream,
+	dump_clauses(Xs)-Stream.
+dump_clauses([X|Xs])-Stream :-
+    ->	format('~w.~n',[X])-Stream,
+	dump_clauses(Xs)-Stream.
+dump_clauses([])-_Stream :-
+    ->  true.
+
+% Wait for data to get instansiated
+ground(X, R) :-
+	atomic(X)
+    ->	R = true.
+ground([X|Xs], R) :-
+    ->	ground(X, R1),
+	ground(Xs, R2),
+	wait_both(R1, R2, R).
+ground(X, R) :-
+	compound(X)
+    ->  tree_to_list(X, [_|Z]),
+%       compound_extract(X, _, _, Z),
+	ground(Z, R).
+
+wait_both(true, true, R) :-
+    ->	R = true.

@@ -1,0 +1,1039 @@
+@node GM, Lists, Assoc, Top
+@chapter Graphics Manager
+@cindex graphics manager
+@cindex X-Windows
+@cindex InterViews
+
+<<<NEEDS WORK>>>
+
+The Graphics Manager (GM) is currently a straight port of the GM
+included in the SICStus Prolog library.
+
+The GM is a package for graphics and interaction in
+the X-Windows environment. It is a separate process, started and
+completely controlled from AKL. It communicates with AKL using
+unix sockets. GM is written using the InterViews system (Copyright (c)
+1987, 1988, 1989 Stanford University).
+
+With GM, you are able to construct and open windows with complex
+contents, like views for drawing and structured text displaying,
+buttons, menus and text input. You are also able to wait for events from
+the constructed windows and later process them in AKL.
+
+For the construction of the window contents we have chosen an object
+oriented approach. This means that you first create the objects you
+need, then put them together in a window, and finally open the window.
+The object in the window(s) can later be accessed and manipulated by
+sending them messages.
+
+@noindent
+GM supports 11 different object classes:
+
+@table @code
+@item window
+for window construction
+@item view
+for graphic output
+@item text
+for structured text display
+@item output
+for simple text output
+@item input
+for text input to AKL
+@item button
+for clickable button construction
+@item slider
+for slider construction
+@item menu
+for menu specification
+@item hbox
+for tiling objects horizontally
+@item vbox
+for tiling objects vertically
+@end table
+
+@noindent
+You create an instance of an object class by using the object
+constructor, e.g.
+
+@example
+send(@var{GM0}, create(view(200,200),@var{MyView}), @var{GM1})
+@end example
+
+@noindent
+or the equivalent
+
+@example
+create(view(200,200),@var{MyView})@@@var{GM}
+@end example
+
+
+This call will return a reference to the created instance of the view class 
+in the variable @var{MyView}. If you want to, you can give names to 
+to instance references as well and be able to access the object
+globally.
+
+@table @code
+ @item name(myview,create(view(200,200),_))@@@var{GM}
+@end table
+@findex name/2
+
+You send a message to an object with the send method, e.g.
+
+@table @code
+ @item message(circle(100,50,50),@var{MyView})@@@var{GM}
+@end table
+@findex message/2
+
+
+@menu
+* Starting GM::                 
+* GM Data::                     
+* Object Construction and Messages::  
+* Windows::                     
+* Views::                       
+* Cursor Handling::             
+* Boxes::                       
+* Menus::                       
+* Outputs::                     
+* Inputs::                      
+* Buttons::                     
+* Textbrowsers::                
+* Sliders::                     
+* Get Event::                   
+* Event Format::                
+* Error Report::                
+@end menu
+
+@node Starting GM, GM Data, GM, GM
+@section Starting and terminating the graphics manager
+
+
+Starting is done by the command @code{gmstart}. This agent starts
+the graphics manager process and sets up the socket connection. Any
+object constructor agent will fail if you forget to start. Any
+message sending agent will also fail if the object does not exist.
+The agent @code{gmstart} will return a port.
+
+@noindent
+Command:
+
+@table @code
+@item gmstart(@var{-Port})
+@findex gmstart/1
+Starts the GM locally
+
+@item gmstart(@var{+Host,-Port})
+@findex gmstart/2
+Starts GM on some other host
+
+@item gmstart(@var{+Host,+UserName,-Port})
+@findex gmstart/3
+Starts GM on some other host where you have another username
+
+@end table
+
+There are two important things to remember when running AKL and GM on
+different hosts. First, all the graphics output is sent to the display
+matching the @code{DISPLAY} environment variable (in the shell where you
+started AKL). Second, if you run AKL and GM on different hosts
+with different usernames, be sure that both hosts have the line
+
+@example
+otherhostname otherusername
+@end example
+
+@noindent
+in the @file{.rhosts} files in your home directory.
+
+The GM process is terminated when the port is no longer used, i.e.
+there are no references to the port any longer. This
+kills the GM process and closes the socket connection. Any non-closed
+windows are terminated as well.
+
+
+@node GM Data, Object Construction and Messages, Starting GM, GM
+@section Input data for the graphics manager
+
+Here follow some general rules for input data to the graphics manager.
+
+Sizes and coordinates are integers. They are
+interpreted as pixels if nothing else is stated.
+
+A text item may be specified as follows:
+
+@itemize @bullet
+@item
+A AKL string (double-quoted).
+@item
+A term @code{format(@var{FormatString, Args})} which gives the same
+result as is printed by the agent @code{format/2}.
+@item
+Any other term which will give the same result as if the term were
+printed using @code{write/1}.
+@end itemize
+
+@cindex font
+A @dfn{font} is a text item, specifying the font name.  Valid
+fontnames are found by the @code{xlsfonts} command. Specifying a
+non-valid font results in a small standard font.
+
+
+
+@node Object Construction and Messages, Windows, GM Data, GM
+@section Object construction and message sending
+@cindex graphic object construction
+
+The general syntax for object construction and message sending is:
+@table @code
+@item create(@var{constructor}(@var{+Arguments}...),@var{-ObjRef})@@@var{GM}
+@findex create/2
+Creates an object. @var{ObjRef} is instantiated to a structure 
+representing the object.
+
+@item message(@var{message}(@var{+Arguments}...),@var{-ObjRef})@@@var{GM}
+@findex send/2
+Sends a message to an object. @var{ObjRef} gives you a reference to the object.
+
+@item name(@var{+MyName},create(@var{+ObjectDef},@var{-MyRef}))@@@var{-GM}
+@findex name/2
+Gives an object a name. @var{+MyName} should be an atom. Some messages to
+a view will also create objects and could be given names the same way.
+@end table
+
+
+@node Windows, Views, Object Construction and Messages, GM
+@section Windows
+@cindex windows
+
+Anything that you want to have displayed on the screen has to be put
+inside a window. The normal way to construct a window is to create all
+the contents of the window---buttons, views etc.---and then construct a
+window with these contents. You may construct and open as many windows
+as you want.
+
+@noindent
+Window constructors:
+
+@table @code
+@item window(@var{+Name},@var{+Content})
+@itemx window(@var{+Content})
+@kindex window/1 (constructor)
+@kindex window/2 (constructor)
+Constructs a window with contents.
+@var{Contents} is specified directly in terms of hboxes/vboxes or a single box
+element (e.g. @code{scroller(@var{MyView})}) as explained below.
+@var{Name} should be a text item and, if specified, is displayed in the title 
+bar of the window.  
+
+@end table
+
+@noindent
+Window messages:
+
+@table @code
+@item open
+@kindex open/0
+Opens an earlier constructed window
+
+@item open(@var{+X},@var{+Y})
+@kindex open/2
+Opens a window at screen position (@var{X},@var{Y})
+
+@item close
+@kindex close/0
+Closes and destroys a window
+
+@item raise
+@kindex raise/0
+Brings a window in front of the others
+
+@item lower
+@kindex lower/0
+Pushes a window to the back of the others
+
+@item iconify
+@kindex iconify/0
+Iconifies a window
+
+@item deiconify
+@kindex deiconify/0
+Deiconifies a window
+
+@end table
+
+
+@node Views, Cursor Handling, Windows, GM
+@section Views
+@cindex view
+@cindex graphics
+
+Views are used for any graphic output. They accept messages like
+@code{circle}, @code{line} and @code{rect}. The view can be
+grab-scrolled (grab the drawing paper with the mouse and drag it) with
+the right mouse button and rate-scrolled (a motor driven paper dragger)
+when the control key also is pressed (even if no scrollers are
+attached).
+
+@noindent
+@i{View constructor}
+
+@table @code
+@item view(@var{+Xsize},@var{+Ysize})
+@kindex view/2 (constructor)
+Constructs a view for graphic output with the initial size
+(@var{Xsize},@var{Ysize}).
+@end table
+
+@noindent
+@i{View messages for drawing}
+
+@table @code
+@item line(@var{+X1},@var{+Y1},@var{+X2},@var{+Y2})
+@kindex line/4
+Draws a line in the view.
+
+@item line(@var{-Ref},@var{+X1},@var{+Y1},@var{+X2},@var{+Y2})
+@kindex line/5
+Same as @code{line/4}, but makes @var{Ref} a reference to the created
+graphic. If you want to give the object a symbolic name you use the syntax:
+
+@item name(@var{-Atom},line(@var{+X1},@var{+Y1},@var{+X2},@var{+Y2}))
+@kindex name/2
+Note that only objects that can return a reference could be named.
+
+@item ellipse(@var{+X},@var{+Y},@var{+R1},@var{+R2})
+@itemx ellipse(@var{-Ref},@var{+X},@var{+Y},@var{+R1},@var{+R2})
+@kindex ellipse/4
+@kindex ellipse/5
+Draws an ellipse
+
+@item fillellipse(@var{+X},@var{+Y},@var{+R1},@var{+R2})
+@itemx fillellipse(@var{-Ref},@var{+X},@var{+Y},@var{+R1},@var{+R2})
+@kindex fillellipse/4
+@kindex fillellipse/5
+Draws a filled ellipse
+
+@item circle(@var{+X},@var{+Y},@var{+R})
+@itemx circle(@var{-Ref},@var{+X},@var{+Y},@var{+R})
+@kindex circle/3
+@kindex circle/4
+Draws a circle
+
+@item fillcircle(@var{+X},@var{+Y},@var{+R})
+@itemx fillcircle(@var{-Ref},@var{+X},@var{+Y},@var{+R})
+@kindex fillcircle/3
+@kindex fillcircle/4
+Draws a filled circle
+
+@item rect(@var{+X1},@var{+Y1},@var{+X2},@var{+Y2})
+@itemx rect(@var{-Ref},@var{+X1},@var{+Y1},@var{+X2},@var{+Y2})
+@kindex rect/4
+@kindex rect/5
+Draws a rectangle
+
+@item fillrect(@var{+X1},@var{+Y1},@var{+X2},@var{+Y2})
+@itemx fillrect(@var{-Ref},@var{+X1},@var{+Y1},@var{+X2},@var{+Y2})
+@kindex fillrect/4
+@kindex fillrect/5
+Draws a filled rectangle
+
+@item polygon(@var{+Xedges},@var{+Yedges})
+@itemx polygon(@var{-Ref},@var{+Xedges},@var{+Yedges})
+@kindex polygon/2
+@kindex polygon/3
+Draws a polygon. @var{Xedges} and @var{Yedges} are lists of edge coordinates
+
+@item fillpolygon(@var{+Xedges},@var{+Yedges})
+@itemx fillpolygon(@var{-Ref},@var{+Xedges},@var{+Yedges})
+@kindex fillpolygon/2
+@kindex fillpolygon/3
+Draws a filled polygon. @var{Xedges} and @var{Yedges} are lists of edge
+coordinates
+
+@item string(@var{+X},@var{+Y},@var{+Text})
+@itemx string(@var{-Ref},@var{+X},@var{+Y},@var{+Text})
+@kindex string/3
+@kindex string/4
+Draws a text line at position (@var{X},@var{Y})
+
+@item bitmap(@var{+X},@var{+Y},@var{+File})
+@itemx bitmap(@var{-Ref},@var{+X},@var{+Y},@var{+File})
+@kindex bitmap/3
+@kindex bitmap/4
+Draws a bitmap created from the (X bitmap format) file @var{File}.
+If you start GM on another host, the complete path to the bitmap file
+must be specified. Note that the filename could be specified in the form
+@code{library(@var{+File})}.
+
+@end table
+
+@noindent
+@i{Messages for graphic manipulation}
+
+@table @code
+
+@item picture(@var{-Ref},@var{+Graphics})
+@kindex picture/2
+Creates a picture containing the graphics specified in the list
+@var{Graphics}. The list could contain references to graphic objects
+created earlier or could specify new objects. The picture can then be 
+manipulated like any other graphic object.
+
+@item copy(@var{+Graphic1},@var{-Graphic2})
+@kindex copy/2
+Creates a new graphic exactly the same as @var{Graphic1} and make
+@var{Graphic2} a reference to it. The new graphic also gets the same
+pattern, brush, colors and transformation as @var{Graphic1}. This
+command is most useful when copying pictures but can be applied to
+simple graphic objects as well.
+
+@item move(@var{+Ref},@var{+Dx},@var{+Dy})
+@kindex move/3
+Moves the graphic @var{Ref} (@var{Dx},@var{Dy}) pixels relatively to
+the current position.
+
+@item moveto(@var{+Ref},@var{+X},@var{+Y})
+@kindex moveto/3
+Moves the graphic to position (@var{X},@var{Y}) absolutely.
+
+@item rotate(@var{+Ref},@var{+Angle})
+@kindex rotate/2
+Rotates the graphic @var{Angle} degrees counterclockwise.
+
+@item scale(@var{+Ref},@var{+Xs},@var{+Ys})
+@kindex scale/3
+Scales the graphic by @var{Xs} percent along the x axis and by @var{Ys} 
+percent along the y axis.
+
+@item newtext(@var{+Strobj},@var{+Text})
+@kindex newtext/2
+Changes the text of the string object @var{Strobj}. The transformation
+(position, rotation, scaling) of the object is maintained.  @var{Strobj}
+must be a string object and @var{Text} should be a text item.
+
+@item remove(@var{+Ref})
+@kindex remove/1
+Removes the graphic from the view
+@end table
+
+@noindent
+@i{Messages for drawing properties}
+
+@table @code
+@item setcolors(@var{+Fgcolor},@var{+Bgcolor})
+@kindex setcolors/2
+Sets the foreground and background colors of the view. The colors can be
+specified in two formats: (I) @code{rgb(R,G,B)}, where @var{R},@var{G}
+and @var{B} are values between 0 and 255, or (II) @code{white},
+@code{black}, @code{red}, @code{blue} etc. Valid color names are found
+by the @code{showrgb} command.
+
+@item setpattern(@var{+Pattern})
+@kindex setpattern/1
+Sets the filling pattern. @var{Pattern} should be a number between 0
+(solid) and 8 (clear) including. The pixels in the pattern
+corresponding to ones will be set to the foreground color and the
+other to the background color.
+
+@item setbrush(@var{+Pattern},@var{+Width})
+@kindex setbrush/2
+Sets the brush properties. @var{Pattern} should be as in
+@code{setpattern/1} and @var{Width} the brush width in pixels.
+
+@item setfont(@var{+Font})
+@kindex setfont/1
+Sets the font for drawing string objects.
+
+@item stringlength(@var{+Text},@var{-Length})
+@kindex stringlength/2
+Returns the length in pixels of @var{Text} if drawn in the current
+font.
+
+@cindex batch mode
+@item batchmode
+@kindex batchmode/0
+The view is normally updated instantly as graphics are drawn at it.
+However this will be very inefficient when a large number of graphics
+are drawn. By sending the @code{batchmode} message, the view will be
+put in @var{batchmode}. This means that it will not be updated when
+graphics are drawn. The updating has to be explicitly done by sending
+the message @code{update}.
+
+@item batchmodeoff
+@kindex batchmodeoff/0
+Turns batchmode off and updates the view.
+
+@item update
+@kindex update/0
+Updates the view.
+@end table
+
+@noindent
+@i{Messages for view management}
+
+@table @code
+@item setmenu(@var{+Menu})
+@kindex setmenu/1
+Sets the view menu to @var{Menu}. See below for creating a menu. Use
+the middle mouse button to cause the menu to pop up.
+
+@item clear
+@kindex clear/0
+Clears the view
+
+@item zoom(@var{+Amount})
+@kindex zoom/1
+Zooms the view by @var{Amount} percent.
+
+@item scrollto(@var{+X},@var{+Y})
+@kindex scrollto/2
+Scrolls the view to position (@var{X},@var{Y})
+
+@item scrollby(@var{+X},@var{+Y})
+@kindex scrollby/2
+Scrolls the view by (@var{X},@var{Y}) pixels
+
+@item getcur(@var{-X},@var{-Y})
+@kindex getcur/2
+Polls the current mouse position. The coordinates are relative to the
+origin of the view which is the lower left corner.
+
+@end table
+
+@node Cursor Handling, Boxes, Views, GM
+@section Cursor Handling
+@cindex cursor
+
+The shape of the cursor may be set/read using the following messages.
+These messages can be send to both window and view objects. They refer
+to the shape of the cursor when it is inside the object.
+
+@table @code
+@item setcursor(@var{+Cursor})
+@kindex setcursor/1
+@var{Cursor} must be either one of the atoms below or an integer
+returned with a @code{getcursor/1} message.
+
+@item getcursor(@var{-Cursor})
+@kindex getcursor/1
+@var{Cursor} is either one of the atoms below or an integer referring to
+some other cursor. This integer may be used in a @code{setcursor/1}
+message.
+
+@end table
+
+Predefined cursors:
+@table @code
+@item arrow
+@itemx crosshairs
+@itemx ltextCursor
+@itemx rtextCursor
+@itemx hourglass
+@itemx upperleft
+@itemx upperright
+@itemx lowerleft
+@itemx lowerright
+@itemx noCursor
+@itemx handCursor
+@itemx leftCursor
+@itemx rightCursor
+@itemx upCursor
+@itemx dnCursor
+@itemx defaultCursor
+@end table
+
+@node Boxes, Menus, Cursor Handling, GM
+@section Boxes
+
+A @dfn{box} is an object that tiles other objects horizontally. The
+objects in a box are aligned to each other from left to right in a
+@dfn{hbox} and from top to bottom in a @dfn{vbox}, with no overlapping
+between any two objects. Boxes are used to construct more complex
+windows with more than just a single view or object. The objects passed
+to the box constructor are created earlier or are created in the
+argument list. See the @file{gmexamples.pl} file for examples.
+
+@table @code
+@item hbox(@var{+Contents})
+@kindex hbox/1 (constructor)
+Constructs a horizontal box of objects. The natural size of a box is
+the sum of its elements along the horizontal axis, and the maximum
+along its vertical axis. @var{Contents} should be a list of objects
+as specified above and/or terms/atoms as listed below.
+
+@item vbox(@var{+Contents})
+@kindex vbox/1 (constructor)
+Constructs a vertical box of objects. Function is equal to hbox with
+``horizontal'' defined as ``vertical'' and vice versa.
+
+@end table
+
+@noindent
+Extra terms/atoms to be inserted in a box:
+
+@table @code
+
+@item space
+Inserts a horizontally stretchable space
+
+@item space(@var{+Object})
+Inserts the object with fixed-sized space around it
+
+@item border
+Inserts a vertical border
+
+@item frame(@var{+Object})
+Inserts the object with a frame around it
+
+@item space(frame(@var{+Object}))
+Inserts the object with an inner frame and outer space around it
+
+@item frame(space(@var{+Object}))
+Inserts the object with an inner space and outer frame around it
+
+@cindex scrolling
+@item scroller(@var{+Object})
+Inserts the object with attached horizontal and vertical scrollers.
+This should be used only when @var{Object} is a view or a textbrowser!
+
+@end table
+
+@noindent
+@i{Messages to a hbox/vbox}
+
+@table @code
+
+@item insert(@var{+Specification})
+Inserts a object from @var{+Specification} into a vbox/hbox.
+
+@item delete(@var{+Object})
+Deletes an object @var{+Object} from a vbox/hbox.
+
+@end table
+
+
+@node Menus, Outputs, Boxes, GM
+@section Menus
+@cindex menu
+
+A @dfn{menu} of popup type can be attached to a view or a textbrowser
+and is popped up by pressing the middle mouse button in the specified
+area. A menu must be constructed before a view or a textbrowser
+specifies the menu in a @code{setmenu/1} command.
+
+@noindent
+@i{Menu constructor}
+
+@table @code
+@item menu([@var{+Items}],[@var{+Messages}])
+@kindex menu/2 (constructor)
+Constructs a popup menu. @var{Items} should be a list of strings (the
+desired texts of the menu items) and @var{Messages} should be a list of
+atoms, i.e. the corresponding event names later matched for in AKL,
+see the Getting events section. Selecting a menu item generates an
+event that can be read by AKL.
+
+@end table
+
+
+@node Outputs, Inputs, Menus, GM
+@section Outputs
+
+An output object is used for displaying a simple text line in a
+window. The text in the output can be altered from AKL but can not
+be edited in the window it resides in. It is suitable for displaying
+calculated values or status information.
+
+@noindent
+@i{Output constructors}
+
+@table @code
+@item output(@var{+Text})
+@itemx output(@var{+Text},@var{+Font})
+@kindex output/1 (constructor)
+@kindex output/2 (constructor)
+Constructs a non-editable text label. @var{Text} should be a text item
+(the desired initial text). The text can later be changed by means of
+the @code{out/1} message. If @var{Font} is specified, the output is
+displayed with that font (even if you change it later).
+
+@end table
+
+@noindent
+@i{Output messages}
+
+@table @code
+@item out(@var{+Text})
+@kindex out/1
+Sets the text of the output to @var{Text}.
+@end table
+
+
+@node Inputs, Buttons, Outputs, GM
+@section Inputs
+
+An input object is a user editable text line which can be read from
+AKL at any time. You start editing the text by clicking inside the
+object and move around in the text line with emacs equivalents except
+^U for select all and ^W for select word. Terminate input with CR, LF,
+or FF or by clicking elsewhere in the same window.
+
+@noindent
+@i{Input constructors}
+
+@table @code
+@item input(@var{+Text})
+@itemx input(@var{+Text},@var{+Font})
+@kindex input/1 (constructor)
+@kindex input/2 (constructor)
+Constructs an editable text field for user input. @var{Text} should be a
+text item that specifies the initial text. This text is initially
+selected.
+
+@end table
+
+@noindent
+@i{Input messages}
+
+@table @code
+@item in(@var{-Text})
+@kindex in/1
+Reads the text in the input object into @var{Text}. The read text is a
+string (a list of characters).
+
+@item out(@var{+Text})
+@kindex out/1
+Sets the text of the input to @var{Text}.
+@end table
+
+
+@node Buttons, Textbrowsers, Inputs, GM
+@section Buttons
+@cindex button
+
+A button is a push-button that can be clicked by the mouse. This
+generates an event that later can be read by AKL.
+
+@noindent
+@i{Button constructors}
+
+@table @code
+@item button(@var{+Name},@var{+Message})
+@itemx button(@var{+Name},@var{+Message},@var{+Attribute})
+@itemx button(@var{+Name},@var{+Message},@var{+AttributeList})
+@kindex button/2 (constructor)
+@kindex button/3 (constructor)
+Constructs a pushbutton labelled with @var{Name}.  @var{Message}
+should be the event name matched in AKL when the button is pressed.
+The size, font, and style of the
+button can optionally be specified in @var{Attribute}.
+@var{AttributeList} is a list of attributes. An attribute may be one of
+the following:
+
+@table @code
+@item w(@var{+W})
+specifying width.
+@item h(@var{+H})
+specifying height.
+@item font(@var{+Font})
+specifying the font.
+@item style(@var{+Style})
+specifying the style. Available styles are @code{normal}, @code{fancy}
+and @code{radio}.
+@end table
+@end table
+
+@noindent
+@i{Button messages}
+
+@table @code
+@item enable
+@kindex enable/0
+Enables the button for use. This is the default.
+@item disable
+@kindex disable/0
+Disables the button. The button turns gray and does not react on
+clicking.
+@end table
+
+
+@node Textbrowsers, Sliders, Buttons, GM
+@section Textbrowsers
+@cindex text browser
+@cindex browser
+@cindex editor
+
+A text browser is an object for structured text displaying and editing.
+Selections in the text can be made using the left mousebutton. You may
+also move the text insertion point using the messages described below.
+There are several messages for moving text to and from AKL and
+deleting text.  Events may be generated when the left mousbutton is
+pressed and when @key{RET} or @key{LFD} is entered from the keyboard. A
+textbrowser can be grab-scrolled with the right mouse button and
+rate-scrolled when the control key also is pressed (even if no scrollers
+are attached).
+
+@noindent
+@i{Textbrowser constructors}
+
+@table @code
+@item text(@var{+Rows},@var{+Cols},@var{+Tab})
+@itemx text(@var{+Rows},@var{+Cols},@var{+Tab},@var{+Font})
+@kindex text/3 (constructor)
+@kindex text/4 (constructor)
+Constructs a text browser that allows text insertion from AKL.
+@var{Rows}, @var{Cols} and @var{Tab} should be integers specifying the
+initial x-size, y-size and tab width. The textbrowser font can
+optionally be specified and makes all the textbrowser text be
+displayed with this font.
+
+@end table
+
+@noindent
+@i{Textbrowser messages}
+
+@table @code
+
+@item readfile(@var{+File})
+@kindex readfile/1
+Reads @var{File} into the text browser. Old content is erased.
+Note that the filename could be specified in the form
+@code{library(@var{+File})}.
+
+@item writefile(@var{+File})
+@kindex writefile/1
+Writes the contents of the text browser to @var{File}. The file is
+created if it does not exist. Note that the file name could be 
+specified in the form @code{library(@var{+File})}.
+
+@item setmenu(@var{+Menu})
+@kindex setmenu/1
+Sets the text browser menu to @var{Menu}.
+
+@item insert(@var{+Text})
+@kindex insert/1
+Inserts the text @var{Text} into the textbrowser at the current position.
+
+@item delete
+@kindex delete/0
+Deletes the current selection.
+
+@item delete(@var{+N})
+@kindex delete/1
+Deletes @var{N} characters from the current position. If @var{N} is
+negative, @var{N} characters before the current position is deleted.
+
+@item clear
+@kindex clear/0
+Deletes the entire text.
+
+@item readonly
+@kindex readonly/0
+Disables input from the keyboard.
+
+@item readwrite
+@kindex readwrite/0
+Enables input from the keyboard. This is the default.
+
+@item moveto(@var{+Line},@var{+Position})
+@kindex moveto/2
+Moves the current position to a position absolutely.
+
+@item moveby(@var{+Lines},@var{+Positions})
+@kindex moveby/2
+Moves the current position relatively. Use negative arguments if
+movement is backwards and/or upwards.
+
+@item in(@var{+Spec}, @var{-Text})
+@kindex in/2
+Instantiates @var{Text} with a string made from the contents of the
+browser. @var{Spec} specifies the part of the text which is chosen:
+
+@table @code
+@item all
+The entire contents.
+
+@item selection
+The current selection.
+
+@item line(@var{+LineFrom},@var{+LineTo})
+Lines from @var{LineFrom} to @var{LineTo}.
+
+@item in(word, @var{-Text})
+The word at which the current position is pointing.
+
+@end table
+
+@cindex searching
+@item forwardsearch(@var{+Text})
+@kindex forwardsearch/1
+Searches for @var{Text} from the current position to the end of text.
+When a matching text is found, the current selection is set to the
+match.
+
+@item backwardsearch(@var{+Text})
+@kindex backwardsearch/1
+Searches for @var{Text} from the current position to the beginning of
+text. When a matching text is found, the current selection is set to
+the match.
+@end table
+
+
+@node Sliders, Get Event, Textbrowsers, GM
+@section Sliders
+@cindex slider
+
+A slider is very similar to a scrollbar but with the difference that
+it does not control any other object. Instead, the current value of
+the slider can be read from AKL. The slider may be set to generate
+an event when released.
+
+@noindent
+@i{Slider constructor}
+
+@table @code
+@item slider(@var{+Name})
+@kindex slider/1 (constructor)
+Constructs a horizontal slider for user value input. @var{Name} should
+be the text you want displayed in the sliding box.
+
+@end table
+
+@noindent
+@i{Slider messages}
+
+@table @code
+@item value(@var{-Value})
+@kindex value/1
+Reads the slider value into @var{Value}. The value is a float between 0
+and 1.
+@end table
+
+
+@node Get Event, Event Format, Sliders, GM
+@section Getting events from the graphics manager
+@cindex Events
+
+Getting events from any of your AKL created windows is completely
+controlled from AKL. GM does not send anything to AKL if it is
+not asking for it. Instead, GM buffers all events that occurs in all
+the windows, and sends them over when AKL wants it to do that.
+
+@noindent
+@i{General agents for getting events}
+
+@table @code
+@findex getevent/1
+@item nextevent(@var{-Event})
+Reads an event from any of your AKL-created windows into
+@var{Event}. If no event has occurred, @var{Event} is unified to the
+atom @code{noevent}.
+
+@findex waitevent/1
+@item waitevent(@var{-Event})
+Waits for an event from any of your AKL-created windows. If no event
+has occurred, AKL suspends until next event occurs. See below for
+event formats.
+
+@end table
+
+@noindent
+@i{Window messages for getting events}
+
+@table @code
+@item nextevent(@var{-Event})
+@kindex nextevent/1
+Reads an event from a certain window into @var{Event}. If no event has
+occurred in that window, @var{Event} is unified to the atom @code{noevent}.
+
+@item waitevent(@var{-Event})
+@kindex waitevent/1
+Waits for an event from a certain window. If no event has occurred in
+that window, AKL suspends until something happens in that window.
+See below for event formats.
+
+@end table
+
+@cindex enable event
+Some objects must be @var{enabled} to be able to generate events.
+These are objects of types @code{view}, @code{text}, @code{input} and
+@code{slider}. They accept the following messages.
+
+@table @code
+@item enable
+@kindex enable/0
+Enables the object to generate events. An object is disabled by default.
+
+@item disable
+@kindex disable/0
+Disables the object from generating events.
+@end table
+
+@node Event Format, Error Report, Get Event, GM
+@section Event formats
+
+The event read into the @code{nextevent/1}/@code{waitevent/1} argument
+is a structure that has a format depending on the event type.  One
+common thing is that every event format contains a reference to the
+window it occurred in. Sometimes they also have a reference to the
+object itself that generated the event. These references can be used for
+further message sending to objects that are otherwise inaccessible.
+
+@table @code
+@item button(@var{+Window},@var{+Eventname})
+A button was pressed.
+
+@item menu(@var{+Window},@var{+Eventname})
+A menu item was chosen.
+
+@item return(@var{+Window},@var{+Browser},@var{+LineNo})
+A carriage return was entered in @var{Browser} at @var{LineNo}.
+
+@item return(@var{+Window},@var{+Input})
+A new string was entered in @var{Input}, marked by a carriage return or
+by clicking outside.
+
+@item down(@var{+Window},@var{+View},@var{+X},@var{+Y})
+Left mouse button was clicked at position (@var{X},@var{Y}) in the
+view @var{View}.
+
+@item down(@var{+Window},@var{+Browser},@var{+Line},@var{+Pos})
+Left mouse button was clicked at position (@var{Line},@var{Pos}) in the
+text browser @var{Browser}.
+
+@item slider(@var{+Window},@var{+Slider},@var{+Value})
+A slider was released with @var{Value} as resulting value.
+
+@item noevent
+No event has occurred. This event type is only possible with the
+@code{nextevent/1} command or window message.
+
+@end table
+
+@node Error Report,  , Event Format, GM
+@section Error reporting
+
+There are two kinds of messages to indicate problems:
+
+@itemize @bullet
+@item
+If there is an @emph{error} that the system can't recover from you will
+get an error message and the call will fail. If this will return
+you to the top level you have no reference any longer to the
+Graphic Manager and it will automatically clean up.
+
+@item
+Sending the wrong message to an object gives a @emph{warning} or an error
+depending on the message. Sending a @code{close} message to a button
+is wrong but is not harmful.
+@end itemize
+
+
+@comment @table @code@
+@comment item gm_error(@var{Goal}, @var{Message})
+@comment @findex gm_error/2 (exception message)
+@comment @var{Goal} is the goal where the error occurred and @var{Message} 
+@comment is an atom specifying the error.
+@comment @end table
+

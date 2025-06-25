@@ -1,0 +1,464 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% CONS_DELAY
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    
+%%%% cons_delay       guard cons have no reach yet
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    
+
+cons_delay([],_,_,Sub,C-Cx):- -> Sub=[],C=Cx.
+cons_delay([guard(N)|Ns],From,Dec,Sub,Cir):-
+   ->
+   Sub=[guard(N)|Sub1],
+   cons_delay(Ns,From,Dec,Sub1,Cir).
+cons_delay([cons(N)|Ns],From,Dec,Sub,C-Cx):-
+   ->
+   arg(N,From,States),
+   arg(N,Dec,Port),
+   send(get_block(Status),Port,_),
+   cons_delay_cons(States,Status,Port,C-C1),
+   cons_delay(Ns,From,Dec,Sub,C1-Cx).
+cons_delay([try(N)|Ns],From,Dec,Sub,Cir):-
+   ->
+   arg(N,Dec,Port),
+   send(get_block(Status),Port,_),
+   cons_delay_try(Status,N,Sub,Sub1),
+   cons_delay(Ns,From,Dec,Sub1,Cir).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    
+
+cons_delay_try(MyDec,_N,Sub,Sub1):-
+   MyDec=t(_,suspend(uncond),_)
+   ->
+   Sub=Sub1.
+cons_delay_try(MyDec,N,Sub,Sub1):-
+   MyDec=t(_,alias,_)
+   ->
+   Sub=[alias(N)|Sub1].
+cons_delay_try(MyDec,_N,Sub,Sub1):-
+   MyDec=t(_,try(_,_),_)
+   ->
+   Sub=Sub1.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    
+
+cons_delay_cons(States,t([X],constraint_stack,End),Port,Cir):-
+   X=constraint_stack_test(Regs,l(L))
+   ->
+   constraint_stack_char(States,Regs,Char,RedRegs),
+   delay_cons(Char,RedRegs,L,End,Port,Cir).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% delay_cons
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+delay_cons(dyn,_,L,End,Port,C-Cx):-
+   ->
+   C=Cx,
+   send(set_initial_reach(p([L],End)),Port,_).
+delay_cons(p(impossible,pass),_,_,End,Port,Cir):-
+   ->
+   send(set_block_initial_reach(Cir,t([],dummy,End),p([],End)),Port,_).
+delay_cons(p(impossible,jump),_,L,End,Port,Cir):-
+   ->
+   send(set_block_initial_reach(Cir,t([],dummy,goto(L)),p([],End)),Port,_).
+delay_cons(p(impossible,varied),RedRegs,L,End,Port,Cir):-
+   ->
+   send(set_block_initial_reach(Cir,t([constraint_stack_test(RedRegs,l(L))],constraint_stack,End),
+            p([L],End)),Port,_).
+delay_cons(p(impossible,pass),_,_,End,Port,Cir):-
+   ->
+   send(set_block_initial_reach(Cir,t([],dummy,End),p([],End)),Port,_).
+delay_cons(p(pass,pass),_,_,End,Port,Cir):-
+   ->
+   send(set_block_initial_reach(Cir,t([],dummy,End),p([],End)),Port,_).
+delay_cons(p(pass,jump),_,L,End,Port,Cir):-
+   ->
+   send(set_block_initial_reach(Cir,t([jump_on_nonempty_constraint_stack(l(L))],jump_cons,End),
+          p([L],End)),Port,_).
+delay_cons(p(pass,varied),RedRegs,L,End,Port,Cir):-
+   ->
+   send(set_block_initial_reach(Cir,t([constraint_stack_test(RedRegs,l(L))],constraint_stack,End),
+          p([L],End)),Port,_).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+   
+constraint_stack_char(States,Regs,Char,RedRegs):-
+    ->
+    state_split(States,_,States1),
+    constraint_regs(States1,SRegs,Flag),
+    constraint_stack_char1(Flag,SRegs,Regs,Char,RedRegs).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+constraint_stack_char1(dyn,_SRegs,_Regs,Char,_):- -> Char=dyn.
+constraint_stack_char1(static,SRegs,Regs,Char,RedRegs):- 
+    -> 
+    constraint_stack_char2(SRegs,impossible,impossible,Char,Regs,[],RedRegs).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+constraint_stack_char2([],E,NE,Char,_Regs,Acc,RedRegs):-
+    ->
+    Char=p(E,NE),RedRegs=Acc.
+constraint_stack_char2([[]|SRegs],_,NE,Char,Regs,Acc,RedRegs):-
+    ->
+    constraint_stack_char2(SRegs,pass,NE,Char,Regs,Acc,RedRegs).
+constraint_stack_char2([S|SRegs],E,NE,Char,Regs,Acc,RedRegs):-
+    ->
+    intersection(S,Regs,I),
+    constraint_stack_char3(I,SRegs,E,NE,Char,Regs,Acc,RedRegs).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+constraint_stack_char3([],SRegs,E,NE,Char,Regs,Acc,RedRegs):-
+    ->
+    ne_pass(NE,NE1),
+    constraint_stack_char2(SRegs,E,NE1,Char,Regs,Acc,RedRegs).
+constraint_stack_char3(R,SRegs,E,NE,Char,Regs,Acc,RedRegs):-
+    ->
+    add_to_set(R,Acc,Acc1),
+    ne_jump(NE,NE1),
+    constraint_stack_char2(SRegs,E,NE1,Char,Regs,Acc1,RedRegs).
+
+add_to_set([],Acc,Acc1):- -> Acc1=Acc.
+add_to_set([R|Regs],Acc,Acc1):- member(R,Acc) -> add_to_set(Regs,Acc,Acc1).
+add_to_set([R|Regs],Acc,Acc1):- -> add_to_set(Regs,[R|Acc],Acc1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+ne_pass(impossible,Out):- -> Out=pass.
+ne_pass(pass,Out):-       -> Out=pass.
+ne_pass(jump,Out):-       -> Out=varied.
+ne_pass(varied,Out):-     -> Out=varied.
+
+ne_jump(impossible,Out):- -> Out=jump.
+ne_jump(pass,Out):-       -> Out=varied.
+ne_jump(jump,Out):-       -> Out=jump.
+ne_jump(varied,Out):-     -> Out=varied.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% constraint_regs
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+constraint_regs(States,_Regs,Flag):-
+    dyn_cr(States)
+    ->
+    Flag=dyn.
+constraint_regs(States,Regs,Flag):-
+    ->
+    Flag=static,
+    constraint_regs0(States,Regs).
+
+dyn_cr([dyn(_)|_]):- -> true.
+dyn_cr([_|S]):- -> dyn_cr(S).
+
+constraint_regs0([],Regs):-  -> Regs=[].
+constraint_regs0([static(S)|Ss],Regs):- 
+    ->
+    Regs=[R|Regs1],
+    constraint_regs_state(S,R),
+    constraint_regs0(Ss,Regs1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+constraint_regs_state([],Regs):- -> Regs=[].
+constraint_regs_state([Try|Tries],Regs):- 
+    ->
+    classify_try_instr(Try,TClass),
+    constraint_regs_state1(TClass,Try,Tries,Regs).
+
+constraint_regs_state1(ord,Try,Tries,Regs):- 
+    -> 
+    try_get_reg(Try,Reg),
+    Regs=[Reg|Regs1],
+    constraint_regs_state(Tries,Regs1).
+constraint_regs_state1(Class,_,Tries,Regs):- 
+   flat_member(Class,[test,simp,back])
+    -> 
+   constraint_regs_state(Tries,Regs).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%  DEC OPT LAST VAR
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dec_opt_last_var(_Mode,0,_From,_Jump,GD,C-Cx):-
+    ->
+    GD=[],C=Cx.
+dec_opt_last_var(Mode,N,From,Jump,GD,Cir):-
+    ->
+    arg(N,Jump,P),
+    send(get_block(Code),P,_),
+    dec_opt_last_var2(Mode,Code,P,N,From,Jump,GD,Cir).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dec_opt_last_var2(Mode,Code,Port,N,From,Jump,GD,C-Cx):-
+    Code=t([X|Xs],Ch,End),Ch=choice(_)
+    ->
+    dec(N,N1),
+    send(set_block_initial_reach(C-C1,t([X1|Xs],Ch,End),p([],End)),Port,_),
+    opt_mode_arity(Mode,Arity),
+    dec_opt_choice(X,Arity,X1),
+    dec_opt_last_var(Mode,N1,From,Jump,GD,C1-Cx).
+dec_opt_last_var2(Mode,Code,Port,N,From,Jump,GD,C-Cx):-
+    Code=t(Try,Ch,End),Ch=try(deep,_)
+    ->
+    send(set_block_initial_reach(C-C1,t(Try1,Ch,End),p(MyReach,End)),Port,_),
+    deep_try_reach(Try,Try1,MyReach),
+    dec(N,N1),
+    dec_opt_last_var(Mode,N1,From,Jump,GD,C1-Cx).
+dec_opt_last_var2(Mode,Code,Port,N,From,Jump,GD,Cir):-
+    Code=t(Try,try(back,_),End)
+    ->
+    Try=[back(l(L))],
+    send(set_initial_reach(p([L],End)),Port,_),
+    dec(N,N1),
+    dec_opt_last_var(Mode,N1,From,Jump,GD,Cir).
+dec_opt_last_var2(Mode,Code,Port,N,From,Jump,GD,C-Cx):-
+    Code=t(_,try(K,_),_),
+    flat_member(K,[ord,test,simp])
+    ->
+    arg(N,From,MyFrom),
+    send(set_block_initial_reach(C-C1,MyDec,MyReach),Port,_),
+    dec_opt_try(MyFrom,Mode,Code,MyDec,MyReach),
+    dec(N,N1),
+    GD=[try(N)|GD1],
+    dec_opt_last_var(Mode,N1,From,Jump,GD1,C1-Cx).
+dec_opt_last_var2(Mode,Code,_Port,N,From,Jump,GD,Cir):-
+    Code=t(_,constraint_stack,_)
+    ->
+    GD=[cons(N)|GD1],
+    dec(N,N1),
+    dec_opt_last_var(Mode,N1,From,Jump,GD1,Cir).
+dec_opt_last_var2(Mode,Code,Port,N,From,Jump,GD,C-Cx):-
+    Code=t([X],guard(flat),End)
+    ->
+    GD=[guard(N)|GD1],
+    dec(N,N1),
+    send(set_block(C-C1,t([X1],guard(flat),End)),Port,_),
+    opt_mode_arity(Mode,Arity),
+    dec_opt_guard1(X,Arity,X1),
+    dec_opt_last_var(Mode,N1,From,Jump,GD1,C1-Cx).
+dec_opt_last_var2(Mode,Code,Port,N,From,Jump,GD,C-Cx):-
+    Code=t([X],guard(short),End)
+    ->
+    dec(N,N1),
+    arg(1,X,l(L)),
+    send(set_block_initial_reach(C-C1,t([X1],guard(short),End),p([L],End)),Port,_),
+    dec_opt_shortcut(X,X1),
+    dec_opt_last_var(Mode,N1,From,Jump,GD,C1-Cx).
+dec_opt_last_var2(Mode,Code,Port,N,From,Jump,GD,C-Cx):-
+    Code=t([X],end(_),stop),
+    flat_member(X,[bexecute(F,A),bexecute_simple(F,A)]),
+    opt_mode_arity(Mode,A),
+    opt_mode_functor(Mode,F)
+    ->
+    extra(execute_jump,Code,N),
+    dec(N,N1),
+    send(set_block_initial_reach(C-C1,t([X1],jump_gc,stop),p([1],stop)),Port,_),
+    execute_jump_instr(X,X1),
+    dec_opt_last_var(Mode,N1,From,Jump,GD,C1-Cx).
+dec_opt_last_var2(Mode,Code,Port,N,From,Jump,GD,Cir):-
+    ->
+    extra(default,Code,N),
+    code_get_reach(Code,R),
+    send(set_initial_reach(R),Port,_),
+    dec(N,N1),
+    dec_opt_last_var(Mode,N1,From,Jump,GD,Cir).
+
+extra(_,_,_):- -> true.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+execute_jump_instr(bexecute(_,_),jump_gc_and_dump_cont(l(1))).
+execute_jump_instr(bexecute_simple(_,_),jump_gc(l(1))).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dec_opt_choice(X,Arity,X1):- 
+    ->
+    functor(X1,X,1),
+    arg(1,X1,Arity).
+
+dec_opt_guard1(flat_quiet_cut(_),Arity,Out):-    -> Out=flat_quiet_cut(l(1),Arity).
+dec_opt_guard1(flat_quiet_commit(Live),Arity,Out):- -> Out=flat_quiet_commit(l(1),Arity,Live).
+dec_opt_guard1(flat_noisy_wait(Live),Arity,Out):-   -> Out=flat_noisy_wait(l(1),Arity,Live).
+
+dec_opt_shortcut(shortcut_quiet_cut(X,_),Out):-    -> Out=shortcut_quiet_cut(X).
+dec_opt_shortcut(shortcut_quiet_commit(X,_),Out):- -> Out=shortcut_quiet_commit(X).
+dec_opt_shortcut(shortcut_noisy_wait(X,_),Out):-   -> Out=shortcut_noisy_wait(X).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% deep_try_reach
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+deep_try_reach([],NTry,Reach):- -> Reach=[],NTry=[].
+deep_try_reach([gen_try(l(L),Live)|Xs],NTry,Reach):-
+    ->
+    final_live_calc(Live,Live1),
+    Reach=[L|Reach1],
+    NTry=[gen_try(l(L),Live1)|NTry1],
+    deep_try_reach(Xs,NTry1,Reach1).
+deep_try_reach([gen_trust(_)|Xs],NTry,Reach):-
+    ->
+    NTry=[gen_trust|NTry1],
+    deep_try_reach(Xs,NTry1,Reach).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% code_get_reach
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+code_get_reach(t(Code,_,End),Reach):-
+    -> 
+    Reach=p(R,End),
+    find_end_list(Code,Last),
+    classify_instr(Last,Class),
+    last_reach(Class,Last,R).
+	
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+last_reach(Class,_,Reach):- 
+    flat_member(Class,[guard(_),read(_),ord(_),end(_),h_match(_),push(_),spec(call)])
+    -> 
+    Reach=[].
+last_reach(constraint_stack,constraint_stack_test(_,l(L)),Reach):- -> Reach=[L].
+last_reach(branch(_,_,_),Instr,Reach):- -> branch_get_all_jumps(Instr,Reach).
+last_reach(write_exit(_),jump(l(L)),Reach):- -> Reach=[L].
+last_reach(write_exit(_),test_level(_,l(L)),Reach):- -> Reach=[L].
+last_reach(block,block(_,N,X),Reach):- integer(N)-> block_reach(X,Reach).
+last_reach(block,block(_,instr,_),Reach):- -> Reach=[].
+last_reach(jump_match(_,N),Instr,Reach):-
+     ->
+     arg(N,Instr,l(R)),Reach=[R].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+block_reach([],Reach):- -> Reach=[].
+block_reach([list(l(X))|Xs],Reach):- 
+     -> 
+     Reach=[X|Reach1],
+     block_reach(Xs,Reach1). 
+block_reach([struct(l(X))|Xs],Reach):- 
+     -> 
+     Reach=[X|Reach1],
+     block_reach(Xs,Reach1). 
+block_reach([reg(_,X)|Xs],Reach):- 
+     -> 
+     block_reach([X|Xs],Reach). 
+block_reach([X|Xs],Reach):- 
+     flat_member(X,[reg(_),typed(_),constant(_),functor(_,_),void])
+     ->
+     block_reach(Xs,Reach).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% GUARD DELAY  
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    
+%%%% guard_delay
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    
+
+guard_delay([],_,_,C-Cx):- -> C=Cx.
+guard_delay([guard(N)|Ns],From,Dec,C-Cx):-
+   ->
+   arg(N,From,States),
+   arg(N,Dec,Port),
+   guard_delay_gd(States,Port,C-C1),
+   guard_delay(Ns,From,Dec,C1-Cx).
+guard_delay([alias(N)|Ns],From,Dec,C-Cx):-
+   ->
+   arg(N,From,States),
+   arg(N,Dec,Port),
+   send(get_block(Status),Port,_),
+   state_split(States,_,States1),
+   guard_delay_alias(States1,Status,Port,Dec,C-C1),
+   guard_delay(Ns,From,Dec,C1-Cx).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    
+
+guard_delay_gd([state([])],Port,Cir):-
+   ->
+   send(get_block(t(_,_,End)),Port,_),
+   send(set_block_initial_reach(Cir,t([],dummy,End),p([],End)),Port,_).
+guard_delay_gd(_States,Port,C-Cx):-
+   ->
+   C=Cx,
+   send(get_block(t(_,_,End)),Port,_),   
+   send(set_initial_reach(p([1],End)),Port,_).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    
+
+guard_delay_alias(States,Code,Port,Jump,Cir):-
+   bindings_stack(States,BStack)
+   ->
+   guard_delay_alias0(BStack,Code,Port,Jump,Cir).
+guard_delay_alias(_States,_Code,_Port,_Jump,C-Cx):-
+   ->
+   C=Cx.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    
+
+guard_delay_alias0(States,t([alias_check|Xs],alias,End),Port,Jump,Cir):-
+   ->
+   check_aliases_back(States,Jump,Flag),
+   guard_delay_alias1(Flag,States,Xs,End,Port,Jump,Cir).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    
+
+guard_delay_alias1(no_alias_check,States,[X|Xs],End,Port,Jump,Cir):-
+   X=alias_check(Reg,Bind)
+   ->
+   check_aliases_first(Bind,States,Jump,Flag),
+   guard_delay_alias2(Flag,alias_check(Reg,Bind),Xs,End,Port,Cir).
+guard_delay_alias1(no_alias_check,_States,Xs,End,Port,_Jump,Cir):-
+   Xs=[X|_],classify_instr(X,Class)
+   ->
+   send(set_block(Cir,t(Xs,Class,End)),Port,_).
+guard_delay_alias1(alias_check,States,[X|Xs],End,Port,Jump,Cir):-
+   X=alias_check(Reg,Bind)
+   ->
+   check_aliases_first(Bind,States,Jump,Flag),   
+   guard_delay_alias3(Flag,alias_check(Reg,Bind),Xs,End,Port,Cir).   
+guard_delay_alias1(alias_check,_States,Xs,End,Port,_Jump,Cir):-
+   Xs=[X|_],classify_instr(X,Class)
+   ->
+   send(set_block(Cir,t(Xs,Class,End)),Port,_).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+guard_delay_alias2(false,alias_check(Reg,_),Xs,End,Port,Cir):-
+   ->
+   send(set_block(Cir,t([fail_on_alias(Reg)|Xs],alias,End)),Port,_).
+guard_delay_alias2(Flag,_,Xs,End,Port,Cir):-
+   flat_member(Flag,[true,beg]),
+   Xs=[X|_],classify_instr(X,Class)
+   ->
+   send(set_block(Cir,t(Xs,Class,End)),Port,_).
+guard_delay_alias2(dont_know,X,Xs,End,Port,Cir):-
+   ->
+   send(set_block(Cir,t([X|Xs],alias,End)),Port,_).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+guard_delay_alias3(false,alias_check(Reg,_),Xs,End,Port,Cir):-
+   ->
+   send(set_block(Cir,t([alias_check,fail_on_alias(Reg)|Xs],alias,End)),Port,_).
+guard_delay_alias3(true,_,Xs,End,Port,Cir):-
+   ->
+   send(set_block(Cir,t([alias_check|Xs],alias,End)),Port,_).
+guard_delay_alias3(dont_know,X,Xs,End,Port,Cir):-
+   ->
+   send(set_block(Cir,t([alias_check,X|Xs],alias,End)),Port,_).
+
+

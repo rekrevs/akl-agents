@@ -1,0 +1,28 @@
+append([],L2,L3):- -> L2=L3.
+append([H|T],List1,List2):- -> List2=[H|List3],append(T,List1,List3).
+
+nreverse([],R):- -> R=[].
+nreverse([H|T],R):- -> nreverse(T,RT),append(RT,[H],R).
+
+qsort(L1,L2):- -> qsort(L1,L2,[]).
+
+qsort([],B,E):- -> B=E.
+qsort([X|Xs],B,E):- -> part(X,Xs,Lit,Big),qsort(Lit,B,B1),B1=[X|B2],qsort(Big,B2,E).
+
+
+part(_,[],Littles,Bigs):- -> Littles=[],Bigs=[].
+part(X,[Y|Ys],Littles,Bigs):- 
+   int_not_greater(X,Y)
+   -> 
+   Littles=[Y|Littles1],
+   part(X,Ys,Littles1,Bigs).
+part(X,[Y|Ys],Littles,Bigs):- 
+   int_greater(X,Y)
+   -> 
+   Bigs=[Y|Bigs1],
+   part(X,Ys,Littles,Bigs1).
+
+
+
+
+

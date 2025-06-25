@@ -1,0 +1,24 @@
+1.1_JOBS
+
+This file is a catalog of jobs proposed for AGENTS 1.1.  Each entry
+has the form
+
+WHAT: <title>  WHO: <name(s)>  WHEN: <date(s)>
+
+optionally followed by further information about the job.  <name(s)>
+is who has accepted responsibility for the job so far.  <date(s)> is
+their estimate of by when the job might be finished.
+
+*******************************************************************************
+
+WHAT: Integrate New Compiler  WHO: perbrand  WHEN: ???
+
+*******************************************************************************
+
+WHAT: Integrate Debugging with Compilation  WHO: perbrand  WHEN: ???
+
+There should be a single executable agents supporting compilation with
+last call optimization (as in the current oakl) or with debugging (as
+in the current akl).  Flat guard and register allocation optimizations
+should be packaged coherently as well.
+

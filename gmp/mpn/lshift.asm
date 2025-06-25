@@ -1,0 +1,1 @@
+.././mpn/sparc32/lshift.asm

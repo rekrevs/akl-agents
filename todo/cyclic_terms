@@ -1,0 +1,14 @@
+$Id: cyclic_terms,v 1.4 1994/04/13 13:04:32 bd Exp $
+
+Unify should be modified (a'la SICStus) to deal
+correctly with cyclic data-structures. The solution
+should also encompass generic objects.
+
+The machinery is now in place. There is a special callback protocol for
+generic objects that need to detect cycles, see comments in unify.c.
+
+Printing of cyclic structures is implemented by registering visited
+pointers in a hash table associated with the stream. This is a temporary
+solution: ideally, cycle detection should be done by an object-to-meta
+translator, and writing agents should work with the meta-level representation.
+

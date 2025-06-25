@@ -1,0 +1,264 @@
+% $Id: knights.akl,v 1.21 1994/04/05 12:13:30 jm Exp $
+
+knights:- 
+	format('THE KNIGHTS TOUR~n~n'),
+        format('This demonstration shows that there are a lot of~n'),
+	format('deterministic steps in a nondeterminstic puzzle.~n~n'),
+	format('Try knights(5), knights(6) or all(5).~n').
+
+knights(N):- 
+	statistics(runtime,_),
+	statistics(nondet,_),
+	knights(N,B)
+    ->	statistics(runtime,[_,Time]),
+	statistics(nondet,[_,Steps]),
+	display_board(N,B),
+	format('~n Solved in ~w msec. using ~w nondeterministic steps.~n',
+		[Time,Steps]).
+
+all(N):-
+	statistics(runtime,_),
+	statistics(nondet,_),
+	numberof(B\knights(N,B), Sol)
+    ->	statistics(runtime,[_,Time]),
+	statistics(nondet,[_,Steps]),
+	format('~n~w solutions in ~w msec. using ~w nondeterministic steps.~n',
+		[Sol,Time,Steps]).
+
+knights(N,Board) :- 
+	L is N*N,
+	make_board(N,Board),		  % make N x N chessboard Board
+	make_tiles(L,Tiles),              % make L tiles 
+	square(Board,L,N,N),		  % mark square (N,N) with move L
+	tile(L,N,N,Tiles),                % mark move L with square (N,N)
+	N1 is N-1,
+	tour(Board,Tiles,L,N,N),          % try to find a tour,
+					  % start with L in (N,N)
+	constraints(N1,N,N,Board,Tiles).  % place a constraint on each square
+
+
+tour(_,_,1,_,_):-
+    ->	true.              		% we'r home
+tour(B,T,N,I,J):-                       % we'r standing 
+	integer(I),
+	integer(J),
+	N > 1		                % in move N
+    ->	N2 is N-1,			% next move
+	neighbour(I,J,B,pos(N2,I2,J2)), % a neighbouring square
+	tile(N2,I2,J2,T),               % mark the tile as used
+	tour(B,T,N2,I2,J2).		% and find the rest of the tour
+
+constraints(I,J,N,Board,Tiles):-
+	I > 0,
+	J > 0
+    ->	I1 is I-1,
+	constrain(I,J,Board,Tiles),
+	constraints(I1,J,N,Board,Tiles).
+constraints(0,J,N,Board,Tiles):-
+	J > 1
+    ->	J1 is J-1,
+	constraints(N,J1,N,Board,Tiles).
+constraints(0,1,_N,_Board,_Tiles):-
+    ->	true.
+
+
+constrain(I,J,Board,Tiles):-
+	neighbours(Neighbours,I,J,Board)
+    ?	square(Board,P,I,J),
+	open_port(Port,Stream),
+	spawn(Neighbours,L,Port),
+	wait(L,Stream,pos(P,I,J),Tiles,Board).
+
+spawn([],L,_P):-
+    ->	L = 0.
+spawn([P|R],L,Port):-
+    ->	monitor(P,Port),
+	spawn(R,L1,Port),
+	L is L1+1.
+
+monitor(pos(P,_,_),Port):-
+	data(P)
+    |	P@Port.
+
+
+wait(2,[_|_R],Pos,Tiles,Board):-
+    -> 
+%	check(R),
+	controller(Pos,Tiles,Board).
+wait(L,[_|R],Pos,Tiles,Board):-
+	L > 2
+    ->	L1 is L-1,
+	wait(L1,R,Pos,Tiles,Board).
+
+check([]):-
+    ->	true.
+check([_|R]):-
+    ->	check(R).
+
+% Notice the use of deep guards to localy prune the search 
+
+controller(pos(1,I,J),Tiles,Board):-
+	tile(1,I,J,Tiles),
+	neighbour(I,J,Board,pos(2,I2,J2)),
+	tile(2,I2,J2,Tiles)
+    ?	true.
+controller(pos(P,I,J),Tiles,Board):-
+	next(P0,P),
+	next(P,P1),
+	neighbour(I,J,Board,pos(P0,I0,J0)),
+	neighbour(I,J,Board,pos(P1,_I2,_J2)),
+	dif(P0,P1),
+	tile(P,I,J,Tiles), 
+	tile(P0,I0,J0,Tiles), 
+	tile(P1,_I1,_J1,Tiles)
+    ?	true.
+
+
+
+neighbours(Neighbours,I,J,Board):- 
+  %	N0 = [],
+	Im1 is I-1,
+	Jm2 is J-2,
+	addsquare([],N1,Board,Im1,Jm2),
+	Im2 is I-2,
+	Jm1 is J-1,
+	addsquare(N1,N2,Board,Im2,Jm1),
+	Jp2 is J+2,
+	addsquare(N2,N3,Board,Im1,Jp2),
+	Jp1 is J+1,
+	addsquare(N3,N4,Board,Im2,Jp1),
+	Ip1 is I+1,
+	addsquare(N4,N5,Board,Ip1,Jm2),
+	Ip2 is I+2,
+	addsquare(N5,N6,Board,Ip2,Jp1),
+	addsquare(N6,N7,Board,Ip1,Jp2),
+	addsquare(N7,N8,Board,Ip2,Jm1),
+	Neighbours = N8.
+	
+addsquare(N,N1,B,I,J) :-
+	square(B,P,I,J)
+    ->	N1 = [pos(P,I,J)|N].
+addsquare(N,N1,_B,_I,_J) :-
+    ->	N1 = N.
+
+neighbour(I,J,B,pos(N,I2,J2)):-
+	I2 is I-1,
+	J2 is J-2,
+	square(B,N,I2,J2)
+    ?	true.
+neighbour(I,J,B,pos(N,I2,J2)):-
+	I2 is I-2,
+	J2 is J-1,
+	square(B,N,I2,J2)
+    ?	true.
+neighbour(I,J,B,pos(N,I2,J2)):-
+	I2 is I-1,
+	J2 is J+2,
+	square(B,N,I2,J2)
+    ?	true.
+neighbour(I,J,B,pos(N,I2,J2)):-
+	I2 is I-2,
+	J2 is J+1,
+	square(B,N,I2,J2)
+    ?	true.
+neighbour(I,J,B,pos(N,I2,J2)):-
+	I2 is I+1,
+	J2 is J+2,
+	square(B,N,I2,J2)
+    ?	true.
+neighbour(I,J,B,pos(N,I2,J2)):-
+	I2 is I+2,
+	J2 is J+1,
+	square(B,N,I2,J2)
+    ?	true.
+neighbour(I,J,B,pos(N,I2,J2)):-
+	I2 is I+1,
+	J2 is J-2,
+	square(B,N,I2,J2)
+    ?	true.
+neighbour(I,J,B,pos(N,I2,J2)):-
+	I2 is I+2,
+	J2 is J-1,
+	square(B,N,I2,J2)
+    ?	true.
+
+
+next(P0,P1):- data(P0) | P1 is P0+1.
+next(P0,P1):- data(P1) | P0 is P1-1.
+
+% The tiles mapps moves to squares
+
+make_tiles(N,Tiles):- 
+	functor_to_term(tiles, N,Tiles),
+	make_tiles2(N,Tiles).
+
+make_tiles2(0,_) :-
+    ->	true.
+make_tiles2(N,Tiles) :-
+	N > 0
+    ->	arg(N,Tiles,t(_,_)),
+	N1 is N-1,
+	make_tiles2(N1,Tiles).
+
+tile(N,I,J,Tiles):-
+	arg_protected(N,Tiles,t(I,J)).
+
+% The board maps squares to moves
+
+make_board(N,B) :-
+	functor_to_term(a,N,B),
+	make_rows(N,N,B).
+
+make_rows(0,_,_):-
+    ->	true.
+make_rows(C,N,B) :-
+	C > 0
+    -> 	functor_to_term(r,N,F),			
+	arg(C,B,F),			
+	C2 is C-1,
+	make_rows(C2,N,B).
+
+square(B,N,I,J) :-
+    |	arg_protected(I,B,R),			
+	arg_protected(J,R,N).			
+
+arg_protected(I,B,R):-
+	term_to_functor(B, _, Max),
+	I =< Max, I > 0
+    ->	arg(I, B, R).
+
+
+
+% Display the board
+
+display_board(N,B):- 
+	format('~n'),
+	display_rows(N,N,B),
+	format('~n').
+
+display_rows(0,_,_) :-
+    ->	true.
+display_rows(N,R,B) :-
+	N > 0
+    ->	arg(N,B,Row),
+	format('  '),
+	display_row(R,Row),
+	format('~n'),
+	N1 is N-1,
+	display_rows(N1,R,B).
+
+display_row(0,_) :-
+    ->	true.
+display_row(N,R) :-
+	N > 0
+    ->	arg(N,R,A),
+	display_jump(A),
+	N1 is N-1,
+	display_row(N1,R).
+
+display_jump(A):-
+	A < 10
+    ->	format('  ~w ',[A]).
+display_jump(A):-
+	A > 9
+    ->	format(' ~w ',[A]).

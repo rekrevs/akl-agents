@@ -1,0 +1,223 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%	       Stage 1
+%%%    1)  Flatten conjunctions
+%%%    2)  Divide into indexing_guard,deep_guard,guard_operator,body
+%%%    3)  Collect definitions into list of predicate structures
+%%%    4)  Collect non-predicate based compiler directives into list
+%%%    5)  Syntax control
+%%%        a) different guard operators
+%%%        b) loose terms
+%%%
+%%%    After this stage no syntax control of predicate definitons - 
+%%%      only warnings (redefinition,singleton variables,etc.)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+stage_1([],Preds,Direct):- -> Preds=[],Direct=[].
+stage_1([Term|Terms],Preds,GlobDirect):-
+   ->
+   flatten_clause(Term,C,Id),
+   stage_1_cont(Id,C,Terms,Preds,GlobDirect).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+stage_1_cont(directive(D),_,Terms,Preds,GlobDirect):-
+   -> 
+   D=struct(F,A,_),
+   stage_1_dir(Terms,F,A,Preds,GlobDirect,[D]).
+stage_1_cont(ignore,_,Terms,Preds,GlobDirect):-
+   -> 
+   stage_1(Terms,Preds,GlobDirect).
+stage_1_cont((F,A,Q_GOp),Clause,Terms,Preds,GlobDirect):-
+   -> 
+   initial_guard_operator(Q_GOp,GOp),
+   Preds=[pred(F,A,GOp,[],[Clause|MoreClauses])|MorePreds],
+   stage_1_pred(Terms,F,A,GOp,MoreClauses,MorePreds,GlobDirect).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+stage_1_pred([],_,_,_,Clauses,Preds,GlobDirect):-
+   -> 
+   Clauses=[],
+   Preds=[],
+   GlobDirect=[].
+stage_1_pred([Term|Terms],F,A,GOp,Clauses,Preds,GlobDirect):-
+   -> 
+   flatten_clause(Term,C,Id),
+   stage_1_pred_cont(Id,C,F,A,GOp,Clauses,Terms,Preds,GlobDirect).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+stage_1_pred_cont(directive(D),_,F,A,GOp,Clauses,Terms,Preds,GlobDirect):-
+   -> 
+   D=struct(DF,DA,DArgs),
+   Clauses=[],
+   stage_1_dir(Terms,DF,DA,Preds,GlobDirect,[D]).
+stage_1_pred_cont(ignore,_,F,A,GOp,Clauses,Terms,Preds,GlobDirect):-
+   -> 
+   stage_1_pred(Terms,F,A,GOp,Clauses,Preds,GlobDirect).
+stage_1_pred_cont((F,A,Q_GOp),Clause,F,A,GOp,Clauses,Terms,Preds,GlobDirect):-
+   cont_guard_operator(Q_GOp,GOp)
+   -> 
+   Clauses=[Clause|MoreClauses],
+   stage_1_pred(Terms,F,A,GOp,MoreClauses,Preds,GlobDirect).
+stage_1_pred_cont((F,A,_),_,F,A,GOp,Clauses,Terms,Preds,GlobDirect):-
+   -> 
+   syntax_error(['incorrect guard operator in predicate',F,'/',A,
+		 'clause ignored']),
+   stage_1_pred(Terms,F,A,GOp,MClauses,Preds,GlobDirect).
+stage_1_pred_cont((NF,NA,NGOp),Clause,F,A,GOp,Clauses,Terms,Preds,GlobDirect):-
+   -> 
+   Clauses=[],
+   initial_guard_operator(NGOp,NNGOp),
+   Preds=[pred(NF,NA,NNGOp,[],[Clause|MoreClauses])| MorePreds],
+   stage_1_pred(Terms,NF,NA,NGOp,MoreClauses,MorePreds,GlobDirect).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+stage_1_dir([],_,_,Preds,GlobDirect,D):-
+   -> 
+   GlobDirect=D,
+   Preds=[].
+stage_1_dir([Term|Terms],F,A,Preds,GlobDirect,D):-
+   -> 
+   flatten_clause(Term,C,Id),
+   stage_1_dir_cont(Id,C,F,A,Terms,Preds,GlobDirect,D).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+stage_1_dir_cont(ignore,_,F,A,Terms,Preds,GlobDirect,D):-
+   -> 
+   stage_1_dir(Terms,F,A,Preds,GlobDirect,D).
+stage_1_dir_cont(directive(D1),_,F,A,Terms,Preds,GlobDirect,D):-
+   D1=struct(F,A,_)
+   -> 
+   stage_1_dir(Terms,F,A,Preds,GlobDirect,[D1|D]).
+stage_1_dir_cont(directive(D1),_,F,A,Terms,Preds,GlobDirect,D):-
+   -> 
+   GlobDirect=[directive(D)|DirectRest],
+   stage_1_dir(Terms,F,A,Preds,DirectRest,[D1]).
+stage_1_dir_cont((F,A,GOp),Clause,F,A,Terms,Preds,GlobDirect,D):-
+   -> 
+   initial_guard_operator(Q_GOp,GOp),
+   Preds=[pred(F,A,GOp,D,[Clause|MoreClauses])|MorePreds],
+   stage_1_pred(Terms,F,A,GOp,MoreClauses,MorePreds,Direct).
+stage_1_dir_cont((PF,PA,GOp),Clause,F,A,Terms,Preds,GlobDirect,D):-
+   -> 
+   initial_guard_operator(Q_GOp,GOp),
+   Preds=[pred(PF,PA,GOp,[],[Clause|MoreClauses])|MorePreds],
+   GlobDirect=[directive(D)|MoreDirect],
+   stage_1_pred(Terms,F,A,GOp,MoreClauses,MorePreds,MoreDirect).
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%	 		Stage 2
+%%%    pred(Functor,Arity,GuardOperator,Directives,
+%%%                [FirstClause|MoreClauses])
+%%%    Clause=clause(Head,Unify_Guard,Flat_Guard,Deep_Guard,
+%%%                   Unify_Body,Flat_Body,Deep_Body)
+%%%
+%%%     1) Warnings 
+%%%        a) Singleton variables (made anonymous)
+%%%        b) FUTURE: Non-singleton named anonymous variables
+%%%        c) Unnatural constructions (mainly =)
+%%%        d) Warnings (statically true or false indexing guard goals)
+%%%     2) Variables collected in database with
+%%%        a) occurrences
+%%%
+%%%    Clause=clause(Head,Indexing_Goals,Guard_Goal_Blocks
+%%%             Body_Goal_Blocks,B_Inline,Database)
+%%%
+%%%       where Indexing_Goals = Simple_Unification,Simple_Non_Unfication,
+%%%                            Complex_Unification,Complex_Non_Unification,
+%%%             Guard_Goal_Blocks = List of GTriplets
+%%%             Guard_Goal_Blocks = List of BTriplets
+%%%             GTriplet = g(List of Unify Goals,List of Flat_nonunify goals,
+%%%                        Goal)
+%%%             BTriplet = b(List of Unify Goals,List of Flat_nonunify goals,
+%%%                        Goal)
+%%%             B_Inline = first body occurrence 
+%%%             Flat_Guard_Goals =  Dont_Care Unification,Dont_Care_Non_Unifi
+%%%             Body_Flat_Goals = Unfiication_Goals, Non_Unification_Goals
+%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+   
+stage_2([],Out):-
+   -> Out=[].
+stage_2([Pred|MorePreds],P):-
+   -> 
+   P=[NPred|NMorePreds],
+   stage_2_pred(Pred,NPred),
+   stage_2(MorePreds,NMorePreds).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+stage_2_pred(pred(F,Arity,GOp,Directives,Clauses),Pred):-
+   -> 
+   Pred=pred(F,Arity,GOp,Directives,NClauses),
+   trans_clauses(Clauses,NClauses,warn(F,Arity,1)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+trans_clauses([],NewClauses,_):-
+   -> 
+   NewClauses=[].
+trans_clauses([Clause|MoreClauses],NewClauses,Warn):-
+   Warn=warn(F,A,ClNo)
+   -> 
+   NewClauses=[NewClause|MoreNewClauses],
+   trans_clause(Clause,NewClause,Warn),
+   (NewClause=fail-> trans_clauses(MoreClauses,NewClauses,Warn);
+   inc(ClNo,ClNo1),
+   Warn1=warn(F,A,ClNo1),
+   trans_clauses(MoreClauses,MoreNewClauses,Warn1)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%       stage_3
+%%%
+%%%  
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+stage_3([],Out):- -> Out=[].
+stage_3([Pred|MorePreds],Out):-
+   -> 
+   Out=[Out1|Out2],
+   stage_3_pred(Pred,Out1),
+   stage_3(MorePreds,Out2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+stage_3_pred(Pred,Out):-
+   Pred=pred(F,Arity,GoP,Directives,Clauses)
+   ->
+   calc_mode(GoP,Directives,Mode),
+   pred_compile(Clauses,Mode,Arity,Code),
+   Out=pred(F,Arity,Mode,CodeX),
+   flatten_list_label(Code,1,CodeX,_).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%       last var opt
+%%%
+%%%  
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+last_var_opt([],_,Out):- -> Out=[].
+last_var_opt([pred(F,A,Mode,Code)|Pred],OptFlags,Out):-
+    ->
+    dec_optimize(Code,OptFlags,Mode,F,A,Code1),
+    Out=[pred(F,A,Mode,Code1)|Out1],
+    last_var_opt(Pred,OptFlags,Out1).
+   
+

@@ -1,0 +1,122 @@
+% inline consistency compilation of linear constraints 
+% by Mats Carlsson and Bjorn Carlson
+% :- load(fd_arith_compile).
+
+% S+C Rel T+D
+% S and T are linear sums of positive coefficients.
+% C and D are constants.
+fd_inline_compile(S, C, T, D, Rel, N)-Code :-
+    ->	fd_collect_indexicals(S, C, T, D, Rel, L),
+	[struct(fd,N,L)]-Code.
+
+fd_collect_indexicals(S, C, T, D, Rel, L) :-
+    ->	C=struct(C0,_,_),
+	D=struct(C1,_,_),
+	C2 is C1-C0,
+	add_op(C2, Op0, Con),
+	fd_collect_each(S, [], T, Con, Op0, Rel, L, L0),
+	C3 is C0-C1,
+	add_op(C3, Op1, Don),
+	rel_inverse(Rel, Rel0),
+	fd_collect_each(T, [], S, Don, Op1, Rel0, L0, []).
+
+fd_collect_each([], _, _, _, _, _)-_L :-
+    ->	true.
+fd_collect_each([XA|S0], S1, T, Con, Op, Rel)-L :-
+	XA=X-A
+    ->	'$concat'(S0, S1, S),
+	fd_tell_range(Rel, S, T, Con, Op, A, R),
+	[struct(in,2,[X,R])]-L,
+        fd_collect_each(S0, [XA|S1], T, Con, Op, Rel)-L.
+
+fd_tell_range(Rel, S, T, C, Op, A, R) :-
+    ->	fd_tell_rel(Rel, S, T, C, Op, A, R0),
+	fd_peephole_range(R0, R).
+
+fd_tell_rel(=, S, T, C, Op, A, R) :-
+    ->	fd_inf_sum(T, TI),
+	fd_sup_sum(T, TS),
+	fd_inf_sum(S, SI),
+	fd_sup_sum(S, SS),
+	R = struct('..',2,[struct('//',2,[struct('-',2,[struct(Op,2,[TI,C]),SS]),A]),
+                           struct( '/',2,[struct('-',2,[struct(Op,2,[TS,C]),SI]),A])]).
+fd_tell_rel(=<, S, T, C, Op, A, R) :-
+    ->	fd_sup_sum(T, TS),
+	fd_inf_sum(S, SI),
+	R = struct('..',2,[struct(0,0,[]),
+                           struct('/',2,[struct('-',2,[struct(Op,2,[TS,C]),SI]),A])]).
+fd_tell_rel(<, S, T, C, Op, A, R) :-
+    ->	fd_sup_sum(T, TS),
+	fd_inf_sum(S, SI),
+	R = struct('..',2,[struct(0,0,[]),
+                           struct('-',2,[struct('/',2,[struct('-',2,[struct(Op,2,[TS,C]),SI]),A]),
+                                         struct(1,0,[])])]).
+fd_tell_rel(>=, S, T, C, Op, A, R) :-
+    ->	fd_inf_sum(T, TI),
+	fd_sup_sum(S, SS),
+	R = struct('..',2,[struct('//',2,[struct('-',2,[struct(Op,2,[TI,C]),SS]),A]),
+                           struct(max,0,[])]).
+fd_tell_rel(>, S, T, C, Op, A, R) :-
+    ->	fd_inf_sum(T, TI),
+	fd_sup_sum(S, SS),
+	R = struct('..',2,[struct('+',2,[struct('//',2,[struct('-',2,[struct(Op,2,[TI,C]),SS]),A]),
+                                         struct(1,0,[])]),
+                           struct(max,0,[])]).
+fd_tell_rel(\=, S, T, C, Op, A, R) :-
+    ->	fd_tell_rel(=, S, T, C, Op, A, R0),
+	R = struct('-',1,[R0]).
+
+fd_peephole_range(struct('..',2,[X0,Y0]), S) :-
+    ->	S=struct('..',2,[X,Y]),
+	fd_peephole_term(X0, X),
+	fd_peephole_term(Y0, Y).
+fd_peephole_range(struct('-',1,[struct('..',2,[X0,Y0])]), S) :-
+    ->	S=struct('-',1,[struct('..',2,[X,Y])]),
+	fd_peephole_term(X0, X),
+	fd_peephole_term(Y0, Y).
+
+fd_peephole_term(struct('//',2,[X,struct(1,_,_)]), T) :-
+    ->	fd_peephole_term(X, T).
+fd_peephole_term(struct('//',2,[X0,Y0]),T) :-
+    ->	T=struct('//',2,[X,Y]),
+	fd_peephole_term(X0, X),
+	fd_peephole_term(Y0, Y).
+fd_peephole_term(struct('/',2,[X,struct(1,_,_)]), T) :-
+    ->	fd_peephole_term(X, T).
+fd_peephole_term(struct('/',2,[X0,Y0]),T) :-
+    ->	T=struct('/',2,[X,Y]),
+	fd_peephole_term(X0, X),
+	fd_peephole_term(Y0, Y).
+fd_peephole_term(struct('+',2,[X,struct(0,_,_)]), T) :-
+    ->	fd_peephole_term(X, T).
+fd_peephole_term(struct('+',2,[struct(0,_,_),X]), T) :-
+    ->	fd_peephole_term(X, T).
+fd_peephole_term(struct('+',2,[X0,Y0]),T) :-
+    ->	T=struct('+',2,[X,Y]),
+	fd_peephole_term(X0, X),
+	fd_peephole_term(Y0, Y).
+fd_peephole_term(struct('-',2,[X,struct(0,_,_)]), T) :-
+    ->	fd_peephole_term(X, T).
+fd_peephole_term(struct('-',2,[X0,Y0]),T) :-
+    ->	T=struct('-',2,[X,Y]),
+	fd_peephole_term(X0, X),
+	fd_peephole_term(Y0, Y).
+fd_peephole_term(struct('*',2,[X,struct(1,_,_)]), T) :-
+    ->	fd_peephole_term(X, T).
+fd_peephole_term(struct('*',2,[struct(1,_,_),X]), T) :-
+    ->	fd_peephole_term(X, T).
+fd_peephole_term(struct('*',2,[X0,Y0]),T) :-
+    ->	T=struct('*',2,[X,Y]),
+	fd_peephole_term(X0, X),
+	fd_peephole_term(Y0, Y).
+fd_peephole_term(X, T) :-
+    ->	X=T.
+
+add_op(A, Op, C) :-
+	A<0
+    ->	Op='-',
+	A0 is 0-A,
+	C=struct(A0,0,[]).
+add_op(A, Op, C) :-
+    ->	Op='+',
+	C=struct(A,0,[]).

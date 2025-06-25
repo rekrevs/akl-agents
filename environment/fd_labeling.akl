@@ -1,0 +1,136 @@
+in_domain(X, R0, R) :- 
+	fd_min(X, N)
+    !	in_aux(X, N, R0, R).
+in_domain(_, R0, R) :-
+	true
+    !	R0=R.
+
+in_aux(X, N, R0, R) :-
+    ?	fd(X in N),
+	R0=R.
+in_aux(X, N, R0, R) :-
+    ?	fd(X in (N+1)...),
+	in_domain(X, R0, R).
+
+labeling([]) :- 
+    ->	true.
+labeling([D|R0]) :- 
+    ->	in_domain(D, R0, R),
+	labeling(R).
+
+del_ff([], _, D0, D, R) :- 
+    ->	D=D0,
+	R=[].
+del_ff([D0|R0], N1, D1, D, R) :- 
+	fd_size(D0, N0)
+    ->	del_ff(N0, N1, D0, D1, D, R0, R).
+
+del_ff(1, N1, _D0, D1, D, R0, R) :-
+    ->	del_ff(R0, N1, D1, D, R).
+del_ff(N0, N1, D0, D1, D, R0, R) :- 
+	N0<N1
+    ->	R=[D1|R1],
+	del_ff(R0, N0, D0, D, R1).
+del_ff(_N0, N1, D0, D1, D, R0, R) :- 
+    ->	R=[D0|R1],
+	del_ff(R0, N1, D1, D, R1).
+
+delete_ff([D0|R0], D, R) :- 
+	fd_size(D0, N0), 
+	del_ff(R0, N0, D0, D, R).
+
+labeling_ff([]) :- 
+    ->	true.
+labeling_ff([D|R]) :- 
+    ->	delete_ff([D|R], D0, R0),
+	in_domain(D0, R0, R1),
+	labeling_ff(R1).
+
+constrains_meq(D, E) :-
+	fd_in_constraints(D, N),
+	fd_in_constraints(E, M)
+    ->	N >= M.
+
+del_ffc([], _, D0, D, R) :- 
+    ->	D=D0,
+	R=[].
+del_ffc([D0|R0], N1, D1, D, R) :- 
+	fd_size(D0, N0) 
+    ->	del_ffcc(N0, D0, N1, D1, R0, D, R).
+
+del_ffcc(N0, D0, N1, D1, R0, D, R) :- 
+	N0<N1 
+    ->	R=[D1|R1],
+	del_ffc(R0, N0, D0, D, R1).
+del_ffcc(N, D0, N, D1, R0, D, R) :- 
+	constrains_meq(D0, D1) 
+    ->	R=[D1|R1],
+	del_ffc(R0, N, D0, D, R1).
+del_ffcc(_, D0, N1, D1, R0, D, R) :-  
+    ->	R=[D0|R1],
+	del_ffc(R0, N1, D1, D, R1).
+
+delete_ffc([D0|R0], D, R) :- 
+	fd_size(D0, N0), 
+	del_ffc(R0, N0, D0, D, R).
+
+labeling_ffc([]) :- 
+    ->	true.
+labeling_ffc([D|R]) :- 
+    ->	delete_ffc([D|R], D0, R0),
+	in_domain(D0, R0, R1),
+	labeling_ffc(R1).
+
+fd_all_different([]) :- 
+    ->	true.
+fd_all_different([X|L]) :- 
+    ->	different(L, X),
+	fd_all_different(L).
+
+different([], _) :- 
+    ->	true.
+different([Y|R], X) :- 
+    ->	fd_neq(X, Y),
+	different(R, X).
+
+fd_eq(X, Y) :-
+	fd(X in dom(Y),Y in dom(X)).
+
+fd_neq(X, Y) :-
+	fd(X in -dom(Y),Y in -dom(X)).
+
+domain([],_,_) :-
+    ->	true.
+domain([X|L],I,S):-
+    ->	fd(X in I..S),
+	domain(L,I,S).
+
+fd_akl_one(L) :-
+	sync_one(L, _X).
+
+sync_one(L, a) :-
+    !	fd_one(L).
+sync_one(_, _) :-
+    !	dummy.
+
+fd_akl_one_ff(L) :-
+	sync_one_ff(L, _X).
+
+sync_one_ff(L, a) :-
+    !	fd_one_ff(L).
+sync_one_ff(_, _) :-
+    !	dummy.
+
+lab(normal,L) :-
+    ->	labeling(L).
+lab(ff,L) :- 
+    ->	labeling_ff(L).
+lab(one,L) :-
+    ->	fd_akl_one(L).
+lab(one_ff,L) :-
+    ->	fd_akl_one_ff(L).
+
+num(normal, L, N) :-
+    ->	fd_numberof(L, N).
+num(ff, L, N) :-
+    ->	fd_numberof_ff(L, N).

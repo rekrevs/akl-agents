@@ -1,0 +1,94 @@
+% time(+Procedure)  prints the execution time in ms
+% time_label(+Label,+Procedure) prints a Label before the execution time
+% time(+Procedure,-Time) returns the execution time
+% stattime(+Procedure,-Statistics) returns a term with info regained
+% 	on resources used by calling P.
+% stattime(+Procedure) prints out info on resources used by calling P.
+
+time(P) :-
+	stdout(Out),
+	time_ground(P,[])-Out.
+
+time_label(Label,P) :-
+	stdout(Out),
+	time_label_ground(Label,P,[])-Out.
+
+time_label_ground(Label,P,S)-Out :-
+	write(Label)-Out,
+	write(': ')-Out,
+	time_ground(P,S)-Out.
+
+time_ground(P,S)-Out :-
+	statistics(runtime,[T0,_]),
+	call(P),
+	time2(S,T0)-Out.
+
+time2(S,T0)-Out :-
+	ground(S)
+   ->   statistics(runtime,[T1,_]),
+	sub(T1,T0,T),
+	write(T)-Out,
+	write(' ms')-Out,
+	nl-Out.
+
+
+write_list(L)-S :-
+	ground(L)
+    ->  write_list0(L)-S.
+
+write_list0([])-_S :-
+    ->  true.
+write_list0([X|Xs])-S :-
+    ->  write(X)-S,
+	write_list0(Xs)-S.
+
+
+stattime(P,S) :- 
+	statistics(runtime,[R1|_]),
+	statistics(copytime,[C1|_]),
+	statistics(nondet,[N1|_]),
+	statistics(gctime,[_,_]),
+	call(P)
+     !	
+	statistics(runtime,[R2|_]),
+	statistics(copytime,[C2|_]),
+	statistics(nondet,[N2|_]),
+	statistics(gctime,[_,Gc]),
+	R is R2-R1-Gc,
+	C is C2-C1,
+	N is N2-N1,
+%	argsize(P,Name,Argsize),
+	functor(P,Name,_),
+	Argsize=0,
+	S=statistics(R,C,N,Gc,P,Name,Argsize).
+
+stattime(P) :-
+	stattime(P,Stat),
+	Stat=statistics(R,_C,_N,_Gc,_P,Name,Argsize),
+	stdout(S),
+	write(Name)-S,
+	write(' ')-S,	
+	write(runtime(R))-S,
+	write(' ')-S,
+	writenl(argsz(Argsize))-S.
+
+write_statistics(Stat)-S :-
+    	Stat=statistics(R,C,N,Gc,_P,Name,Argsize)
+    ->	writenl('statistics '(Name,argsz(Argsize),runtime(R),copytime(C),nondet(N),gctime(Gc)))-S.
+
+
+argsize(P,Name,Argsize) :-
+	P=..[Name0|Args] 
+    ->	Name=Name0,
+	argsize(Args,Argsize).
+argsize([],Sz) :-
+    ->	Sz=0.
+argsize([H|T],Sz) :-
+    ->	argsize(H,S1),
+	argsize(T,S2),
+	Sz is S1+S2.
+argsize(A,Sz) :-
+    	A=..[_|Args]
+    ->	argsize(Args,S),
+	Sz is 1+S.
+

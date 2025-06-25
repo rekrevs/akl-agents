@@ -1,0 +1,191 @@
+set AKLEMUL = $AKLPATH/emulator
+set AKLENV  = $AKLPATH/environment
+set AKLCOMP  = $AKLPATH/oldcompiler
+set TMP = /tmp
+set TMPAKL = $TMP/akl"$$"
+set IFILE = $TMPAKL"install.c"
+
+
+set AKLARGS = ""
+set AKLPAM = "$AKLENV/boot.pam $AKLCOMP/comp.pam $AKLPATH/version.pam"
+set OBJECTS = ""
+set IFACE = ""
+set INSTALL = ""
+set OUTPUT = ""
+
+#
+# Start alternative emulator if command base name is either "oakl" or "eakl".
+#
+set BASENAME = `basename $0`
+switch ($BASENAME)
+case oakl
+case eakl
+	set AKLEXE = $AKLEMUL/$BASENAME
+	breaksw
+default:
+	set AKLEXE = $AKLEMUL/akl
+	breaksw
+endsw
+
+
+if ($#argv == 0) then
+  $AKLEXE -b $AKLENV/boot.pam -b $AKLCOMP/comp.pam -b $AKLPATH/version.pam
+  exit
+else
+  foreach FILE ($argv)
+    if ($OUTPUT == pending) then
+	set OUTPUT = $FILE
+    else
+      switch ($FILE)
+
+	case -o*
+		if ("$FILE" == "-o") then
+			set OUTPUT = pending
+		else
+			echo ERROR: No space after -o
+			break
+		breaksw
+
+	case *.fd
+		if ((-f $FILE) != 1) then
+			echo ERROR: File not found - $FILE
+			exit
+		endif
+
+		set NAME = $FILE:r
+		set NAME = $NAME:t
+		set INSTALL = "$INSTALL install_foreign_$NAME();"
+
+		set NEWER = `find $FILE.c -newer $FILE -print >&! /dev/null`
+
+		if ((-f $FILE.c) && $NEWER != "") then
+			echo WARNING: Not compiling $FILE - .fd.c file is newer
+		else
+			set IFACE = "$IFACE file('$FILE','$FILE.c',$NAME),"
+		endif
+
+		set OBJECTS = "$OBJECTS $FILE.c"
+		breaksw
+
+	case *.c
+		if ((-f $FILE) != 1) then
+			echo ERROR: File not found - $FILE
+			exit
+		endif
+
+		set NEWER = `find $FILE:r.o -newer $FILE -print >&! /dev/null`
+
+		if ((-f $FILE:r.o) && $NEWER != "") then
+			echo WARNING: Not compiling $FILE - .o file is newer
+			set OBJECTS = "$OBJECTS $FILE:r.o"
+		else
+			set OBJECTS = "$OBJECTS $FILE"
+		endif
+
+		breaksw
+
+	case *.o
+		if ((-f $FILE) != 1) then
+			echo ERROR: File not found - $FILE
+			exit
+		endif
+
+		set OBJECTS = "$OBJECTS $FILE"
+		breaksw
+
+	case -l*
+		set OBJECTS = "$OBJECTS $FILE"
+		breaksw
+
+	case *.akl
+		if ((-f $FILE) != 1) then
+			echo ERROR: File not found - $FILE
+			exit
+		endif
+
+		set NEWER =`find $FILE:r.pam -newer $FILE -print >&! /dev/null`
+
+		if ((-f $FILE:r.pam) && $NEWER != "") then
+			set AKLARGS = "$AKLARGS '$FILE:r',"
+		else
+			echo WARNING: Not compiling $FILE - .pam file is newer
+		endif
+
+		set AKLPAM = "$AKLPAM $FILE:r.pam"
+		breaksw
+
+	case *.pam
+		if ((-f $FILE) != 1) then
+			echo ERROR: File not found - $FILE
+			exit
+		endif
+
+		set AKLPAM = "$AKLPAM $FILE"
+		breaksw
+
+	default:
+		echo WARNING: $FILE not used
+		breaksw
+      endsw
+    endif
+  end
+endif
+
+
+## Missing output file?
+
+if ($OUTPUT == pending) then
+	echo ERROR: No output file given after -o
+	exit
+endif
+
+
+## Generate glue code from foreign declarations
+
+if ($IFACE != "") then
+    echo "foreign_interface([$IFACE []])." | \
+	$AKLEXE -b $AKLENV/boot.pam -b $AKLPATH/version.pam >&! /dev/null
+    if ($status != 0) then
+	echo ERROR: Failed to parse foreign declarations from $IFACE
+	exit
+    endif
+endif
+
+
+## Compile all C sources and link
+
+echo void install_foreign_predicates\(\) \{$INSTALL\} >! $IFILE
+
+$CC $CFLAGS -I$AKLEMUL $OBJECTS $IFILE $AKLEMUL/akl.o $LDFLAGS -o $TMPAKL
+if ($status != 0) then
+	echo ERROR: Failed to compile - $CC $CFLAGS -I$AKLEMUL $OBJECTS \
+		$IFILE $AKLEMUL/akl.o $LDFLAGS -o $TMPAKL
+	exit
+endif
+/bin/rm -f $IFILE
+
+
+## Compile AKL files to PAM files
+
+if ($AKLARGS != "") then
+	echo "compilef([$AKLARGS []])." | $AKLEXE -b $AKLENV/boot.pam -b $AKLCOMP/comp.pam -b $AKLPATH/version.pam
+    if ($status != 0) then
+	echo ERROR: Failed to compile AKL files - $AKLARGS
+	exit
+    endif
+endif
+
+
+## Run directly or save output
+
+if ($OUTPUT != "") then
+	/bin/rm -f $OUTPUT.exe $OUTPUT.pam $OUTPUT
+	mv $TMPAKL $OUTPUT.exe
+	cat $AKLPAM > $OUTPUT.pam
+	echo `pwd`/$OUTPUT.exe -b `pwd`/$OUTPUT.pam > $OUTPUT
+	chmod +x $OUTPUT
+else
+	cat $AKLPAM > $TMPAKL.pam
+	eval $TMPAKL -b $TMPAKL.pam
+	/bin/rm -f $TMPAKL $TMPAKL.pam
+endif

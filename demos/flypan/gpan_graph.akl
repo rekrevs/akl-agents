@@ -1,0 +1,467 @@
+topdir(D) :- D = "flypan/bm".
+
+% START OF PROGRAM
+
+gmpan(F, A, M) :-
+	gmstart(G),
+	assign_flights(F, A, M, As),
+	present(F, A, W, V1, V2, VO, Yt)-G,
+	pan_event_loop(idle, As, Show, G),
+	pan_show_assignments(Show, W, V1, V2, VO, Yt).
+
+pan_event_loop(Q, As, Show, G) :-
+	data(G)
+    ->	waitevent(E)@G,
+	pan_event_0(E, Q, As, Show, G).
+	
+pan_event_0(E, Q, As, Show, G) :-
+	data(E)
+    ->	mask_event(E, E1),
+	pan_event(E1, Q, As, Show, G).
+
+mask_event(button(_, E), E1) :-
+    ->	E1 = E.
+mask_event(menu(_, E), E1) :-
+    ->	E1 = E.
+mask_event(_, E1) :-
+    ->	E1 = unknown.
+
+pan_event(quit, _, As, Show, _G) :-
+    ->	Show = [],
+        As = [].        
+pan_event(start, idle, As, Show, G) :-
+    ->	pan_event(next, run, As, Show, G).
+pan_event(next, run, As, Show, G) :-
+    ->	As = [Ass|As1],
+	pan_next(Ass, As1, Show, G).
+pan_event(auto, idle, As, Show, G) :-
+    ->	pan_auto(As, Show, G).
+pan_event(auto, run, As, Show, G) :-
+    ->	pan_auto(As, Show, G).
+pan_event(E, Q, As, Show, G) :-
+    ->	Show = [error(E,Q,G,G1)|Show1],
+	pan_event_loop(Q, As, Show1, G1).
+
+pan_next(solution(A), As, Show, G) :-
+    ->	Show = [next(A,G,G1)|Show1],
+	pan_event_loop(run, As, Show1, G1).
+pan_next(_, As, Show, G) :-
+    ->	As = [],
+	Show = [end(G,G1)|Show1],
+	pan_event_loop(end, As, Show1, G1).
+
+pan_auto(As, Show, G) :-
+	As = [Ass|As1],
+	pan_auto_aux(Ass, As1, Show, G).
+
+pan_auto_aux(solution(A), As, Show, G) :-
+    ->	Show = [next(A,G,G1)|Show1],
+	pan_auto(As, Show1, G1).
+pan_auto_aux(_, As, Show, G) :-
+    ->	As = [],
+	Show = [end(G,G1)|Show1],
+	pan_event_loop(end, As, Show1, G1).
+
+pan_show_assignments([], _, _, _, _, _) :-
+    ->	true.
+pan_show_assignments([next(A,G,G1)|S], W, V1, V2, VO, Yt) :-
+    ->	show_assignments(A, W, V1, VO, Yt, G, G1),
+	pan_show_assignments(S, W, V1, V2, VO, Yt).
+pan_show_assignments([end(G,G1)|S], W, V1, V2, VO, Yt) :-
+    ->	message(clear,VO)@G,
+	message(setcolors(red, white), VO)@G,
+	message(string(170, 0, "NO MORE SOLUTIONS"), VO)@G,
+	G1 = G,
+	pan_show_assignments(S, W, V1, V2, VO, Yt).
+pan_show_assignments([error(E,Q,G,G1)|S], W, V1, V2, VO, Yt) :-
+    ->	atom_chars(E, Es),
+	atom_chars(Q, Qs),
+	concat(" IN ", Qs, Str1),
+	concat(Es, Str1, Str2),
+	concat("UNKNOWN ", Str2, Str),
+	message(clear,VO)@G,
+	message(setcolors(red, white), VO)@G,
+	message(string(170, 0, Str), VO)@G,
+	G1 = G,
+	pan_show_assignments(S, W, V1, V2, VO, Yt).
+
+show_assignments([], _W, _V1, _V0, _Yt)-_G :-
+    ->	true.
+/*
+	message(clear,VO)@G,
+	message(setcolors(red, white), VO)@G,
+	message(string(170, 0, "SOLUTION FOUND"), V0)@G.
+*/
+show_assignments([A|As], W, V1, VO, Yt)-G :-
+    ->	show_assignment(A, W, V1, VO, Yt)-G,
+	show_assignments(As, W, V1, VO, Yt)-G.
+
+show_assignment(aircraft_for_flight(Flight, Det, Aircraft),
+		_W, V1, _VO, Yt)-G :-
+	bitmapsize(plane, Xp, Yp),
+	bitmapsize(clock, Xc, _),
+	bitmapsize(number, Xn, _),
+	det_assignment(Det, DetFlag),
+	X is Xp + Xc,
+	YPos is Yt - Flight * Yp,
+	Xdet is X + Xn - 8,
+	Ydet is YPos + 8,
+	numberbitmap(Aircraft, BitAircraft),
+	colours(Aircraft, Colour),
+	message(setcolors(Colour, white),  V1)@G,
+	message(bitmap(X, YPos, BitAircraft),  V1)@G,
+	show_det_assignment(DetFlag, V1, Xdet, Ydet)-G,
+	message(setcolors(black, white), V1)@G.
+
+
+present(ListOfFlights, ListOfAircrafts, W, V1, V2, VO, YfSize)-G :-
+    ->	calculate_flight_space(ListOfFlights, XfSize, YfSize),
+	calculate_aircraft_space(ListOfAircrafts, XaSize, YaSize),
+	initialise(W, V1, V2, VO, XfSize, YfSize, XaSize, YaSize)-G,
+	display_flights(ListOfFlights, V1)-G,
+	display_aircrafts(ListOfAircrafts, V2)-G.
+
+initialise(W, V1, V2, VO, XfSize, YfSize, XaSize, YaSize)-G :-
+    ->	create(view(XfSize, 15),V01)@G,
+	message(setfont("*-times-bold-r-*-140-*"),V01)@G,
+	message(string(0, 0, "Start/End             Type                  Aircraft        Crew"),V01)@G,
+	YSize is max(YfSize, YaSize),
+	make_view(XfSize, YSize, V1)-G,
+	message(enable,V1)@G,
+	create(view(XaSize, 15),V02)@G,
+	message(setfont("*-times-bold-r-*-140-*"),V02)@G,
+	message(string(0, 0, "      Type                          Id       Endurance TurnAround MaxHrs    Crew List    "),V02)@G,
+	make_view(XaSize, YSize, V2)-G,
+	message(setfont("8x13"),V2)@G,
+	message(enable,V2)@G,
+	create(hbox([vbox([hbox([space,button("Aircrafts",aircrafts),space]),border,V02,border,space,scroller(V2)]),
+             border,vbox([hbox([space,button("Flights",flights),space]),
+		border,V01,border,space,scroller(V1)])
+	     ]),V)@G,
+	create(view(250, 26),VO)@G,
+	message(setcolors(red, white),VO)@G,
+	message(setfont("*-times-medium-r-normal--24-*"),VO)@G,
+	VB = vbox([V,border,hbox([space, button("Start",start), VO, button("Auto",auto), space])]),
+	create(window("Fly Pan",VB),W)@G,
+	message(open,W)@G,
+	create(menu([start,auto,next,quit],[start,auto,next,quit]),M1)@G,
+	message(setmenu(M1),V1)@G,
+	create(menu([start,auto,next,quit],[start,auto,next,quit]),M2)@G,
+	message(setmenu(M2),V2)@G.
+
+
+make_view(XfSize, YfSize, V1)-G :-
+	YfSize < 750
+    ->	create(view(XfSize, YfSize),V1)@G.
+make_view(XfSize, _, V1)-G :-
+    ->	create(view(XfSize, 750),V1)@G.
+
+
+/* Calculating */
+
+calculate_flight_space(ListOfFlights,XSize,YSize) :-
+	bitmapsize(plane, Xp, Yp),
+	bitmapsize(clock, Xc, _),
+	bitmapsize(men, Xm, _),
+	bitmapsize(number, Xn, _),
+	MinX is Xc+Xp+Xn,
+	MinY is Yp,
+	calculate_total_length(ListOfFlights,XSize,0,YSize,0,MinX,Xm,MinY).
+
+calculate_total_length([],XSize,XSize,YSize,YSize,_,_,_).
+calculate_total_length([flight(_, _, _, _, Nc)|Ls],
+	XSize,XSize0,YSize,YSize0,MinX,Xm,MinY) :-
+	YSizeI is YSize0+MinY,
+	XSizeI is max(XSize0, MinX+(Nc//2 + Nc mod 2)*Xm),
+	calculate_total_length(Ls, XSize, XSizeI, YSize, YSizeI,MinX,Xm,MinY).
+
+
+calculate_aircraft_space(ListOfAircrafts, XSize, YSize) :-
+	bitmapsize(plane, Xp, Yp),
+	bitmapsize(graph, Xg, _),
+	bitmapsize(scale, Xs, _),
+	bitmapsize(men, Xm, _),
+	bitmapsize(number, Xn, _),
+	MinX is 3*Xg+Xs+Xp+Xn,
+	MinY is Yp,
+	calculate_aircraft_length(ListOfAircrafts,XSize,0,YSize,0,MinX,Xm,MinY).
+
+calculate_aircraft_length([],XSize,XSize,YSize,YSize,_,_,_).
+calculate_aircraft_length([aircraft(_, _, _, Crew_No, _, _, _)|Ls],
+	XSize,XSize0,YSize,YSize0,MinX,Xm,MinY) :-
+	YSizeI is YSize0+MinY,
+	XSizeI is max(XSize0, MinX+Crew_No*Xm),
+	calculate_aircraft_length(Ls, XSize, XSizeI, YSize, YSizeI, MinX,
+		Xm,MinY).
+
+
+/* Display */
+
+display_flights(ListOfFlights, V)-G :-
+    ->	bitmapsize(plane, Xp, Yp),
+	bitmapsize(clock, Xc, Yc),
+	bitmapsize(number, Xn, _),
+	CXPos is 0,
+	PXPos is CXPos+Xc,
+	MXPos is PXPos+Xp+Xn,
+	YSize is Yp,
+	display_flights_rec(ListOfFlights,V,CXPos,Yc,PXPos,MXPos,YSize,_)-G.
+
+display_flights_rec([],_,_,_,_,_,_,YPos)-_G :-
+    ->	YPos = 0.
+display_flights_rec([flight(_, Start, End, Type, Nc)|Ls],V,
+	CXPos,Yc,PXPos,MXPos,YSize,NewYPos)-G :-
+    ->	display_flights_rec(Ls,V,CXPos,Yc,PXPos,MXPos,YSize,YPos)-G,
+	NewYPos is YPos +YSize,
+	clockbitmap(Start, StartBitmap),
+	message(bitmap(CXPos, YPos + 12 + Yc, StartBitmap),V)@G,
+	clockbitmap(End, EndBitmap),
+	message(bitmap(CXPos, YPos, EndBitmap),V)@G,
+	display_flight(V, PXPos, Nc, Type, MXPos, YPos)-G.
+
+display_flight(V, PXPos, Nc, Type, MXPos, YPos)-G :-
+    ->	planebitmap(Type, TypeBitmap),
+	message(bitmap(PXPos,  YPos, TypeBitmap),V)@G,
+	bitmapsize(men, XInc, Ym),
+	display_crew(Nc, V, MXPos, XInc, YPos, Ym)-G.
+
+display_crew(0, _, _, _, _, _)-_G :-
+    ->	true.
+display_crew(1, V, MXPos, _, YPos, _)-G :-
+    ->	menbitmap(MenBitmap),
+	message(bitmap(MXPos,  YPos, MenBitmap),V)@G.
+display_crew(C, V, MXPos, XInc, YPos, Ym)-G :- 
+	C > 1
+    ->	menbitmap(MenBitmap),
+	message(bitmap(MXPos,  YPos, MenBitmap),V)@G,
+	Y2Pos is YPos + Ym,
+	message(bitmap(MXPos,  Y2Pos, MenBitmap),V)@G,
+	NewMXPos is MXPos+XInc,
+	C1 is C-2,
+	display_crew(C1, V, NewMXPos, XInc, YPos, Ym)-G.
+
+	
+display_aircrafts(ListOfAircrafts, V)-G :-
+	bitmapsize(plane, Xp, Yp),
+	bitmapsize(graph, Xg, _),
+	bitmapsize(number, Xn, _),
+	bitmapsize(scale, Xs, _),
+	PXPos is 0,
+	NXPos is PXPos + Xp,
+	SXPos is NXPos + Xn,
+	TX1Pos is SXPos + Xs,
+	TX2Pos is TX1Pos + Xg,
+	TX3Pos is TX2Pos + Xg,
+	MXPos is TX3Pos + Xg,
+	YSize is Yp,
+	display_aircrafts_rec(ListOfAircrafts,V,NXPos,PXPos,SXPos,TX1Pos,
+			TX2Pos,TX3Pos,MXPos,YSize,_)-G.
+
+display_aircrafts_rec([],_,_,_,_,_,_,_,_,_,YPos)-_G :-
+    ->	YPos = 0.
+display_aircrafts_rec([aircraft(Id, Type, Endurance, _, TurnAround, Max_hrs, Crew)|Ls],V,
+	NXPos,PXPos,SXPos,TX1Pos,TX2Pos,TX3Pos,MXPos,YSize,NewYPos)-G :-
+    ->	display_aircrafts_rec(Ls,V,NXPos,PXPos,SXPos,TX1Pos,TX2Pos,TX3Pos,MXPos,YSize,YPos)-G,
+	NewYPos is YPos +YSize,
+	display_time_scale(V, SXPos, YPos)-G,
+	display_time_graph(Endurance, V, TX1Pos, YPos)-G,
+	display_time_graph(TurnAround, V, TX2Pos, YPos)-G,
+	display_time_graph(Max_hrs, V, TX3Pos, YPos)-G,
+	display_aircraft(V, NXPos, Id, Type, PXPos, Crew, MXPos, YPos)-G.
+
+display_time_scale(V, XPos, YPos)-G :-
+	MYPos is YPos + 36, % 12*3,
+	NYPos is YPos + 72, % 24*3,
+	message(string(XPos, YPos, " 0"),V)@G,
+	message(string(XPos, MYPos, "12"),V)@G,
+	message(string(XPos, NYPos, "24"),V)@G,
+	NXPos is XPos + 18, % 2*13 - 8,
+	display_time_dots(V,0,NXPos,YPos)-G.
+
+display_time_dots(_,25,_,_)-_G :-
+    ->	true.
+display_time_dots(V,Time,XPos,YPos)-G :- 
+	Time =< 24
+    ->	time_line_length(Time, LineLength),
+	NXPos is XPos + LineLength,
+	NYPos is YPos + 3,
+	NTime is Time + 1,
+	message(line(XPos, YPos, NXPos, YPos),V)@G,
+	display_time_dots(V,NTime,XPos,NYPos)-G.
+
+time_line_length(Time, LineLength) :-
+	0 is mod(Time, 6)
+    ->	LineLength = 8.
+time_line_length(Time, LineLength) :-
+	0 is mod(Time, 3)
+    ->	LineLength = 4.
+time_line_length(_, LineLength) :-
+    ->	LineLength = 1.
+
+display_time_graph(TimeSlice, V, XPos, YPos)-G :-
+	TXPos is XPos + 24,
+	TYPos is YPos + TimeSlice * 3,
+	TXSPos is TXPos + 2,
+	NYPos is YPos + 72, % 24*3,
+	message(rect(XPos, YPos, TXPos, NYPos),V)@G,
+	message(setcolors(gray, white),V)@G,
+	message(fillrect(XPos, YPos, TXPos, TYPos),V)@G,
+	message(setcolors(black, white),V)@G,
+	message(rect(XPos, YPos, TXPos, TYPos),V)@G,
+	message(string(TXSPos, TYPos, TimeSlice),V)@G.
+
+display_aircraft(V, NXPos, Id, Type, PXPos, Crew, MXPos, YPos)-G :-
+	numberbitmap(Id, IdBitmap),
+	planebitmap(Type, TypeBitmap),
+	colours(Id, Colour),
+	message(bitmap(PXPos,  YPos, TypeBitmap),V)@G,
+	message(setcolors(Colour, white),V)@G,
+	message(bitmap(NXPos, YPos, IdBitmap),V)@G,
+	message(setcolors(black, white),V)@G,
+	bitmapsize(men, XInc, Ym),
+	display_aircraft_crew(Crew, V, MXPos, XInc, YPos, Ym)-G.
+
+display_aircraft_crew([], _, _, _, _, _)-_G :-
+    ->	true.
+display_aircraft_crew([C1| LCrew], V, XPos, XInc, YPos, _)-G :-
+    ->	SXPos is XPos + 12,
+	NYPos is YPos + 20,
+	message(string(SXPos,  YPos,  C1),V)@G,
+	menbitmap(MenBitmap),
+	message(bitmap(XPos,  NYPos, MenBitmap),V)@G,
+	NewXPos is XPos+XInc,
+	display_aircraft_crew(LCrew, V, NewXPos, XInc, YPos, _)-G.
+
+
+det_assignment(assignment(begin,end,_),R) :-
+    ->	R = det.
+det_assignment(assignment(_, _,on),R) :-
+    ->	R = det.
+det_assignment(_, R) :-
+    ->	R = non_det.
+
+show_det_assignment(det, V, Xdet, Ydet)-G :-
+    ->	message(fillcircle(Xdet, Ydet, 4),V)@G.
+show_det_assignment(non_det, _, _, _)-_G :-
+    ->	true.
+
+% :- dynamic auto_mode/0.
+
+wait_for_event_next(W)-G :-
+	message(waitevent(_),W)@G.
+
+/* ???????????
+wait_for_event_next(_) :- auto_mode, !.
+wait_for_event_next(W) :-
+	message(waitevent(E),W)@???,
+	( E = button(_, auto), asserta(auto_mode); E = menu(_, auto), asserta(auto_mode); true ), !.
+*/
+	  
+/***************** CONVERTED FROM HERE ************************************/
+
+bitmapsize(plane, X, Y) :-
+    ->	X = 160, 
+	Y = 120.
+bitmapsize(clock, X, Y) :-
+    ->	X = 48, 
+	Y = 48.
+bitmapsize(men, X, Y) :-
+    ->	X = 48, 
+	Y = 48.
+bitmapsize(number, X, Y) :-
+    ->	X = 64, 
+	Y = 72.
+bitmapsize(graph, X, Y) :-
+    ->	X = 45, 
+	Y = 100.
+bitmapsize(scale, X, Y) :-
+    ->	X = 30,
+	Y = 100.
+
+menbitmap( Bitmap ) :-
+    ->	topdir(Pos_Bitmap),
+	concat(Pos_Bitmap, "/men.bm", Bitmap).
+
+emptynumberbitmap( Bitmap ) :-
+    ->	topdir(Pos_Bitmap),
+	concat(Pos_Bitmap, "/emptynumber.bm", Bitmap).
+
+numberbitmap(Number, Bitmap ) :-
+    ->	numberbitmap_db(Number, Rel_Bitmap),
+	topdir(Pos_Bitmap),
+	concat(Pos_Bitmap, [0'/|Rel_Bitmap], Bitmap).
+
+numberbitmap_db(1,BM) :- -> BM = "one.bm".
+numberbitmap_db(2,BM) :- -> BM = "two.bm".
+numberbitmap_db(3,BM) :- -> BM = "three.bm".
+numberbitmap_db(4,BM) :- -> BM = "four.bm".
+numberbitmap_db(5,BM) :- -> BM = "five.bm".
+numberbitmap_db(6,BM) :- -> BM = "six.bm".
+numberbitmap_db(7,BM) :- -> BM = "seven.bm".
+numberbitmap_db(8,BM) :- -> BM = "eight.bm".
+numberbitmap_db(9,BM) :- -> BM = "nine.bm".
+
+planebitmap(Number, Bitmap) :-
+    ->	planebitmap_db(Number, Rel_Bitmap),
+	topdir(Pos_Bitmap),
+	concat(Pos_Bitmap, [0'/|Rel_Bitmap], Bitmap).
+
+planebitmap_db(fokker,BM) :-
+    ->	BM = "fokker.bm".
+planebitmap_db(gulfstream,BM) :-
+    ->	BM = "gulfstream.bm".
+planebitmap_db(heli,BM) :-
+    ->	BM = "heli.bm".
+planebitmap_db(trident,BM) :-
+    ->	BM = "trident.bm".
+planebitmap_db(vanguard,BM) :-
+    ->	BM = "vanguard.bm".
+planebitmap_db(victor,BM) :-
+    ->	BM = "victor.bm".
+planebitmap_db(viscount,BM) :-
+    ->	BM = "viscount.bm".
+
+clockbitmap(Number, Bitmap) :-
+    ->	clockbitmap_db(Number, Rel_Bitmap),
+	topdir(Pos_Bitmap),
+	concat(Pos_Bitmap, [0'/|Rel_Bitmap], Bitmap).
+
+clockbitmap_db(0,BM) :- -> BM = "clock0.bm".
+clockbitmap_db(1,BM) :- -> BM = "clock1.bm".
+clockbitmap_db(2,BM) :- -> BM = "clock2.bm".
+clockbitmap_db(3,BM) :- -> BM = "clock3.bm".
+clockbitmap_db(4,BM) :- -> BM = "clock4.bm".
+clockbitmap_db(5,BM) :- -> BM = "clock5.bm".
+clockbitmap_db(6,BM) :- -> BM = "clock6.bm".
+clockbitmap_db(7,BM) :- -> BM = "clock7.bm".
+clockbitmap_db(8,BM) :- -> BM = "clock8.bm".
+clockbitmap_db(9,BM) :- -> BM = "clock9.bm".
+clockbitmap_db(10,BM) :- -> BM = "clock10.bm".
+clockbitmap_db(11,BM) :- -> BM = "clock11.bm".
+clockbitmap_db(12,BM) :- -> BM = "clock12.bm".
+clockbitmap_db(13,BM) :- -> BM = "clock13.bm".
+clockbitmap_db(14,BM) :- -> BM = "clock14.bm".
+clockbitmap_db(15,BM) :- -> BM = "clock15.bm".
+clockbitmap_db(16,BM) :- -> BM = "clock16.bm".
+clockbitmap_db(17,BM) :- -> BM = "clock17.bm".
+clockbitmap_db(18,BM) :- -> BM = "clock18.bm".
+clockbitmap_db(19,BM) :- -> BM = "clock19.bm".
+clockbitmap_db(20,BM) :- -> BM = "clock20.bm".
+clockbitmap_db(21,BM) :- -> BM = "clock21.bm".
+clockbitmap_db(22,BM) :- -> BM = "clock22.bm".
+clockbitmap_db(23,BM) :- -> BM = "clock23.bm".
+
+
+colours(_,C) :- C = black.
+
+/*
+colours(1,C) :- -> C = red.
+colours(2,C) :- -> C = green.
+colours(3,C) :- -> C = blue.
+colours(4,C) :- -> C = brown.
+colours(5,C) :- -> C = magenta.
+colours(6,C) :- -> C = turquoise.
+colours(7,C) :- -> C = ivory.
+colours(8,C) :- -> C = aquamarine.
+colours(9,C) :- -> C = burlywood.
+*/

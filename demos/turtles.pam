@@ -1,0 +1,1155 @@
+predicate('go'/2
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(4)
+	get2_y_variable(1,1,0,0)
+    guard_wait
+	put_y_variable(2,0)
+	call('cards'/1)
+	put_y_variable(3,0)
+	call('constraints'/1)
+	put_constant('begin',2)
+	put3_y_value(3,0,2,1,1,3)
+	call('spawn'/4)
+	put2_y_value(1,0,0,1)
+	dealloc_execute('count'/2)
+)
+
+
+predicate('cards'/1
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(1)
+	get_y_variable(0,0)
+    guard_wait
+	put_y_value(0,1)
+	get_list(1)
+	unify_x_variable(1)
+	unify_x_variable(2)
+	get_list(1)
+	unify_constant('tg')
+	unify_list
+	unify_constant('tp')
+	unify_list
+	unify_constant('hb')
+	unify_list
+	unify_constant('ho')
+	unify_nil
+	get_list(2)
+	unify_x_variable(2)
+	unify_x_variable(1)
+	get_list(2)
+	unify_constant('tg')
+	unify_list
+	unify_constant('tp')
+	unify_list
+	unify_constant('hb')
+	unify_list
+	unify_constant('ho')
+	unify_nil
+	get_list(1)
+	unify_x_variable(1)
+	unify_x_variable(2)
+	get_list(1)
+	unify_constant('tb')
+	unify_list
+	unify_constant('tp')
+	unify_list
+	unify_constant('hb')
+	unify_list
+	unify_constant('ho')
+	unify_nil
+	get_list(2)
+	unify_x_variable(2)
+	unify_x_variable(1)
+	get_list(2)
+	unify_constant('tg')
+	unify_list
+	unify_constant('hb')
+	unify_list
+	unify_constant('hp')
+	unify_list
+	unify_constant('to')
+	unify_nil
+	get_list(1)
+	unify_x_variable(1)
+	unify_x_variable(2)
+	get_list(1)
+	unify_constant('to')
+	unify_list
+	unify_constant('hb')
+	unify_list
+	unify_constant('hg')
+	unify_list
+	unify_constant('tp')
+	unify_nil
+	get_list(2)
+	unify_x_variable(2)
+	unify_x_variable(1)
+	get_list(2)
+	unify_constant('hg')
+	unify_list
+	unify_constant('hp')
+	unify_list
+	unify_constant('tb')
+	unify_list
+	unify_constant('to')
+	unify_nil
+	get_list(1)
+	unify_x_variable(1)
+	unify_x_variable(2)
+	get_list(1)
+	unify_constant('tb')
+	unify_list
+	unify_constant('tp')
+	unify_list
+	unify_constant('hg')
+	unify_list
+	unify_constant('ho')
+	unify_nil
+	get_list(2)
+	unify_x_variable(2)
+	unify_x_variable(1)
+	get_list(2)
+	unify_constant('tg')
+	unify_list
+	unify_constant('to')
+	unify_list
+	unify_constant('hg')
+	unify_list
+	unify_constant('hp')
+	unify_nil
+	get_list(1)
+	unify_x_variable(1)
+	unify_nil
+	get_list(1)
+	unify_constant('to')
+	unify_list
+	unify_constant('tp')
+	unify_list
+	unify_constant('hg')
+	unify_list
+	unify_constant('hb')
+	unify_nil
+	dealloc_proceed
+)
+
+
+predicate('constraints'/1
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(1)
+	get_y_variable(0,0)
+    guard_wait
+	put_y_value(0,1)
+	get_list(1)
+	unify_nil
+	unify_list
+	unify_x_variable(1)
+	unify_x_variable(2)
+	get_list(1)
+	unify_constant('t')
+	unify_nil
+	get_list(2)
+	unify_x_variable(2)
+	unify_x_variable(1)
+	get_list(2)
+	unify_constant('x')
+	unify_list
+	unify_constant('r')
+	unify_nil
+	get_list(1)
+	unify_x_variable(1)
+	unify_x_variable(2)
+	get_list(1)
+	unify_constant('t')
+	unify_list
+	unify_constant('r')
+	unify_list
+	unify_constant('x')
+	unify_nil
+	get_list(2)
+	unify_x_variable(2)
+	unify_x_variable(1)
+	get_list(2)
+	unify_constant('x')
+	unify_list
+	unify_constant('x')
+	unify_list
+	unify_constant('x')
+	unify_list
+	unify_constant('l')
+	unify_nil
+	get_list(1)
+	unify_x_variable(1)
+	unify_x_variable(2)
+	get_list(1)
+	unify_constant('t')
+	unify_list
+	unify_constant('x')
+	unify_list
+	unify_constant('x')
+	unify_list
+	unify_constant('l')
+	unify_list
+	unify_constant('x')
+	unify_nil
+	get_list(2)
+	unify_x_variable(2)
+	unify_x_variable(1)
+	get_list(2)
+	unify_constant('x')
+	unify_list
+	unify_constant('x')
+	unify_list
+	unify_constant('x')
+	unify_list
+	unify_constant('x')
+	unify_list
+	unify_constant('x')
+	unify_list
+	unify_constant('b')
+	unify_nil
+	get_list(1)
+	unify_x_variable(1)
+	unify_x_variable(2)
+	get_list(1)
+	unify_constant('l')
+	unify_list
+	unify_constant('x')
+	unify_list
+	unify_constant('b')
+	unify_list
+	unify_constant('x')
+	unify_list
+	unify_constant('x')
+	unify_list
+	unify_constant('x')
+	unify_list
+	unify_constant('x')
+	unify_nil
+	get_list(2)
+	unify_x_variable(2)
+	unify_nil
+	get_list(2)
+	unify_constant('x')
+	unify_list
+	unify_constant('r')
+	unify_list
+	unify_constant('x')
+	unify_list
+	unify_constant('x')
+	unify_list
+	unify_constant('x')
+	unify_list
+	unify_constant('b')
+	unify_list
+	unify_constant('x')
+	unify_list
+	unify_constant('x')
+	unify_nil
+	dealloc_proceed
+)
+
+
+predicate('spawn'/4
+label(5)
+	switch_on_term(10,8,7,7,7,11,7)
+label(8)
+	switch_on_constant(1,[('[]',9)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(2)
+	get2_y_variable(0,3,1,2)
+	get_nil_x0
+    guard_commit
+	put_y_value(1,0)
+	put_y_variable(1,1)
+	call('fromLStoL'/2)
+	put2_y_value(1,0,0,1)
+	dealloc_execute('final'/2)
+label(1)
+	allocate(5)
+	get3_y_variable(0,3,1,2,2,1)
+	get_list_x0
+	unify_y_variable(4)
+	unify_y_variable(3)
+    guard_commit
+	put_constant(1,0)
+	put3_y_value(4,1,2,2,1,3)
+	put_y_variable(1,4)
+	call('orient'/5)
+	put4_y_value(3,0,2,1,1,2,0,3)
+	dealloc_execute('spawn'/4)
+)
+
+
+predicate('orient'/5
+label(7)
+	switch_on_term(11,10,9,10,10,10,10)
+label(9)
+	switch_on_constant(1,[(1,11)],10)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try(0)
+	retry(1)
+	trust(2)
+label(0)
+	allocate(1)
+	get_y_variable(0,4)
+	get_nil(2)
+    guard_commit
+	put_y_value(0,5)
+	get_nil(5)
+	dealloc_proceed
+label(1)
+	allocate(7)
+	get4_y_variable(0,4,1,3,3,1,6,0)
+	get_list(2)
+	unify_y_variable(5)
+	unify_y_variable(2)
+	put_constant(1,1)
+	put_y_value(6,0)
+	call('>'/2)
+	put_structure('+'/2,1)
+	unify_y_value(6)
+	unify_constant(1)
+	put_y_variable(4,0)
+	call('is'/2)
+    guard_commit
+	put5_y_value(6,0,3,1,5,2,1,3,0,4)
+	put_y_variable(0,5)
+	call('rotate'/6)
+	put5_y_value(4,0,3,1,2,2,1,3,0,4)
+	dealloc_execute('orient'/5)
+label(2)
+	allocate(8)
+	get3_y_variable(0,4,1,3,3,1)
+	get_constant(1,0)
+	get_list(2)
+	unify_x_variable(5)
+	unify_y_variable(2)
+	get_list(5)
+	unify_y_variable(7)
+	unify_list
+	unify_y_variable(6)
+	unify_list
+	unify_y_variable(5)
+	unify_list
+	unify_y_variable(4)
+	unify_nil
+    guard_commit
+	put_structure('card'/5,1)
+	unify_constant(1)
+	unify_y_value(7)
+	unify_y_value(6)
+	unify_y_value(5)
+	unify_y_value(4)
+	put3_y_value(1,0,3,2,0,3)
+	put_y_variable(0,4)
+	call('set'/5)
+	put_constant(2,0)
+	put4_y_value(3,1,2,2,1,3,0,4)
+	dealloc_execute('orient'/5)
+)
+
+
+predicate('rotate'/6
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(9)
+	get5_y_variable(0,5,1,4,3,3,2,1,8,0)
+	get_list(2)
+	unify_y_variable(6)
+	unify_list
+	unify_y_variable(5)
+	unify_list
+	unify_y_variable(4)
+	unify_list
+	unify_y_variable(7)
+	unify_nil
+    guard_wait
+	put_structure('card'/5,1)
+	unify_y_value(8)
+	unify_y_value(6)
+	unify_y_value(5)
+	unify_y_value(4)
+	unify_y_value(7)
+	put3_y_value(3,0,2,2,1,3)
+	put_y_variable(1,4)
+	call('set'/5)
+	put_structure('card'/5,1)
+	unify_y_value(8)
+	unify_y_value(5)
+	unify_y_value(4)
+	unify_y_value(7)
+	unify_y_value(6)
+	put3_y_value(3,0,2,2,1,3)
+	put_y_variable(1,4)
+	call('set'/5)
+	put_structure('card'/5,1)
+	unify_y_value(8)
+	unify_y_value(4)
+	unify_y_value(7)
+	unify_y_value(6)
+	unify_y_value(5)
+	put3_y_value(3,0,2,2,1,3)
+	put_y_variable(1,4)
+	call('set'/5)
+	put_structure('card'/5,1)
+	unify_y_value(8)
+	unify_y_value(7)
+	unify_y_value(6)
+	unify_y_value(5)
+	unify_y_value(4)
+	put4_y_value(3,0,2,2,1,3,0,4)
+	dealloc_execute('set'/5)
+)
+
+
+predicate('set'/5
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(5)
+	get5_y_variable(3,4,4,3,2,2,0,1,1,0)
+    guard_wait
+	put_y_value(4,5)
+	get_list(5)
+	unify_x_variable(5)
+	unify_y_value(3)
+	get_list(5)
+	unify_y_value(0)
+	unify_x_variable(5)
+	put3_y_value(2,0,1,1,0,2)
+	put_x_value(5,3)
+	dealloc_execute('filter'/4)
+)
+
+
+predicate('filter'/4
+label(17)
+	switch_on_term(20,19,19,19,19,20,19)
+label(19)
+	try(0)
+	retry(1)
+	trust(2)
+label(20)
+	try(0)
+	retry(1)
+	retry(2)
+	retry(3)
+	retry(4)
+	retry(5)
+	retry(6)
+	trust(7)
+label(0)
+	allocate(1)
+	get_y_variable(0,3)
+	get_nil(1)
+    guard_cond
+	put_y_value(0,4)
+	get_nil(4)
+	dealloc_proceed
+label(1)
+	allocate(1)
+	get_y_variable(0,3)
+	get_constant('begin',1)
+    guard_cond
+	put_y_value(0,4)
+	get_constant('begin',4)
+	dealloc_proceed
+label(2)
+	allocate(4)
+	get3_y_variable(0,3,1,2,3,0)
+	get_list(1)
+	unify_x_variable(4)
+	unify_y_variable(2)
+	get_list(4)
+	unify_x_variable(4)
+	unify_void
+	get_structure('card'/5,4)
+	unify_x_variable(4)
+	unify_void
+	unify_void
+	unify_void
+	unify_void
+	put_y_value(1,5)
+	get_structure('card'/5,5)
+	unify_x_value(4)
+	unify_void
+	unify_void
+	unify_void
+	unify_void
+    guard_cond
+	put4_y_value(3,0,2,1,1,2,0,3)
+	dealloc_execute('filter'/4)
+label(3)
+	allocate(6)
+	get2_y_variable(0,3,4,2)
+	get_list_x0
+	unify_constant('x')
+	unify_y_variable(1)
+	get_list(1)
+	unify_x_variable(8)
+	unify_y_variable(3)
+	get_list(8)
+	unify_y_variable(5)
+	unify_y_variable(2)
+    guard_cond
+	put_constant('yes',0)
+	put_constant('x',5)
+	put5_y_value(5,1,4,2,3,3,2,4,1,6)
+	put_y_value(0,7)
+	dealloc_execute('filter1'/8)
+label(4)
+	allocate(8)
+	get2_y_variable(0,3,4,2)
+	get_list_x0
+	unify_constant('t')
+	unify_y_variable(1)
+	get_list(1)
+	unify_x_variable(8)
+	unify_y_variable(3)
+	get_list(8)
+	unify_y_variable(5)
+	unify_y_variable(2)
+	put_y_value(5,8)
+	get_structure('card'/5,8)
+	unify_void
+	unify_y_variable(7)
+	unify_void
+	unify_void
+	unify_void
+	put_y_value(4,8)
+	get_structure('card'/5,8)
+	unify_void
+	unify_void
+	unify_void
+	unify_y_variable(6)
+	unify_void
+    guard_cond
+	put2_y_value(7,0,6,1)
+	put_y_variable(6,2)
+	call('flip'/3)
+	put_constant('t',5)
+	put5_y_value(6,0,5,1,4,2,3,3,2,4)
+	put2_y_value(1,6,0,7)
+	dealloc_execute('filter1'/8)
+label(5)
+	allocate(8)
+	get2_y_variable(0,3,4,2)
+	get_list_x0
+	unify_constant('r')
+	unify_y_variable(1)
+	get_list(1)
+	unify_x_variable(8)
+	unify_y_variable(3)
+	get_list(8)
+	unify_y_variable(5)
+	unify_y_variable(2)
+	put_y_value(5,8)
+	get_structure('card'/5,8)
+	unify_void
+	unify_void
+	unify_y_variable(7)
+	unify_void
+	unify_void
+	put_y_value(4,8)
+	get_structure('card'/5,8)
+	unify_void
+	unify_void
+	unify_void
+	unify_void
+	unify_y_variable(6)
+    guard_cond
+	put2_y_value(7,0,6,1)
+	put_y_variable(6,2)
+	call('flip'/3)
+	put_constant('r',5)
+	put5_y_value(6,0,5,1,4,2,3,3,2,4)
+	put2_y_value(1,6,0,7)
+	dealloc_execute('filter1'/8)
+label(6)
+	allocate(8)
+	get2_y_variable(0,3,4,2)
+	get_list_x0
+	unify_constant('b')
+	unify_y_variable(1)
+	get_list(1)
+	unify_x_variable(8)
+	unify_y_variable(3)
+	get_list(8)
+	unify_y_variable(5)
+	unify_y_variable(2)
+	put_y_value(5,8)
+	get_structure('card'/5,8)
+	unify_void
+	unify_void
+	unify_void
+	unify_y_variable(7)
+	unify_void
+	put_y_value(4,8)
+	get_structure('card'/5,8)
+	unify_void
+	unify_y_variable(6)
+	unify_void
+	unify_void
+	unify_void
+    guard_cond
+	put2_y_value(7,0,6,1)
+	put_y_variable(6,2)
+	call('flip'/3)
+	put_constant('b',5)
+	put5_y_value(6,0,5,1,4,2,3,3,2,4)
+	put2_y_value(1,6,0,7)
+	dealloc_execute('filter1'/8)
+label(7)
+	allocate(8)
+	get2_y_variable(0,3,4,2)
+	get_list_x0
+	unify_constant('l')
+	unify_y_variable(1)
+	get_list(1)
+	unify_x_variable(8)
+	unify_y_variable(3)
+	get_list(8)
+	unify_y_variable(5)
+	unify_y_variable(2)
+	put_y_value(5,8)
+	get_structure('card'/5,8)
+	unify_void
+	unify_void
+	unify_void
+	unify_void
+	unify_y_variable(7)
+	put_y_value(4,8)
+	get_structure('card'/5,8)
+	unify_void
+	unify_void
+	unify_y_variable(6)
+	unify_void
+	unify_void
+    guard_cond
+	put2_y_value(7,0,6,1)
+	put_y_variable(6,2)
+	call('flip'/3)
+	put_constant('l',5)
+	put5_y_value(6,0,5,1,4,2,3,3,2,4)
+	put2_y_value(1,6,0,7)
+	dealloc_execute('filter1'/8)
+)
+
+
+predicate('filter1'/8
+label(5)
+	switch_on_term(10,8,7,7,7,7,7)
+label(8)
+	switch_on_constant(2,[('no',9),('yes',11)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(5)
+	get5_y_variable(0,7,3,6,4,5,2,3,1,2)
+	get_constant('no',0)
+    guard_commit
+	put_list(0)
+	unify_y_value(4)
+	unify_y_value(3)
+	put3_y_value(2,1,1,2,0,3)
+	dealloc_execute('filter'/4)
+label(1)
+	allocate(7)
+	get5_y_variable(0,7,3,6,4,5,6,4,2,3)
+	get2_y_variable(1,2,5,1)
+	get_constant('yes',0)
+    guard_commit
+	put3_y_value(3,0,6,1,1,2)
+	put_y_variable(6,3)
+	call('filter'/4)
+	put3_y_value(6,0,5,1,0,2)
+	put_y_variable(0,3)
+	call('send'/4)
+	put_list(0)
+	unify_y_value(4)
+	unify_y_value(3)
+	put3_y_value(2,1,1,2,0,3)
+	dealloc_execute('filter'/4)
+)
+
+
+predicate('send'/4
+label(5)
+	switch_on_term(8,7,9,9,9,9,9)
+label(7)
+	switch_on_constant(1,[('[]',8)],9)
+label(8)
+	try(0)
+	trust(1)
+label(9)
+	try_single(1)
+label(0)
+	allocate(2)
+	get2_y_variable(0,3,1,2)
+	get_nil_x0
+    guard_cond
+	put_y_value(1,4)
+	get_y_value(0,4)
+	dealloc_proceed
+label(1)
+	allocate(4)
+	get4_y_variable(2,3,3,2,1,1,0,0)
+    guard_cond
+	put_y_value(3,4)
+	get_list(4)
+	unify_x_variable(4)
+	unify_y_value(2)
+	get_list(4)
+	unify_y_value(1)
+	unify_y_value(0)
+	dealloc_proceed
+)
+
+
+predicate('flip'/3
+label(19)
+	switch_on_term(22,21,31,31,31,31,31)
+label(21)
+	switch_on_constant(8,[('hb',30),('hg',27),('ho',29),('hp',28),('tb',26),('tg',23),('to',25),('tp',24)],31)
+label(22)
+	try(0)
+	retry(1)
+	retry(2)
+	retry(3)
+	retry(4)
+	retry(5)
+	retry(6)
+	retry(7)
+	trust(8)
+label(23)
+	try(0)
+	trust(8)
+label(24)
+	try(1)
+	trust(8)
+label(25)
+	try(2)
+	trust(8)
+label(26)
+	try(3)
+	trust(8)
+label(27)
+	try(4)
+	trust(8)
+label(28)
+	try(5)
+	trust(8)
+label(29)
+	try(6)
+	trust(8)
+label(30)
+	try(7)
+	trust(8)
+label(31)
+	try_single(8)
+label(0)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant('tg',0)
+	get_constant('hg',1)
+    guard_cond
+	put_y_value(0,3)
+	get_constant('yes',3)
+	dealloc_proceed
+label(1)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant('tp',0)
+	get_constant('hp',1)
+    guard_cond
+	put_y_value(0,3)
+	get_constant('yes',3)
+	dealloc_proceed
+label(2)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant('to',0)
+	get_constant('ho',1)
+    guard_cond
+	put_y_value(0,3)
+	get_constant('yes',3)
+	dealloc_proceed
+label(3)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant('tb',0)
+	get_constant('hb',1)
+    guard_cond
+	put_y_value(0,3)
+	get_constant('yes',3)
+	dealloc_proceed
+label(4)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant('hg',0)
+	get_constant('tg',1)
+    guard_cond
+	put_y_value(0,3)
+	get_constant('yes',3)
+	dealloc_proceed
+label(5)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant('hp',0)
+	get_constant('tp',1)
+    guard_cond
+	put_y_value(0,3)
+	get_constant('yes',3)
+	dealloc_proceed
+label(6)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant('ho',0)
+	get_constant('to',1)
+    guard_cond
+	put_y_value(0,3)
+	get_constant('yes',3)
+	dealloc_proceed
+label(7)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant('hb',0)
+	get_constant('tb',1)
+    guard_cond
+	put_y_value(0,3)
+	get_constant('yes',3)
+	dealloc_proceed
+label(8)
+	allocate(1)
+	get_y_variable(0,2)
+    guard_cond
+	put_y_value(0,3)
+	get_constant('no',3)
+	dealloc_proceed
+)
+
+
+predicate('final'/2
+label(5)
+	switch_on_term(10,8,7,7,7,11,7)
+label(8)
+	switch_on_constant(1,[('[]',9)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(1)
+	get_y_variable(0,1)
+	get_nil_x0
+    guard_commit
+	put_y_value(0,2)
+	get_nil(2)
+	dealloc_proceed
+label(1)
+	allocate(3)
+	get_y_variable(0,1)
+	get_list_x0
+	unify_y_variable(2)
+	unify_y_variable(1)
+    guard_commit
+	put_y_value(0,2)
+	get_list(2)
+	unify_x_variable(2)
+	unify_y_variable(0)
+	put_y_value(2,0)
+	put_x_value(2,1)
+	call('rearrange'/2)
+	put2_y_value(1,0,0,1)
+	dealloc_execute('final'/2)
+)
+
+
+predicate('rearrange'/2
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(2)
+	get2_y_variable(0,1,1,0)
+    guard_wait
+	put_y_value(1,0)
+	put_y_variable(1,1)
+	call('rearrange1'/2)
+	put2_y_value(1,0,0,1)
+	dealloc_execute('rearrange2'/2)
+)
+
+
+predicate('rearrange1'/2
+label(5)
+	switch_on_term(10,8,7,7,7,11,7)
+label(8)
+	switch_on_constant(1,[('[]',9)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(1)
+	get_y_variable(0,1)
+	get_nil_x0
+    guard_commit
+	put_y_value(0,2)
+	get_nil(2)
+	dealloc_proceed
+label(1)
+	allocate(4)
+	get_y_variable(3,1)
+	get_list_x0
+	unify_x_variable(2)
+	unify_y_variable(0)
+	get_structure('card'/5,2)
+	unify_y_variable(2)
+	unify_y_variable(1)
+	unify_void
+	unify_void
+	unify_void
+    guard_commit
+	put_y_value(3,2)
+	get_list(2)
+	unify_x_variable(2)
+	unify_x_variable(3)
+	get_structure('-'/2,2)
+	unify_y_value(2)
+	unify_y_value(1)
+	put_y_value(0,0)
+	put_x_value(3,1)
+	dealloc_execute('rearrange1'/2)
+)
+
+
+predicate('rearrange2'/2
+label(3)
+	switch_on_term(6,5,5,5,5,6,5)
+label(5)
+	fail
+label(6)
+	try_single(0)
+label(0)
+	allocate(10)
+	get_y_variable(9,1)
+	get_list_x0
+	unify_y_variable(4)
+	unify_list
+	unify_y_variable(7)
+	unify_list
+	unify_y_variable(3)
+	unify_list
+	unify_y_variable(6)
+	unify_list
+	unify_y_variable(5)
+	unify_list
+	unify_y_variable(8)
+	unify_list
+	unify_y_variable(1)
+	unify_list
+	unify_y_variable(2)
+	unify_list
+	unify_y_variable(0)
+	unify_nil
+    guard_wait
+	put_y_value(9,2)
+	get_list(2)
+	unify_y_value(8)
+	unify_list
+	unify_y_value(7)
+	unify_list
+	unify_y_value(6)
+	unify_list
+	unify_y_value(5)
+	unify_list
+	unify_y_value(4)
+	unify_list
+	unify_y_value(3)
+	unify_list
+	unify_y_value(2)
+	unify_list
+	unify_y_value(1)
+	unify_list
+	unify_y_value(0)
+	unify_nil
+	dealloc_proceed
+)
+
+
+predicate('fromLStoL'/2
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(2)
+	get2_y_variable(0,1,1,0)
+    guard_commit
+	put_nil(1)
+	put_nil(3)
+	put2_y_value(1,0,0,2)
+	dealloc_execute('fromLStoS'/4)
+)
+
+
+predicate('fromLStoS'/4
+label(7)
+	switch_on_term(12,10,9,9,9,14,9)
+label(10)
+	switch_on_constant(2,[('[]',13),('begin',11)],9)
+label(9)
+	fail
+label(11)
+	try_single(0)
+label(12)
+	try(0)
+	retry(1)
+	trust(2)
+label(13)
+	try_single(1)
+label(14)
+	try_single(2)
+label(0)
+	allocate(3)
+	get3_y_variable(0,3,2,2,1,1)
+	get_constant('begin',0)
+    guard_commit
+	put_y_value(2,4)
+	get_list(4)
+	unify_y_value(1)
+	unify_y_value(0)
+	dealloc_proceed
+label(1)
+	allocate(2)
+	get2_y_variable(0,3,1,2)
+	get_nil_x0
+    guard_commit
+	put_y_value(1,4)
+	get_y_value(0,4)
+	dealloc_proceed
+label(2)
+	allocate(6)
+	get3_y_variable(0,3,1,2,2,1)
+	get_list_x0
+	unify_x_variable(4)
+	unify_y_variable(3)
+	get_list(4)
+	unify_y_variable(5)
+	unify_y_variable(4)
+    guard_commit
+	put_list(1)
+	unify_y_value(5)
+	unify_y_value(2)
+	put2_y_value(4,0,1,2)
+	put_y_variable(1,3)
+	call('fromLStoS'/4)
+	put4_y_value(3,0,2,1,1,2,0,3)
+	dealloc_execute('fromLStoS'/4)
+)
+
+
+predicate('count'/2
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(2)
+	get2_y_variable(0,1,1,0)
+    guard_wait
+	put_constant(0,1)
+	put2_y_value(1,0,0,2)
+	dealloc_execute('count'/3)
+)
+
+
+predicate('count'/3
+label(5)
+	switch_on_term(10,8,7,7,7,11,7)
+label(8)
+	switch_on_constant(1,[('[]',9)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(2)
+	get2_y_variable(0,2,1,1)
+	get_nil_x0
+    guard_commit
+	put_y_value(1,3)
+	get_y_value(0,3)
+	dealloc_proceed
+label(1)
+	allocate(3)
+	get2_y_variable(0,2,2,1)
+	get_list_x0
+	unify_void
+	unify_y_variable(1)
+    guard_commit
+	put_structure('+'/2,1)
+	unify_y_value(2)
+	unify_constant(1)
+	put_x_variable(3,0)
+	call('is'/2)
+	put_y_value(1,0)
+	put_x_value(3,1)
+	put_y_value(0,2)
+	dealloc_execute('count'/3)
+)
+
+

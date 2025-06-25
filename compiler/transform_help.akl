@@ -1,0 +1,1138 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%                   Main help routines
+%%%%
+%%%%     handle_singletons(Singletons,Underscored,Clause,NewClause,Warn,Db)
+%%%%     weird_equality_constraints(Constraints,Warn,Flag)
+%%%%     weird_non_unify_constraints(Constraints,Warn,Flag)
+%%%%     useless_equality_constraints(Constraints,Where,Warn,Flag,Db)
+%%%%     deal_with_head_occs(Args,NArgs,Db,CUC)
+%%%%     extract_head_constraints(Cons,Simples,Rest,First,Warn,cuc(B,E),Db)
+%%%%     amalgamate_simple(Simples,Args,NArgs),
+%%%%     head_non_unify_constraints(Cons,First,Simp,Comp,Rest,Warn,Db)
+%%%%     pre_unify(ToBeCt,IsCt,U,PreU,Warn,Db)
+%%%%     pre_non_unify(ToBeCt,IsCt,NU,PreNU,Warn,Db)
+%%%%     maybe_post_unify(ToBeCt,IsCt,U,PostU,Acc,RestU,Warn,Db)
+%%%%     maybe_post_non_unify(ToBeCt,IsCt,NU,PostNU,Acc,RestNU,Warn,Db)
+%%%%     extract_output_unify(ToBeCt,First,U,VarSimp,VarVar,VarComp,RestU,Warn,Db)
+%%%%     extract_ouput_non_unify(ToBeCt,First,NU,OutNU,RestNU,Warn,Db)
+%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%          handle_singletons
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+handle_singletons([],[],Clause,NewClause,_Warn,Db):-
+   -> 
+   Db=[],
+   Clause=NewClause.
+handle_singletons([],Under,Clause,NewClause,Warn,Db):-
+   ->
+   Clause=NewClause,
+   Db=[],
+   warn_under(Under,Warn).
+handle_singletons([X|Xs],Under,Clause,NewClause,Warn,Db):-
+   member_remove(X,Under,Under1)
+   -> 
+   replace(var(X),unnamed,Clause,Clause1),
+   Db=[remove(X)|Db1],
+   handle_singletons(Xs,Under1,Clause1,NewClause,Warn,Db1).
+handle_singletons([X|Xs],Under,Clause,NewClause,Warn,Db):-
+   -> 
+   warning(singleton,X,Warn),
+   replace(var(X),unnamed,Clause,Clause1),
+   Db=[remove(X)|Db1],
+   handle_singletons(Xs,Under,Clause1,NewClause,Warn,Db1).
+
+%%%%
+
+warn_under([],_Warn):- -> true.
+warn_under([X|Xs],Warn):-
+   ->
+   warning(non_singleton,X,Warn),
+   warn_under(Xs,Warn).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%  weird_equality_constraints
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+weird_equality_constraints([],_,Flag):-
+   -> Flag=ok.
+weird_equality_constraints([X|_Xs],Warn,Flag):-
+   X=g(_,struct(_,_,[A,B])),
+   weird_eq_remove(A,B)
+   ->
+   warning(weird_equality_constraint,remove_goal(X),Warn),
+   Flag=remove_goal(X).
+weird_equality_constraints([X|_Xs],Warn,Flag):-
+   X=g(Ct,struct(_,_,[A,B])),
+   weird_eq_simplify(Ct,A,B,New)
+   ->
+   warning(weird_equality_constraint,replace_goal(X,New),Warn),
+   Flag=replace_goal(X,New).
+weird_equality_constraints([X|_Xs],Warn,Flag):-
+   X=g(_,struct(_,_,[A,B])),
+   weird_eq_fail(A,B)
+   ->
+   warning(weird_equality_constraint,fail(X),Warn),
+   Flag=fail.
+weird_equality_constraints([_|Xs],Warn,Flag):-
+   ->
+   weird_equality_constraints(Xs,Warn,Flag).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+weird_eq_fail(A,B):- 
+	flat_member(B,[atom(_),nil,list(_,_),struct(_,_,_),integer(_)]),
+	flat_member(A,[atom(_),nil,list(_,_),struct(_,_,_),integer(_)])
+        ->
+	true.
+
+%%%%
+
+weird_eq_remove(A,A):- -> true.
+weird_eq_remove(unnamed,_):- -> true.
+weird_eq_remove(_,unnamed):- -> true.
+
+%%%%
+
+weird_eq_simplify(Ct,list(H1,T1),list(H2,T2),Out):- 
+    -> make_eq_constraints(Ct,[H1,T1],[H2,T2],Out).
+weird_eq_simplify(Ct,struct(F,A,Args),struct(F,A,Args1),Out):- 
+    -> make_eq_constraints(Ct,Args,Args1,Out).
+weird_eq_simplify(_,_,Out):-
+    -> Out=fail.
+
+%%%%
+
+make_eq_constraints(_Ct,[],[],Out):- -> Out=[].
+make_eq_constraints(Ct,[X|Xs],[Y|Ys],Out):-
+    ->
+    Out=[g(Ct,struct('=',2,[X,Y]))|Out1],
+    make_eq_constraints(Ct,Xs,Ys,Out1).
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%  weird_non_unify_constraints         ATTENTION
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+weird_non_unify_constraints([],_Warn,Flag):- -> Flag=ok.
+weird_non_unify_constraints([g(_Ct,Goal)|_Xs],Warn,_Flag):-
+   builtin_input_output(Goal,IVars,OVars),
+   no_vars(IVars),no_vars(OVars)
+   ->
+   not_implemented(weird_non_unify_constraints(Goal,Warn)).
+weird_non_unify_constraints([_|Xs],Warn,Flag):-
+   ->
+   weird_non_unify_constraints(Xs,Warn,Flag).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+no_vars([var(_)|_]):- -> fail.
+no_vars([_|Xs]):-        -> no_vars(Xs).
+no_vars([]):-            -> true.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% useless_equality_constraints
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+useless_equality_constraints([],_Where,_Warn,Flag,Db):- -> Db=[],Flag=ok.
+useless_equality_constraints([X|Xs],Where,Warn,Flag,Db):-
+   flat_member(X,[g(_,struct(_,_,[var(Name),Other])),g(_,struct(_,_,[Other,var(Name)]))]),
+   flat_member(Other,[list(_,_),struct(_,_,_)])
+   ->
+   useless_equality_constraints(Xs,Where,Warn,Flag,Db).
+useless_equality_constraints([X|Xs],Where,Warn,Flag,Db):-
+   X=g(_,struct(_,_,[Other,var(Name)])),
+   flat_member(Other,[list(_,_),struct(_,_,_)])
+   ->
+   Db=[occurrences(Name,Occs)|Db1],
+   u_e_var_struct(Occs,Name,Other,X,Xs,Where,Warn,Flag,Db1).
+useless_equality_constraints([X|Xs],Where,Warn,Flag,Db):-
+   X=g(_,struct(_,_,[var(Name),Other])),
+   flat_member(Other,[atom(_),integer(_),nil])
+   ->
+   Db=[occurrences(Name,Occs)|Db1],
+   u_e_var_simple(Occs,Name,Other,X,Xs,Where,Warn,Flag,Db1).
+useless_equality_constraints([X|Xs],Where,Warn,Flag,Db):-
+   X=g(_,struct(_,_,[Other,var(Name)])),
+   flat_member(Other,[atom(_),integer(_),nil])
+   ->
+   Db=[occurrences(Name,Occs)|Db1],
+   u_e_var_simple(Occs,Name,Other,X,Xs,Where,Warn,Flag,Db1).
+useless_equality_constraints([X|Xs],Where,Warn,Flag,Db):-
+   X=g(_,struct(_,_,[var(Name1),var(Name2)]))
+   ->
+   Db=[occurrences(Name1,Occs1),occurrences(Name2,Occs2)|Db1],
+   u_e_var_var(Occs1,Occs2,Name1,Name2,X,Xs,Where,Warn,Flag,Db1).
+
+%%%%
+
+u_e_var_simple(_,Name,Other,X,_Xs,guard,Warn,Flag,Db):-
+   ->
+    Db=[],
+    warning(useless_equality_constraint,amalgamated(X),Warn),
+    Flag=replace(var(Name),Other).
+u_e_var_simple([0|_],Name,Other,X,_Xs,body,Warn,Flag,Db):-
+    ->
+    Db=[],
+    warning(useless_equality_constraint,amalgamated(X),Warn),
+    Flag=replace(var(Name),Other).
+u_e_var_simple([-1,0],_Name,_Other,_X,Xs,body,Warn,Flag,Db):-
+    ->
+    useless_equality_constraints(Xs,body,Warn,Flag,Db).
+u_e_var_simple([-1,0|More],Name,Other,X,_Xs,body,Warn,_Flag,_Db):-
+    ->
+    not_implemented(u_e_var_simple([-1,0|More],Name,Other,X,Warn)).
+
+%%%%
+
+u_e_var_var(_,_,Name1,Name2,X,_Xs,guard,Warn,Flag,Db):-
+    ->
+    Db=[],
+    warning(useless_equality_constraint,amalgamated(X),Warn),
+    Flag=replace(var(Name2),var(Name1)).    
+u_e_var_var([-1,0],[-1,0],_Name1,_Name2,_X,Xs,body,Warn,Flag,Db):-
+    ->
+    useless_equality_constraints(Xs,body,Warn,Flag,Db).
+u_e_var_var(Occs1,Occs2,Name1,Name2,X,Xs,body,Warn,Flag,Db):-
+    ->
+    reverse_list(Occs1,Occs3),reverse_list(Occs2,Occs4),
+    u_e_var_var1(Occs3,Occs4,Name1,Name2,X,Xs,Warn,Flag,Db).
+
+%%%%
+
+u_e_var_var1([0,-1|_],[0,-1|_],_Name1,_Name2,_X,Xs,Warn,Flag,Db):-
+    ->
+    useless_equality_constraints(Xs,body,Warn,Flag,Db).
+u_e_var_var1([0,0|_],[0,0|_],Name1,Name2,X,_Xs,Warn,Flag,Db):-
+    ->
+    Db=[],
+    warning(strange_equality_constraint,amalgamated(X),Warn),
+    Flag=replace_in_all_body_but(var(Name1),var(Name2),X).
+u_e_var_var1(Occs1,Occs2,_Name1,_Name2,X,_Xs,_Warn,_Flag,_Db):-
+    ->
+    not_implemented(u_e_var_var1(Occs1,Occs2,X)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%     deal_with_head_occs
+%%%
+%%%      1) remove variables already present in head, create an artificial
+%%%         variable for it, and create a complex equality constraint for it
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+   
+deal_with_head_occs([],Out,Db,CC):-
+   ->
+   Out=[],
+   Db=[],
+   CC=[].
+deal_with_head_occs([var(Name)|MoreArgs],Out,Db,CC):-
+   -> 
+   Out=[Arg|MoreArgsToBe],
+   Db=[occurrences_at(Name,1,Occs),Db1|Db2],
+   deal_with_head_occs2(Occs,var(Name),Arg,CC,CCOut,Db1),
+   deal_with_head_occs(MoreArgs,MoreArgsToBe,Db2,CCOut).
+deal_with_head_occs([unnamed|MoreArgs],Out,Db,CC):-
+   -> 
+   Out=[unnamed|MoreArgsToBe],
+   deal_with_head_occs(MoreArgs,MoreArgsToBe,Db,CC).
+deal_with_head_occs([list(H,T)|MoreArgs],Out,Db,CC):-
+   -> 
+   Out=[list(H1,T1)|MoreArgsToBe],
+   Db=[Db1,Db2|Db3],
+   deal_with_head_subterm(H,H1,Db1,CC,CC1),
+   deal_with_head_subterm(T,T1,Db2,CC1,CCOut),
+   deal_with_head_occs(MoreArgs,MoreArgsToBe,Db3,CCOut).
+deal_with_head_occs([struct(F,A,Args)|MoreArgs],Out,Db,CC):-
+   -> 
+   Out=[struct(F,A,ArgsToBe)|MoreArgsToBe],
+   Db=[Db1|Db2],
+   deal_with_head_subterm(Args,ArgsToBe,Db1,CC,CCOut),
+   deal_with_head_occs(MoreArgs,MoreArgsToBe,Db2,CCOut).
+deal_with_head_occs([Atom|MoreArgs],Out,Db,CC):-
+   -> 
+   Out=[Atom|MoreArgsToBe],
+   deal_with_head_occs(MoreArgs,MoreArgsToBe,Db,CC).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+deal_with_head_subterm([],Out,Db,CCIn,CCOut):-
+   -> 
+   Out=[],
+   CCIn=CCOut,
+   Db=[].
+deal_with_head_subterm([X|Xs],Out,Db,CCIn,CCOut):-
+   ->
+   Db=[Db1|Db2],Out=[Out1|Out2],
+   deal_with_head_subterm(X,Out1,Db1,CCIn,CC1),
+   deal_with_head_subterm(Xs,Out2,Db2,CC1,CCOut).
+deal_with_head_subterm(var(Name),Out,Db,CCIn,CCOut):-
+   -> 
+   Db=[occurrences_at(Name,1,Occs)|Db1],
+   deal_with_head_occs2(Occs,var(Name),Out,CCIn,CCOut,Db1).
+deal_with_head_subterm(list(H,T),Out,Db,CCIn,CCOut):-
+   -> 
+   Out=list(H1,T1),
+   Db=[Db1|Db2],
+   deal_with_head_subterm(H,H1,Db1,CCIn,CC1),
+   deal_with_head_subterm(T,T1,Db2,CC1,CCOut).
+deal_with_head_subterm(struct(F,A,Args),Out,Db,CCIn,CCOut):-
+   -> 
+   Out=struct(F,A,ArgsToBe),
+   deal_with_head_subterm(Args,ArgsToBe,Db,CCIn,CCOut).
+deal_with_head_subterm(Atom,Out,Db,CCIn,CCOut):-
+   flat_member(Atom,[[],nil,unnamed,atom(_),integer(_)])
+   -> 
+   Out=Atom,Db=[],CCIn=CCOut.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+deal_with_head_occs2(0,var(Name),Arg,CCIn,CCOut,Db):-
+   -> 
+   Arg=var(Name),
+   Db=[add_occurrence(Name,1),delete_occurrence(Name,-1)],
+   CCIn=CCOut.
+deal_with_head_occs2(N,var(Name),Arg,CCIn,CCOut,Db):-
+   N>0
+   -> 
+   Arg=var(Art),
+   Db=[new_artificial_entry([1,2],Art),delete_occurrence(Name,-1),
+       add_occurrence(Name,2)],
+   CCIn=[eq(var(Name),Arg)|CCOut].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% extract_head_constraints
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+extract_head_constraints(Poss,Simp,Rest,First,Warn,CUC,Db):-
+   ->
+   Db=[Db1|Db2],
+   CUC=cuc(CUCB,CUCE),
+   extract_head_constraints1(Poss,S,R,First,Warn,CUCB,CUC1,Db1),
+   extract_head_constraints2(S,[],R,Simp,Rest,First,Warn,CUC1,CUCE,Db2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+extract_head_constraints2([],S,R,Simp,Rest,_First,_Warn,CUCB,CUCE,Db):-
+   ->
+   Simp=S,Rest=R,CUCB=CUCE,Db=[].
+extract_head_constraints2(S,OldS,R,Simp,Rest,First,Warn,CUCB,CUCE,Db):-
+   ->
+   Db=[Db1|Db2],
+   extract_head_constraints1(R,S1,R1,First,Warn,CUCB,CUC1,Db1),
+   app(S,OldS,OldS1),
+   extract_head_constraints2(S1,OldS1,R1,Simp,Rest,First,Warn,CUC1,CUCE,Db2).
+         
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+extract_head_constraints1([],Simp,Rest,_First,_Warn,CUCB,CUCE,Db):-
+   -> Simp=[],CUCB=CUCE,Rest=[],Db=[].
+extract_head_constraints1([X|Xs],Simp,Rest,First,Warn,CUCB,CUCE,Db):-
+   flat_member(X,[g(Ct,struct('=',2,[var(Name),Other])),g(Ct,struct('=',2,[Other,var(Name)]))])
+   -> 
+   Db=[occurrences_at(Name,1,Occs)|Db1],
+   e_v_s_c(Occs,Name,Other,Ct,X,Xs,Simp,Rest,First,Warn,CUCB,CUCE,Db1).
+
+%%%%  
+
+e_v_s_c([],_Name,_Other,_Ct,X,Xs,Simp,Rest,First,Warn,CUCB,CUCE,Db):-
+   ->
+   Rest=[X|Rest1],
+   extract_head_constraints1(Xs,Simp,Rest1,First,Warn,CUCB,CUCE,Db).
+e_v_s_c(_,Name,Other,Ct,X,Xs,Simp,Rest,First,Warn,CUCB,CUCE,Db):-
+   integer(First),Ct>First
+   -> 
+   warning(reorder_left_indexing,X,Warn),
+   e_v_s_c2(Name,Other,Xs,Simp,Rest,First,Warn,CUCB,CUCE,Db).
+e_v_s_c(_,Name,Other,_Ct,_X,Xs,Simp,Rest,First,Warn,CUCB,CUCE,Db):-
+   -> 
+   e_v_s_c2(Name,Other,Xs,Simp,Rest,First,Warn,CUCB,CUCE,Db).
+
+%%%%
+
+e_v_s_c2(Name,Other,Xs,Simp,Rest,First,Warn,CUCB,CUCE,Db):-
+   ->
+   Simp=[eq(var(Name),Other1)|Simp1],
+   Db=[delete_occurrence(Name,-1),add_occurrence(Name,2),Db1|Db2],
+   deal_with_var_simple_subterm(Other,Other1,Db1,CUCB,CUC1),
+   extract_head_constraints1(Xs,Simp1,Rest,First,Warn,CUC1,CUCE,Db2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+deal_with_var_simple_subterm([X|Xs],Out,Db,CCIn,CCOut):-
+   ->
+   Db=[Db1|Db2],Out=[Out1|Out2],
+   deal_with_var_simple_subterm(X,Out1,Db1,CCIn,CC1),
+   deal_with_var_simple_subterm(Xs,Out2,Db2,CC1,CCOut).
+deal_with_var_simple_subterm(var(Name),Out,Db,CCIn,CCOut):-
+   -> 
+   Db=[occurrences_at(Name,1,Occs)|Db1],
+   deal_with_var_simple_occs2(Occs,var(Name),Out,CCIn,CCOut,Db1).
+deal_with_var_simple_subterm(list(H,T),Out,Db,CCIn,CCOut):-
+   -> 
+   Out=list(H1,T1),Db=[Db1|Db2],
+   deal_with_var_simple_subterm(H,H1,Db1,CCIn,CC1),
+   deal_with_var_simple_subterm(T,T1,Db2,CC1,CCOut).
+deal_with_var_simple_subterm(struct(F,A,Args),Out,Db,CCIn,CCOut):-
+   -> 
+   Out=struct(F,A,ArgsToBe),
+   deal_with_var_simple_subterm(Args,ArgsToBe,Db,CCIn,CCOut).
+deal_with_var_simple_subterm(Atom,Out,Db,CCIn,CCOut):-
+   flat_member(Atom,[atom(_),integer(_),nil,unnamed,[]])
+   -> 
+   Out=Atom,Db=[],CCIn=CCOut.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+deal_with_var_simple_occs2(0,var(Name),Arg,CCIn,CCOut,Db):-
+   -> 
+   Arg=var(Name),
+   Db=[add_occurrence(Name,1),delete_occurrence(Name,-1)],
+   CCIn=CCOut.
+deal_with_var_simple_occs2(N,var(Name),Arg,CCIn,CCOut,Db):-
+   N>0
+   -> 
+   Arg=var(Art),
+   Db=[new_artificial_entry([1,2],Art),delete_occurrence(Name,-1),
+       add_occurrence(Name,2)],
+   CCIn=[eq(var(Name),Arg)|CCOut].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%  amalgamate_simple
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+amalgamate_simple([],Args,NArgs):- -> Args=NArgs.
+amalgamate_simple([eq(var(Name),Other)|Simps],Args,NArgs):-
+   ->
+   replace(var(Name),var_simple(Name,Other),Args,Args1),
+   amalgamate_simple(Simps,Args1,NArgs).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%   head_non_unify_constraints
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+head_non_unify_constraints([],_First,NU,Rest,_Warn,Db):- -> NU=[],Rest=[],Db=[].
+head_non_unify_constraints(FG,First,NU,Rest,Warn,Db):-
+   ->
+   head_non_unify2(yes,FG,First,NU,Rest,Warn,Db).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+head_non_unify2(no,R,_First,NU,Rest,_Warn,Db):-
+   ->
+   NU=[],R=Rest,Db=[].
+head_non_unify2(yes,R,First,NU,Rest,Warn,Db):-
+   ->
+   Db=[Db1|Db2],
+   h_non_unify(R,First,R1,NU,Warn,Db1,no,Flag,NU1),
+   head_non_unify2(Flag,R1,First,NU1,Rest,Warn,Db2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+h_non_unify([],_,Rest,NU,_Warn,Db,Flag,Flag1,NU1):-
+   -> 
+   Flag=Flag1,NU1=NU,Rest=[],Db=[].
+h_non_unify([G|FGs],First,Rest,NU,Warn,Db,Flag,Flag1,NU1):-
+   G=g(_,Goal)
+   -> 
+   Db=[Db1|Db2],
+   builtin_input_output(Goal,IVars,OVars),
+   var_occs_after(0,IVars,IOccs,Db1),
+   h_n_u(IOccs,IVars,OVars,G,FGs,First,Rest,NU,Warn,Db2,Flag,Flag1,NU1).
+
+%%%%
+
+h_n_u(IOccs,IVars,OVars,G,FGs,First,Rest,NU,Warn,Db,_Flag,Flag1,NU1):-
+   all_non_nil(IOccs)
+   ->
+   h_n_u1(IVars,OVars,G,FGs,First,Rest,NU,Warn,Db,Flag1,NU1).
+h_n_u(_IOccs,_IVars,_OVars,G,FGs,First,Rest,NU,Warn,Db,Flag,Flag1,NU1):-
+   ->
+   Rest=[G|Rest1],
+   h_non_unify(FGs,First,Rest1,NU,Warn,Db,Flag,Flag1,NU1).
+
+%%%%
+
+h_n_u1(IVars,[],g(Ct,Goal),FGs,First,Rest,NU,Warn,Db,Flag,NU1):-
+   integer(First),Ct>First
+   ->
+   warning(reorder_left_indexing,Goal,Warn),
+   h_n_u2(IVars,Goal,FGs,First,Rest,NU,Warn,Db,Flag,NU1).
+h_n_u1(IVars,[],g(_Ct,Goal),FGs,First,Rest,NU,Warn,Db,Flag,NU1):-
+   ->
+   h_n_u2(IVars,Goal,FGs,First,Rest,NU,Warn,Db,Flag,NU1).
+
+%%%%
+
+h_n_u2(IVars,Goal,FGs,First,Rest,NU,Warn,Db,Flag,NU1):-
+   ->
+   NU=[Goal|NUx],
+   Db=[Db1|Db2],
+   occ_shift(-1,3,IVars,Db1),
+   h_non_unify(FGs,First,Rest,NUx,Warn,Db2,yes,Flag,NU1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%  pre_unify
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+pre_unify(ToBeCt,IsCt,U,PreU,Warn,Db):- -> 
+    pre_unify1(ToBeCt,IsCt,U,PreU,[],Warn,Db).
+
+%%%%
+
+pre_unify1(_ToBeCt,_IsCt,[],PreU,[],_Warn,Db):- -> PreU=[],Db=[].
+pre_unify1(ToBeCt,IsCt,[],PreU,Acc,Warn,Db):-
+   ->
+   bad_pre_unifies(Acc,Warn),
+   make_bad_pre_unfies(ToBeCt,IsCt,PreU,Acc,Db).
+pre_unify1(ToBeCt,IsCt,[X|Rest],PreU,Acc,Warn,Db):-
+   X=g(_,Goal),
+   flat_member(Goal,[struct('=',2,[var(Name),Other]),struct('=',2,[Other,var(Name)])])
+   ->
+   Db=[occurrences_after(Name,0,Occs)|Db1],
+   pre_unify2(Occs,ToBeCt,IsCt,Name,Other,X,PreU,Rest,Acc,Warn,Db1).
+
+%%%%
+
+pre_unify2([],ToBeCt,IsCt,_Name,_Other,Goal,PreU,Rest,Acc,Warn,Db):- 
+    ->
+    pre_unify1(ToBeCt,IsCt,Rest,PreU,[Goal|Acc],Warn,Db).
+pre_unify2(_,ToBeCt,IsCt,Name,Other,Goal,PreU,Rest,Acc,Warn,Db):- 
+    ->
+   Db=[Db1|Db2],
+   occ_shift(IsCt,ToBeCt,Goal,Db1),
+   PreU=[eq(var(Name),Other)|PreU1],
+   pre_unify1(ToBeCt,IsCt,Rest,PreU1,Acc,Warn,Db2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+bad_pre_unifies([],_Warn):- -> true.
+bad_pre_unifies([g(_Ct,Goal)|Gs],Warn):-
+   ->
+   warning(bad_pre_unify,Goal,Warn),
+   bad_pre_unifies(Gs,Warn).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+make_bad_pre_unifies(_ToBeCt,_IsCt,PreU,[],Db):-
+   ->
+   Db=[],PreU=[].
+make_bad_pre_unifies(ToBeCt,IsCt,PreU,[g(_,Goal)|Acc],Db):-
+   flat_member(Goal,[struct('=',2,[var(Name),Other]),struct('=',2,[Other,var(Name)])])
+   ->
+   Db=[Db1|Db2],
+   PreU=[eq(var(Name),Other)|PreU1],
+   occ_shift(IsCt,ToBeCt,Goal,Db1),
+   make_bad_pre_unifies(ToBeCt,IsCt,PreU1,Acc,Db2).
+   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%  pre_non_unify
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+pre_non_unify(ToBeCt,IsCt,U,PreNU,Warn,Db):- -> 
+    pre_non_unify1(ToBeCt,IsCt,U,PreNU,[],Warn,Db).
+
+%%%%
+
+pre_non_unify1(_ToBeCt,_IsCt,[],PreNU,[],_Warn,Db):- -> PreNU=[],Db=[].
+pre_non_unify1(ToBeCt,IsCt,[],PreNU,Acc,Warn,Db):-
+   ->
+   bad_pre_non_unifies(Acc,Warn),
+   make_bad_pre_non_unifies(ToBeCt,IsCt,PreNU,Acc,Db).
+pre_non_unify1(ToBeCt,IsCt,[X|Rest],PreNU,Acc,Warn,Db):-
+   X=g(_,Goal)
+   ->
+   Db=[Db1|Db2],
+   builtin_input_output(Goal,IVars,OVars),
+   var_occs_after(0,IVars,IOccs,Db1),
+   pre_non_unify2(IOccs,IVars,OVars,ToBeCt,IsCt,X,PreNU,Rest,Acc,Warn,Db2).
+
+%%%%
+
+pre_non_unify2(IOccs,IV,OV,ToBeCt,IsCt,g(_Ct,Goal),PreNU,Rest,Acc,Warn,Db):- 
+    all_non_nil(IOccs)
+    ->
+    Db=[Db1|Db2],
+    PreNU=[Goal|PreNU1],
+    occ_shift(IsCt,ToBeCt,[IV,OV],Db1),
+    pre_non_unify1(ToBeCt,IsCt,Rest,PreNU1,Acc,Warn,Db2).
+pre_non_unify2(_,_,_,ToBeCt,IsCt,X,PreNU,Rest,Acc,Warn,Db):- 
+    ->
+   pre_non_unify1(ToBeCt,IsCt,Rest,PreNU,[X|Acc],Warn,Db).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+bad_pre_non_unifies([],_Warn):- -> true.
+bad_pre_non_unifies([g(_,Goal)|Gs],Warn):-
+   ->
+   warning(bad_pre_non_unify,Goal,Warn),
+   bad_pre_unifies(Gs,Warn).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+make_bad_pre_non_unifies(_ToBeCt,_IsCt,PreNU,[],Db):-
+   ->
+   Db=[],PreNU=[].
+make_bad_pre_non_unifies(ToBeCt,IsCt,PreNU,[g(_,Goal)|Acc],Db):-
+   ->
+   Db=[Db1|Db2],
+   PreNU=[Goal|PreNU1],
+   occ_shift(IsCt,ToBeCt,Goal,Db1),
+   make_bad_pre_non_unifies(ToBeCt,IsCt,PreNU1,Acc,Db2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%  maybe_post_unify
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+maybe_post_unify(ToBeCt,IsCt,U,PostU,RestU,Db):- 
+    -> 
+    Db=[Db1|Db2],
+    maybe_post_unify1(ToBeCt,IsCt,U,PU,RU,Db1),
+    maybe_post_unify2(PU,RU,[],ToBeCt,IsCt,PostU,RestU,Db2).
+
+%%%%
+
+maybe_post_unify2([],RU,SoFar,_ToBeCt,_IsCt,PostU,RestU,Db):- -> PostU=SoFar,RestU=RU,Db=[].
+maybe_post_unify2(PU,RU,SoFar,ToBeCt,IsCt,PostU,RestU,Db):-
+   ->
+   Db=[Db1|Db2],
+   app(PU,SoFar,SoFar1),
+   maybe_post_unify1(ToBeCt,IsCt,RU,PU1,RU1,Db1),
+   maybe_post_unify2(PU1,RU1,SoFar1,ToBeCt,IsCt,PostU,RestU,Db2).
+
+%%%%
+
+maybe_post_unify1(_,_,[],PreU,RestU,Db):-
+   ->
+   PreU=[],RestU=[],Db=[].
+maybe_post_unify1(ToBeCt,IsCt,[X|Xs],PreU,RestU,Db):-
+   X=g(_,Goal),
+   flat_member(Goal,[struct('=',2,[var(Name),Other]),struct('=',2,[Other,var(Name)])])
+   ->
+   Db=[occurrences_after(Name,0,Occs)|Db1],
+   maybe_post_unify3(Occs,ToBeCt,IsCt,Name,Other,X,Xs,PreU,RestU,Db1).
+
+%%%%
+
+maybe_post_unify3([],ToBeCt,IsCt,_Name,_Other,X,Xs,PreU,RestU,Db):- 
+    ->
+    RestU=[X|RestU1],
+    maybe_post_unify1(ToBeCt,IsCt,Xs,PreU,RestU1,Db).
+maybe_post_unify3(_,ToBeCt,IsCt,Name,Other,X,Xs,PreU,RestU,Db):- 
+    ->
+   Db=[Db1|Db2],
+   occ_shift(IsCt,ToBeCt,X,Db1),
+   PreU=[eq(var(Name),Other)|PreU1],
+   maybe_post_unify1(ToBeCt,IsCt,Xs,PreU1,RestU,Db2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%  maybe_post_non_unify
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+maybe_post_non_unify(ToBeCt,IsCt,NU,PostNU,RestNU,Db):- 
+    -> 
+    Db=[Db1|Db2],
+    maybe_post_non_unify1(ToBeCt,IsCt,NU,PNU,RNU,Db1),
+    maybe_post_non_unify2(PNU,RNU,[],ToBeCt,IsCt,PostNU,RestNU,Db2).
+
+%%%%
+
+maybe_post_non_unify2([],RNU,SoFar,_ToBeCt,_IsCt,PostNU,RestNU,Db):- -> PostNU=SoFar,RestNU=RNU,Db=[].
+maybe_post_non_unify2(PNU,RNU,SoFar,ToBeCt,IsCt,PostNU,RestNU,Db):-
+   ->
+   Db=[Db1|Db2],
+   app(PNU,SoFar,SoFar1),
+   maybe_post_non_unify1(ToBeCt,IsCt,RNU,PNU1,RNU1,Db1),
+   maybe_post_non_unify2(PNU1,RNU1,SoFar1,ToBeCt,IsCt,PostNU,RestNU,Db2).
+
+%%%%
+
+maybe_post_non_unify1(_ToBeCt,_IsCt,[],PostNU,RestNU,Db):-
+   ->
+   PostNU=[],RestNU=[],Db=[].
+maybe_post_non_unify1(ToBeCt,IsCt,[X|Xs],PostNU,RestNU,Db):-
+   X=g(_,Goal)
+   ->
+   Db=[Db1|Db2],
+   builtin_input_output(Goal,IVars,OVars),
+   var_occs_after(0,IVars,IOccs,Db1),
+   maybe_post_unify3(IOccs,IVars,OVars,ToBeCt,IsCt,X,Xs,PostNU,RestNU,Db2).
+
+%%%%
+
+maybe_post_non_unify3(Occs,_,_,ToBeCt,IsCt,g(_,Goal),Xs,PostNU,RestNU,Db):- 
+   all_non_nil(Occs)
+    ->
+   Db=[Db1|Db2],
+   occ_shift(IsCt,ToBeCt,Goal,Db1),
+   PostNU=[Goal|PostNU1],
+   maybe_post_unify1(ToBeCt,IsCt,Xs,PostNU1,RestNU,Db2).
+maybe_post_non_unify3(_Occs,_IVars,_OVars,ToBeCt,IsCt,X,Xs,PostNU,RestNU,Db):- 
+    ->
+    RestNU=[X|RestNU1],
+    maybe_post_non_unify1(ToBeCt,IsCt,Xs,PostNU,RestNU1,Db).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% extract_output_unify
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+extract_output_unify(ToBeCt,no,U,VS,VV,VC,RestU,Db):-
+   ->
+   Db=[Db1,Db2,Db3|Db4],
+   extract_output_vs(ToBeCt,U,VS,VSEnd,U1,Db1,no,F),
+   extract_output_vv(ToBeCt,U1,VV,VVEnd,U2,Db2,F,F1),
+   extract_output_vc(ToBeCt,U2,VC,VCEnd,U3,Db3,F1,F2),
+   extract_output2(F2,ToBeCt,U3,Db4,VSEnd,VVEnd,VCEnd,RestU).
+extract_output_unify(ToBeCt,First,U,VS,VV,VC,RestU,Db):-
+   ->
+   extract_goals_before(First,U,U1,RestU1),
+   app(RestU2,RestU1,RestU),
+   Db=[Db1,Db2,Db3|Db4],
+   extract_output_vs(ToBeCt,U1,VS,VSEnd,U2,Db1,no,F),
+   extract_output_vv(ToBeCt,U2,VV,VVEnd,U3,Db2,F,F1),
+   extract_output_vc(ToBeCt,U3,VC,VCEnd,U4,Db3,F1,F2),
+   extract_output2(F2,ToBeCt,U4,Db4,VSEnd,VVEnd,VCEnd,RestU2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+extract_output2(_,_ToBeCt,[],Db,VS,VV,VC,RestU):-  -> Db=[],VS=[],VV=[],VC=[],RestU=[].
+extract_output2(no,_ToBeCt,U,Db,VS,VV,VC,RestU):-   -> Db=[],VS=[],VV=[],VC=[],RestU=U.
+extract_output2(yes,ToBeCt,U,Db,VS,VV,VC,RestU):- 
+   ->
+   Db=[Db1,Db2,Db3|Db4],
+   extract_output_vs(ToBeCt,U,VS,VSEnd,U1,Db1,yes,F),
+   extract_output_vv(ToBeCt,U1,VV,VVEnd,U2,Db2,F,F1),
+   extract_output_vc(ToBeCt,U2,VC,VCEnd,U3,Db3,F1,F2),
+   extract_output2(F2,ToBeCt,U3,Db4,VSEnd,VVEnd,VCEnd,RestU).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% extract_output_vs
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+extract_output_vs(_ToBeCt,[],VS,VSEnd,RestU,Db,F,F1):-   ->   VS=VSEnd,RestU=[],F=F1,Db=[].
+extract_output_vs(ToBeCt,[X|Xs],VS,VSEnd,RestU,Db,F,F1):-
+   X=g(_,Goal),
+   flat_member(Goal,[struct('=',2,[var(Name),Simp]),struct('=',2,[Simp,var(Name)])]),
+   flat_member(Simp,[atom(_),integer(_),nil])
+   ->
+   Db=[occurrences_after(Name,0,Occs)|Db1],
+   extract_output_vs1(Name,Simp,Occs,ToBeCt,X,Xs,VS,VSEnd,RestU,Db1,F,F1).
+extract_output_vs(ToBeCt,[X|Xs],VS,VSEnd,RestU,Db,F,F1):-
+  ->
+  RestU=[X|RestU1],
+  extract_output_vs(ToBeCt,Xs,VS,VSEnd,RestU1,Db,F,F1).
+
+extract_output_vs1(_,_,[],ToBeCt,X,Xs,VS,VSEnd,RestU,Db,F,F1):-
+  ->
+  RestU=[X|RestU1],
+  extract_output_vs(ToBeCt,Xs,VS,VSEnd,RestU1,Db,F,F1).
+extract_output_vs1(Name,Simp,_,ToBeCt,_,Xs,VS,VSEnd,RestU,Db,_,F1):-
+  ->
+  VS=[eq(var(Name),Simp)|VS1],
+  Db=[add_occurrence(Name,ToBeCt),delete_occurrence(Name,0)|Db1],
+  extract_output_vs(ToBeCt,Xs,VS1,VSEnd,RestU,Db1,yes,F1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% extract_output_vv
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+extract_output_vv(_ToBeCt,[],VV,VVEnd,RestU,Db,F,F1):-   ->   VV=VVEnd,RestU=[],F=F1,Db=[].
+extract_output_vv(ToBeCt,[X|Xs],VV,VVEnd,RestU,Db,F,F1):-
+   X=g(_,struct('=',2,[var(Name),var(Name2)]))
+   ->
+   Db=[occurrences_after(Name,0,Occs),occurrences_after(Name2,0,Occs2)|Db1],
+   extract_output_vv1(Name,Occs,Name2,Occs2,ToBeCt,X,Xs,VV,VVEnd,RestU,Db1,F,F1).
+extract_output_vv(ToBeCt,[X|Xs],VV,VVEnd,RestU,Db,F,F1):-
+  ->
+  RestU=[X|RestU1],
+  extract_output_vv(ToBeCt,Xs,VV,VVEnd,RestU1,Db,F,F1).
+
+
+extract_output_vv1(Name,[_|_],Name2,[_|_],ToBeCt,_,Xs,VV,VVEnd,RestU,Db,_,F1):-
+  ->
+  VV=[eq(var(Name),var(Name2))|VV1],
+  Db=[add_occurrence(Name,ToBeCt),delete_occurrence(Name,0),add_occurrence(Name2,ToBeCt),
+	delete_occurrence(Name2,0)|Db1],
+  extract_output_vv(ToBeCt,Xs,VV1,VVEnd,RestU,Db1,yes,F1).
+extract_output_vv1(_,_,_,_,ToBeCt,X,Xs,VV,VVEnd,RestU,Db,F,F1):-
+  ->
+  RestU=[X|RestU1],
+  extract_output_vv(ToBeCt,Xs,VV,VVEnd,RestU1,Db,F,F1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% extract_output_vs
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+extract_output_vc(_ToBeCt,[],VC,VCEnd,RestU,Db,F,F1):-   ->   VC=VCEnd,RestU=[],F=F1,Db=[].
+extract_output_vc(ToBeCt,[X|Xs],VC,VCEnd,RestU,Db,F,F1):-
+   X=g(_,Goal),
+   flat_member(Goal,[struct('=',2,[var(Name),Comp]),struct('=',2,[Comp,var(Name)])]),
+   flat_member(Comp,[list(_,_),struct(_,_,_)])
+   ->
+   Db=[occurrences_after(Name,0,Occs)|Db1],
+   extract_output_vc1(Name,Comp,Occs,ToBeCt,X,Xs,VC,VCEnd,RestU,Db1,F,F1).
+extract_output_vc(ToBeCt,[X|Xs],VC,VCEnd,RestU,Db,F,F1):-
+  ->
+  RestU=[X|RestU1],
+  extract_output_vc(ToBeCt,Xs,VC,VCEnd,RestU1,Db,F,F1).
+
+extract_output_vc1(_,_,[],ToBeCt,X,Xs,VC,VCEnd,RestU,Db,F,F1):-
+  ->
+  RestU=[X|RestU1],
+  extract_output_vs(ToBeCt,Xs,VC,VCEnd,RestU1,Db,F,F1).
+extract_output_vc1(Name,Comp,_,ToBeCt,_X,Xs,VC,VCEnd,RestU,Db,_,F1):-
+  ->
+  VC=[eq(var(Name),Comp)|VC1],
+  Db=[add_occurrence(Name,ToBeCt),delete_occurrence(Name,0),Db1|Db2],
+  occ_shift(0,ToBeCt,Comp,Db1),
+  extract_output_vs(ToBeCt,Xs,VC1,VCEnd,RestU,Db2,yes,F1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% extract_output_non_unify
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+extract_output_non_unify(ToBeCt,no,NU,OutNU,RestNU,Db):-
+   ->
+   Db=[Db1|Db2],
+   extract_nu_output(ToBeCt,NU,OutNU,GoodE,Rem,Db1,no,F),
+   extract_output_non_unify2(F,ToBeCt,Rem,GoodE,Db2,RestNU).
+extract_output_non_unify(ToBeCt,First,NU,OutNU,RestNU,Db):-
+   ->
+   extract_goals_before(First,NU,NU1,RestNU1),
+   app(RestNU2,RestNU1,RestNU),
+   Db=[Db1|Db2],
+   extract_nu_output(ToBeCt,NU1,OutNU,GoodE,Rem,Db1,no,F),
+   extract_output_non_unify2(F,ToBeCt,Rem,GoodE,Db2,RestNU2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+extract_output_non_unify2(_,_ToBeCt,[],Good,Db,Rest):-
+   ->
+   Good=[],Rest=[],Db=[].
+extract_output_non_unify2(no,_ToBeCt,Rem,Good,Db,Rest):-
+   ->
+   Good=[],Rest=Rem,Db=[].
+extract_output_non_unify2(yes,ToBeCt,Rem,Good,Db,Rest):-
+   ->
+   Db=[Db1|Db2],
+   extract_nu_output(ToBeCt,Rem,Good,GoodE,NewRem,Db1,no,F),
+   extract_output_non_unify2(F,ToBeCt,NewRem,GoodE,Db2,Rest).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+extract_nu_output(_ToBeCt,[],Good,GoodE,Rest,Db,F,F1):- -> Good=GoodE,Rest=[],F=F1,Db=[].
+extract_nu_output(ToBeCt,[X|Xs],Good,GoodE,Rest,Db,F,F1):-
+   X=g(_,Goal)
+   ->
+   Db=[Db1|Db2],
+   builtin_input_output(Goal,IVars,OVars),
+   var_occs_after(0,IVars,IOccs,Db1),
+   extract_nu_output1(IOccs,IVars,OVars,ToBeCt,X,Xs,Good,GoodE,Rest,Db2,F,F1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+extract_nu_output1(Occs,IVars,OVars,ToBeCt,g(_,Goal),Xs,Good,GoodE,Rest,Db,_,F):-
+    all_non_nil(Occs)
+    ->
+    Db=[Db1|Db2],
+    occ_shift(0,ToBeCt,[IVars,OVars],Db1),
+    Good=[Goal|Good1],
+    extract_nu_output(ToBeCt,Xs,Good1,GoodE,Rest,Db2,yes,F).
+extract_nu_output1(_,_,_,ToBeCt,X,Xs,Good,GoodE,Rest,Db,F,F1):- 
+    ->
+    Rest=[X|Rest1],
+    extract_nu_output(ToBeCt,Xs,Good,GoodE,Rest1,Db,F,F1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% UTILITY
+%%%%
+%%%%   variable_extraction(ToBeCt,Occ,Goals,Db)
+%%%%        variable_extraction_goal(ToBeCt,Occ,Goal,Db)
+%%%%   extract_goals_before(Ct,CtGoals,Before,Rest)
+%%%%   first_goal_ct(Goal,Ct)
+%%%%   var_occs_after(Ct,VarList,OccList,Db)
+%%%%   occ_shift(FromCt,ToBeCt,WhatEver,Db)
+%%%%   replace(Is,ShouldBe,Term,NTerm)
+%%%%
+%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%
+%%%% variable_extraction(Ct,ListOfNumberedGoals,NewListDb)
+%%%%
+%%%%         all variable occurrences given occurrence Ct
+%%%%         list normalize
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+variable_extraction(_,[],New,Db):-
+   -> 
+   Db=[],New=[].
+variable_extraction(Ct,[g(N,Goal)|Goals],New,Db):-
+   -> 
+   Db=[Db1|Db2],
+   New=[g(N,New1)|New2],
+   variable_extraction_goal(Ct,Goal,New1,Db1),
+   variable_extraction(Ct,Goals,New2,Db2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+variable_extraction_goal(Ct,struct(F,A,Args),New,Db):- 
+   -> 
+   New=struct(F,A,NArgs),
+   variable_extraction_goal(Ct,Args,NArgs,Db).
+variable_extraction_goal(Ct,list(Car,Cdr),New,Db):-       
+   -> 
+   New=list(Car1,Cdr1),Db=[Db1|Db2],
+   variable_extraction_goal(Ct,Car,Car1,Db1),
+   variable_extraction_goal(Ct,Cdr,Cdr1,Db2).
+variable_extraction_goal(Ct,[X|Xs],New,Db):-
+   -> 
+   Db=[Db1|Db2],
+   New=[New1|New2],
+   variable_extraction_goal(Ct,X,New1,Db1),
+   variable_extraction_goal(Ct,Xs,New2,Db2).
+variable_extraction_goal(Ct,var(Name),New,Db):-
+   -> 
+   New=var(Name),
+   Db=[add_occurrence_or_new(Name,Ct)].
+variable_extraction_goal(_,X,New,Db):-   -> Db=[],X=New.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%               extract_goals_before
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+extract_goals_before(_Ct,[],Before,Rest):- -> Before=[],Rest=[].
+extract_goals_before(Ct,[X|Xs],Before,Rest):-
+   (Ct=no;X=g(Ct1,_),Ct1<Ct)
+   ->
+   Before=[X|Before1],extract_goals_before(Ct,Xs,Before1,Rest).
+extract_goals_before(Ct,[X|Xs],Before,Rest):-
+   ->
+   Rest=[X|Rest1],extract_goals_before(Ct,Xs,Before,Rest1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%               first_goal_ct
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+first_goal_ct([g(Ct,_)|_],Out):- -> Out=Ct.
+first_goal_ct([],Out):-          -> Out=no.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%               var_occs_after
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+var_occs_after(_Ct,[],Occs,Db):- -> Occs=[],Db=[].
+var_occs_after(Ct,[var(Name)|Xs],Occs,Db):- 
+    -> 
+    Occs=[X|Occs1],
+    Db=[occurrences_after(Name,Ct,X)|Db1],
+    var_occs_after(Ct,Xs,Occs1,Db1).
+var_occs_after(Ct,[X|Xs],Occs,Db):- 
+    flat_member(X,[atom(_),integer(_),nil,unnamed])
+    -> 
+    var_occs_after(Ct,Xs,Occs,Db).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%               occ_shift
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+occ_shift(_,_,[],Db):- -> Db=[].
+occ_shift(FromCt,ToCt,[X|Xs],Db):-
+    ->
+    Db=[Db1|Db2],
+    occ_shift(FromCt,ToCt,X,Db1),
+    occ_shift(FromCt,ToCt,Xs,Db2).
+occ_shift(FromCt,ToCt,[X|Xs],Db):-
+    ->
+    Db=[Db1|Db2],
+    occ_shift(FromCt,ToCt,X,Db1),
+    occ_shift(FromCt,ToCt,Xs,Db2).
+occ_shift(FromCt,ToCt,g(_,Goal),Db):-
+    ->
+    occ_shift(FromCt,ToCt,Goal,Db).
+occ_shift(FromCt,ToCt,list(A,B),Db):-
+    ->
+    Db=[Db1|Db2],
+    occ_shift(FromCt,ToCt,A,Db1),
+    occ_shift(FromCt,ToCt,B,Db2).
+occ_shift(FromCt,ToCt,struct(_,_,X),Db):-
+    ->
+    occ_shift(FromCt,ToCt,X,Db).
+occ_shift(FromCt,ToCt,var(Name),Db):-
+    ->
+    Db=[delete_occurrence(Name,FromCt),add_occurrence(Name,ToCt)].
+occ_shift(_FromCt,_ToCt,X,Db):-
+    flat_member(X,[atom(_),integer(_),unnamed,nil])
+    ->
+    Db=[].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%          replace
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+replace(Is,Should_Be,Is,New):-  ->  New=Should_Be.
+replace(Is,Should_Be,struct(F,A,Args),NX):-
+   -> 
+   NX=struct(F,A,NArgs),
+   replace(Is,Should_Be,Args,NArgs).
+replace(Is,Should_Be,clause(A,B,C,D,E,F,G),NX):-
+   -> 
+   NX=clause(A1,B1,C1,D1,E1,F1,G1),
+   replace(Is,Should_Be,[A,B,C,D,E,F,G],[A1,B1,C1,D1,E1,F1,G1]).
+replace(Is,Should_Be,list(H,T),NX):-
+   -> 
+   NX=list(H1,T1),
+   replace(Is,Should_Be,H,H1),
+   replace(Is,Should_Be,T,T1).
+replace(Is,Should_Be,[X|L],NL):-
+   -> 
+   NL=[NX|Rest],
+   replace(Is,Should_Be,X,NX),
+   replace(Is,Should_Be,L,Rest).
+replace(_Is,_Should_Be,X,NX):-
+   flat_member(X,[atom(_),integer(_),nil,[],unnamed,var(_)])
+   -> 
+   X=NX.
+replace(Is,Should_Be,g(Ct,G),NX):- 
+   ->  
+   NX=g(Ct,NG),replace(Is,Should_Be,G,NG).
+replace(Is,Should_Be,var_simple(Var,Other),NX):- 
+   ->  
+   error_if_equal(Var,Is,replace),
+   NX=var_simple(Var,Other1),
+   replace(Is,Should_Be,Other,Other1).
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% WARNINGS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% singleton
+
+warning(singleton,Name,Warn):-
+    warning_level_greater(1)
+    ->
+    warn_with_var(Name,Warn,' Singleton').
+warning(singleton,_,_):-    ->    true.
+
+% nonsingleton
+
+warning(non_singleton,Name,Warn):-
+    warning_level_greater(1)
+    ->
+    warn_with_var(Name,Warn,' Non-Singleton').
+warning(non_singleton,_,_):-    ->    true.
+
+% weird_equality_constraint
+warning(weird_equality_constraint,fail(X),Warn):-
+     warning_level_greater(0)
+     ->
+     warn_with_goal(X,Warn,'This clause always fails').
+warning(weird_equality_constraint,fail(_),_):-     ->     true.
+warning(weird_equality_constraint,remove_goal(X),Warn):-
+     warning_level_greater(1)
+     ->
+     warn_with_goal(X,Warn,'This goal is always true and therefore removed').
+warning(weird_equality_constraint,remove_goal(_),_):-     ->     true.
+warning(weird_equality_constraint,replace_goal(X,New),Warn):-
+     warning_level_greater(3)
+     ->
+     warn_with_two_goals(X,New,Warn,'This goal is simplified to').
+warning(weird_equality_constraint,replace_goal(_,_),_):-     ->     true.
+
+% useless_equality_constraint
+warning(useless_equality_constraint,amalgamated(X),Warn):-
+     warning_level_greater(3)
+     ->
+     warn_with_goal(X,Warn,'This goal is amalgamated').
+warning(useless_equality_constraint,amalgamated(_),_):-     ->     true.
+
+% bad_pre_non_unify
+warning(bad_pre_non_unify,Goal,Warn):-
+     warning_level_greater(2)
+     ->
+     warn_with_goal(Goal,Warn,'Should not this goal be moved to the right').
+warning(bad_pre_non_unify,_,_):-     ->     true.
+
+% bad_pre_unify
+warning(bad_pre_unify,Goal,Warn):-
+     warning_level_greater(2)
+     ->
+     warn_with_goal(Goal,Warn,'Should not this goal be moved to the right').
+warning(bad_pre_unify,_,_):-     ->     true.
+
+% moved
+warning(reorder_left_indexing,Goal,Warn):-
+      warning_level_greater(2)
+      ->
+     warn_with_goal(Goal,Warn,'This goal is move to the left to be used in decision code').      
+warning(reorder_left_indexing,_,_):-      ->      true.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+warn_with_var(Name,Warn,String):-
+     ->
+     inform_warn_where(Warn),
+     inform_warn_string(Name),
+     inform_warn_string(String),
+     inform_end.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+warn_with_goal(Goal,Warn,String):-
+     ->
+     inform_warn_where(Warn),
+     inform_warn_goal(Goal),
+     inform_warn_string(String),
+     inform_end.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+warn_with_two_goals(Goal1,Goal2,Warn,String):-
+     ->
+     inform_warn_where(Warn),
+     inform_warn_goal(Goal1),
+     inform_warn_string(String),
+     inform_warn_goal(Goal2),
+     inform_end.
+
+warning_level_greater(X):- -> warning_level(Warn),Warn>X.
+
+warning_level(9).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%      IO PRELIMINARIES
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+inform_warn_where(warn(F,A,ClNo)):-
+    ->
+    write('*** WARNING *** Pred: '),
+    write(F),
+    write('/'),
+    write(A),
+    write(' Clause:'),
+    write(ClNo),
+    write('::').
+inform_warn_goal(Goal):-
+    ->
+    write(Goal),write(' ').
+inform_warn_string(String):-
+    ->
+    write(String),write(' ').
+inform_end:- 
+    ->
+    nl.
+
+
+

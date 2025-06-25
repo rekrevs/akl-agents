@@ -1,0 +1,15 @@
+info_args([],_InputB,Infoargs)-_Recompute :-
+    ->  Infoargs=[].
+info_args([A|As],InputB,Infoargs)-Recompute :-
+    ->  info_arg(A,InputB,Infoarg)-Recompute,
+	Infoargs=[Infoarg|Infoargs2],
+	info_args(As,InputB,Infoargs2)-Recompute.
+
+info_arg(A,InputB,Infoarg)-Recompute :-
+	get_assoc(A,Value,InputB,_)
+    ->  Infoarg=value(Value),
+	not_bottom(Value)-Recompute.
+info_arg(A,_InputB,Infoarg)-_Recompute :-
+    ->  Infoarg=var(A).
+
+

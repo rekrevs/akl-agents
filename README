@@ -1,0 +1,230 @@
+
+
+
+			 AGENTS (version 0.9)
+			 ====================
+
+	     The Concurrent Constraint Programming Group
+		Swedish Institute of Computer Science
+		   Box 1263, S-164 28 KISTA, Sweden
+
+
+
+1 INTRODUCTION
+
+The Agents Kernel Language (AKL) is a concurrent constraint
+programming language developed at the Swedish Institute of Computer
+Science (SICS).  In AKL, computation is performed by agents
+interacting through stores of constraints.  This notion accomodates
+multiple programming paradigms; in appropriate contexts, AKL agents
+may be thought of as processes, objects, functions, relations, or
+constraints.
+
+AGENTS is a system for programming in AKL.  It provides a complete
+implementation of AKL with equality constraints over rational trees,
+various "finite domain" constraints over integers, and ports, a
+novelty of AKL.  It also provides assorted built-in agents and other
+support.
+
+
+2 MANIFEST
+
+This directory should contain the following at least:
+	
+  Makefile.in		source for Makefile
+  README		this file
+  agents.1		man page
+  agents.in		source for agents driver
+  akl.el		emacs mode
+  config.guess		configuration utility
+  config.sub		configuration utility
+  configure		configuration script
+  configure.in		source for configure
+  demos/		example programs
+  doc/			documentation
+  emulator/		emulator, garbage collector, etc. in C
+  environment/		built-in agents, top level, etc. in AKL
+  gmp/			GMP library (bignums)
+  library/		AGENTS library packages
+  mkbuilddirs		building utility
+  mkinstalldirs		installation utility
+  oldcompiler/		compiler in AKL
+  tests/		DejaGnu tests for AGENTS
+  tools/		AGENTS tool packages
+  version.pam.in	source for version.pam
+
+
+3 INSTALLATION
+
+To begin with, a condensed version.
+
+  % ./configure; make
+
+should build AGENTS in this directory.
+
+  % make dvi
+
+or
+
+  % make ps
+
+should build .dvi or .ps files in ./doc/; begin with the user manual,
+./doc/user.dvi or ./doc/user.ps.  Also, there should already be info
+files in ./doc/; the user manual is ./doc/agents-user.  See ./Makefile
+or read on for more on what else you can do.  There should be at least
+about eight megabytes of disk space available for building AGENTS.
+
+Now, the full story.  ./configure turns ./Makefile.in into ./Makefile,
+filling in various blanks according to the machine you are running on
+and your preferences.  ./configure recognizes the following arguments,
+described in terms of their effects on subsequent make's controlled by
+./Makefile:
+
+  --host=HOST
+  Build AGENTS for hosttype HOST, where HOST generally has the form
+  CPU-COMPANY-OS, e.g., rs6000-ibm-aix3.2.  This may be omitted, in
+  which case ./config.guess is invoked to guess the hosttype, or HOST
+  may be an abbreviation, e.g., rs6000, in which case ./config.sub is
+  invoked to expand it to the "standard" form.  In any case, ./configure
+  prints a message to inform you for what hosttype (it believes) it is
+  configuring.  Guessing or expanding almost always works, but in case
+  not, ./configure fails with an error message.  If this happens, you
+  can try hacking ./configure, or you can send a message to agents-bug@
+  sics.se, and we will try to help you.
+
+  --prefix=DIR
+  Install AGENTS in DIR.  DIR MUST BE ABSOLUTE.  This may be omitted, in
+  which case the Makefile variable $(prefix) is set to /usr/local.  See
+  the documentation at the start of ./Makefile for exactly where all the
+  pieces of AGENTS are installed.
+
+  --srcdir=DIR
+  Build AGENTS from sources in DIR.  DIR MUST BE ABSOLUTE.  This may be
+  omitted, in which case the Makefile variable $(srcdir) is set to the
+  current working directory (during configuration).
+
+  --without-gmp
+  Do not build GMP, and do not build AGENTS with GMP.  If you do this,
+  arbitrary-precision integers (bignums) will not be supported.  There
+  is probably no reason to do this.
+
+Note that often none of these arguments is required.  Also note that
+you can override the default values of Makefile variables, including
+$(prefix) and $(srcdir), on the make command line if you wish, e.g.,
+
+  % make prefix=/foo
+
+In the normal course of events, after configuring, you make, as shown
+above.  If you wish agents to be a standard user command at your site,
+there is another step: after making, you install.  The remarks at the
+start of ./Makefile about the install target explain just where this
+target puts things.  Typical usage is something like the following:
+
+  host1% ./configure --prefix=/foo; make all install
+
+This installs AGENTS - executable, man page, etc. - for host1, under
+/local.  You could install AGENTS for another machine host2 of another
+type as follows: log onto host2, cd to the source directory, and do
+the following:
+
+  host2% ./configure --prefix=/bar; make clean all install
+
+Note that after installing, the source directory is no longer needed
+to run AGENTS; an installed version is genuinely stand-alone.  There
+should be at least about six megabytes of disk space available for
+installing AGENTS.
+
+The AGENTS Makefiles do not support building in directories other than
+those containing the sources.  (We have not used the VPATH feature of
+some make's, both because of the complexity of the AGENTS sources and
+because some make's do not support it.)  However, ./mkbuilddirs can be
+used to create a "shadow" directory structure with symbolic links to
+all files in the directories containing the sources.  Typical usage is
+something like:
+
+  % ./mkbuilddirs `pwd` ../rs6000
+  % cd ../rs6000
+  % ./configure; make
+
+Note that the first argument to ./mkbuilddirs, the source directory,
+must be absolute, and the second argument, the build directory, must
+not be in the source directory or any subdirectory thereof.
+
+
+4 USING AGENTS
+
+To enter the AGENTS top level, which resembles a Prolog top level, do
+
+  % agents
+
+To compile a program, do
+
+  ?- compilef(program).
+
+This expects a file "program.akl" and produces a file "program.pam".
+
+To load a compiled program, do
+
+  ?- load(program).
+
+This expects a file "program.pam".
+
+To compile and load a program all at once, do
+
+  ?- compile(program).
+
+"program.pam" is not produced in this case.
+
+There is a debugger, which is useful, if not ideal.  It resembles a
+four-port ("Byrd box") Prolog debugger, with extra ports for guard
+suspension, waking, etc.  It may be started by "trace" at a top level
+prompt and stopped by "notrace" at a top level prompt or "n" at a
+debugger prompt.  It is also possible to set spy points under the
+debugger.
+
+The doc directory contains an introduction to AKL (aklintro), a user
+manual (user), and a library manual (library).  The example programs
+in the demos directory exemplify some of the possibilities.
+
+Good luck!
+
+
+5 BUGS
+
+AGENTS is a new and rapidly evolving system.  There are obviously many
+things that need to be added to it, and many other things that need to
+be refined.  Please send us your comments and bug reports, the former
+to agents-comment@sics.se and the latter to agents-bug@sics.se.
+
+Bugs tend actually to be fixed if they can be isolated, so it is in
+your interest to report them in such a way that they can be easily
+reproduced.
+
+Correspondence regarding AGENTS may also be directed to
+
+		       Sverker Janson
+		       Swedish Institute of Computer Science
+		       Box 1263
+		       S-164 28 KISTA
+		       Sweden
+		       Tel: +46 (0)8 752 15 72
+		       Fax: +46 (0)8 751 72 30
+		       E-mail: sverker@sics.se
+
+
+6 ACKNOWLEDGEMENTS
+
+A first version of the emulator was written by Johan Bevemyr.  The
+compiler was first written in Prolog by Peter Olin and then adapted to
+AKL by Johan Bevemyr.
+
+Subsequent work has been done by Sverker Janson, Johan Montelius, Kent
+Boortz, Per Brand, Bjorn Carlson, Ralph Clarke Haygood, Bjorn
+Danielsson, Dan Sahlin, and Thomas Sjoeland.
+
+The C++ part of the Graphics Manager was taken from the SICStus Prolog
+distribution without modification.  It was mainly written by Claes
+Frisk and Jan Sundberg.  The Graphics Manager uses the InterViews
+system (Copyright 1987, 1988, 1989 Stanford University).
+
+GMP was written for the GNU project by Torbjorn Granlund.

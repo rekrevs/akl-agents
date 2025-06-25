@@ -1,0 +1,56 @@
+% $Id: streams.akl,v 1.3 1993/07/27 09:38:59 bd Exp $
+
+/*
+ * FILTER TRANSLATING ARBITRARY WRITES TO PUTC
+ *
+ */
+
+filter_to_putc(F, P) :-
+	open_port(P, S),
+	filter_to_putc_aux(S, F).
+
+filter_to_putc_aux([putc(Ch)|S], F) :-
+    ->	putc(Ch)@F,
+	filter_to_putc_aux(S, F).
+filter_to_putc_aux([puts(Atom)|S], F) :-
+    ->	puts_chars(Atom)-F,
+	filter_to_putc_aux(S, F).
+filter_to_putc_aux([puts(String, Q)|S], F) :-
+    ->	puts_chars(String, Q)-F,
+	filter_to_putc_aux(S, F).
+filter_to_putc_aux([putd(Int)|S], F) :-
+    ->	putd_chars(Int)-F,
+	filter_to_putc_aux(S, F).
+filter_to_putc_aux([putf(Float)|S], F) :-
+    ->	putf_chars(Float)-F,
+	filter_to_putc_aux(S, F).
+
+putd_chars(Int)-S :-
+	integer_to_chars(Int, String),
+	put_string(String)-S.
+
+putf_chars(Float)-S :-
+	float_to_chars(Float, String),
+	put_string(String)-S.
+
+puts_chars(Atom)-S :-
+	atom_to_chars(Atom, String),
+	put_string(String)-S.
+
+puts_chars(Atom, Q)-S :-
+	atom_to_chars(Atom, String),
+	putc(Q)@S,
+	put_string(String,Q)-S,
+	putc(Q)@S.
+
+
+/*
+ * BACKWARDS COMPATIBILITY ...
+ *
+ */
+
+fnl-S :-
+	putc(10)@S.
+
+fclose-S :-
+	fclose@S.

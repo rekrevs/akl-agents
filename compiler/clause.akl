@@ -1,0 +1,190 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% Clause=clause(Index,Guard,Body,B_In,Db)
+%%%       Index=index(Args,SimpleUnifyConstraints,ComplexUnifyConstraints,
+%%%                   SimpleNonUnifyCons,ComplexNonUnifyCons]
+%%%       Guard=List of GG,
+%%%       GG= g(UnifyCons,NonUnifyCons,DeepGuard)
+%%%       Body=List ofBBs
+%%%       BBs= b(UnifyCons,NonUnifyCons,Body)
+%%%
+%%%       Index=index(1,2,3,4,5)
+%%%       Guard=guard([GG1,GG2,...GGn]),
+%%%       GGx= g(3x+3,3x+4,3x+5,)
+%%%       Body=body([BB1,BB2,..BBm]),
+%%%       BBx= b(3(n+x)+3,3(n+x)+4,3(n+x)+5)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+b_compile_clause(Clause,Code,GOp):-
+   Clause=clause(Index,Guard,Body,Db),
+   Index=index(Args,[],[])
+   -> 
+   maybe_make_unnamed(Args,Db,Args1),
+   length_list(Args,EffArity),
+   Code=[Maybe_Cont_Env,MCode|LCode],
+   PCode=[PCode1,PCode2|PCode3],
+   compile_freeing_args(Args1,1,Args2,Free,PCode1),
+   compile_var_args(Args2,PCode2,Args3),
+   error_if_not_equal(Args3,[],compile_clause),
+   compile_clause2(Guard,Body,Db,PCode3,LCode,GOp,Maybe_Cont_Env,LeftSize),
+   do_reg_alloc(PCode,Free,EffArity,MCode,LeftSize).
+b_compile_clause(Clause,Code,GOp):-
+   Clause=clause(Index,Guard,Body,Db),
+   Index=index(Args,_CUC,_NU)
+   -> 
+   not_implemented(compile_clause),
+   maybe_make_unnamed(Args,Db,Args1),
+   length_list(Args,EffArity),
+   Code=[Maybe_Cont_Env,MCode|LCode],
+   PCode=[PCode1,PCode2|PCode3],
+   compile_freeing_args(Args1,1,Args2,Free,PCode1),
+   compile_var_args(Args2,PCode2,Args3),
+   error_if_not_equal(Args3,[],compile_clause),
+   compile_clause2(Guard,Body,Db,PCode3,LCode,GOp,Maybe_Cont_Env,LeftSize),
+   do_reg_alloc(PCode,Free,EffArity,MCode,LeftSize).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+maybe_make_unnamed([],_Db,Args):-  -> Args=[].
+maybe_make_unnamed([X|Xs],Db,Args):- 
+   X=var(Name)
+   ->
+   send(occurrences_after(Name,3,Occs),Db,_),
+   maybe_make_unnamed2(Occs,X,Xs,Db,Args).
+maybe_make_unnamed([unnamed|Xs],Db,Args):- 
+   ->
+   Args=[unnamed|Args1],
+   maybe_make_unnamed(Xs,Db,Args1).
+maybe_make_unnamed([X|_],_Db,_Args):- 
+   ->
+   not_implemented(maybe_make_unnamed(X)).
+
+%%%%
+
+maybe_make_unnamed2([],_,Xs,Db,Args):-
+   ->
+   Args=[unnamed|Args1],
+   maybe_make_unnamed(Xs,Db,Args1).
+maybe_make_unnamed2(_,X,Xs,Db,Args):- 
+   ->
+   Args=[X|Args1],
+   maybe_make_unnamed(Xs,Db,Args1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+is_true_goal(b([],[],atom(true),[],[])):- -> true.
+is_true_goal(b(_,_,atom(true),_,_)):- -> error(is_true_goal).
+
+make_true_goal(b([],[],atom(true),[],[])).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% compile_clause2
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+compile_clause2([],[Output|Rest],_Db,PCode,LCode,GOp,Maybe_Cont_Env,_):-
+   (Rest=[];Rest=[True],is_true_goal(True))
+   ->
+   Maybe_Cont_Env=[],
+   PCode=[PCode1,proceed_simple],
+   compile_output(Output,PCode1,LCode,GOp).
+compile_clause2([],[Output,Execute],_Db,PCode,LCode,GOp,Maybe_Cont_Env,_):-
+   Execute=b(_,_,_,[],[])
+   ->
+   Maybe_Cont_Env=[],
+   PCode=[PCode1|PCode2],LCode=[LCode1|LCode2],
+   compile_output(Output,PCode1,LCode1,GOp),
+   compile_execute(Execute,simple,PCode2,LCode2).
+compile_clause2([],[Output,Execute],Db,PCode,LCode,GOp,Maybe_Cont_Env,_):-
+   ->
+   PCode=[process(P1),PCode1|PCode2],LCode=[LCode1|LCode2],
+   flat_guard_alloc(P1,Maybe_Cont_Env,Db),
+   compile_output(Output,PCode1,LCode1,GOp),
+   make_true_goal(True),
+   compile_rest_body([Execute,True],PCode2,LCode2,Db).
+compile_clause2([],[Output|Body],Db,PCode,LCode,GOp,Maybe_Cont_Env,_):-
+   ->
+   PCode=[process(P1),PCode1|PCode2],LCode=[LCode1|LCode2],
+   flat_guard_alloc(P1,Maybe_Cont_Env,Db),
+   compile_output(Output,PCode1,LCode1,GOp),
+   compile_rest_body(Body,PCode2,LCode2,Db).
+compile_clause2(Guard,[Output|Body],Db,PCode,LCode,GOp,Maybe_Cont_Env,LeftSize):-
+   ->
+   Maybe_Cont_Env=create_guard(Size),
+   PCode=[PCode1,process(P,BCode),PCode2|PCode3],LCode=[LCode1,LCode2|LCode3],
+   compile_guard(Guard,PCode1,LCode1,Db),
+   barrier_alloc(P,Db,GOp,BCode,LeftSize,Size),
+   compile_output(Output,PCode2,LCode2,GOp),
+   compile_body(Body,PCode3,LCode3,Db).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% compile_guard
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+compile_guard([],PCode,LCode,_):- -> PCode=[],LCode=[].
+compile_guard([g(U1,U2,G,U3,U4)|Guard],PCode,LCode,Db):-
+    ->
+    error_if_not_empty(U2,compile_guard),error_if_not_empty(U4,compile_guard),
+    PCode=[U1Code,GCode,U3Code|PCode2],LCode=[LCode1|LCode2],
+    compile_pre_unifies(U1,U1Code),
+    compile_call_goal(before,G,GCode,Db),
+    compile_post_unifies(U3,U3Code,LCode1),
+    compile_guard(Guard,PCode2,LCode2,Db).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% compile_body
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+compile_body([],PCode,LCode,_Db):-
+   ->
+   PCode=[proceed],LCode=[].
+compile_body(Body,PCode,LCode,Db):-
+   ->
+   compile_rest_body(Body,PCode,LCode,Db).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% compile_rest_body
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+compile_rest_body([True],Code,LCode,_Db):-
+   is_true_goal(True)
+   ->
+   Code=[proceed],LCode=[].
+compile_rest_body([Last],Code,LCode,_Db):-
+   Last=b(_,_,_,[],[])
+   ->
+   compile_execute(Last,normal,Code,LCode).
+compile_rest_body([Last],Code,LCode,Db):-
+   ->
+   make_true_goal(True),
+   compile_rest_body([Last,True],Code,LCode,Db).
+compile_rest_body([B,Last],Code,LCode,Db):-
+   B=b(_,_,_,[],[]),
+   is_true_goal(Last)
+   -> 
+   compile_rest_body([B],Code,LCode,Db).
+compile_rest_body([b(U1,U2,G,U3,U4)|Body],Code,LCode,Db):-
+   -> 
+   Code=[PreCode,GCode,PostCode|Code1],
+   LCode=[LCode1|LCode2],
+   error_if_not_empty(U2,compile_rest_body),
+   error_if_not_empty(U4,compile_rest_body),
+   compile_pre_unifies(U1,PreCode),
+   compile_call_goal(after,G,GCode,Db),
+   compile_post_unifies(U3,PostCode,LCode1),
+   compile_rest_body(Body,Code1,LCode2,Db).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% compile_execute
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+compile_execute(b(U1,U2,G,[],[]),Flag,Code,LCode):-
+   G=struct(_,A,_)
+   ->
+   Code=[PreCode1,ECode,process(P)],LCode=[],
+   execute_alloc(P,A),
+   error_if_not_empty(U2,compile_execute),
+   compile_pre_unifies(U1,PreCode1),
+   compile_execute_goal(G,Flag,ECode).
+
+

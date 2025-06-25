@@ -1,0 +1,95 @@
+%
+%
+% flight(Number, Start, End, Type, Crew).
+%
+% aircraft(Id, Type, Endurance, Crew_no, Turnaround, Max_hrs, Crew_list)
+%
+
+draw(N) :-
+    test(N, Flights, Aircrafts, Max_hrs),
+    gmpan(Flights, Aircrafts, Max_hrs).
+
+solve(N, Sol) :-
+    test(N, Flights, Aircrafts, Max_hrs),
+    assign_flights_aux(Flights, Aircrafts, Max_hrs, Sol)
+    &
+    display_assignments(Sol).
+    
+
+test(1, Flights, Aircrafts, Max_hrs) :-
+    ->	Flights =
+	   [flight(1, 2, 10, fokker, 3),
+	    flight(2, 4, 9, fokker, 3),
+	    flight(3, 11, 15, fokker, 5),
+	    flight(4, 16, 19, heli, 2)],
+	Aircrafts =
+	   [aircraft(1, fokker, 12, 5, 2, 12, [c1, c2, c3, c4, c5]),
+	    aircraft(2, fokker, 10, 3, 1, 15, [c1, c6, c7]),
+	    aircraft(3, fokker, 7, 5, 1, 8, [c8, c9, c10, c11, c12]),
+	    aircraft(4, heli, 3, 2, 1, 10, [c4, c9])],
+	Max_hrs = 15.
+
+test(2, Flights, Aircrafts, Max_hrs) :-
+    ->	Flights =
+	   [flight(1, 2, 10, fokker, 3),
+	    flight(2, 4, 9, fokker, 3),
+	    flight(3, 11, 15, fokker, 5),
+	    flight(4, 16, 19, heli, 2)],
+	Aircrafts =
+	   [aircraft(1, fokker, 12, 5, 2, 12, [c1, c2, c3, c4, c5]),
+	    aircraft(2, fokker, 10, 3, 1, 15, [c1, c6, c7]),
+	    aircraft(3, fokker, 7, 5, 1, 8, [c8, c9, c10, c11, c12]),
+	    aircraft(4, heli, 3, 2, 1, 10, [c4, c9]),
+	    aircraft(5, fokker, 12, 5, 2, 12, [c1, c2, c3, c4, c5]),
+	    aircraft(6, fokker, 10, 3, 1, 15, [c1, c6, c7]),
+	    aircraft(7, fokker, 7, 5, 1, 8, [c8, c9, c10, c11, c12]),
+	    aircraft(8, heli, 3, 2, 1, 10, [c4, c9])],
+	Max_hrs = 15.
+
+test(3, Flights, Aircrafts, Max_hrs) :-
+    ->	Flights =
+	   [flight(1, 2, 10, fokker, 3),
+	    flight(2, 4, 9, fokker, 3),
+	    flight(3, 11, 15, fokker, 5),
+	    flight(4, 16, 19, heli, 2),
+	    flight(5, 11, 15, victor, 2)],
+	Aircrafts =
+	   [aircraft(1, fokker, 12, 5, 2, 12, [c14, c2, c3, c4, c5]),
+	    aircraft(2, fokker, 10, 3, 1, 15, [c1, c6, c7]),
+	    aircraft(3, victor, 7, 2, 1, 8, [c10, c9]),
+	    aircraft(4, heli, 3, 2, 1, 10, [c4, c9]),
+	    aircraft(5, fokker, 12, 5, 2, 12, [c1, c2, c3, c4, c5]),
+	    aircraft(6, fokker, 10, 3, 1, 15, [c13, c6, c7]),
+	    aircraft(7, fokker, 7, 5, 1, 8, [c8, c9, c10, c11, c12]),
+	    aircraft(8, heli, 3, 2, 1, 10, [c4, c9])],
+	Max_hrs = 24.
+
+test(4, Flights, Aircrafts, Max_hrs) :-
+    ->	Flights =
+	   [flight(1, 2, 10, fokker, 3),
+	    flight(2, 4, 9, fokker, 3),
+	    flight(3, 11, 15, gulfstream, 5),
+	    flight(4, 16, 19, heli, 2),
+	    flight(5, 16, 18, victor, 2),
+	    flight(6, 19, 20, viscount, 3)],
+	Aircrafts = 
+	    [aircraft(1, fokker, 12, 5, 2, 12, [c1, c2, c3, c4, c5]),
+	    aircraft(2, fokker, 10, 3, 1, 15, [c1, c6, c7]),
+	    aircraft(3, victor, 7, 5, 1, 8, [c13, c14, c15, c16, c17]),
+	    aircraft(4, heli, 3, 2, 1, 10, [c4, c9]),
+	    aircraft(5, gulfstream, 12, 5, 2, 12, [c1, c2, c3, c4, c5]),
+	    aircraft(6, fokker, 10, 3, 1, 15, [c1, c6, c7]),
+	    aircraft(7, fokker, 7, 5, 1, 8, [c8, c9, c10, c11, c12]),
+	    aircraft(8, heli, 3, 2, 1, 10, [c4, c9]),
+	    aircraft(9, viscount, 7, 3, 1, 8, [c16,c17,c18])],
+	Max_hrs = 15.
+
+display_assignments([]):-
+   |	true.
+display_assignments([A| Assignments]) :-
+	A=aircraft_for_flight(F_no,Det,A_no)
+   |	( write(flight(aircraft(A_no),flight(F_no),Det))
+	  &
+	  nl
+	  &
+	  display_assignments(Assignments) ).

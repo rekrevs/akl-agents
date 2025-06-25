@@ -1,0 +1,85 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%         Compile non unification constraints
+%%%%               
+%%%%
+%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%      compile_nu
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+compile_nu([],Code):-
+   -> Code=[].
+compile_nu([X|Xs],Code):-
+   ->
+   Code=[Code1|Code2],
+   compile_nu_goal(X,Code1),
+   compile_nu(Xs,Code2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+compile_nu_goal(int_compare(Op,2,[var(Name),integer(I)]),Code):-
+   -> 
+   post_alloc(P,Name,XY,Pre),
+   temp_alloc(P,Extra),
+   Code=[process(P),process(P,Pre),sub(Instr)],
+   gen_int_compare_int(XY,Extra1,integer(I),Op,Instr).
+compile_nu_goal(int_compare(Op,2,[var(Name),var(Name2)]),Code):-
+   -> 
+   post_alloc(P,Name,XY,Pre),
+   post_alloc(P2,Name2,XY2,Pre2),
+   temp_alloc(P3,Extra1),
+   temp_alloc(P4,Extra2),
+   Code=[process(P3),process(P4),process(P,Pre),process(P2,Pre2),sub(Instr)],
+   gen_int_compare(XY,XY2,Extra1,Extra2,Op,Instr).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%      gen_int_compare_int
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+gen_int_compare_int(x(XReg),_,integer(I),'<',Instr):-
+    -> Instr=[gen_reg_int_arith_compare(XReg,integer(I),L1,fail),fail,label(L1)].
+gen_int_compare_int(x(XReg),_,integer(I),'=<',Instr):-
+    -> Instr=[gen_reg_int_arith_compare(XReg,integer(I),L1,L1),fail,label(L1)].
+gen_int_compare_int(x(XReg),_,integer(I),'>=',Instr):-
+    -> Instr=[gen_reg_int_arith_compare(XReg,integer(I),fail,L1),label(L1)].
+gen_int_compare_int(x(XReg),_,integer(I),'>',Instr):-
+    -> Instr=gen_reg_int_arith_compare(XReg,integer(I),fail,fail).
+
+gen_int_compare_int(y(YReg),Extra,integer(I),Op,Instr):-
+    -> 
+    Instr=[set_reg_yvar(Extra,YReg)|Instr1],
+    gen_int_compare_int(x(Extra),_,integer(I),Op,Instr1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%      gen_int_compare
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+gen_int_compare(x(XReg),x(XReg2),_,_,'<',Instr):-
+    -> Instr=[gen_reg_reg_arith_compare(XReg,XReg2,L1,fail),fail,label(L1)].
+gen_int_compare(x(XReg),x(XReg2),_,_,'=<',Instr):-
+    -> Instr=[gen_reg_reg_arith_compare(XReg,XReg2,L1,L1),fail,label(L1)].
+gen_int_compare(x(XReg),x(XReg2),_,_,'>=',Instr):-
+    -> Instr=[gen_reg_reg_arith_compare(XReg,XReg2,fail,L1),label(L1)].
+gen_int_compare(x(XReg),x(XReg2),_,_,'>',Instr):-
+    -> Instr=gen_reg_reg_arith_compare(XReg,XReg2,fail,fail).
+
+gen_int_compare(y(YReg),X,E1,_,Op,Instr):-
+    X=x(_)
+    -> 
+    Instr=[set_reg_yvar(YReg,E1)|Instr1],
+    gen_int_compare(x(E1),X,_,_,Op,Instr1).
+gen_int_compare(y(YReg),y(YReg2),E1,E2,Op,Instr):-
+    -> 
+    Instr=[set_reg_yvar(YReg,E1),set_reg_yvar(YReg2,E2)|Instr1],
+    gen_int_compare(x(E1),x(E2),_,_,Op,Instr1).
+gen_int_compare(X,y(YReg2),_,E2,Op,Instr):-
+    X=x(_)
+    ->  
+    Instr=[set_reg_yvar(YReg2,E2)|Instr1],
+    gen_int_compare(X,x(E2),_,_,Op,Instr1).
+
+

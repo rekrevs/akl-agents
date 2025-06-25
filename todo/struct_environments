@@ -1,0 +1,17 @@
+$Id: struct_environments,v 1.2 1994/04/13 13:04:35 bd Exp $
+
+The presence or absence of environment fields in structures
+should be selectable at runtime (or at least boot-time).
+
+Possible scenarios:
+
+	Certain functors always have them, others don't.
+
+	A command-line option turns them on for everything (except lists?)
+
+	Some obscure technique with hidden flag bits (or something)
+	that enables the feature to be turned on per individual struct.
+
+	Leave them on at all times, and live with the extra speed and
+	storage overhead.
+

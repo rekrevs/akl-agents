@@ -1,0 +1,16 @@
+@node Index of Built-ins, Index of Concepts, UGraphs, Top
+@unnumbered Index of Built-ins
+@printindex fn
+
+
+@node Index of Concepts,  , Index of Built-ins, Top
+@unnumbered Index of Concepts
+@printindex cp
+
+
+@contents
+
+
+@bye
+
+

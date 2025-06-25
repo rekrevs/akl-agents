@@ -1,0 +1,146 @@
+/* Built-in FD predicates for "divide and conquer" translation of arith exprs.
+   By Mats Carlsson.
+   Modified by Bjorn Carlson.
+
+*/
+'x=y'(X,Y) :-
+	fd(
+	X in min(Y) .. max(Y), 
+	Y in min(X) .. max(X)).
+
+'x\=y'(X,Y) :-
+	fd(
+	X in -(min(Y) .. max(Y)),
+	Y in -(min(X) .. max(X))).
+
+'x+y+z=c'(X, Y, Z, C) :-
+	fd(
+	X in C - max(Y) - max(Z) .. C - min(Y) - min(Z),
+	Y in C - max(X) - max(Z) .. C - min(X) - min(Z),
+	Z in C - max(X) - max(Y) .. C - min(X) - min(Y)).
+
+'x+y=u+c'(X, Y, U, C) :-
+	fd(
+	X in min(U) - max(Y) + C .. max(U) - min(Y) + C,
+	Y in min(U) - max(X) + C .. max(U) - min(X) + C,
+	U in min(X) + min(Y) - C .. max(X) + max(Y) - C).
+
+'t=x+y+c'(T, X, Y, C) :-
+	fd(
+	T in min(X) + min(Y) + C .. max(X) + max(Y) + C,
+	X in min(T) - max(Y) - C .. max(T) - min(Y) - C,
+	Y in min(T) - max(X) - C .. max(T) - min(X) - C).
+
+'x+y=t'(X, Y, T) :-
+	fd(
+	T in min(X) + min(Y) .. max(X) + max(Y),
+	Y in min(T) - max(X) .. max(T) - min(X),
+	X in min(T) - max(Y) .. max(T) - min(Y)).
+
+'x+y+z=t'(X, Y, Z, T) :-
+	fd(
+	T in min(X) + min(Y) + min(Z) .. max(X) + max(Y) + max(Z),
+	X in min(T) - max(Y) - max(Z) .. max(T) - min(Y) - min(Z),
+	Y in min(T) - max(X) - max(Z) .. max(T) - min(X) - min(Z),
+	Z in min(T) - max(X) - max(Y) .. max(T) - min(X) - min(Y)).
+
+'ax=t'(A,X,T) :-
+	fd(
+	T in A*min(X)     .. A*max(X),
+	X in   min(T) // A ..   max(T) / A).
+
+'ax+y=t'(A,X,Y,T) :-
+	fd(
+	T in A*min(X) +   min(Y)      .. A*max(X) +   max(Y),
+	X in  (min(T) -   max(Y)) // A ..  (max(T) -   min(Y)) / A,
+	Y in   min(T) - A*max(X)      ..   max(T) - A*min(X)).
+
+'ax+by=t'(A,X,B,Y,T) :-
+	fd(
+	T in  A*min(X) + B*min(Y)  .. A*max(X) + B*max(Y),
+	X in  (min(T) - B*max(Y)) // A ..  (max(T) - B*min(Y)) / A,
+	Y in  (min(T) - A*max(X)) // B ..  (max(T) - A*min(X)) / B).
+
+'t=c'(T,C) :- fd(T in C).
+'t\=c'(T,C) :- fd(T in -C).
+'t>=c'(T,C) :- fd(T in C...).
+'t=<c'(T,C) :- fd(T in 0..C).
+
+'t=u+c'(X,Y,C) :-
+	fd(
+	X in min(Y) + C .. max(Y) + C,
+	Y in min(X) - C .. max(X) - C).
+'t\=u+c'(X,Y,C) :-
+	fd(
+	X in -(min(Y)+C .. max(Y)+C),
+	Y in -(min(X)-C .. max(X)-C)).
+'t>=u+c'(X,Y,C) :-
+	fd(
+	X in min(Y) + C ... ,
+	Y in 0 .. max(X) - C).
+'t=<u+c'(X,Y,C) :-
+	fd(
+	X in 0 .. max(Y) + C,
+	Y in min(X) - C ... ).
+
+'t=u'(X,Y) :-
+	fd(
+	X in min(Y) .. max(Y),
+	Y in min(X) .. max(X)).
+'t\=u'(X,Y) :-
+	fd(
+	X in -(min(Y) .. max(Y)),
+	Y in -(min(X) .. max(X))).
+'t>=u'(X,Y) :-
+	fd(
+	X in min(Y) ... ,
+	Y in 0 .. max(X)).
+'t=<u'(X,Y) :-
+	fd(
+	X in 0 .. max(Y),
+	Y in min(X) ... ).
+
+'t+u=c'(X,Y,C) :-
+	fd(
+	X in C - max(Y) .. C - min(Y),
+	Y in C - max(X) .. C - min(X)).
+'t+u\=c'(X,Y,C) :-
+	fd(
+	X in -(C - max(Y) .. C - min(Y)),
+	Y in -(C - max(X) .. C - min(X))).
+
+'t+u>=c'(X,Y,C) :-
+	fd(
+	X in C - max(Y) ... ,
+	Y in C - max(X) ... ).
+
+'t+u=<c'(X,Y,C) :-
+	fd(
+	X in 0 .. C - min(Y),
+	Y in 0 .. C - min(X)).
+
+'=_tell'(X,Y) :-
+	fd(
+	X in min(Y) .. max(Y),
+	Y in min(X) .. max(X)).
+
+'\=_tell'(X,Y) :-
+	fd(
+	X in -(min(Y) .. max(Y)),
+	Y in -(min(X) .. max(X))).
+
+'=_ask'(X,Y) :-
+	fd(ask,
+	0 in (max(Y)-min(X)) .. (min(Y)-max(X))).
+
+'\=_ask'(X,Y) :-
+	fd(ask,
+	0 in (0 .. (min(Y)-max(X)-1)) \/ (0 .. (min(X)-max(Y)-1))).
+
+'=0_ask'(B) :-
+	fd(ask,
+	0 in max(B) .. min(B)).
+
+'=1_ask'(B) :-
+	fd(ask,
+	1 in max(B) .. min(B)).

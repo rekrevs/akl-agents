@@ -1,0 +1,100 @@
+l :-
+	load('fd_cars'),
+	load('fd_alpha'),
+	load('fd_five'),
+	load('fd_magic'),
+	load('fd_queens'),
+	load('fd_eq10'),
+	load('fd_eq20').
+
+cf :-
+	compilef('fd_cars',flat),
+	compilef('fd_alpha',flat),
+	compilef('fd_five',flat),
+	compilef('fd_magic',flat),
+	compilef('fd_queens',flat),
+	compilef('fd_eq10',flat),
+	compilef('fd_eq20',flat).
+
+c :-
+	compilef('fd_cars'),
+	compilef('fd_alpha'),
+	compilef('fd_five'),
+	compilef('fd_magic'),
+	compilef('fd_queens'),
+	compilef('fd_eq10'),
+	compilef('fd_eq20').
+
+t :-
+	statistics 
+        &
+	cars(one)
+	&
+        (write('cars completed'), format('~n'))
+        &
+        alpha(one)
+        &
+        (write('alpha completed'), format('~n'))
+        &
+	five(one)
+        &
+        (write('five houses completed'), format('~n'))
+        &
+	magic(one_ff)
+        &
+        (write('magic 13 completed'), format('~n'))
+        &
+	q(one_ff)
+        &
+        (write('queens 64 completed'), format('~n'))
+        &
+	all_q(normal)
+        &
+        (write('all queens 8 completed'), format('~n'))
+        &
+	eq10(one)
+        &
+        (write('equation 10 completed'), format('~n'))
+        &
+	eq20(one)
+        &
+        (write('equation 20 completed'), format('~n'), statistics).
+
+tc :-
+	statistics 
+        &
+	cars(normal)
+	&
+        (write('cars completed'), format('~n'))
+        &
+        alpha(ff)
+        &
+        (write('alpha ff completed'), format('~n'))
+        &
+	five(normal)
+        &
+        (write('five houses completed'), format('~n'))
+        &
+	magic(ff)
+        &
+        (write('magic 13 completed'), format('~n'))
+        &
+	q(ff)
+        &
+        (write('queens 64 completed'), format('~n'))
+        &
+	all_q_copy
+        &
+        (write('all queens 8 completed'), format('~n'))
+        &
+	eq10(normal)
+        &
+        (write('equation 10 completed'), format('~n'))
+        &
+	eq20(normal)
+        &
+        (write('equation 20 completed'), format('~n'), statistics).
+
+go :-
+	l
+    ->	t.

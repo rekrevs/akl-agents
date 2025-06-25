@@ -1,0 +1,6 @@
+$Id: prolog_server,v 1.1 1993/06/09 13:04:49 sverker Exp $
+
+A server for (deterministic) Prolog side-effects should
+be written to simplify the translation of Prolog to AKL.
+It could provide Prolog-style I/O and database access
+via a port threaded through all "Prolog" code.

@@ -1,0 +1,1013 @@
+/* Copyright(C) 1992, Swedish Institute of Computer Science */
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%   File   : ugraphs.akl                                                      %
+%   Author : Mats Carlsson (adapted for AKL by Sverker Janson)		      %
+%            (new versions of transpose/2, reduce/2, top_sort/2 by Dan Sahlin %
+%             new predicates strong_components/2, group_graph/2 by Dan Sahlin %
+%             new predicate group_vertices/3 by Dan Sahlin		      %
+%             new predicate seed_random_ugraph/5 by Sverker Janson)           %
+%   Updated: 12 March 1993                                                    %
+%   Purpose: Unweighted graph-processing utilities			      %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+/*  Adapted from shared code written by Richard A O'Keefe */
+
+/*  An unweighted directed graph (ugraph) is represented as a list of
+    (vertex-neighbors) pairs, where the pairs are in standard order
+    (as produced by keysort with unique keys) and the neighbors of
+    each vertex are also in standard order (as produced by sort), and
+    every neighbor appears as a vertex even if it has no neighbors
+    itself.
+
+    An undirected graph is represented as a directed graph where for
+    each edge (U,V) there is a symmetric edge (V,U).
+
+    An edge (U,V) is represented as the term U-V.
+
+    A vertex can be any term.  Two vertices are distinct iff they are
+    not identical (==).
+
+    A path is represented as a list of vertices.  
+    No vertex can appear twice in a path.
+*/
+
+/*
+:- module(ugraphs, [
+	vertices_edges_to_ugraph/3,
+	vertices/2,
+	edges/2,
+	add_vertices/3,
+	del_vertices/3,
+	add_edges/3,
+	del_edges/3,
+	transpose/2,
+	neighbors/3,
+	neighbours/3,
+	complement/2,
+	compose/3,
+	transitive_closure/2,
+	symmetric_closure/2,
+	top_sort/2,
+	max_path/5,
+	min_path/5,
+	min_paths/3,
+	path/3,
+	reduce/2,
+	strong_components/2,
+	group_vertices/3,
+	reachable/3,
+	random_ugraph/3,
+	seed_random_ugraph/5,
+The following are not yet ported to AKL:
+	min_tree/3,
+	clique/3,
+	independent_set/3,
+	coloring/3,
+	colouring/3
+   ]).
+
+:- use_module(library(assoc)), [  % DS: new in AKL version
+	ord_list_to_assoc/2,
+	get_assoc/4,
+	set_assoc/5,
+	list_to_assoc/2
+    ]).
+
+:- use_module(library(ordsets), [
+	ord_add_element/3,
+	ord_del_element/3,
+	ord_disjoint/2,
+	ord_intersection/3,
+	ord_subset/2,
+	ord_subtract/3,
+	ord_union/3,
+	ord_union/4
+   ]).
+
+:- use_module(library(lists), [
+	append/3,
+	member/2,
+	reverse/2
+   ]).
+
+:- use_module(library(random), [
+	random/1
+   ]).
+*/
+%i @node UGraphs, Index of Built-ins, SAGA, Top
+%i @chapter Unweighted Graphs
+%i @cindex unweighted graphs
+%i @cindex graphs, unweighted
+%i @cindex ugraph
+%i 
+%i Directed and undirected graphs are fundamental data structures
+%i representing arbitrary relationships between data objects.  This package
+%i provides an Agents implementation of directed graphs, undirected graphs
+%i being a special case of directed graphs.
+%i 
+%i An unweighted directed graph (ugraph) is represented as a list of
+%i (vertex-neighbors) pairs, where the pairs are in standard order (as
+%i produced by @code{keysort} with unique keys) and the neighbors of each
+%i vertex are also in standard order (as produced by @code{sort}), and
+%i every neighbor appears as a vertex even if it has no neighbors itself.
+%i 
+%i An undirected graph is represented as a directed graph where for
+%i each edge @var{(U,V)} there is a symmetric edge @var{(V,U)}.
+%i 
+%i An edge @var{(U,V)} is represented as the term @var{U-V}.
+%i @var{U} and @var{V} must be distinct.
+%i 
+%i A vertex can be any term.  Two vertices are distinct iff they are
+%i not identical.
+%i 
+%i A path from @var{u} to @var{v} is represented as a list of vertices,
+%i beginning with @var{u} and ending with @var{v}.  A vertex cannot appear
+%i twice in a path.  A path is maximal in a graph if it cannot be extended.
+%i 
+%i A tree is a tree-shaped directed graph (all vertices have a single
+%i predecessor, except the root node, which has none).
+%i 
+%i A strongly connected component of a graph is a maximal set of vertices
+%i where each vertex has a path in the graph to every other vertex.
+%i 
+%i Sets are represented as ordered lists (@pxref{Ordsets}).
+%i 
+%i To load the package, enter the query
+%i 
+%i @example
+%i | ?- load(library(ugraphs)).
+%i @end example
+%i 
+%i The following predicates are defined for directed graphs.
+
+%i @table @code
+
+%i @findex vertices_edges_to_ugraph/3
+%i @item vertices_edges_to_ugraph(@var{+Vertices}, @var{+Edges}, @var{-Graph})
+%i is true if @var{Vertices} is a list of vertices, @var{Edges} is a list
+%i of edges, and @var{Graph} is a graph built from @var{Vertices} and
+%i @var{Edges}.  @var{Vertices} and @var{Edges} may be in any order.  The
+%i vertices mentioned in @var{Edges} do not have to occur explicitly in
+%i @var{Vertices}.  @var{Vertices} may be used to specify vertices that are
+%i not connected by any edges.
+
+vertices_edges_to_ugraph(Vertices0, Edges, Graph) :-
+	sort(Vertices0, Vertices1),
+	sort(Edges, EdgeSet),
+	edges_vertices(EdgeSet, Bag),
+	sort(Bag, Vertices2),
+	ord_union(Vertices1, Vertices2, VertexSet),
+	group_edges99(VertexSet, EdgeSet, Graph).
+
+edges_vertices([], Vertices) :-
+    ->	Vertices = [].
+edges_vertices([From-To|Edges], Vertices0) :-
+    ->	Vertices0 = [From,To|Vertices],
+	edges_vertices(Edges, Vertices).
+
+group_edges99([], _, Graph) :-
+    ->	Graph = [].
+group_edges99([Vertex|Vertices], Edges, Graph) :-
+    ->	Graph = [Vertex-Neibs|G],
+	group_edges99(Edges, Vertex, Neibs, RestEdges),
+	group_edges99(Vertices, RestEdges, G).
+
+group_edges99([V-X|Edges], V, Neibs0, RestEdges) :-
+    ->	Neibs0 = [X|Neibs],
+	group_edges99(Edges, V, Neibs, RestEdges).
+group_edges99(Edges, _, Neibs0, RestEdges) :-
+    ->	Neibs0 = [],
+	RestEdges = Edges.
+
+%i @findex vertices/2
+%i @item vertices(@var{+Graph}, @var{-Vertices})
+%i unifies @var{Vertices} with the vertices in @var{Graph}.
+
+vertices([], Vertices) :-
+    ->	Vertices = [].
+vertices([Vertex-_|Graph], Vertices0) :-
+    ->	Vertices0 = [Vertex|Vertices],	
+	vertices(Graph, Vertices).
+
+%i @findex edges/2
+%i @item edges(@var{+Graph}, @var{-Edges})
+%i unifies @var{Edges} with the edges in @var{Graph}.
+
+edges([], Edges) :-
+    ->	Edges = [].
+edges([Vertex-Neibs|G], Edges) :-
+    ->	edges(Neibs, Vertex, Edges, MoreEdges),
+	edges(G, MoreEdges).
+
+edges([], _, Edges, MoreEdges) :-
+    ->	Edges = MoreEdges.
+edges([Neib|Neibs], Vertex, Edges0, MoreEdges) :-
+    ->	Edges0 = [Vertex-Neib|Edges],
+	edges(Neibs, Vertex, Edges, MoreEdges).
+
+
+
+%i @findex add_vertices/3
+%i @item add_vertices(@var{+Graph1}, @var{+Vertices}, @var{-Graph2})
+%i is true if @var{Graph2} is @var{Graph1} with @var{Vertices} added to it.
+
+add_vertices(Graph0, Vs0, Graph) :-
+	sort(Vs0, Vs),
+	vertex_units(Vs, Graph1),
+	graph_union(Graph0, Graph1, Graph).
+
+%i @findex del_vertices/3
+%i @item del_vertices(@var{+Graph1}, @var{+Vertices}, @var{-Graph2})
+%i is true if @var{Graph2} is @var{Graph1} with @var{Vertices} and all edges
+%i to and from them removed from it.
+
+del_vertices(Graph0, Vs0, Graph) :-
+	sort(Vs0, Vs),
+	graph_del_vertices(Graph0, Vs, Vs, Graph).
+
+
+%i @findex add_edges/3
+%i @item add_edges(@var{+Graph1}, @var{+Edges}, @var{-Graph2}) 
+%i is true if @var{Graph2} is @var{Graph1} with @var{Edges} and their ``to'' and
+%i ``from'' vertices added to it.
+
+add_edges(Graph0, Edges0, Graph) :-
+	sort(Edges0, EdgeSet),
+	edges_vertices(EdgeSet, Vs0),
+	sort(Vs0, Vs),
+	group_edges99(Vs, EdgeSet, Graph1),
+	graph_union(Graph0, Graph1, Graph).
+
+
+%i @findex del_edges/3
+%i @item del_edges(@var{+Graph1}, @var{+Edges}, @var{-Graph2})
+%i is true if @var{Graph2} is @var{Graph1} with @var{Edges} removed from it.
+
+del_edges(Graph0, Edges0, Graph) :-
+	sort(Edges0, EdgeSet),
+	edges_vertices(EdgeSet, Vs0),
+	sort(Vs0, Vs),
+	group_edges99(Vs, EdgeSet, Graph1),
+	graph_difference(Graph0, Graph1, Graph).
+
+
+
+vertex_units([], Us) :-
+    ->	Us = [].
+vertex_units([V|Vs], Us0) :-
+    ->	Us0 = [V-[]|Us],
+	vertex_units(Vs, Us).
+
+
+graph_union(G0, [], G) :-
+    ->	G = G0.
+graph_union([], G0, G) :-
+    ->	G = G0.
+graph_union([V1-N1|G1], [V2-N2|G2], G) :-
+    ->	compare(C, V1, V2),
+	graph_union(C, V1, N1, G1, V2, N2, G2, G).
+
+graph_union(<, V1, N1, G1, V2, N2, G2, G0) :-
+    ->	G0 = [V1-N1|G],
+	graph_union(G1, [V2-N2|G2], G).
+graph_union(=, V, N1, G1, _, N2, G2, G0) :-
+    ->	G0 = [V-N|G],
+	ord_union(N1, N2, N),
+	graph_union(G1, G2, G).
+graph_union(>, V1, N1, G1, V2, N2, G2, G0) :-
+    ->	G0 = [V2-N2|G],
+	graph_union([V1-N1|G1], G2, G).
+
+
+
+graph_difference(G0, [], G) :-
+    ->	G = G0.
+graph_difference([], _, G) :-
+    ->	G = [].
+graph_difference([V1-N1|G1], [V2-N2|G2], G) :-
+    ->	compare(C, V1, V2),
+	graph_difference(C, V1, N1, G1, V2, N2, G2, G).
+
+graph_difference(<, V1, N1, G1, V2, N2, G2, G0) :-
+    ->	G0 = [V1-N1|G],
+	graph_difference(G1, [V2-N2|G2], G).
+graph_difference(=, V, N1, G1, _, N2, G2, G0) :-
+    ->	G0 = [V-N|G],
+	ord_subtract(N1, N2, N),
+	graph_difference(G1, G2, G).
+graph_difference(>, V1, N1, G1, _, _, G2, G) :-
+    ->	graph_difference([V1-N1|G1], G2, G).
+
+
+graph_del_vertices(G1, [], Set, G) :-
+    ->	graph_del_vertices(G1, Set, G).
+graph_del_vertices([], _, _, G) :-
+    ->	G = [].
+graph_del_vertices([V1-N1|G1], [V2|Vs], Set, G) :-
+    ->	compare(C, V1, V2),
+	graph_del_vertices(C, V1, N1, G1, V2, Vs, Set, G).
+
+graph_del_vertices(<, V1, N1, G1, V2, Vs, Set, G0) :-
+    ->	G0 = [V1-N|G],
+	ord_subtract(N1, Set, N),
+	graph_del_vertices(G1, [V2|Vs], Set, G).
+graph_del_vertices(=, _, _, G1, _, Vs, Set, G) :-
+    ->	graph_del_vertices(G1, Vs, Set, G).
+graph_del_vertices(>, V1, N1, G1, _, Vs, Set, G) :-
+    ->	graph_del_vertices([V1-N1|G1], Vs, Set, G).
+
+graph_del_vertices([], _, G) :-
+    ->	G = [].
+graph_del_vertices([V1-N1|G1], Set, G0) :-
+    ->	G0 = [V1-N|G],
+	ord_subtract(N1, Set, N),
+	graph_del_vertices(G1, Set, G).
+
+%i @findex transpose/2
+%i @item transpose(@var{+Graph}, @var{-Transpose})
+%i is true if @var{Transpose} is the graph computed by replacing each edge
+%i @var{(u,v)} in @var{Graph} by its symmetric edge @var{(v,u)}.  It can
+%i only be used one way around.  Takes O(N log N) time.
+
+transpose(Graph, Transpose) :-
+	transpose_edges(Graph, Transposed_edges),
+	sort(Transposed_edges, Transposed_edges2),
+	vertices(Graph, Vertices),
+	group_edges99(Vertices, Transposed_edges2, Transpose).
+
+
+%   transpose_edges(+Graph, -Edges)
+%   unifies Edges with the transposed edges in Graph.
+
+transpose_edges([], Edges) :-
+    ->	Edges = [].
+transpose_edges([Vertex-Neibs|G], Edges) :-
+    ->  transpose_edges(Neibs, Vertex, Edges, MoreEdges),
+	transpose_edges(G, MoreEdges).
+
+transpose_edges([], _, Edges, MoreEdges) :-
+    ->	Edges = MoreEdges.
+transpose_edges([Neib|Neibs], Vertex, Edges0, MoreEdges) :-
+    ->  Edges0 = [Neib-Vertex|Edges],
+	transpose_edges(Neibs, Vertex, Edges, MoreEdges).
+
+
+%i @findex neighbors/3
+%i @findex neighbours/3
+%i @item neighbors(@var{+Vertex}, @var{+Graph}, @var{-Neighbors})
+%i @itemx neighbours(@var{+Vertex}, @var{+Graph}, @var{-Neighbors})
+%i is true if @var{Vertex} is a vertex in @var{Graph} and @var{Neighbors}
+%i are its neighbors.
+
+neighbours(Vertex, Graph, Neighbors) :-
+	neighbors(Vertex, Graph, Neighbors).
+
+neighbors(V, [V-Neighbors|_], Neighbors0) :-
+    ->	Neighbors0 = Neighbors.
+neighbors(V, [_|Graph], Neighbors) :-
+    ->	neighbors(V, Graph, Neighbors).
+
+
+
+%i @findex complement/2
+%i @item complement(@var{+Graph}, @var{-Complement})
+%i @var{Complement} is the complement graph of @var{Graph}, i.e.@ the graph
+%i that has the same vertices as @var{Graph} but only the edges that are
+%i not in @var{Graph}.
+
+complement(Graph, Complement) :-
+	vertices(Graph, Vertices),
+	complement(Graph, Vertices, Complement).
+
+complement([], _, Complement) :-
+    ->	Complement = [].
+complement([V-Neibs|Graph], Vertices, Complement0) :-
+    ->	Complement0 = [V-Others|Complement],
+	ord_add_element(Neibs, V, Neibs1),
+	ord_subtract(Vertices, Neibs1, Others),
+	complement(Graph, Vertices, Complement).
+
+
+
+%i @findex compose/3
+%i @item compose(+G1, +G2, @var{-Composition})
+%i computes @var{Composition} as the composition of two graphs, which need
+%i not have the same set of vertices.
+
+compose(G1, G2, Composition) :-
+	vertices(G1, V1),
+	vertices(G2, V2),
+	ord_union(V1, V2, V),
+	compose(V, G1, G2, Composition).
+
+compose([], _, _, Composition) :-
+    ->	Composition = [].
+compose([V|Vertices], [V-Neibs|G1], G2, Composition0) :-
+    ->	Composition0 = [V-Comp|Composition],
+	compose1(Neibs, G2, [], Comp),
+	compose(Vertices, G1, G2, Composition).
+compose([V|Vertices], G1, G2, Composition0) :-
+    ->	Composition0 = [V-[]|Composition],
+	compose(Vertices, G1, G2, Composition).
+
+compose1([V1|Vs1], [V2-N2|G2], SoFar, Comp) :-
+    ->	compare(Rel, V1, V2),
+	compose1(Rel, V1, Vs1, V2, N2, G2, SoFar, Comp).
+compose1(_, _, SoFar, Comp) :-
+    ->	Comp = SoFar.
+
+compose1(<, _, Vs1, V2, N2, G2, SoFar, Comp) :-
+    ->	compose1(Vs1, [V2-N2|G2], SoFar, Comp).
+compose1(>, V1, Vs1, _, _, G2, SoFar, Comp) :-
+    ->	compose1([V1|Vs1], G2, SoFar, Comp).
+compose1(=, V1, Vs1, V1, N2, G2, SoFar, Comp) :-
+    ->	ord_union(N2, SoFar, Next),
+	compose1(Vs1, G2, Next, Comp).
+
+
+%i @findex transitive_closure/2
+%i @item transitive_closure(@var{+Graph}, @var{-Closure}) 
+%i computes @var{Closure} as the transitive closure of @var{Graph} in
+%i O(N^3) time.
+
+transitive_closure(Graph, Closure) :-
+	warshall(Graph, Graph, Closure).
+
+warshall([], E, Closure) :-
+    ->	Closure = E.
+warshall([V-_|G], E, Closure) :-
+    ->	neighbors(V, E, Y),
+	warshall(E, V, Y, NewE),
+	warshall(G, NewE, Closure).
+
+warshall([], _, _, NewG) :-
+    ->	NewG = [].
+warshall([X-Neibs|G], V, Y, NewG0) :-
+	ord_subset([V], Neibs)
+    ->	NewG0 = [X-NewNeibs|NewG],
+	ord_del_element(Y, X, Y1),
+	ord_union(Neibs, Y1, NewNeibs),
+	warshall(G, V, Y, NewG).
+warshall([X-Neibs|G], V, Y, NewG0) :-
+    ->	NewG0 = [X-Neibs|NewG],
+	warshall(G, V, Y, NewG).
+
+
+
+%i @findex symmetric_closure/2
+%i @item symmetric_closure(@var{+Graph}, @var{-Closure}) 
+%i computes @var{Closure} as the symmetric closure of @var{Graph}, i.e.
+%i for each edge @var{(u,v)} in @var{Graph}, add its symmetric edge
+%i @var{(v,u)}.  Takes O(N^2) time.  This is useful for making a directed
+%i graph undirected.
+
+symmetric_closure(Graph, Closure) :-
+	transpose(Graph, Transpose),
+	symmetric_closure(Graph, Transpose, Closure).
+
+symmetric_closure([], [], Closure) :-
+    ->	Closure = [].
+symmetric_closure([V-Neibs1|Graph], [V-Neibs2|Transpose], Closure0) :-
+    ->	Closure0 = [V-Neibs|Closure],
+	ord_union(Neibs1, Neibs2, Neibs),
+	symmetric_closure(Graph, Transpose, Closure).
+
+
+%i @findex top_sort/2
+%i @item top_sort(@var{+Graph}, @var{-Sorted})
+%i finds a topological ordering of a @var{Graph} and returns the ordering
+%i as a list of @var{Sorted} vertices.  Fails iff no ordering exists, i.e.
+%i iff the graph contains cycles.  Takes O(N^2) time.
+
+top_sort(Graph, Sorted) :-
+	transpose(Graph, Trans0),
+	get_top_elements(Trans0,Trans2,Top),
+	list_to_assoc(Graph,GA),
+	list_to_assoc(Trans2,TA),
+	top_sort(Top,GA,TA,Sorted),
+	% make sure the graph could be topologically sorted:
+	length(Graph,N),
+	length(Sorted,N).
+
+top_sort([],_GA,_TA,Sorted) :-
+    ->  Sorted=[].
+top_sort([V|Vs0],GA,TA0,Sorted) :-
+    ->  Sorted=[V|Sorted2],
+	get_assoc(V,Neibs,GA,_),
+	remove_arcs(Neibs,TA0,TA,Vs0,Vs),
+	top_sort(Vs,GA,TA,Sorted2).
+
+remove_arcs([],TA0,TA,Vs0,Vs) :-
+    ->  TA0=TA, Vs0=Vs.
+remove_arcs([N|Neibs],TA0,TA,Vs0,Vs) :-
+    ->  set_assoc(N,Count0,Count1,TA0,TA1),
+	Count1 is Count0-1,
+	add_if_first(Count1,N,Vs0,Vs1),
+	remove_arcs(Neibs,TA1,TA,Vs1,Vs).
+
+add_if_first(0,N,Vs0,Vs1) :-
+    ->  Vs1=[N|Vs0].
+add_if_first(_,_,Vs0,Vs1) :-
+    ->  Vs1=Vs0.
+
+get_top_elements([],Trans2,Top) :-
+    ->  Trans2=[], Top=[].
+get_top_elements([V-[]|Trans],Trans2,Top) :-
+    ->  Top=[V|Top2],
+	get_top_elements(Trans,Trans2,Top2).
+get_top_elements([V-Vs|Trans],Trans2,Top) :-
+    ->  length(Vs,Vslength),
+	Trans2=[V-Vslength|Trans3],
+	get_top_elements(Trans,Trans3,Top).
+
+
+%i @findex max_path/5
+%i @item max_path(@var{+V1}, @var{+V2}, @var{+Graph}, @var{-Path}, @var{-Cost})
+%i is true if @var{Path} is a longest path of cost @var{Cost} from
+%i @var{V1} to @var{V2} in @var{Graph}, there being no cyclic paths from
+%i @var{V1} to @var{V2}.  Takes O(N^2) time.
+
+max_path(Initial, Final, Graph, Path, Cost) :-
+	transpose(Graph, TGraph),
+	max_path_init(Initial, Final, Graph, TGraph, TGraph2, Order),
+	max_path_init(TGraph2, Val0),
+	max_path(Order, TGraph2, Val0, Val),
+	max_path_select(Val, Path, Cost).
+
+max_path_init(Initial, Final, Graph, TGraph, TGraph2, Order) :-
+	reachable(Initial, Graph, InitialReachable),
+	reachable(Final, TGraph, FinalReachable),
+	ord_intersection(InitialReachable, FinalReachable, Reachable),
+	subgraph(TGraph, Reachable, TGraph2),
+	top_sort(TGraph2, Order).
+
+max_path_init([], Val) :-
+    ->	Val = [].
+max_path_init([V-_|G], Val0) :-
+    ->	Val0 = [V-([]-0)|Val],
+	max_path_init(G, Val).
+
+max_path_select([V-(Longest-Max)|Val], Path, Cost) :-
+	max_path_select(Val, V, Longest, Path, Max, Cost).
+
+max_path_select([], V, Longest, Path, Max, Cost) :-
+    ->	Path = [V|Longest],
+	Cost = Max.
+max_path_select([V1-(Path1-Cost1)|Val], _, _, Path, Cost2, Cost) :-
+	Cost1 > Cost2
+    ->	max_path_select(Val, V1, Path1, Path, Cost1, Cost).
+max_path_select([_|Val], V2, Path2, Path, Cost2, Cost) :-
+    ->	max_path_select(Val, V2, Path2, Path, Cost2, Cost).
+
+max_path([], _, Val0, Val) :-
+    ->	Val = Val0.
+max_path([V|Order], Graph, Val0, Val) :-
+    ->	neighbors(V, Graph, Neibs),
+	neighbors(V, Val0, Item),
+	max_path_update(Neibs, V-Item, Val0, Val1),
+	max_path(Order, Graph, Val1, Val).
+
+max_path_update([], _, Val0, Val) :-
+    ->	Val = Val0.
+max_path_update([N|Neibs], Item, [Item0|Val0], Val) :-
+	Item0 = N-(_-Cost0)
+    ->	Item = V-(Path-Cost),
+	Cost1 is Cost+1,
+	max_path_update1(Cost0, Cost1, Val, Val1, N, V, Path, Item0),
+	max_path_update(Neibs, Item, Val0, Val1).
+max_path_update(Neibs, Item, [X|Val0], [X|Val]) :-
+    ->	max_path_update(Neibs, Item, Val0, Val).
+
+max_path_update1(Cost0, Cost1, Val, Val1, V0, V, Path, _) :-
+	Cost1 > Cost0
+    ->	Val = [V0-([V|Path]-Cost1)|Val1].
+max_path_update1(_, _, Val, Val1, _, _, _, Item0) :-
+    ->	Val = [Item0|Val1].
+
+
+subgraph([], _, Subgraph) :-
+    ->	Subgraph = [].
+subgraph([V-Neibs|Graph], Vs, Subgraph0) :-
+	ord_subset([V], Vs)
+    ->	Subgraph0 = [V-Neibs1|Subgraph],
+	ord_intersection(Neibs, Vs, Neibs1),
+	subgraph(Graph, Vs, Subgraph).
+subgraph([_|Graph], Vs, Subgraph) :-
+    ->	subgraph(Graph, Vs, Subgraph).
+
+%i @findex min_path/5
+%i @item min_path(@var{+V1}, @var{+V2}, @var{+Graph}, @var{-Path}, @var{-Cost})
+%i is true if @var{Path} is a shortest path of cost @var{Cost} from
+%i @var{V1} to @var{V2} in @var{Graph}.  Takes O(N^2) time.
+
+min_path(Initial, Final, Graph, Path, Cost) :-
+	min_paths(Initial, Graph, Tree),
+	min_path([Initial], Final, Tree, Path0, 0, Cost0)
+    ->	Path = Path0,
+	Cost = Cost0.
+
+min_path([Final|_], Final, _, Path, Cost0, Cost) :-
+    -> 	Path = [Final],
+	Cost0 = Cost.
+min_path(Vs, Final, Tree, Path, Cost0, Cost) :-
+    -> 	min_path1(Vs, Final, Tree, Path, Cost0, Cost).
+
+
+min_path1([V|_], Final, Tree, Path0, Cost0, Cost) :-
+    ?	Path0 = [V|Path],
+	neighbors(V, Tree, Neibs),
+	Cost1 is Cost0+1,
+	min_path(Neibs, Final, Tree, Path, Cost1, Cost).
+min_path1([_|Vs], Final, Tree, Path, Cost0, Cost) :-
+    ?	min_path(Vs, Final, Tree, Path, Cost0, Cost).
+
+%i @findex min_paths/3
+%i @item min_paths(@var{+Vertex}, @var{+Graph}, @var{-Tree})
+%i is true if @var{Tree} is a tree of all the shortest paths from
+%i @var{Vertex} to every other vertex in @var{Graph}.  This is the
+%i single-source shortest paths problem.
+
+min_paths(Vertex, Graph, Tree) :-
+	min_paths([Vertex], Graph, [Vertex], List),
+	keysort(List, Tree).
+
+min_paths([], _, _, List) :-
+    ->	List = [].
+min_paths([Q|R], Graph, Reach0, List0) :-
+    ->	List0 = [Q-New|List],
+	neighbors(Q, Graph, Neibs),
+	ord_union(Reach0, Neibs, Reach, New),
+	concat(R, New, S),
+	min_paths(S, Graph, Reach, List).
+
+
+%i @findex path/3
+%i @item path(@var{+Vertex}, @var{+Graph}, @var{-Path})
+%i is given a @var{Graph} and a @var{Vertex} of that @var{Graph}, and
+%i returns a maximal @var{Path} rooted at @var{Vertex}, enumerating more
+%i paths on backtracking.
+
+path(Initial, Graph, Path) :-
+	path([Initial], [], Graph, Path).
+
+path(Q, Not, Graph, Path) :-
+	Q = [Qhead|_],
+	neighbors(Qhead, Graph, Neibs),
+	ord_subtract(Neibs, Not, Neibs1),
+	path1(Neibs1, Qhead, Q, Not, Graph, Path).
+
+
+path1([], _, Q, _, _, Path) :-
+    ->	reverse(Q, Path).
+path1(Neibs1, Qhead, Q, Not, Graph, Path) :-
+    ->	ord_add_element(Not, Qhead, Not1),
+	memberchk(N, Neibs1),
+	path([N|Q], Not1, Graph, Path).
+
+%i @findex reduce/2
+%i @item reduce(@var{+Graph}, @var{-Reduced})
+%i is true if @var{Reduced} is the reduced graph for @var{Graph}.  The
+%i vertices of the reduced graph are the strongly connected components of
+%i @var{Graph}.  There is an edge in @var{Reduced} from @var{u} to @var{v}
+%i iff there is an edge in @var{Graph} from one of the vertices in @var{u}
+%i to one of the vertices in @var{v}. 
+%i A strongly connected component is a maximal set of vertices where
+%i each vertex has a path to every other vertex.
+%i Approximately linear in the maximum of arcs and nodes (O(N log N)).
+%   Algorithm from "Algorithms" by Sedgewick, page 482, Tarjan's algorithm
+
+reduce(Graph, Reduced) :-
+	strong_components(Graph,Verticeslist),
+	group_vertices(Graph,Verticeslist,Reduced).
+
+strong_components(Graph,SCCS) :-
+	list_to_nodeinfo(Graph,Nodeinfo0),
+	ord_list_to_assoc(Nodeinfo0,NI1),
+	Count0=0,
+	Stack0=[],
+	SCCS0=[],
+	for_all_nodes(Graph,NI1,_NI2,Count0,_Count,Stack0,_Stack,SCCS0,SCCS1),
+	sort(SCCS1,SCCS). % not strictly necessary, just to normalize
+
+for_all_nodes([])-_NIA-_Count-_Stack-_SCCS :-
+    ->  true.
+for_all_nodes([K-_|Graph])-NIA-Count-Stack-SCCS :-
+    ->  get_assoc(K,node(_Neib,Val))-NIA,
+	maybe_visit(Val,K)-NIA-Count-Stack-SCCS,
+	for_all_nodes(Graph)-NIA-Count-Stack-SCCS.
+
+maybe_visit(notvisited,K)-NIA-Count-Stack-SCCS :-
+    ->  visit(K,_Visit)-Count-NIA-Stack-SCCS.
+maybe_visit(_,_)-_NIA-_Count-_Stack-_SCCS :-
+    ->	true.
+
+visit(K,Min,Count0,Count)-NIA-Stack-SCCS :-
+	Count1 is Count0+1,
+	set_assoc(K,node(Neibs,_Val),node(Neibs,Count1))-NIA,
+	push(K)-Stack,
+	for_all_neighbors(Neibs,Count1,Min,Count1,Count)-NIA-Stack-SCCS,
+	pop_if_min(Min,Count1,K)-NIA-Stack-SCCS.
+
+push(K,Stack,[K|Stack]).
+
+pop_if_min(Min,Min,K,NIA0,NIA,Stack0,Stack,SCCS0,SCCS) :-
+    ->  pop_stack(K,NIA0,NIA,Stack0,Stack,SCC),
+	sort(SCC,SCC1), % not strictly necessary, just to normalize
+	SCCS=[SCC1|SCCS0].
+pop_if_min(_,_,_)-_NIA-_Stack-_SCCS :-
+    ->  true.
+
+pop_stack(K,NIA0,NIA,[K|Stack0],Stack,SCC) :-
+    ->  SCC=[K],
+	set_assoc(K,node(Neibs,_Val),node(Neibs,infinity),NIA0,NIA),
+	Stack=Stack0.
+pop_stack(K,NIA0,NIA,[I|Stack0],Stack,SCC) :-
+    ->  SCC=[I|SCC1],
+	set_assoc(I,node(Neibs,_Val),node(Neibs,infinity),NIA0,NIA1),
+	pop_stack(K,NIA1,NIA,Stack0,Stack,SCC1).
+
+for_all_neighbors([])-_Min-_Count-_NIA-_Stack-_SCCS :-
+    ->  true.
+for_all_neighbors([V|Neibs],Min0,Min)-Count-NIA-Stack-SCCS :-
+    ->  get_assoc(V,node(_Neib,Val))-NIA,
+	for_a_neighbor(Val,V,M)-NIA-Count-Stack-SCCS,
+	minimum(M,Min0,Min1),
+	for_all_neighbors(Neibs,Min1,Min)-Count-NIA-Stack-SCCS.
+
+minimum(infinity,M,Min) :-
+    ->  Min=M.
+minimum(M0,M1,Min) :-
+    ->  Min is min(M0,M1).
+
+for_a_neighbor(notvisited,V,M)-NIA-Count-Stack-SCCS :-
+    ->  visit(V,M)-Count-NIA-Stack-SCCS.
+for_a_neighbor(Val,_V,M)-_NIA-_Count-_Stack-_SCCS :-
+    ->  M=Val.
+
+list_to_nodeinfo([],Nodeinfo) :-
+    ->  Nodeinfo=[].
+list_to_nodeinfo([V-Neibs|G],Nodeinfo) :-
+    ->  Nodeinfo=[V-node(Neibs,notvisited)|Nodeinfo2],
+	list_to_nodeinfo(G,Nodeinfo2).
+
+%i @findex group_vertices/3
+%i @item group_vertices(@var{+Graph}, @var{+Groups}, @var{-Outgraph})
+%i @var{Outgraph} will contain the @var{Graph} but with nodes grouped as
+%i indicated @var{Groups}, which is a list of list of nodes which groups
+%i several nodes into one.  Each node in the @var{Outgraph} will become such
+%i a list of nodes.
+
+group_vertices(Graph, Groups, Outgraph) :-
+	groups_to_indices(Groups,Group_indices),
+	list_to_assoc(Group_indices,Group_indices_assoc),
+	list_to_assoc(Graph,Graph_assoc),
+	group_the_graph(Groups,Graph_assoc,Group_indices_assoc,Outgraph0),
+	keysort(Outgraph0,Outgraph).
+
+groups_to_indices([],GI) :-
+    ->  GI=[].
+groups_to_indices([Group|Groups],GI0) :-
+    ->  group_to_indices(Group,Group,GI0,GI1),
+	groups_to_indices(Groups,GI1).
+
+group_to_indices([],_Group,GI0,GI) :-
+    ->  GI0=GI.
+group_to_indices([X|Xs],Group,GI0,GI) :-
+    ->  GI0=[X-Group|GI1],
+	group_to_indices(Xs,Group,GI1,GI).
+
+group_the_graph([],_GA,_GIA,GIG) :-
+    ->  GIG=[].
+group_the_graph([Group|Groups],GA,GIA,GIG) :-
+    ->  find_the_neibs_indices(Group,GA,GIA,Neibsindiceslist),
+	ord_union(Neibsindiceslist,Neibsindices), % to remove duplicates
+	ord_del_element(Neibsindices,Group,Neibsindices2), % remove self-pointer
+	GIG=[Group-Neibsindices2|GIG1],
+	group_the_graph(Groups,GA,GIA,GIG1).
+
+find_the_neibs_indices([],_GA,_GIA,Neibsindiceslist) :-
+    ->  Neibsindiceslist=[].
+find_the_neibs_indices([X|Xs],GA,GIA,Neibsindiceslist) :-
+    ->  get_assoc(X,Neibs,GA,_),
+	find_the_indices(Neibs,GIA,Neibsindices0),
+	sort(Neibsindices0,Neibsindices1), % so that ord_union above will work
+	Neibsindiceslist=[Neibsindices1|Neibsindiceslist0],
+	find_the_neibs_indices(Xs,GA,GIA,Neibsindiceslist0).
+
+find_the_indices([],_GIA,Is) :-
+    ->  Is=[].
+find_the_indices([N|Ns],GIA,Is) :-
+    ->  get_assoc(N,I,GIA,_),
+	Is=[I|Is1],
+	find_the_indices(Ns,GIA,Is1).
+
+
+
+
+%i @findex reachable/3
+%i @item reachable(@var{+Vertex}, @var{+Graph}, @var{-Reachable})
+%i is given a @var{Graph} and a @var{Vertex} of that @var{Graph}, and
+%i returns the set of vertices that are @var{Reachable} from that
+%i @var{Vertex}.  Takes O(N^2) time.
+
+reachable(Initial, Graph, Reachable) :-
+	reachable([Initial], Graph, [Initial], Reachable).
+
+reachable([], _, Reach0, Reachable) :-
+    ->	Reach0 = Reachable.
+reachable([Q|R], Graph, Reach0, Reachable) :-
+    ->	neighbors(Q, Graph, Neighbors),
+	ord_union(Reach0, Neighbors, Reach1, New),
+	concat(R, New, S),
+	reachable(S, Graph, Reach1, Reachable).
+
+
+%i @findex random_ugraph/3
+%i @item random_ugraph(@var{+P}, @var{+N}, @var{-Graph})
+%i where @var{P} is a probability, unifies @var{Graph} with a random graph
+%i of vertices @var{1..N} where each possible edge is included with
+%i probability @var{P}.
+
+random_ugraph(P, N, Graph) :-
+	PossEdges is N*(N-1),
+	list_of_length(PossEdges, Fs),
+	random(Fs),
+	random_ugraph(0, N, P, Fs, Graph).
+
+%i @findex seed_random_ugraph/5
+%i @item seed_random_ugraph(@var{+P}, @var{+N}, @var{-Graph}, @var{InSeed}, @var{OutSeed})
+%i as @code{random_ugraph/3} but with the random seed (@pxref{Random}) explicitly given.
+
+seed_random_ugraph(P, N, Graph, InSeed, OutSeed) :-
+	seed_random(Fs, InSeed, OutSeed),
+	random_ugraph(0, N, P, Fs, Graph).
+
+random_ugraph(N, N, _, Fs, Graph) :-
+    ->	Fs = [],
+	Graph = [].
+random_ugraph(I, N, P, Fs0, Graph0) :-
+    ->	Graph0 = [J-List|Graph],
+	J is I+1,
+	random_neighbors(N, J, P, Fs0, Fs, [], List),
+	random_ugraph(J, N, P, Fs, Graph).
+
+random_neighbors(0, _, _)-_Fs-_S :-
+    ->	true.
+random_neighbors(N, J, P)-Fs-S :-
+	N = J
+    ->	M is N-1,
+	random_neighbors(M, J, P)-Fs-S.
+random_neighbors(N, J, P)-Fs-S :-
+    ->	[X]-Fs,
+	random_neighbour(N, P, X)-S,
+	M is N-1,
+	random_neighbors(M, J, P)-Fs-S.
+
+random_neighbour(_, P, X, S0, S) :-
+	P < X
+    ->	S0 = S.
+random_neighbour(N, _, _, S0, S) :-
+    ->	S = [N|S0].
+
+/** already predefined in AKL:
+list_of_length(0, L) :-
+    ->	L = [].
+list_of_length(N, L) :-
+    ->	L = [_|L1],
+	N1 is N-1,
+	list_of_length(N1, L1).
+***/
+
+
+/*** not yet ported to AKL:
+
+%   min_tree(+Graph, -Tree, -Cost)
+%   is true if Tree is a spanning tree of an *undirected* Graph with
+%   cost Cost, if it exists.  Using a version of Prim's algorithm.
+
+min_tree([V-Neibs|Graph], Tree, Cost) :-
+	length(Graph, Cost),
+	prim(Cost, Neibs, Graph, [V], Edges),
+	vertices_edges_to_ugraph([], Edges, Tree).	
+
+prim(0, [], _, _, Edges) :-
+    ->	Edges = [].
+prim(I, [V|Vs], Graph, Reach, Edges0) :-
+    ->	Edges0 = [V-W,W-V|Edges],
+	neighbors(V, Graph, Neibs),
+	ord_subtract(Neibs, Reach, Neibs1),
+	ord_subtract(Neibs, Neibs1, [W|_]),
+	ord_add_element(Reach, V, Reach1),
+	ord_union(Vs, Neibs1, Vs1),
+	J is I-1,
+	prim(J, Vs1, Graph, Reach1, Edges).
+
+
+
+%   clique(+Graph, +K, -Clique)
+%   is true if Clique is a maximal clique (complete subgraph) of N
+%   vertices of an *undirected* Graph, where N>=K.  Adapted from
+%   Algorithm 457, "Finding All Cliques of an Undirected Graph [H]",
+%   Version 1, by Coen Bron and Joep Kerbosch, CACM vol. 6 no. 9 pp.
+%   575-577, Sept. 1973.
+
+% otherwise, prolog:illarg(domain(integer,0-inf), clique(Graph,K,Clique), 2)
+
+clique(Graph, K, Clique) :-
+	integer(K),
+	K >= 0,
+	J is K-1,
+	prune(Graph, [], J, Graph1),
+	clique1(Graph1, J, Clique).
+
+clique1([], J, Clique) :-
+	J < 0
+    ->	Clique = [].
+clique1([C-Neibs|Graph], J, Clique0) :-
+    ->	Clique0 = [C|Clique],
+	neighbor_graph(Graph, Neibs, C, Vs, Graph1),
+	J1 is J-1,
+	prune(Graph1, Vs, J1, Graph2),
+	clique1(Graph2, J1, Clique).
+clique1([C-Neibs|Graph], J, Clique) :-
+    ->	prune(Graph, [C], J, Graph2),
+	clique1(Graph2, J, Clique),
+	\+ ord_subset(Clique, Neibs).
+
+neighbor_graph([], _, _, Vs, Graph) :-
+    ->	Vs = [],
+	Graph = [].
+neighbor_graph([V-Neibs0|Graph0], [V|Vs], W, Del, Graph0) :-
+    ->	Graph0 = [V-Neibs|Graph],
+	ord_del_element(Neibs0, W, Neibs),
+	neighbor_graph(Graph0, Vs, W, Del, Graph).
+neighbor_graph([V-_|Graph0], Vs, W, [V|Del], Graph) :-
+    ->	neighbor_graph(Graph0, Vs, W, Del, Graph).
+
+prune(Graph0, [], K, Graph) :-
+	K =< 0
+    ->	Graph = Graph0.
+prune(Graph0, Vs0, K, Graph) :-
+    ->	prune(Graph0, Vs0, K, Graph1, Vs1),
+	prune1(Vs1, Graph, Graph1, K).
+
+prune1([], Graph, Graph1, _) :-
+    ->	Graph = Graph1.
+prune1(Vs1, Graph, Graph1, K) :-
+    ->	prune(Graph1, Vs1, K, Graph).
+
+prune([], _, _, Graph, Vs) :-
+    ->	Graph = [],
+	Vs = [].
+prune([V-Ns0|Graph0], Vs1, K, Graph0, Vs2) :-
+	ord_disjoint([V], Vs1),
+	ord_subtract(Ns0, Vs1, Ns),
+	length(Ns, I),
+	I >= K
+    ->	Graph0 = [V-Ns|Graph],
+	prune(Graph0, Vs1, K, Graph, Vs2).
+prune([V-_|Graph0], Vs1, K, Graph, Vs2) :-
+	ord_disjoint([V], Vs1)
+    ->	Vs2 = [V|Vs3],
+	prune(Graph0, Vs1, K, Graph, Vs3).
+prune([_|Graph0], Vs1, K, Graph, Vs2) :-
+    ->	prune(Graph0, Vs1, K, Graph, Vs2).
+
+
+
+%   independent_set(+Graph, +K, -Set)
+%   is true if Set is a maximal independent (unconnected) set of N
+%   vertices of an *undirected* Graph, where N>=K.
+
+independent_set(Graph, K, Set) :-
+	complement(Graph, Complement),
+	clique(Complement, K, Set).
+
+
+/* Cannot be directly translated to AKL, due to 
+   tricks with variables. /SJ
+
+%   colouring(+Graph, +K, -Coloring)
+%   coloring(+Graph, +K, -Coloring)
+%   is true if Coloring is a mapping from vertices to colors 1..N of
+%   an *undirected* Graph such that all edges have distinct end colors,
+%   where N=<K.  Adapted from "New Methods to Color the Vertices of a
+%   Graph", by D. Brelaz, CACM vol. 4 no. 22 pp. 251-256, April 1979.
+%   Augmented with ideas from Matula's smallest-last ordering.
+
+*/
+
+
+/* Defined with load(~parforce/Library/lists')
+reverse(L, R) :-
+	reverse(L, [], R).
+
+reverse([],A,R):-
+    ->	R = A.
+reverse([H|T],A,R):-
+    ->	reverse(T,[H|A],R).
+ */
+
+% last line of texinfo:
+%i @end table

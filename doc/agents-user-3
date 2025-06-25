@@ -1,0 +1,400 @@
+This is Info file agents-user, produced by Makeinfo version 1.67 from
+the input file user.texi.
+
+   This file documents AGENTS.
+
+   Copyright (C) 1990-1994 Swedish Institute of Computer Science
+
+   All rights reserved.
+
+
+File: agents-user,  Node: GNU Emacs Modes,  Next: Comments and Bug Reports,  Prev: Documentation,  Up: Getting and Installing AGENTS
+
+GNU Emacs Modes
+===============
+
+   Two `GNU Emacs' modes, "AGENTS Mode" and "AKL Mode", are supported
+by `akl.el', included in the AGENTS distribution.  Add the following
+lines (substituting for the path if necessary) to your `~/.emacs' to
+make the modes available and to make `GNU Emacs' use "AKL Mode"
+automatically when editing files with a `.akl' extension:
+
+     (setq load-path (cons "/usr/local/lib/agents0.9" load-path))
+     (autoload 'run-agents "akl"
+             "Start an AGENTS subprocess." t)
+     (autoload 'akl-mode "akl"
+             "Major mode for editing AKL programs." t)
+     (setq auto-mode-alist (nconc '(("\\.akl$" . akl-mode)) auto-mode-alist))
+
+   "AGENTS Mode" is for interacting with an inferior AGENTS process.
+To enter it, do
+
+     M-x run-agents
+
+   If the environment variable `AGENTSSYSTEM' is set, then "AGENTS
+Mode" uses its value as a shell command to enter AGENTS; otherwise,
+it uses `agents'.
+
+   "AKL Mode" is for editing AKL programs.  Besides automatic
+formatting of the clause syntax, the mode supports compilation of the
+definition around point, of the region, or of the entire buffer.  If
+you invoke one of these functions, an inferior AGENTS process is
+started if one is not running already.
+
+   For details of "AGENTS Mode" (commands available, key mappings,
+etc.), do
+
+     C-h f agents-mode
+
+For details of "AKL Mode", do
+
+     C-h f akl-mode
+
+   The modes require the comint package by Olin Shivers, which is not
+part of the standard `GNU Emacs' distribution.  Neither the modes nor
+the comint package is part of AGENTS proper, but both are included in
+the AGENTS distribution.
+
+
+File: agents-user,  Node: Comments and Bug Reports,  Prev: GNU Emacs Modes,  Up: Getting and Installing AGENTS
+
+Comments and Bug Reports
+========================
+
+   AGENTS is a new and rapidly evolving system.  There are obviously
+many things that need to be added to it, and many other things that
+need to be refined.  Please send us your comments and bug reports,
+the former to `agents-comment@sics.se' and the latter to
+`agents-bug@sics.se'.
+
+   Bugs tend actually to be fixed if they can be isolated, so it is
+in your interest to report them in such a way that they can be easily
+reproduced.
+
+
+File: agents-user,  Node: Index of Built-ins,  Next: Index of Concepts,  Prev: Getting and Installing AGENTS,  Up: Top
+
+Index of Built-ins
+******************
+
+* Menu:
+
+* # /2, bitwise exclusive or (arithmetic function): Arithmetic.
+* * /2, multiplication (arithmetic function): Arithmetic.
+* + /1, identity (arithmetic function):  Arithmetic.
+* + /2, addition (arithmetic function):  Arithmetic.
+* - /1, negation (arithmetic function):  Arithmetic.
+* - /2, subtraction (arithmetic function): Arithmetic.
+* / /2, float division (arithmetic function): Arithmetic.
+* // /2, integer division (arithmetic function): Arithmetic.
+* /\ /2, bitwise conjunction (arithmetic function): Arithmetic.
+* < /2, arithmetic less than:            Arithmetic.
+* << /2, left shift (arithmetic function): Arithmetic.
+* =:= /2, arithmetic equal:              Arithmetic.
+* =< /2, arithmetic less or equal:       Arithmetic.
+* == /2, tree equality:                  Tree Comparisons.
+* =\= /2, arithmetic not equal:          Arithmetic.
+* > /2, arithmetic greater than:         Arithmetic.
+* >= /2, arithmetic greater or equal:    Arithmetic.
+* >> /2, right shift (arithmetic function): Arithmetic.
+* @< /2, tree less than:                 Tree Comparisons.
+* @=< /2, tree less or equal:            Tree Comparisons.
+* @> /2, tree greater than:              Tree Comparisons.
+* @>= /2, tree greater or equal:         Tree Comparisons.
+* [] (atom):                             Constant Symbols.
+* \ /1, bitwise negation (arithmetic function): Arithmetic.
+* \/ /2, bitwise disjunction (arithmetic function): Arithmetic.
+* \== /2, tree disequality:              Tree Comparisons.
+* abstraction/1:                         Data Types.
+* access/2 (unix/1 selector):            Interaction with UNIX.
+* acos/1 (arithmetic function):          Arithmetic.
+* acos/2:                                Arithmetic.
+* acosh/1 (arithmetic function):         Arithmetic.
+* acosh/2:                               Arithmetic.
+* add/3:                                 Arithmetic.
+* and/3:                                 Arithmetic.
+* arg/3:                                 Tree Mappings.
+* argv/1 (unix/1 selector):              Interaction with UNIX.
+* asin/1 (arithmetic function):          Arithmetic.
+* asin/2:                                Arithmetic.
+* asinh/1 (arithmetic function):         Arithmetic.
+* asinh/2:                               Arithmetic.
+* atan/1 (arithmetic function):          Arithmetic.
+* atan/2:                                Arithmetic.
+* atan2/2 (arithmetic function):         Arithmetic.
+* atan2/3:                               Arithmetic.
+* atanh/1 (arithmetic function):         Arithmetic.
+* atanh/2:                               Arithmetic.
+* atom/1:                                Data Types.
+* atom_char/3:                           Tree Mappings.
+* atom_to_chars/2:                       Tree Mappings.
+* atomic/1:                              Data Types.
+* attribute/1 (hash table message):      Hash Tables.
+* cd/0 (unix/1 selector):                Interaction with UNIX.
+* cd/1 (unix/1 selector):                Interaction with UNIX.
+* ceil/1 (arithmetic function):          Arithmetic.
+* ceil/2:                                Arithmetic.
+* chars_to_atom/2:                       Tree Mappings.
+* chars_to_float/2:                      Tree Mappings.
+* chars_to_integer/2:                    Tree Mappings.
+* chmod/3 (unix/1 selector):             Interaction with UNIX.
+* com/2:                                 Arithmetic.
+* compare/3:                             Tree Comparisons.
+* compound/1:                            Data Types.
+* copytime (statistics/2 selector):      Miscellaneous.
+* cos/1 (arithmetic function):           Arithmetic.
+* cos/2:                                 Arithmetic.
+* cosh/1 (arithmetic function):          Arithmetic.
+* cosh/2:                                Arithmetic.
+* data/1:                                Data Types.
+* debug/0:                               Basic Debugging Agents.
+* debugging/0:                           Basic Debugging Agents.
+* dec/2:                                 Arithmetic.
+* delete/[1,2] (hash table message):     Hash Tables.
+* dif/2:                                 Miscellaneous.
+* div/3:                                 Arithmetic.
+* domain/1 (hash table message):         Hash Tables.
+* equal/2:                               Arithmetic.
+* exit/1 (unix/1 selector):              Interaction with UNIX.
+* exp/1 (arithmetic function):           Arithmetic.
+* exp/2:                                 Arithmetic.
+* fabs/1 (arithmetic function):          Arithmetic.
+* fabs/2:                                Arithmetic.
+* failcatch/0:                           Basic Debugging Agents.
+* fclose/[0,1] (I/O stream message):     I/O Streams.
+* fflush/[0,1] (I/O stream message):     I/O Streams.
+* float/1:                               Data Types.
+* float/1 (arithmetic function):         Arithmetic.
+* float/2:                               Arithmetic.
+* float_to_chars/2:                      Tree Mappings.
+* floor/1 (arithmetic function):         Arithmetic.
+* floor/2:                               Arithmetic.
+* fopen/[3,4]:                           I/O Streams.
+* format/[1-4]:                          Data I/O.
+* functor_to_tree/3:                     Tree Mappings.
+* garbage_collect/0:                     Miscellaneous.
+* garbage_collection (statistics/2 selector): Miscellaneous.
+* gctime (statistics/2 selector):        Miscellaneous.
+* get/2 (array message):                 Arrays.
+* get/2 (hash table message):            Hash Tables.
+* getc/[1,2] (I/O stream message):       I/O Streams.
+* greater/2:                             Arithmetic.
+* idiv/3:                                Arithmetic.
+* inc/2:                                 Arithmetic.
+* indomain/2 (hash table message):       Hash Tables.
+* integer/1:                             Data Types.
+* integer/1 (arithmetic function):       Arithmetic.
+* integer/2:                             Arithmetic.
+* integer_to_chars/2:                    Tree Mappings.
+* is/2:                                  Arithmetic.
+* keysort/2:                             Tree Comparisons.
+* length_to_list/2:                      Tree Mappings.
+* less/2:                                Arithmetic.
+* list_to_length/2:                      Tree Mappings.
+* list_to_tree/2:                        Tree Mappings.
+* log/1 (arithmetic function):           Arithmetic.
+* log/2:                                 Arithmetic.
+* log10/1 (arithmetic function):         Arithmetic.
+* log10/2:                               Arithmetic.
+* max/2 (arithmetic function):           Arithmetic.
+* max/3:                                 Arithmetic.
+* meta_read/[1-4]:                       Data I/O.
+* min/2 (arithmetic function):           Arithmetic.
+* min/3:                                 Arithmetic.
+* mktemp/2 (unix/1 selector):            Interaction with UNIX.
+* mod/2, integer remainder (arithmetic function): Arithmetic.
+* mod/3:                                 Arithmetic.
+* mul/3:                                 Arithmetic.
+* neg/2:                                 Arithmetic.
+* new_array/[2-3]:                       Arrays.
+* new_hash_table/[1,2]:                  Hash Tables.
+* nl/[0,2]:                              Data I/O.
+* nodebug/0:                             Basic Debugging Agents.
+* nofailcatch/0:                         Basic Debugging Agents.
+* nondet (statistics/2 selector):        Miscellaneous.
+* nospy/1:                               Spy-points.
+* nospyall/0:                            Spy-points.
+* not_equal/2:                           Arithmetic.
+* not_greater/2:                         Arithmetic.
+* not_less/2:                            Arithmetic.
+* notrace/0:                             Tracing.
+* open_port/2:                           Ports.
+* or/3:                                  Arithmetic.
+* plus/2:                                Arithmetic.
+* port/1:                                Data Types.
+* pow/2 (arithmetic function):           Arithmetic.
+* pow/3:                                 Arithmetic.
+* program (statistics/2 selector):       Miscellaneous.
+* putc/[1,2] (I/O stream message):       I/O Streams.
+* putd/[1,2] (I/O stream message):       I/O Streams.
+* putf/[1,2] (I/O stream message):       I/O Streams.
+* puts/[1,2] (I/O stream message):       I/O Streams.
+* putsq/[2,3] (I/O stream message):      I/O Streams.
+* range/1 (hash table message):          Hash Tables.
+* read/[1-4]:                            Data I/O.
+* runtime (statistics/2 selector):       Miscellaneous.
+* send/2:                                Ports.
+* send/3:                                Ports.
+* set/[2,3] (array message):             Arrays.
+* set/[2,3] (hash table message):        Hash Tables.
+* shell/0 (unix/1 selector):             Interaction with UNIX.
+* shell/1 (unix/1 selector):             Interaction with UNIX.
+* shell/2 (unix/1 selector):             Interaction with UNIX.
+* shl/3:                                 Arithmetic.
+* shr/3:                                 Arithmetic.
+* sin/1 (arithmetic function):           Arithmetic.
+* sin/2:                                 Arithmetic.
+* sinh/1 (arithmetic function):          Arithmetic.
+* sinh/2:                                Arithmetic.
+* sizeof/1 (array message):              Arrays.
+* sizeof/1 (hash table message):         Hash Tables.
+* sort/2:                                Tree Comparisons.
+* spy/1:                                 Spy-points.
+* sqrt/1 (arithmetic function):          Arithmetic.
+* sqrt/2:                                Arithmetic.
+* statistics/0:                          Miscellaneous.
+* statistics/2:                          Miscellaneous.
+* stderr/1:                              I/O Streams.
+* stdin/1:                               I/O Streams.
+* stdout/1:                              I/O Streams.
+* sub/3:                                 Arithmetic.
+* subarray/[3-5] (array message):        Arrays.
+* system/1 (unix/1 selector):            Interaction with UNIX.
+* system/2 (unix/1 selector):            Interaction with UNIX.
+* tan/1 (arithmetic function):           Arithmetic.
+* tan/2:                                 Arithmetic.
+* tanh/1 (arithmetic function):          Arithmetic.
+* tanh/2:                                Arithmetic.
+* trace/0:                               Tracing.
+* tree/1:                                Data Types.
+* tree_to_functor/3:                     Tree Mappings.
+* tree_to_list/2:                        Tree Mappings.
+* typeof/1 (array message):              Arrays.
+* typeof/1 (hash table message):         Hash Tables.
+* typeof/1 (I/O stream message):         I/O Streams.
+* umask/2 (unix/1 selector):             Interaction with UNIX.
+* unix/1:                                Interaction with UNIX.
+* write/[1,3]:                           Data I/O.
+* writeq/[1,3]:                          Data I/O.
+* xor/3:                                 Arithmetic.
+* {} (atom):                             Constant Symbols.
+
+
+File: agents-user,  Node: Index of Concepts,  Prev: Index of Built-ins,  Up: Top
+
+Index of Concepts
+*****************
+
+* Menu:
+
+* + mode annotation:                     Built-in Agents.
+* - mode annotation:                     Built-in Agents.
+* AGENTS:                                AGENTS.
+* AGENTS mode (GNU Emacs):               GNU Emacs Modes.
+* agents, built-in <1>:                  Summary of Built-in Agents.
+* agents, built-in:                      Built-in Agents.
+* AGENTS, getting:                       Getting AGENTS.
+* AKL mode (GNU Emacs):                  GNU Emacs Modes.
+* anonymous variables:                   Variables.
+* arguments, of a compound term:         Compound Terms.
+* arithmetic:                            Arithmetic.
+* arity, of a functor:                   Compound Terms.
+* arrays:                                Arrays.
+* arrays, creating:                      Arrays.
+* atom, character from:                  Tree Mappings.
+* atoms:                                 Constant Symbols.
+* behavior:                              Built-in Agents.
+* binary:                                Constant Symbols.
+* bug reports, sending:                  Comments and Bug Reports.
+* built-in agents <1>:                   Built-in Agents.
+* built-in agents:                       Summary of Built-in Agents.
+* character codes:                       Constant Symbols.
+* character, from atom:                  Tree Mappings.
+* comments, sending:                     Comments and Bug Reports.
+* comparisons:                           Tree Comparisons.
+* compiling:                             Compiling and Loading.
+* compound terms <1>:                    Compound Terms.
+* compound terms <2>:                    Variables.
+* compound terms:                        Data.
+* constant symbols <1>:                  Constant Symbols.
+* constant symbols:                      Data.
+* constants:                             Constant Symbols.
+* constraints:                           Constraints.
+* data types:                            Data Types.
+* data, I/O:                             Data I/O.
+* debugging:                             Debugging.
+* demonstration programs:                Demonstration Programs.
+* documentation:                         Documentation.
+* empty list:                            Compound Terms.
+* exceptions:                            Exceptions.
+* expressions, arithmetic:               Arithmetic.
+* files, opening:                        I/O Streams.
+* finite domains:                        Finite Domains.
+* floats:                                Constant Symbols.
+* function symbols <1>:                  Data.
+* function symbols:                      Compound Terms.
+* functions, arithmetic:                 Arithmetic.
+* functors:                              Compound Terms.
+* GNU Emacs modes:                       GNU Emacs Modes.
+* Graphics Manager <1>:                  Including GM.
+* Graphics Manager:                      Libraries.
+* hash tables:                           Hash Tables.
+* hash tables, creating:                 Hash Tables.
+* head, of list:                         Compound Terms.
+* hexadecimal:                           Constant Symbols.
+* I/O:                                   Input and Output.
+* I/O streams:                           I/O Streams.
+* I/O, data:                             Data I/O.
+* input:                                 Input and Output.
+* installation, basic:                   Basic Installation.
+* installation, GM:                      Including GM.
+* integers:                              Constant Symbols.
+* integers, bases:                       Constant Symbols.
+* interaction with UNIX:                 Interaction with UNIX.
+* libraries, loading:                    Libraries.
+* list, empty:                           Compound Terms.
+* lists:                                 Compound Terms.
+* loading:                               Compiling and Loading.
+* loading, libraries:                    Libraries.
+* meta-variables:                        Built-in Agents.
+* mode annotations:                      Built-in Agents.
+* modules:                               Modules.
+* name, of a functor:                    Compound Terms.
+* octal:                                 Constant Symbols.
+* opening files:                         I/O Streams.
+* operators, standard:                   Standard Operators.
+* output:                                Input and Output.
+* ports:                                 Ports.
+* Prolog library:                        Tree Mappings.
+* quotes, single:                        Constant Symbols.
+* semantics:                             Syntax and (Informal) Semantics.
+* semantics, data:                       Data.
+* semantics, programs:                   Programs.
+* single quotes:                         Constant Symbols.
+* standard order:                        Tree Comparisons.
+* streams, I/O:                          I/O Streams.
+* strings:                               Compound Terms.
+* symbols, constant:                     Data.
+* symbols, function:                     Data.
+* synchronization:                       Built-in Agents.
+* syntax:                                Syntax and (Informal) Semantics.
+* syntax, data:                          Data.
+* syntax, programs:                      Programs.
+* tail, of list:                         Compound Terms.
+* terms:                                 Data.
+* terms, compound <1>:                   Variables.
+* terms, compound:                       Data.
+* top-level interaction <1>:             Top-Level Interaction.
+* top-level interaction:                 Entering AGENTS.
+* trees <1>:                             Compound Terms.
+* trees:                                 Trees.
+* trees, comparisons:                    Tree Comparisons.
+* trees, mappings:                       Tree Mappings.
+* types, data:                           Data Types.
+* UNIX, interaction with:                Interaction with UNIX.
+* variables <1>:                         Data.
+* variables:                             Variables.
+* variables, anonymous:                  Variables.
+* variables, interpretation:             Variables.
+
+

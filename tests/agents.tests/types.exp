@@ -1,0 +1,7 @@
+load_lib agents_test.exp
+
+agents_test_initialize
+
+agents_test types1 \
+"compile('$subdir/foo_abs'),foo_abs(FooAbs),atomic(FooAbs).\n" \
+"\nno \n"

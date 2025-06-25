@@ -1,0 +1,520 @@
+/* $Id: lists.akl,v 1.11 1994/04/13 16:16:37 dan Exp $ */
+
+/* Copyright(C) 1988, Swedish Institute of Computer Science */
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%  Name: lists.akl                                                            %
+%  Author: Lena Flood (ported to AKL by Dan Sahlin)                           %
+%  Date: 4 November 1988, 27 April 1993                                       %
+%  Purpose: List manipulating routines                                        %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%   Adapted from shared code written by Lawrence Byrd & Richard A O'Keefe      
+
+/*****
+:- module(lists, [
+        append/3,
+	fappend/3, % AKL only
+        delete/3,
+        is_list/1,
+        last/2,
+        max_list/2,
+	min_list/2,
+        member/2,
+        memberchk/2,
+        nextto/3,
+        no_doubles/1,
+        non_member/2,
+        nth/3,
+        nth/4,
+        nth0/3,
+        nth0/4,
+        permutation/2,
+        prefix/2,
+        remove_duplicates/2,
+        reverse/2,
+        same_length/2,
+        same_length/3,
+        select/3,
+        sublist/2,
+        substitute/4,
+	sum_list/2,
+	suffix/2
+	]).
+***/
+
+%i @node Lists, Ordsets, GM, Top
+%i @comment  node-name,  next,  previous,  up
+%i @chapter List Processing
+%i @cindex lists
+%i 
+%i This package defines operations on lists.  Lists are a very
+%i basic data structure, but nevertheless certain very frequent operations
+%i are provided in this package.
+%i 
+%i To load the package, enter the query
+%i 
+%i @example
+%i | ?- load(library(lists)).
+%i @end example
+
+/* should reduce and map be added ? */
+
+%i @table @code
+%i @item append(@var{?Prefix}, @var{?Suffix}, @var{?Combined})
+%i @findex append/3
+%i is true when @var{Combined} is the combined list of the elements in
+%i @var{Prefix} followed by the elements in @var{Suffix}.  It can be used to
+%i form @var{Combined} or it can be used to find @var{Prefix} and/or
+%i @var{Suffix} from a given @var{Combined}.
+
+append([], List, List).
+append([Head|Tail], List, [Head|Rest]) :- 
+	append(Tail, List, Rest).
+
+
+%i @item fappend(@var{+Prefix}, @var{+Suffix}, @var{?Combined})
+%i @findex fappend/3
+%i Same as append/3, but demands that the two first argments are instantiated
+%i to lists.
+
+fappend([],R,L) :-
+    ->  R=L.
+fappend([H|T],L0,L) :-
+    ->  L=[H|R],
+	fappend(T,L0,R).
+
+%i @item delete(@var{+List}, @var{+Element}, @var{?Residue})
+%i @findex delete/3
+%i is true when @var{Residue} is the result of removing all
+%i @emph{identical} occurrences of @var{Element} in @var{List}.
+%i @var{List} must be instantiated to a list.
+
+delete([], _, Rest) :-
+    ->  Rest=[].
+delete([Head|Tail], Element, Rest) :-
+	Head=Element
+    ->  delete(Tail, Element, Rest).
+delete([Head|Tail], Element, List) :-
+    ->  List=[Head|Rest],
+	delete(Tail, Element, Rest).
+
+%i @item is_list(@var{+List})
+%i @findex is_list/1
+%i is true when @var{List} is instantiated to a proper list.
+
+/* available in C
+is_list([]) :-
+    ->  true.
+is_list([_|Tail]) :-
+    ->  is_list(Tail).
+*/
+is_list(X) :-
+	'$islist'(X).
+
+%i @item last(@var{?List}, @var{?Last})
+%i @findex last/2
+%i is true when @var{Last} is the last element in instantiated @var{List}.  Example:
+%i @example
+%i | ?- last(Z, [x,y,z]).
+%i 
+%i Z = z ? 
+%i 
+%i yes
+%i @end example
+
+last([Head|Tail], Element) :- last(Tail, Head, Element).
+
+last([], Element, Last) :-
+    ->  Last=Element.
+last([Head|Tail], _, Element) :-
+    ->  last(Tail, Head, Element).
+
+%i @item max_list(@var{+ListOfNumbers}, @var{?Max})
+%i @findex max_list/2
+%i is true when @var{Max} is the largest of the elements in @var{ListOfNumbers}.
+%i It fails for the empty list.
+
+max_list([Head|Tail], Max) :- 
+	max_list(Tail, Head, Max).
+
+max_list([], Element, Max) :-
+    ->  Max=Element.
+max_list([Head|Tail], Element, Max) :-
+	Head =< Element
+    ->  max_list(Tail, Element, Max).
+max_list([Head|Tail], _, Max) :-
+    ->  max_list(Tail, Head, Max).
+
+%i @item min_list(@var{+ListOfNumbers}, @var{?Min})
+%i @findex min_list/2
+%i is true when @var{Min} is the smallest of the numbers in the list
+%i @var{ListOfNumbers}.
+%i It fails for the empty list.
+
+min_list([Head|Tail], Min) :- 
+	min_list(Tail, Head, Min).
+
+min_list([], Element, Min) :-
+    ->  Min=Element.
+min_list([Head|Tail], Element, Min) :-
+	Head >= Element
+    ->  min_list(Tail, Element, Min).
+min_list([Head|Tail], _, Min) :-
+    ->  min_list(Tail, Head, Min).
+
+%i @item member(@var{?Element}, @var{?List})
+%i @findex member/2
+%i is true when @var{Element} is a member of @var{List}.  It may be used to test 
+%i for membership in a list, but it can also be used to enumerate all the 
+%i elements in @var{List}.  Example:
+%i @example
+%i | ?- member(X, [a,b,c]).
+%i 
+%i X = a ? ;
+%i 
+%i X = b ? ;
+%i 
+%i X = c ? 
+%i 
+%i yes
+%i @end example
+
+member(Element, [Head|Tail]) :-
+	member_(Tail, Head, Element).
+
+% auxiliary to avoid choicepoint for last element
+member_(_, Element, Element).
+member_([Head|Tail], _, Element) :-
+	member_(Tail, Head, Element).
+
+%i @item memberchk(@var{+Element}, @var{+List})
+%i @findex memberchk/2
+%i is true when @var{Element} is a member of @var{List}, but 
+%i @code{memberchk/2} only succeeds at most once and can therefore not be used to
+%i enumerate the elements in @var{List}.
+
+memberchk(Element, [Element|_]) :-
+    ->  true.
+memberchk(Element, [_|Rest]) :-
+    ->  memberchk(Element, Rest).
+
+%i @item nextto(@var{?X}, @var{?Y}, @var{?List})
+%i @findex nextto/3
+%i is true when @var{X} and @var{Y} appear side-by-side in @var{List}.  Example:
+%i @example
+%i | ?- nextto(X, Y, [1,2,3]).
+%i 
+%i X = 1,
+%i Y = 2 ? ;
+%i 
+%i X = 2,
+%i Y = 3 ? ;
+%i 
+%i no
+%i @end example
+
+nextto(X, Y, [X,Y|_]).
+nextto(X, Y, [_|Rest]) :-
+	nextto(X, Y, Rest).
+
+%i @item no_doubles(@var{?List})
+%i @findex no_doubles/1
+%i is true when @var{List} contains no duplicated elements.  This is true
+%i when @code{dif(@var{X}, @var{Y})} holds for all pairs of members @var{X}
+%i and @var{Y} of the list.
+
+no_doubles(L) :-
+	% length_of_list(L,Len),
+	sort(L,Lsorted),
+	% length_of_list(Lsorted,Len)
+	same_length(L, Lsorted)
+    ->  true.
+
+
+%i @item non_member(@var{?Element}, @var{?List})
+%i @findex non_member/2
+%i is defined as not(member(@var{?Element}, @var{?List})).
+
+non_member(Element, List) :-
+	not(member(Element,List)).
+
+%i @item nth(@var{?N}, @var{?List}, @var{?Element})
+%i @findex nth/3
+%i @code{nth/3} is true when @var{Element} is the @var{N}th element of @var{List}.
+%i The first element is number 1.  Example:
+%i @example
+%i | ?- nth(N, [a,b,c,d,e,f,g,h,i], f).
+%i 
+%i N = 6 ? 
+%i 
+%i yes
+%i @end example
+
+nth(N, List, Element) :-
+	integer(N)
+    |   1 =< N,
+	N1 is N-1,
+	nth0i(N1, List, Element).
+nth(N, List, Element) :-
+	is_list(List)
+    |   nth0v(List, Element, 1, N).
+
+
+%i @item nth(@var{?N}, @var{?List}, @var{?Element}, @var{?Rest})
+%i @findex nth/4
+%i is true when @var{Element} is in position @var{N} in the @var{List} and
+%i @var{Rest} is all elements in @var{List} except @var{Element}.
+
+nth(N, List, Element, Rest) :-
+	integer(N)
+    |   1 =< N,
+	N1 is N-1,
+	nth0i(N1, List, Element, Rest).
+nth(N, List, Element, Rest) :-
+	is_list(List)
+    |   nth0v(List, Element, 1, N, Rest).
+
+
+%i @item nth0(@var{?N}, @var{?List}, @var{?Element})
+%i @findex nth0/3
+%i is true when @var{Element} is the @var{N}th element of @var{List}, counting 
+%i the first element as 0. 
+
+nth0(N, List, Element) :-
+	integer(N)
+    |   N >= 0,
+	nth0i(N, List, Element).
+nth0(N, List, Element) :-
+	is_list(List)
+    |   nth0v(List, Element, 0, N).
+
+nth0v([Element|_], Element, I, Index) :-
+    ?   Index=I.
+nth0v([_|Tail], Element, M, Index) :-
+    ?   N is M+1,
+	nth0v(Tail, Element, N, Index).
+
+nth0i(0, [Head|_], Element) :-
+    ->  Element=Head.
+nth0i(N, [_|Tail], Element) :-
+    ->  M is N-1,
+	nth0i(M, Tail, Element).
+
+
+%i @item nth0(@var{?N}, @var{?List}, @var{?Element}, @var{?Rest})
+%i @findex nth0/4
+%i is true when @var{Element} is the @var{N}th element of @var{List},
+%i counting the first element as 0. @var{Rest} is all the other elements in
+%i @var{List}.    Example:
+%i @example
+%i | ?- nth0(N, [a,b,c,d,e,f,g,h,i,j], f, R).
+%i 
+%i N = 5,
+%i R = [a,b,c,d,e,g,h,i,j] ? 
+%i 
+%i yes
+%i @end example
+
+nth0(N, List, Element, Rest) :-
+	integer(N)
+    |   N >= 0,
+	nth0i(N, List, Element, Rest).
+nth0(N, List, Element, Rest) :-
+    |   is_list(List),
+	nth0v(List, Element, 0, N, Rest).
+
+nth0v([Element|Tail], Element, I, Index, Rest) :-
+    ?   Index=I,
+	Rest=Tail.
+nth0v([Head|Tail], Element, M, Index, Result) :-
+    ?   N is M+1,
+	Result=[Head|Rest],
+	nth0v(Tail, Element, N, Index, Rest).
+
+nth0i(0, [Head|Tail], Element, Rest) :-
+    ->  Element=Head,
+	Rest=Tail.
+nth0i(N, [Head|Tail], Element, Result) :-
+    ->  M is N-1,
+	Result=[Head|Rest],
+	nth0i(M, Tail, Element, Rest).
+
+%i @item permutation(@var{?List}, @var{?Perm})
+%i @findex permutation/2
+%i is true when @var{Perm} is a permutation of @var{List}.
+%i 
+%i @item prefix(@var{?Prefix}, @var{?List})
+%i @findex prefix/2
+%i is true when @var{Prefix} is a prefix of @var{List}.  Example:
+%i @example
+%i | ?- prefix([1,2,3], [1,2,3,4,5,6]).
+%i 
+%i yes
+%i @end example
+
+permutation([], []).
+permutation(List, [First|Perm]) :- 
+	select(First, List, Rest),
+	permutation(Rest, Perm).
+
+%i @item prefix(@var{?Prefix}, @var{?List})
+%i @findex prefix/2
+%i is true when @var{Prefix} is a prefix of @var{List}.  Example:
+%i @example
+%i | ?- prefix([1,2,3], [1,2,3,4,5,6]).
+%i 
+%i yes
+%i @end example
+
+prefix([], _).
+prefix([X|PreTail], [X|Tail]) :-
+	prefix(PreTail, Tail).
+
+%i @item remove_duplicates(@var{+List}, @var{?Pruned})
+%i @findex remove_duplicates/2
+%i is true when @var{Pruned} is the result of removing all identical
+%i duplicate elements in the instantiated list @var{List}.  Example:
+%i @example
+%i | ?- remove_duplicates([1,2,3,2,3,1], P).
+%i 
+%i P = [1,2,3] ? ;
+%i 
+%i no
+%i @end example
+%  (computationally expensive!/DS)
+
+remove_duplicates([], Result) :-
+    ->  Result=[].
+remove_duplicates([Head|Tail1], Result) :-
+    ->  Result=[Head|Tail2],
+	delete(Tail1, Head, Residue),
+        remove_duplicates(Residue, Tail2).
+
+%i @item reverse(@var{?List}, @var{?Reversed})
+%i @findex reverse/2
+%i is true when @var{Reversed} has the same elements as in the
+%i instantiated list @var{List} but in a reversed order.
+
+reverse(List, Reversed) :-
+	reverse(List, [], Reversed).
+
+reverse([], Reversed, Result) :-
+    ->  Result=Reversed.
+reverse([Head|Tail], SoFar, Reversed) :-
+    ->  reverse(Tail, [Head|SoFar], Reversed).
+
+
+%i @item same_length(@var{?List1}, @var{?List2})
+%i @findex same_length/2
+%i is true when @var{List1} and @var{List2} have the same number of
+%i elements.
+
+same_length([], L) :-
+    |   L = [].
+same_length([_|S], L) :-
+    |   L = [_|L1],                                                   
+	same_length(S, L1).
+same_length(L, []) :-
+    |   L = [].
+same_length(L, [_|S]) :-
+    |   L = [_|L1],
+	same_length(S, L1).
+
+%i @item same_length(@var{?List1}, @var{?List2}, @var{?Length})
+%i @findex same_length/3
+%i is true when @var{List1} and @var{List2} have the same number of elements
+%i and that number is @var{Length}.  Example:
+%i @example
+%i | ?- same_length([1,2,3], [9,8,7], N).
+%i 
+%i N = 3 ? ;
+%i 
+%i no
+%i @end example
+
+same_length(L1, L2, Length) :-
+	integer(Length)
+    |   list_to_length(L1, Length),
+	list_to_length(L2, Length).
+same_length(L1, L2, Length) :-
+    |   same_length(L1, L2, 0, Length).
+
+same_length([], [], N, Length) :-
+    ->  Length=N.
+same_length([_|L1], [_|L2], N0, N) :-
+    ->  N1 is N0+1,
+	same_length(L1, L2, N1, N).
+
+
+%i @item select(@var{?Element}, @var{?List}, @var{?List2})
+%i @findex select/3
+%i is true when the result of removing an occurrence of @var{Element} in
+%i @var{List} is @var{List2}.
+
+select(Element, [Element|Tail], Tail).
+select(Element, [Head|Tail1], [Head|Tail2]) :- 
+	select(Element, Tail1, Tail2).
+
+
+%i @item sublist(@var{?Sub}, @var{?List})
+%i @findex sublist/2
+%i is true when @var{Sub} contains some of the elements of @var{List}, and
+%i in the same order.
+
+sublist(List, List).
+sublist(Sub, [Head|Tail]) :- sublist_(Tail, Head, Sub).
+
+sublist_(Sub, _, Sub).
+sublist_([Head|Tail], _, Sub) :- sublist_(Tail, Head, Sub).
+sublist_([Head|Tail], X, [X|Sub]) :- sublist_(Tail, Head, Sub).
+
+
+%i @item substitute(@var{+X}, @var{+Xlist}, @var{+Y}, @var{?Ylist})
+%i @findex substitute/4
+%i is true when instantiated list @var{Xlist} and @var{Ylist} are equal
+%i except for replacing identical occurrences of @var{X} by @var{Y}.
+%i Example:
+%i @example
+%i | ?- substitute(1, [1,2,3,4], 5, X).
+%i 
+%i X = [5,2,3,4] ? 
+%i 
+%i yes
+%i @end example
+
+substitute(_, [], _, Ylist) :-
+    ->  Ylist=[].
+substitute(OldElem, [OldHead|OldRest], NewElem, Ylist) :-
+	OldElem=OldHead
+    ->  Ylist=[NewElem|NewRest],
+	substitute(OldElem, OldRest, NewElem, NewRest).
+substitute(OldElem, [NotElem|OldRest], NewElem, Ylist) :-
+    ->  Ylist=[NotElem|NewRest],
+	substitute(OldElem, OldRest, NewElem, NewRest).
+
+%i @item sum_list(@var{+ListOfNumbers}, @var{?Sum})
+%i @findex sum_list/2
+%i is true when @var{Sum} is the result of adding the @var{ListOfNumbers} 
+%i together.
+
+sum_list(List, Sum) :-
+	sum_list(List, 0, Sum).
+
+sum_list([], Sum0, Sum) :-
+    ->  Sum=Sum0.
+sum_list([Head|Tail], Sum0, Sum) :-
+    ->  Sum1 is Head+Sum0,
+	sum_list(Tail, Sum1, Sum).
+
+
+%i @item suffix(@var{?Suffix}, @var{?List})
+%i @findex suffix/2
+%i is true when @var{Suffix} is a suffix of @var{List}.
+
+suffix(Suffix, Suffix).
+suffix(X, [_|Tail]) :-
+	suffix(X, Tail).
+
+% last line of texinfo:
+%i @end table

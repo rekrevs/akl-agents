@@ -1,0 +1,161 @@
+/*-----------------------------------------------------------------------------
+Program:  Semigroup (unbalanced binary tree filter)  SMALL DATA
+Author:   E. Tick and N. Ichiyoshi
+Date:     July 25 1989
+ 
+Notes:
+1. To run:
+	?- go(N).
+the output N should be number of elements.
+-----------------------------------------------------------------------------*/
+
+go(N) :- |
+    kernel(K),
+    append(K,[end|R],T),
+    initTree(T,R,Out),
+    count(Out,N).
+
+initTree(T,R,Out) :- |
+    prefilter(T,T1,sawelement,R,Out),
+    tree(T1,0,[]).    
+
+prefilter([end|T],T1,sawelement,R0,Out) :- | 
+    T1=[end(R0,R1)|Ts],
+    prefilter(T,Ts,sawend,R1,Out).
+prefilter([end|_],T1,sawend,_,Out) :- | T1=[out(Out,[])].
+prefilter([X-Y|T],T1,_,R0,Out) :- |
+    T1=[m(X,Y,R0-R1)|Ts],
+    prefilter(T,Ts,sawelement,R1,Out).
+
+gen(X,S0-S1) :- | kernel(K), g(K,X,S0,S1).
+
+g([],_,S0,S1) :- | S0=S1.
+g([K|Ks],E,S,T) :- | 
+    S=[P|Ps],
+    g(Ks,E,Ps,T),
+    mult(K,E,P).
+
+%-----------------------------------------------------------------
+tree(T,X,Y) :- | t(T,X,Y).
+
+% leaf node (node with no child nodes)
+% X,Y are keys, C is tuple, B is list of tuples (bucket)
+%
+t([],_,_) :- | true.
+t([m(Y,C,S) |T],X,B) :- X = Y | insertBucket(B,B,C,B1,C,S),t(T,X,B1).
+t([m(Y,C,S) |T],X,B) :- X < Y | gen(C,S), tr(T,X,B,R), t(R,Y,[C]).
+t([m(Y,C,S) |T],X,B) :- Y < X | gen(C,S), t(L,Y,[C]), tl(T,X,B,L).
+t([out(S0,S)|T],X,B) :- | xsend(B,S0,S), t(T,X,B).
+t([end(S0,S)|T],X,B) :- | S0=[end|S], t(T,X,B).
+
+% node with right child only
+%
+tr([],_,_,R) :- | R = [].
+tr([m(Y,C,S) |T],X,B,R) :- X = Y | insertBucket(B,B,C,B1,C,S), tr(T,X,B1,R).
+tr([m(Y,C,S) |T],X,B,R) :- X < Y | R = [m(Y,C,S)|R1], tr(T,X,B,R1).
+tr([m(Y,C,S) |T],X,B,R) :- Y < X | gen(C,S), t(L,Y,[C]), tlr(T,X,B,L,R).
+tr([out(S0,S)|T],X,B,R) :- | R=[out(S1,S)|R1],xsend(B,S0,S1),tr(T,X,B,R1).
+tr([end(S0,S)|T],X,B,R) :- | S0=[end|S], tr(T,X,B,R).
+
+% node with left child only
+%
+tl([],_,_,L) :- | L = [].
+tl([m(Y,C,S) |T],X,B,L) :- X = Y | insertBucket(B,B,C,B1,C,S), tl(T,X,B1,L).
+tl([m(Y,C,S) |T],X,B,L) :- X < Y | gen(C,S), tlr(T,X,B,L,R), t(R,Y,[C]).
+tl([m(Y,C,S) |T],X,B,L) :- Y < X | L=[m(Y,C,S)|L1], tl(T,X,B,L1).
+tl([out(S0,S)|T],X,B,L) :- | L=[out(S0,S1)|L1], tl(T,X,B,L1), xsend(B,S1,S).
+tl([end(S0,S)|T],X,B,L) :- | S0=[end|S], tl(T,X,B,L).
+
+% node with both left and right children
+%
+tlr([],_,_,L,R) :- | L = [], R = [].
+tlr([m(Y,C,S)|T],X,B,L,R):- X = Y | insertBucket(B,B,C,B1,C,S),tlr(T,X,B1,L,R).
+tlr([m(Y,C,S)|T],X,B,L,R):- X < Y | R = [m(Y,C,S)|R1], tlr(T,X,B,L,R1).
+tlr([m(Y,C,S)|T],X,B,L,R):- Y < X | L = [m(Y,C,S)|L1], tlr(T,X,B,L1,R).
+tlr([out(S0,S)|T],X,B,L,R) :- | L=[out(S0,S1)|L1], tlr(T,X,B,L1,R1), 
+                                xsend(B,S1,S2), R=[out(S2,S)|R1].
+tlr([end(S0,S)|T],X,B,L,R) :- | S0=[end|S], tlr(T,X,B,L,R).
+
+insertBucket([],B,C,B1,E,S) :- -> B1=[C|B], gen(E,S). % new element
+insertBucket([C|_],B,C,B1,_,S0-S1) :- -> B1=B, S0=S1. % already in bucket
+insertBucket([_|Cs],B,C,B1,E,S) :- -> insertBucket(Cs,B,C,B1,E,S).
+
+xsend([],S0,S1) :- | S0=S1.
+xsend([T|Ts],S0,S2) :- | S0=[T|S1], xsend(Ts,S1,S2).
+
+%------------------------------------------------------------
+% utilities...
+append([A|X],Y,Z):- | Z=[A|Z1], append(X,Y,Z1).        
+append([],   Y,Z):- | Z=Y.            
+
+count(L,N) :- | count(L,0,N).
+
+count([],M,N) :- | M = N.
+count([_X|Xs],M,N) :- M1 is M+1 | count(Xs,M1,N).
+
+mult(_-X, Y, Out) :- | Out=Key-R, mult(X,Y,R,0,Key,0).
+
+mult([X|Xs], [Y|Ys], Out, InKey, OutKey, E) :-
+	NewKey is (E+InKey*3) mod 2097152
+    |   Out = [Z|Zs],
+    	m(X, Y, Z),
+    	mult(Xs, Ys, Zs, NewKey, OutKey, Z).
+mult([], [], Z, InKey, OutKey, _) :-
+    |	Z=[],
+	OutKey=InKey.
+
+m(2,1,Z):- | Z=1. 
+m(3,1,Z):- | Z=1. 
+m(4,1,Z):- | Z=1. 
+m(5,1,Z):- | Z=1. 
+m(1,1,Z):- | Z=1.
+
+m(2,2,Z):- | Z=2. 
+m(3,2,Z):- | Z=1. 
+m(4,2,Z):- | Z=1. 
+m(5,2,Z):- | Z=5. 
+m(1,2,Z):- | Z=1.
+
+m(2,3,Z):- | Z=1. 
+m(3,3,Z):- | Z=3. 
+m(4,3,Z):- | Z=4. 
+m(5,3,Z):- | Z=1. 
+m(1,3,Z):- | Z=1.
+
+m(2,4,Z):- | Z=4. 
+m(3,4,Z):- | Z=1. 
+m(4,4,Z):- | Z=1. 
+m(5,4,Z):- | Z=3. 
+m(1,4,Z):- | Z=1.
+
+m(2,5,Z):- | Z=1. 
+m(3,5,Z):- | Z=5. 
+m(4,5,Z):- | Z=2. 
+m(5,5,Z):- | Z=1. 
+m(1,5,Z):- | Z=1.
+
+
+kernel(K) :- |
+   K=[1833472-[ 1,1,1,1,1,2,2,2,2,2,3,3,3,3,3,4,4,4,4,4, 
+                   5,5,5,5,5,3,3,3,3,3,5,5,5,5,5,4,4,4,4,4],
+      -590019-[ 1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,1,2,3,4,5, 
+                   1,2,3,4,5,1,2,3,4,5,1,3,2,4,5,1,2,3,4,5],
+      1084198-[ 1,1,1,1,1,2,2,2,2,2,3,3,3,3,3,5,5,5,5,5,
+                   4,4,4,4,4,2,2,2,2,2,4,4,4,4,4,3,3,3,3,3],
+      1154844-[ 1,2,3,5,4,1,2,3,5,4,1,2,3,5,4,1,2,3,5,4, 
+                   1,2,3,5,4,1,2,3,4,5,1,2,3,5,4,1,2,3,5,4]].
+
+/*
+% 1450 elements...
+kernel(K) :- | 
+   K=[1833472-[ 1,1,1,1,1,2,2,2,2,2,3,3,3,3,3,4,4,4,4,4, 
+                   5,5,5,5,5,3,3,3,3,3,5,5,5,5,5,4,4,4,4,4],
+      -590019-[ 1,2,3,4,5,1,2,3,4,5,1,2,3,4,5,1,2,3,4,5, 
+                   1,2,3,4,5,1,2,3,4,5,1,3,2,4,5,1,2,3,4,5],
+       841410-[ 1,1,1,1,1,1,1,1,2,2,1,2,3,4,5,5,5,5,5,5,
+                   1,2,3,4,5,1,3,3,3,3,1,3,2,4,5,5,5,3,4,5],
+      1084198-[ 1,1,1,1,1,2,2,2,2,2,3,3,3,3,3,5,5,5,5,5,
+                   4,4,4,4,4,2,2,2,2,2,4,4,4,4,4,3,3,3,3,3],
+      1154844-[ 1,2,3,5,4,1,2,3,5,4,1,2,3,5,4,1,2,3,5,4, 
+                   1,2,3,5,4,1,2,3,4,5,1,2,3,5,4,1,2,3,5,4]].
+*/

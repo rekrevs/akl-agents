@@ -1,0 +1,48 @@
+% $Id: graph.akl,v 1.3 1993/11/18 12:16:26 sverker Exp $
+
+
+keysort_and_group(Edges, Graph) :-
+	keysort(Edges, Sorted),
+	group_edges(Sorted, Graph).
+
+
+% adapted from sicstus/library/ugraph.pl
+
+group_edges([], Graph) :-
+    ->  Graph = [].
+group_edges(Edges, Graph) :-
+    ->	Edges = [Vertex-_|_],
+	Graph = [Vertex-Neibs|RestGraph],
+	group_edges(Edges, Vertex, Neibs, RestEdges),
+	group_edges(RestEdges, RestGraph).
+
+group_edges([V-X|Edges], V, Neibs, RestEdges) :-
+    ->	Neibs = [X|RestNeibs],
+	group_edges(Edges, V, RestNeibs, RestEdges).
+group_edges(Edges, _V, Neibs, RestEdges) :-
+    ->	Neibs = [],
+	RestEdges = Edges.
+
+
+% x_merge(+List, +List, -List).
+
+x_merge([], Ns, Set) :-
+    ->	Set = Ns.
+x_merge([O|Os], Ns, Set) :-
+    ->	x_merge(Ns, O, Os, Set).
+
+x_merge([], O, Os, Set) :-
+    ->	Set = [O|Os].
+x_merge([N|Ns], O, Os, Set) :-
+    ->	compare(C, O, N), 
+	x_merge(C, O, Os, N, Ns, Set).
+
+x_merge(<, O1, Os, N, Ns, Set0) :-
+    ->	Set0 = [O1|Set],
+	x_merge(Os, N, Ns, Set).
+x_merge(=, _, Os, N, Ns, Set0) :-
+    ->	Set0 = [N|Set],
+	x_merge(Os, Ns, Set).
+x_merge(>, O, Os, N1, Ns, Set0) :-
+    ->	Set0 = [N1|Set],
+	x_merge(Ns, O, Os, Set).

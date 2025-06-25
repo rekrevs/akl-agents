@@ -1,0 +1,16 @@
+$Id: super_suspension,v 1.2 1993/06/07 11:02:52 sverker Exp $
+
+When an engine comes across a variable which is
+external to the current reflection (a meta-variable),
+the whole reflection should suspend.  It may not make
+any assumptions on the value of a meta-variable.
+
+there are complications:
+
+In a parallel implementation, what should be done
+with other workers?
+
+Shouldn't really everything be done that could be
+done on the current configuration?  If the goal
+following this one would fail (without touching
+meta-variables), shouldn't it be allowed to?

@@ -1,0 +1,9 @@
+% $Id: builtin.akl,v 1.1 1993/11/22 09:27:47 sverker Exp $
+
+c_builtin(add, 3) :- -> true.
+c_builtin(sub, 3) :- -> true.
+c_builtin(inc, 2) :- -> true.
+c_builtin(dec, 3) :- -> true.
+c_builtin(arg, 3) :- -> true.
+c_builtin(is, 2) :- -> true.
+c_builtin(compare, 3) :- -> true.

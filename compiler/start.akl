@@ -1,0 +1,95 @@
+cl(X):- compilef(X),load(X).
+
+q(X):- -> opt_flags_all(F),bam_compile(X,F).
+
+r(X):- -> opt_flags(F),bam_compile(X,F).
+
+compile:-  all_subs(S),compile_subs(S).
+
+compilef:-  all_subs(S),compilef_subs(S).
+
+load:- all_subs(S),load_subs(S).
+
+compile_subs([]):- -> true.
+compile_subs([X|Xs]):- -> compile_sub(X),compile_subs(Xs).
+
+compilef_subs([]):- -> true.
+compilef_subs([X|Xs]):- -> compilef_sub(X),compilef_subs(Xs).
+
+load_subs([]):- -> true.
+load_subs([X|Xs]):- -> load_sub(X),load_subs(Xs).
+
+compile_sub(Sub):- -> files_from_sub(Sub,F),compile_files(F).
+load_sub(Sub):- -> files_from_sub(Sub,F),load_files(F).
+compilef_sub(Sub):- -> files_from_sub(Sub,F),compilef_files(F).
+
+compile_files([]):- -> true.
+compile_files([F|Fs]):- -> compile(F),compile_files(Fs).
+
+compilef_files([]):- -> true.
+compilef_files([F|Fs]):- -> compilef(F),compilef_files(Fs).
+
+load_files([]):- -> true.
+load_files([F|Fs]):- -> load(F),load_files(Fs).
+
+how:-  failcatch,suspend_depth(1),trace_set_print_depth(20).
+
+all_subs([transform,pred,clause,opt,misc,environ]).
+
+files_from_sub(transform,F):- -> F=[transform,transform_help,var].
+files_from_sub(pred,F):-      -> F=[pred,pred_non_unif,pred_tree,pred_def,pred_sus,pred_switch].
+files_from_sub(clause,F):-    -> F=[unif,push,head_alloc,body_alloc,spec_alloc,alloc_help,
+	                              clause,non_unif].
+files_from_sub(misc,F):-      -> F=[help,builtin].
+files_from_sub(opt,F):-       -> F=[opt,opt_try,opt_help,opt_reg,opt_block].
+files_from_sub(environ,F):-   -> F=[test,io,compiler].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%         Use:
+%%%               1:  Singleton/non-singleton underscored check only
+%%%               2:  Transformation only
+%%%               3:  Transformation/Decision                      * 
+%%%               4:  Transformation/Decision With Interpreter
+%%%               5:  Transformation/Decision + Clause
+%%%               6:  + Opt
+%%%               7:  + Opt to file
+%%%                                  
+%%%                   * write_def_flag AND write_arginfo_flag relevant
+%%%                                  
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+singleton_dump:- compile_flag(1).
+transformation_dump:- compile_flag(2).
+decision_dump:- compile_flag(3).
+dec_inter_dump:- compile_flag(4).
+clause_dump:- compile_flag(5).
+before_opt_write:- compile_flag(X),member(X,[3,5]).
+last_var_opt_no_do:- compile_flag(X),X<6.
+final_code_write:- compile_flag(X),member(X,[6,8]).
+to_file:- compile_flag(7).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% EXTRA Flags
+%%%                      write_def_flag (Only relevant in State: 3)
+%%%                      write_arginfo_flag (Only relevant in State: 3)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+write_def_flag(no).
+
+write_arginfo_flag(no).
+
+compile_flag(7).
+
+decision_debug_flag(no).
+
+tell_collapse_flag(no).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% 
+%%% 
+%%% 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+opt_flags_all([opt,reg_opt]).
+opt_flags([opt]).
+

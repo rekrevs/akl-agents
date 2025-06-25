@@ -1,0 +1,213 @@
+% File: 	symbol.akl
+% Author: 	Anders Andersson
+% Purpose:	Symboltable for SAGA front end
+% Modified:	August 25, 1993
+
+% Create an empty symbol table
+empty_symbol_table(table(0, Empty, Empty, 2, 1, false)) :-
+	ord_list_to_assoc([], Empty).
+
+% Defines a symbol called Name with a Type and a Value in the Assoc.
+% If the symbol has never occured before, it is inserted and Sym is set to
+% Value, and Counter is incremented.
+% If the symbol has been defined earlier, the DDOK (Doubly Defined is OK)
+% parameter is consulted. If it is true, Sym is set to the old value, and
+% if it is false an error is reported, and Err is set to true, and
+% Sym is set to error.
+% If the symbol has been used, but not defined, the types are check for
+% consistency and if they match, the Value is filled in and Counter is
+% incremented, else an error is reported and Err is set to true and Sym is
+% set to error.
+def_sym(Name, Type, Value, DDOK, Sym)-Err-Counter-Assoc :-
+	list_to_atom(Name, Atom),
+	def_asym(Atom, Type, Value, DDOK, Sym)-Err-Counter-Assoc.
+
+def_asym(Name, Type, Body, DDOK, Sym)-Err-Counter-Assoc :-
+	get_assoc(Name, Entry, Assoc, _)
+    ->	def_asym1(Entry, Name, Type, Body, DDOK, Sym)-Err-Counter-Assoc.
+def_asym(Name, Type, Body, _, Sym)-_Err-Counter-Assoc :-
+    ->	put_assoc(Name, entry(def, Type, Body))-Assoc,
+	inc-Counter,
+	Sym = Body.
+
+def_asym1(entry(undef, Type, X), Name, Type, Body,_,Sym)-_Err-Counter-Assoc :-
+    ->	X = Body,
+	Sym = Body,
+	inc-Counter,
+	set_assoc(Name, _, entry(def, Type, X))-Assoc.
+def_asym1(entry(undef, _, _), Name, _, _, _, Sym)-Err-_Counter-_Assoc :-
+    ->	warn(type_mismatch, Name)-Err,
+	Sym = error.
+def_asym1(entry(def, Type, Body),_,Type,_,true, Sym)-_Err-_Counter-_Assoc :-
+    ->	Sym = Body.
+def_asym1(entry(def, _, Body), Name, _, _, _, Sym)-Err-_Counter-_Assoc :-
+    ->	warn(doubly_defined, Name)-Err,
+	Sym = Body.
+
+% Get the Value of a symbol called Name from the Assoc.
+% if the Type does not match that of the symbol, an error is reported and
+% Err is set to true, and Value is set to error.
+get_sym(Name, Type, Value)-Err-Assoc :-
+	list_to_atom(Name, Atom),
+	get_asym(Atom, Type, Value)-Err-Assoc.
+
+get_asym(Name, Type, Body)-Err-Assoc :-
+	get_assoc(Name, Entry, Assoc, _)
+    ->	get_asym1(Entry, Name, Type, Body)-Err.
+get_asym(Name, Type, Body)-_Err-Assoc :-
+    ->	put_assoc(Name, entry(undef, Type, Body))-Assoc.
+
+get_asym1(entry(_, Type, Value), _, Type, Body)-_Err :-
+    ->	Value = Body.
+get_asym1(_, Name, _, Body)-Err :-
+    ->	warn(type_mismatch, Name)-Err,
+	Body = error.
+
+def_macro(Name, MacroBody, table(StSym, Assoc, Prec, TN, NTN, Err), T) :-
+    ->	def_sym(Name, macro, MacroBody, false, _, Err, Err1, 0, _)-Assoc,
+	T = table(StSym, Assoc, Prec, TN, NTN, Err1).
+
+get_macro(Name, MacroBody, table(StSym, Assoc, Prec, TN, NTN, Err), T) :-
+    ->	get_sym(Name, macro, MacroBody)-Err-Assoc,
+	T = table(StSym, Assoc, Prec, TN, NTN, Err).
+
+def_token(Name, Sym, table(StSym, Assoc, Prec, TN, NTN, Err), T) :-
+    ->	def_sym(Name, symbol, t(TN), true, Sym)-Err-TN-Assoc,
+	T = table(StSym, Assoc, Prec, TN, NTN, Err).
+
+def_rule(Name, Sym, table(StSym, Assoc, Prec, TN, NTN, Err), T) :-
+    ->	def_sym(Name, symbol, NTN-_, true, Sym)-Err-NTN-Assoc,
+	T = table(StSym, Assoc, Prec, TN, NTN, Err).
+
+get_symbol(Name, Sym, table(StSym, Assoc, Prec, TN, NTN, Err), T) :-
+    ->	get_sym(Name, symbol, Sym)-Err-Assoc,
+	T = table(StSym, Assoc, Prec, TN, NTN, Err).
+
+get_literal(Literal, Sym, table(StSym, Assoc, Prec, TN, NTN, Err), T) :-
+    ->	def_asym(lit(Literal), symbol, t(TN), true, Sym)-Err-TN-Assoc,
+	T = table(StSym, Assoc, Prec, TN, NTN, Err).
+
+quote_literal(Literal, Name) :-
+    ->	get_quote_char(Literal, Char),
+	append([Char|Literal], [Char], Quoted),
+	list_to_atom(Quoted, Name).
+
+get_quote_char([0''|_], Char) :-
+    ->	Char = 0'".
+get_quote_char([0'"|_], Char) :-
+    ->	Char = 0''.
+get_quote_char([_|Xs], Char) :-
+    ->	get_quote_char(Xs, Char).
+get_quote_char([], Char) :-
+    ->	Char = 0'".
+
+set_precedence(Name, L, R, table(NT, Assoc, Prec, TN, NTN, Err), T) :-
+    ->	def_asym(op(Name), prec, L-R, false, _, Err, Err1, 0, _)-Prec, 
+	T = table(NT, Assoc, Prec, TN, NTN, Err1).
+
+get_precedence(Name, L, R, table(NT, Assoc, Prec, TN, NTN, Err), T) :-
+    ->	get_asym(op(Name), prec, L-R)-Err-Prec,
+	T = table(NT, Assoc, Prec, TN, NTN, Err).
+
+set_start_symbol(Name, table(0, Assoc, Prec, TN, NTN, Err), T) :-
+    ->	get_sym(Name, symbol, NT-_)-Err-Assoc,
+	T = table(NT, Assoc, Prec, TN, NTN, Err).
+set_start_symbol(Name)-_T :-
+    ->	warn(start_disregarded, Name, _, _).
+
+fix_table(table(StSym, Assoc, Prec1, N,_,Err), ShouldReportErr, Prec, Terms, 
+	NTerms, N, Start, LexRules, Reds, Error) :-
+	max(StSym, 1, Start),
+	assoc_to_list(Assoc, SymbolList),
+	traverse_table(SymbolList, ShouldReportErr, Tlist, NTlist, 
+	               LexRules, UReds, Err, Error),
+	list_to_assoc(Tlist, Terms),
+	list_to_assoc(NTlist, NTerms),
+	sort(UReds, Reds),
+	assoc_to_list(Prec1, PrecList),
+	ord_list_to_assoc([],Empty),
+	traverse_prec(PrecList, Assoc, Empty, Prec).
+
+traverse_prec([op(Name)-entry(undef, P, Entry)|Xs], Assoc)-Prec :-
+    ->	Entry = no_prec-no_prec,
+	traverse_prec([op(Name)-entry(def, P, Entry)|Xs], Assoc)-Prec.
+traverse_prec([op(lit(Name))-entry(def, _, _-R)|Xs], Assoc)-Prec :-
+    	get_assoc(lit(Name), entry(_,_,t(N)), Assoc, _)
+    ->	put_assoc(N, R)-Prec,
+	traverse_prec(Xs, Assoc)-Prec.
+traverse_prec([op(Name)-entry(def, _, _-R)|Xs], Assoc)-Prec :-
+	list_to_atom(Name, Atom),
+    	get_assoc(Atom, entry(_,_,t(N)), Assoc, _)
+    ->	put_assoc(N, R)-Prec,
+	traverse_prec(Xs, Assoc)-Prec.
+traverse_prec([_|Xs], Assoc)-Prec :-   % for dummy prec symbols
+    ->	traverse_prec(Xs, Assoc)-Prec.
+traverse_prec([], _)-_P :-
+    ->	true.
+
+traverse_table([lit(Literal)-entry(def, symbol, t(V))|Xs], ShouldReportErr, 
+	       T, NT, L, R)-Err :-
+    ->	[rule(Literal, (token(V, 'Token')@'Lex'))]-L,
+	quote_literal(Literal, Name),
+	[V-Name]-T,
+	traverse_table(Xs, ShouldReportErr, T, NT, L, R)-Err.
+traverse_table([Name-entry(def, symbol, t(V))|Xs], SRE, T, NT, L, R)-Err :-
+    ->	[V-Name]-T,
+	traverse_table(Xs, SRE, T, NT, L, R)-Err.
+traverse_table([Name-entry(def, symbol, Val-Var)|Xs], SRE, T, NT, L, R)-Err :-
+    ->	[Val-Name]-NT,
+	[Val-Var]-R,
+	traverse_table(Xs, SRE, T, NT, L, R)-Err.
+traverse_table([Name-entry(undef, _, V)|Xs], SRE, T, NT, L, R)-Err :-
+    ->	cond_warn(SRE, undefined, Name)-Err,
+	V = error,
+	traverse_table(Xs, SRE, T, NT, L, R)-Err.
+traverse_table([_-entry(_, _, _)|Xs], SRE, T, NT, L, R)-Err :-
+    ->	traverse_table(Xs, SRE, T, NT, L, R)-Err.
+traverse_table([], _, T, NT, L, R)-_Err :-
+    ->	T = [],
+	NT = [],
+	R = [],
+	L = [].
+
+cond_warn(true, W, Name)-Err :-
+    ->	warn(W, Name)-Err.
+cond_warn(false, _, _)-_Err :-
+    ->	true.
+
+warn(W, Name, _, true) :-
+	fix_warn_name(Name, Fixed),
+   	message(W, Mess),
+	warn1(Fixed, Mess).
+
+warn1(Fixed, Mess) :-
+	Fixed = [_|_]
+    ->	format('ERROR. ~s ~s.~n',[Fixed, Mess]).
+warn1(Fixed, Mess) :-
+    ->	format('ERROR. "~w" ~s.~n',[Fixed, Mess]).
+fix_warn_name(Name, Fixed) :-
+	Name = [_|_]
+    ->	list_to_atom(Name, Fixed).
+fix_warn_name(lit(Name), Fixed) :-
+    ->	quote_literal(Name, Fixed).
+fix_warn_name(op(Name), Fixed) :-
+    ->	fix_warn_name(Name, FixedName),
+	atom_to_list(FixedName, ListName),
+	append("Operator precedence of ",ListName, Fixed).
+fix_warn_name(Name, Fixed) :-
+    ->	Fixed = Name.
+ 
+message(double_define, Mess) :-
+    ->	Mess = "has already been defined".
+message(type_mismatch, Mess) :-
+    ->	Mess = "is defined in a way incompatible with use".
+message(start_disregarded, Mess) :-
+    ->	Mess = "disregarded as start symbol (start symbol already defined)".
+message(undefined, Mess) :-
+    ->	Mess = "used but not defined".
+message(precedence, Mess) :-
+    ->	Mess = "is given precedence more than once".
+
+
+
+

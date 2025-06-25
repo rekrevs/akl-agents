@@ -1,0 +1,6 @@
+$Id: control_c,v 1.2 1993/06/07 11:02:35 sverker Exp $
+
+Rudimentary handling of control-c exists, but should be
+replaced by the usual method of setting a flag which is
+checked at the same places where garbage collection can be
+invoked (using the same flag).

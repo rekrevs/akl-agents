@@ -1,0 +1,812 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%    EXPORT:
+%%%%
+%%%%     main_gen_t_tree(Args,-Tree,TypeCons)
+%%%%     extract_all_clno(Tree,-AllClNo)
+%%%%     extract_earliest_clno(Tree,-ClNo)
+%%%%     void_in_tre(Arg,Tree,-Tree1)
+%%%%     edit_tree(ClSet,Tree,-Tree1)
+%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%                   T tree Code
+%%%%
+%%%%          Out=t(A,I,F,N,L,S,V)  (a T-node)
+%%%%                 A and I = cv(Cs,Vs), c(Cs) or v(Vs) or []
+%%%%                 F=  v(Vs) or []
+%%%%                 N=  [] or Cl
+%%%%                 L=  [] or list(T1,T2) 
+%%%%                 S=  [] or f([Str1,Str2,...] or fv([Str1,...],Vs))
+%%%%                           where StrI =s(F,A,TList) 
+%%%%                 V=  v(Vs) 
+%%%%                       
+%%%%                       Vs=n(Cl) or u(Cl) or nu(Cl) 
+%%%%                       Cl=cl(ClList)
+%%%%                       Cs=[ce(Simp,cl(ClList)),...]
+%%%%                       ClList= [ClNo1,ClNo2,...]
+%%%%                       Simp= {atom(_),integer(_),nil}
+%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%              Generating T-tree
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%        main_gen_t_tree          A1i Arg A1 clause i
+%%%%    
+%%%%               First arg: [[A11,A12],[A21,A22]]
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+main_gen_t_tree(Args,Char,TypeCons):-
+   ->
+   main_gen_t_tree1(Args,1,Char1,TypeCons),
+   gen_t_tree2(Char1,Char).
+
+gen_t_tree2([],Out):-  -> Out=[].
+gen_t_tree2([p(_,t([],[],[],[],[],[],_V))|Rest],Out):- 
+   ->
+   gen_t_tree2(Rest,Out).
+gen_t_tree2([X|Rest],Out):- 
+   ->
+   Out=[X|Out1],
+   gen_t_tree2(Rest,Out1).
+
+%%%%
+
+main_gen_t_tree1([],_Ct,Char,_TypeCons):-
+   ->
+   Char=[].
+main_gen_t_tree1([Arg|Args],Ct,Char,TypeCons):-
+   ->
+   Char=[p(Ct,Char1)|Chars],
+   mark_arg(Arg,1,Arg1),
+   char_arg(Arg1,Char1,TypeCons),
+   inc(Ct,Ct1),
+   main_gen_t_tree1(Args,Ct1,Chars,TypeCons).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+mark_arg([],_,Out):-
+   ->
+   Out=[].
+mark_arg([X|Xs],Ct,Out):-
+   ->
+   Out=[a(Ct,X)|Out1],
+   add(Ct,1,Ct1),
+   mark_arg(Xs,Ct1,Out1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%        gen_t_tree          A1i Arg A1 clause i
+%%%%    
+%%%%               First arg: [[A11,A12],[A21,A22]]
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+gen_t_tree(_,[],Char,_):-
+   ->
+   Char=[].
+gen_t_tree(ClNo,[Arg|Args],Char,TypeCons):-
+   ->
+   Char=[Char1|Chars],
+   mark_arg2(Arg,ClNo,Arg1),
+   char_arg(Arg1,Char1,TypeCons),
+   gen_t_tree(ClNo,Args,Chars,TypeCons).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+mark_arg2([],[],Out):-
+   ->
+   Out=[].
+mark_arg2([X|Xs],[ClNo|ClNo1],Out):-
+   ->
+   Out=[a(ClNo,X)|Out1],
+   mark_arg2(Xs,ClNo1,Out1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% char_arg
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+char_arg(Args,Char,TypeCons):-
+   ->
+   Char1=t(A,I,F,N,L,S,V),
+   divide_args(Args,TypeCons,A1,I1,F1,N1,L1,S1,V1),
+   diff_simple(A1,A),
+   diff_simple(I1,I),
+   diff_nil(N1,N),
+   diff_nil(F1,F),
+   diff_list(L1,L,TypeCons),
+   diff_struct(S1,S,TypeCons),
+   diff_var(V1,V),
+   simplify_tree(Char1,Char).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% diff_var
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+diff_var([],Out):- -> Out=[].
+diff_var(X,Out):-  
+   -> 
+   diff_v(X,Try),
+   simplify_tree(v(Try),Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% diff_v
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+diff_v(List,Try):- 
+    ->
+    diff_n(List,N),
+    diff_u(List,U),
+    simplify_tree(nu(cl(N),cl(U)),Try).
+
+diff_n([],Out):- -> Out=[].
+diff_n([a(_,unnamed)|Xs],Out):-     -> diff_n(Xs,Out).
+diff_n([a(ClNo,_)|Xs],Out):-        -> Out=[ClNo|Out1],diff_n(Xs,Out1).
+
+diff_u([],Out):- -> Out=[].
+diff_u([a(ClNo,unnamed)|Xs],Out):-  -> Out=[ClNo|Out1],diff_u(Xs,Out1).
+diff_u([a(_,_)|Xs],Out):-            -> diff_u(Xs,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% diff_struct
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+diff_struct([],Out,_Types):- -> Out=[].
+diff_struct(Args,Out,Types):-
+   ->
+   diff_struct1(Args,Fs,Types,Rest),
+   diff_v(Rest,Vs),
+   simplify_tree(fv(Fs,Vs),Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+diff_struct1([],Out,_TypeCons,Vars):- -> Out=[],Vars=[].
+diff_struct1([a(ClNo,struct(F,A,FArgs))|Args],Out,TypeCons,Vars):-
+   ->
+   Out=[s(F,A,Struct)|Out1],
+   find_functor_id(F,A,Args,StList,Rest,Cl1),
+   list_swap([FArgs|StList],Swapped),
+   gen_t_tree([ClNo|Cl1],Swapped,Struct,TypeCons),
+   diff_struct1(Rest,Out1,TypeCons,Vars).
+diff_struct1([X|Args],Out,TypeCons,Vars):-
+   ->
+   Vars=[X|Vars1],
+   diff_struct1(Args,Out,TypeCons,Vars1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+find_functor_id(_F,_A,[],Curr,Rest,ClNos):-
+   -> Curr=[],Rest=[],ClNos=[].
+find_functor_id(F,A,[a(ClNo,struct(F,A,S))|Args],Curr,Rest,ClNos):-
+   -> 
+   Curr=[S|Curr1],
+   ClNos=[ClNo|ClNos1],
+   find_functor_id(F,A,Args,Curr1,Rest,ClNos1).
+find_functor_id(F,A,[Arg|Args],Curr,Rest,ClNos):-
+   ->
+   Rest=[Arg|Rest1],
+   find_functor_id(F,A,Args,Curr,Rest1,ClNos).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% diff_list
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+diff_list([],Out,_TypeCons):- -> Out=[].
+diff_list(Args,Out,TypeCons):-
+   ->
+   collect_car_cdr(Args,CarL,CdrL),
+   char_arg(CarL,Car,TypeCons),
+   char_arg(CdrL,Cdr,TypeCons),
+   simplify_tree(list(Car,Cdr),Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+collect_car_cdr([],CarL,CdrL):-
+   ->
+   CarL=[],CdrL=[].
+collect_car_cdr([a(ClNo,list(Car,Cdr))|Rest],CarL,CdrL):-
+   ->
+   CarL=[a(ClNo,Car)|CarL1],
+   CdrL=[a(ClNo,Cdr)|CdrL1],   
+   collect_car_cdr(Rest,CarL1,CdrL1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% diff_nil
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+diff_nil([],Out):- -> Out=[].
+diff_nil(Args,Out):- 
+   ->
+   Out=cl(L),
+   diff_nil1(Args,L).
+
+diff_nil1([],Out):- -> Out=[].
+diff_nil1([a(ClNo,nil)|Nils],Out):-
+   ->
+   Out=[ClNo|Out1],
+   diff_nil1(Nils,Out1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% diff_simple
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+diff_simple([],Out):- -> Out=[].
+diff_simple(Atoms,Out):-
+   ->
+   Out=cv(Cs,Vs),
+   diff_simple1(Atoms,Cs,Vx),
+   diff_v(Vx,Vs).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+diff_simple1([],Cs,Vs):- -> Cs=[],Vs=[].
+diff_simple1([X|Xs],Cs,Vs):-
+   flat_member(X,[a(_,unnamed),a(_,var(_))])
+   ->
+   Vs=[X|Vs1],
+   diff_simple1(Xs,Cs,Vs1).
+diff_simple1([X|Xs],Cs,Vs):-
+   X=a(ClNo,What)
+   ->
+   Cs=[ce(What,cl([ClNo|List]))|Cs1],
+   diff_simple2(What,Xs,List,Rest),
+   diff_simple1(Rest,Cs1,Vs).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+diff_simple2(_What,[],List,Rest):- -> List=[],Rest=[].
+diff_simple2(What,[a(ClNo,What)|Args],List,Rest):-
+   ->
+   List=[ClNo|List1],
+   diff_simple2(What,Args,List1,Rest).
+diff_simple2(What,[A|Args],List,Rest):-
+   ->
+   Rest=[A|Rest1],
+   diff_simple2(What,Args,List,Rest1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%       divide_args
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+divide_args([Arg|Args],Types,A,I,F,N,L,S,V):-
+   Arg=a(_,list(_,_))
+   ->
+   L=[Arg|L1],
+   divide_args(Args,Types,A,I,F,N,L1,S,V).
+divide_args([Arg|Args],Types,A,I,F,N,L,S,V):-
+   Arg=a(_,struct(_,_,_))
+   ->
+   S=[Arg|S1],
+   divide_args(Args,Types,A,I,F,N,L,S1,V).
+divide_args([Arg|Args],Types,A,I,F,N,L,S,V):-
+   Arg=a(_,nil)
+   ->
+   N=[Arg|N1],
+   divide_args(Args,Types,A,I,F,N1,L,S,V).
+divide_args([Arg|Args],Types,A,I,F,N,L,S,V):-
+   Arg=a(_,atom(_))
+   ->
+   A=[Arg|A1],
+   divide_args(Args,Types,A1,I,F,N,L,S,V).
+divide_args([Arg|Args],Types,A,I,F,N,L,S,V):-
+   Arg=a(_,integer(_))
+   ->
+   I=[Arg|I1],
+   divide_args(Args,Types,A,I1,F,N,L,S,V).
+divide_args([Arg|Args],Types,A,I,F,N,L,S,V):-
+   Arg=a(_,unnamed)
+   ->
+   V=[Arg|V1],
+   divide_args(Args,Types,A,I,F,N,L,S,V1).
+divide_args([a(ClNo,var_simple(_,Other))|Args],Types,A,I,F,N,L,S,V):-
+   ->
+   divide_args([a(ClNo,Other)|Args],Types,A,I,F,N,L,S,V). 
+divide_args([Arg|Args],Types,A,I,F,N,L,S,V):-
+   Arg=a(ClNo,var(Name))
+   ->
+   type_constraint(ClNo,Name,Types,Type),
+   divide_args_var(Type,Arg,Args,Types,A,I,F,N,L,S,V).
+divide_args([],_,A,I,F,N,L,S,V):-
+   ->
+   L=[],A=[],I=[],F=[],N=[],S=[],V=[].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+divide_args_var(integer,Arg,Args,Types,A,I,F,N,L,S,V):-
+   ->
+   I=[Arg|I1],
+   divide_args(Args,Types,A,I1,F,N,L,S,V).
+divide_args_var(atom,Arg,Args,Types,A,I,F,N,L,S,V):-
+   ->
+   A=[Arg|A1],
+   divide_args(Args,Types,A1,I,F,N,L,S,V).
+divide_args_var(struct,Arg,Args,Types,A,I,F,N,L,S,V):-
+   ->
+   S=[Arg|S1],
+   divide_args(Args,Types,A,I,F,N,L,S1,V).
+divide_args_var(gen,Arg,Args,Types,A,I,F,N,L,S,V):-
+   ->
+   F=[Arg|F1],
+   divide_args(Args,Types,A,I,F1,N,L,S,V).
+divide_args_var(struct(F,A),a(ClNo,_),Args,Types,A,I,F,N,L,S,V):-
+   ->
+   make_c_list(A,unnamed,List),
+   S=[a(ClNo,struct(F,A,List))|S1],
+   divide_args(Args,Types,A,I,F,N,L,S1,V).
+divide_args_var(list,a(ClNo,_),Args,Types,A,I,F,N,L,S,V):-
+   ->
+   L=[a(ClNo,list(unnamed,unnamed))|L1],
+   divide_args(Args,Types,A,I,F,N,L1,S,V).
+divide_args_var(no,Arg,Args,Types,A,I,F,N,L,S,V):-
+   ->
+   V=[Arg|V1],
+   divide_args(Args,Types,A,I,F,N,L,S,V1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%       type_constraint
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+type_constraint(ClNo,Name,[D|_],Out):- 
+   def_find_clno(D,ClNo)
+   -> 
+   type_constraint1(Name,D,Out).
+type_constraint(ClNo,Name,[_|Defs],Out):- 
+   ->
+   type_constraint(ClNo,Name,Defs,Out).
+type_constraint(_ClNo,_Name,[],Out):-  -> Out=no.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+type_constraint1(Name,Def,Out):-  def_type_constraint(Name,Def,Type) ->   Out=Type.
+type_constraint1(_Name,_Def,Out):- -> Out=no.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%            Accessing T-tree
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%       extracting clause numbers
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+extract_earliest_clno(X,E):- -> extract_early_late_clno1(X,no,no,E,_).
+
+extract_latest_clno(X,L):- -> extract_early_late_clno1(X,no,no,_,L).
+
+extract_early_late_clno(X,E,L):- -> extract_early_late_clno1(X,no,no,E,L).
+
+extract_all_clno(X,E1):- -> 
+    extract_all_clno1(X,E,[]),
+    qsort(E,E1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% extract_one_clno
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+extract_one_clno(_,X,Out):- integer(X) -> Out=X.
+extract_one_clno(t(A,I,F,N,L,S,V),no,Out):-
+   -> 
+   extract_one_clno(A,no,L1),
+   extract_one_clno(I,L1,L2),
+   extract_one_clno(F,L2,L3),
+   extract_one_clno(N,L3,L4),
+   extract_one_clno(L,L4,L5),
+   extract_one_clno(S,L5,L6),
+   extract_one_clno(V,L6,Out).
+extract_one_clno(Tree,no,Out):-
+   flat_member(Tree,[[A|B],cv(A,B),fv(A,B),nu(A,B)])
+   -> 
+   extract_one_clno(A,no,L1),
+   extract_one_clno(B,L1,Out).
+extract_one_clno(Tree,no,Out):-    
+   flat_member(Tree,[v(A),u(A),n(A),c(A),f(A),list(A,_),s(_,_,[A|_]),ce(_,A)])
+   -> 
+   extract_one_clno(A,no,Out).
+extract_one_clno(cl([X|_]),no,Out):- -> Out=X.
+extract_one_clno([],no,Out):-        -> Out=no.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% extract_all_clno1
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+extract_all_clno1(t(A,I,F,N,L,S,V),List,ListX):-
+   -> 
+   extract_all_clno1(A,List,L1),
+   extract_all_clno1(I,L1,L2),
+   extract_all_clno1(F,L2,L3),
+   extract_all_clno1(N,L3,L4),
+   extract_all_clno1(L,L4,L5),
+   extract_all_clno1(S,L5,L6),
+   extract_all_clno1(V,L6,ListX).
+extract_all_clno1(Tree,List,ListX):-    
+   flat_member(Tree,[[A|B],cv(A,B),fv(A,B),nu(A,B)])
+   -> 
+   extract_all_clno1(A,List,L1),
+   extract_all_clno1(B,L1,ListX).
+extract_all_clno1(Tree,List,ListX):-    
+   flat_member(Tree,[v(A),u(A),n(A),c(A),f(A),list(A,_),s(_,_,[A|_]),ce(_,A)])
+   -> 
+   extract_all_clno1(A,List,ListX).
+extract_all_clno1(cl(ClList),List,ListX):-      
+   ->    
+   add_list_to_dlist(ClList,List,ListX).
+extract_all_clno1([],List,ListX):-              ->    List=ListX.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% extract_early_late_clno
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+extract_early_late_clno1(t(A,I,F,N,L,S,V),SoFarE,SoFarL,Early,Late):-
+   -> 
+   extract_early_late_clno1(A,SoFarE,SoFarL,E1,L1),
+   extract_early_late_clno1(I,E1,L1,E2,L2),
+   extract_early_late_clno1(F,E2,L2,E3,L3),
+   extract_early_late_clno1(N,E3,L3,E4,L4),
+   extract_early_late_clno1(L,E4,L4,E5,L5),
+   extract_early_late_clno1(S,E5,L5,E6,L6),
+   extract_early_late_clno1(V,E6,L6,Early,Late).
+extract_early_late_clno1(Tree,SoFarE,SoFarL,Early,Late):-    
+   flat_member(Tree,[[A|B],cv(A,B),fv(A,B),nu(A,B)])
+   -> 
+   extract_early_late_clno1(A,SoFarE,SoFarL,E1,L1),
+   extract_early_late_clno1(B,E1,L1,Early,Late).
+extract_early_late_clno1(Tree,SoFarE,SoFarL,Early,Late):-         
+   flat_member(Tree,[v(A),c(A),f(A),list(A,_),s(_,_,[A|_]),ce(_,A),u(A),n(A)])
+    ->  
+   extract_early_late_clno1(A,SoFarE,SoFarL,Early,Late).
+extract_early_late_clno1(cl(List),SoFarE,SoFarL,Early,Late):-         
+   List=[ClNo|_]
+    ->  
+   e_l_min(ClNo,SoFarE,Early),
+   find_end_list(List,End),
+   e_l_max(End,SoFarL,Late).
+extract_early_late_clno1(Tree,SoFarE,SoFarL,Early,Late):-         
+   integer(Tree)
+    ->  
+   e_l_min(Tree,SoFarE,Early),e_l_max(Tree,SoFarL,Late).
+extract_early_late_clno1([],SoFarE,SoFarL,Early,Late):- ->  SoFarE=Early,SoFarL=Late.
+
+e_l_min(A,no,C):-     -> C=A.
+e_l_min(A,B,C):- A>B  -> C=B.
+e_l_min(A,B,C):- A<B  -> C=A.
+
+e_l_max(A,no,C):-     -> C=A.
+e_l_max(A,B,C):- A>B  -> C=A.
+e_l_max(A,B,C):- B>A  -> C=B.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%       Modifing T-tree
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%  edit_tree
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+edit_tree(_AllClauses,[],NTree):- -> NTree=[].
+edit_tree(AllClauses,[p(ArgNo,TArg)|Tree],NTree):-
+   ->
+   NTree=[p(ArgNo,TArg1)|NTree1],
+   edit_tree_arg(AllClauses,TArg,TArg0),
+   simplify_tree(TArg0,TArg1),
+   edit_tree(AllClauses,Tree,NTree1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% main_edit_tree_arg
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+main_edit_tree_arg(AllClauses,Arg,Arg2):-
+   ->
+   edit_tree_arg(AllClauses,Arg,Arg1),
+   simplify_tree(Arg1,Arg2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% edit_tree_arg
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+edit_tree_arg(_All,[],Out):- -> Out=[].
+edit_tree_arg(All,t(A,I,F,N,L,S,V),Out):-
+   ->
+   Out=t(A1,I1,F1,N1,L1,S1,V1),
+   edit_tree_arg(All,A,A1),
+   edit_tree_arg(All,I,I1),
+   edit_tree_arg(All,N,N1),
+   edit_tree_arg(All,F,F1),
+   edit_tree_arg(All,L,L1),
+   edit_tree_arg(All,S,S1),
+   edit_tree_arg(All,V,V1).
+edit_tree_arg(All,cv(Cs,Vs),Out):-
+   ->
+   Out=cv(Cs1,Vs1),
+   edit_tree_arg(All,Vs,Vs1),
+   edit_tree_arg(All,Cs,Cs1).
+edit_tree_arg(All,fv(Fs,Vs),Out):-
+   ->
+   Out=fv(Fs1,Vs1),
+   edit_tree_arg(All,Vs,Vs1),
+   edit_tree_arg(All,f(Fs),f(Fs1)).
+edit_tree_arg(All,atom(A),Out):-
+   ->
+   Out=atom(A1),
+   edit_tree_arg(All,A,A1).
+edit_tree_arg(All,integer(A),Out):-
+   ->
+   Out=integer(A1),
+   edit_tree_arg(All,A,A1).
+edit_tree_arg(All,nu(Ns,Us),Out):-
+   ->
+   Out=nu(Ns1,Us1),
+   edit_tree_arg(All,Ns,Ns1),
+   edit_tree_arg(All,Us,Us1).
+edit_tree_arg(All,v(Vs),Out):-
+   ->
+   Out=v(Vs1),
+   edit_tree_arg(All,Vs,Vs1).
+edit_tree_arg(All,cl(Cl),Out):-
+   ->
+   Out=cl(Inter),
+   intersection_sorted(All,Cl,Inter).
+edit_tree_arg(All,c(Cs),Out):-
+   ->
+   Out=c(Cs1),
+   edit_tree_arg(All,Cs,Cs1).
+edit_tree_arg(All,u(cl(ClList)),Out):-
+   ->
+   intersection_sorted(All,ClList,X),
+   Out=u(cl(X)).
+edit_tree_arg(All,n(cl(ClList)),Out):-
+   ->
+   intersection_sorted(All,ClList,X),
+   Out=n(cl(X)).
+edit_tree_arg(All,f(Fs),Out):- 
+    ->
+    Out=f(Fs1),
+    edit_tree_arg(All,Fs,Fs1).
+edit_tree_arg(All,s(F,A,[Arg1|Args]),Out):-
+    ->
+    edit_tree_arg(All,Arg1,NArg0),
+    simplify_tree(NArg0,NArg1),
+    maybe_edit_tree_struct(NArg1,All,Args,F,A,Out).
+edit_tree_arg(All,list(Car,Cdr),Out):-
+    ->
+    edit_tree_arg(All,Car,Car0),
+    simplify_tree(Car0,Car1),
+    maybe_edit_tree_list(Car1,All,Cdr,Out).
+edit_tree_arg(All,ce(Simple,cl(ClList)),Out):-
+    ->
+    Out=ce(Simple,cl(Inter)),
+    intersection_sorted(All,ClList,Inter).
+edit_tree_arg(All,[X|Xs],Out):-
+    ->
+    Out=[Y|Ys],
+    edit_tree_arg(All,X,Y),
+    edit_tree_arg(All,Xs,Ys).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+maybe_edit_tree_struct([],_All,_Args,_F,_A,Out):- -> Out=[].
+maybe_edit_tree_struct(NArg1,All,Args,F,A,Out):-
+    ->
+    Out=s(F,A,[NArg1|NArgs1]),
+    edit_tree_arg(All,Args,NArgs0),
+    simplify_tree(NArgs0,NArgs1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+maybe_edit_tree_list([],_All,_Cdr,Out):- -> Out=[].
+maybe_edit_tree_list(NCar,All,Cdr,Out):-
+    ->
+    Out=list(NCar,NCdr1),
+    edit_tree_arg(All,Cdr,NCdr0),
+    simplify_tree(NCdr0,NCdr1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+simplify_tree(cl([]),Out):-                     -> Out=[].
+simplify_tree(u(cl([])),Out):-                  -> Out=[].
+simplify_tree(n(cl([])),Out):-                  -> Out=[].
+simplify_tree(nu(cl([]),U),Out):-               -> simplify_tree(u(U),Out).
+simplify_tree(nu(N,cl([])),Out):-               -> simplify_tree(n(N),Out).
+simplify_tree(c(List),Out):-
+    ->
+    simplify_tree(List,List1),
+    simplify_tree1(List1,c(List1),Out).
+simplify_tree(atom(List),Out):-
+    ->
+    simplify_tree(List,List1),
+    simplify_tree1(List1,atom(List1),Out).
+simplify_tree(integer(List),Out):-
+    ->
+    simplify_tree(List,List1),
+    simplify_tree1(List1,integer(List1),Out).
+simplify_tree(ce(_,cl([])),Out):-               -> Out=[].
+simplify_tree(v(V),Out):-
+    ->
+    simplify_tree(V,V1),
+    simplify_tree1(V1,v(V1),Out).
+simplify_tree(cv(C,V),Out):-      
+    ->
+    simplify_tree(C,C1),
+    simplify_tree(V,V1),
+    simplify_tree2(C1,V1,c(C1),v(V1),cv(C1,V1),Out).
+simplify_tree([X|Xs],Out):-
+     ->
+     simplify_tree(X,X1),
+     simplify_tree(Xs,Xs1),
+     simplify_tree2(X1,Xs1,[X1],Xs1,[X1|Xs1],Out).
+simplify_tree(fv(F,V),Out):-                
+    -> 
+    simplify_tree(F,F1),
+    simplify_tree(V,V1),
+    simplify_tree2(F1,V1,f(F1),v(V1),fv(F1,V1),Out).
+simplify_tree(f(F),Out):-                
+    -> 
+    simplify_tree(F,F1),
+    simplify_tree1(F1,f(F1),Out).
+simplify_tree(s(_,_,[[]|_]),Out):-       -> Out=[].
+simplify_tree(s(F,A,[Arg1|Args]),Out):-           
+    -> 
+    simplify_tree(Arg1,NArg1),
+    simplify_tree_struct(NArg1,F,A,Args,Out).
+simplify_tree(list([],_),Out):-          -> Out=[].
+simplify_tree(list(Car,Cdr),Out):-              
+    -> 
+    simplify_tree(Car,Car1),
+    simplify_tree_list(Car1,Cdr,Out).    
+simplify_tree(t(A,I,F,N,L,S,V),Out):-
+    ->
+    simplify_tree(A,A1),
+    simplify_tree(I,I1),
+    simplify_tree(N,N1),
+    simplify_tree(F,F1),
+    simplify_tree(L,L1),
+    simplify_tree(S,S1),
+    simplify_tree(V,V1),
+    simplify_tree_term(A1,I1,F1,N1,L1,S1,V1,Out).
+simplify_tree(Else,Out):-                    -> Out=Else.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+simplify_tree_term([],[],[],[],[],[],[],Out):- -> Out=[].
+simplify_tree_term(A,I,F,N,L,S,V,Out):-        -> Out=t(A,I,F,N,L,S,V).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+simplify_tree_struct([],_,_,_,Out):- -> Out=[].
+simplify_tree_struct(NArg1,F,A,Args,Out):- 
+    -> 
+    Out=s(F,A,[NArg1|NArgs]),
+    simplify_tree(Args,NArgs).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+simplify_tree_list([],_Cdr,Out):- -> Out=[].
+simplify_tree_list(NCar,Cdr,Out):- 
+    -> 
+    Out=list(NCar,NCdr),
+    simplify_tree(Cdr,NCdr).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+simplify_tree1([],_,Out):-                      -> Out=[].
+simplify_tree1(_,Else,Out):-                    -> Out=Else.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+simplify_tree2([],[],_,_,_,Out):-                -> Out=[].
+simplify_tree2([],_,_,ETwo,_,Out):-            -> Out=ETwo.
+simplify_tree2(_,[],EOne,_,_,Out):-            -> Out=EOne.
+simplify_tree2(_,_,_,_,Both,Out):-           -> Out=Both.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% split_tree
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+split_tree(_Limit,[],NTree1,NTree2):- -> NTree1=[],NTree2=[].
+split_tree(Limit,[p(ArgNo,Arg)|Tree],NTree1,NTree2):- 
+   ->
+   split_tree_arg(Limit,Arg,Arg1,Arg2),
+   simplify_tree(Arg1,Arg1A),
+   simplify_tree(Arg2,Arg2A),
+   split_tree2(ArgNo,Limit,Arg1A,Arg2A,Tree,NTree1,NTree2).
+
+split_tree2(_,Limit,[],[],Tree,NTree1,NTree2):- 
+   ->
+   split_tree(Limit,Tree,NTree1,NTree2).
+split_tree2(ArgNo,Limit,[],Arg2,Tree,NTree1,NTree2):-     
+   ->
+   NTree2=[p(ArgNo,Arg2)|NTree2_1],
+   split_tree(Limit,Tree,NTree1,NTree2_1).
+split_tree2(ArgNo,Limit,Arg1,[],Tree,NTree1,NTree2):-     
+   ->
+   NTree1=[p(ArgNo,Arg1)|NTree1_1],
+   split_tree(Limit,Tree,NTree1_1,NTree2).
+split_tree2(ArgNo,Limit,Arg1,Arg2,Tree,NTree1,NTree2):-     
+   ->
+   NTree1=[p(ArgNo,Arg1)|NTree1_1],NTree2=[p(ArgNo,Arg2)|NTree2_1],
+   split_tree(Limit,Tree,NTree1_1,NTree2_1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% split_tree_arg
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+split_tree_arg(_Limit,[],One,Two):- -> One=[],Two=[].
+split_tree_arg(Limit,t(A,I,F,N,L,S,V),One,Two):-
+   ->
+   One=t(A1,I1,F1,N1,L1,S1,V1),
+   Two=t(A2,I2,F2,N2,L2,S2,V2),
+   split_tree_arg(Limit,A,A1,A2),
+   split_tree_arg(Limit,I,I1,I2),
+   split_tree_arg(Limit,N,N1,N2),
+   split_tree_arg(Limit,F,F1,F2),
+   split_tree_arg(Limit,L,L1,L2),
+   split_tree_arg(Limit,S,S1,S2),
+   split_tree_arg(Limit,V,V1,V2).
+split_tree_arg(Limit,cv(Cs,Vs),One,Two):-
+   ->
+   One=cv(Cs1,Vs1),Two=cv(Cs2,Vs2),
+   split_tree_arg(Limit,Vs,Vs1,Vs2),
+   split_tree_arg(Limit,Cs,Cs1,Cs2).
+split_tree_arg(Limit,fv(Fs,Vs),One,Two):-
+   ->
+   One=fv(Fs1,Vs1),Two=fv(Fs2,Vs2),
+   split_tree_arg(Limit,Vs,Vs1,Vs2),
+   split_tree_arg(Limit,f(Fs),Fs1,Fs2).
+split_tree_arg(Limit,nu(Ns,Us),One,Two):-
+   ->
+   One=nu(Ns1,Us1),Two=nu(Ns2,Us2),
+   split_tree_arg(Limit,Ns,Ns1,Ns2),
+   split_tree_arg(Limit,Us,Us1,Us2).
+split_tree_arg(Limit,v(Vs),One,Two):-
+   ->
+   One=v(Vs1),Two=v(Vs2),
+   split_tree_arg(Limit,Vs,Vs1,Vs2).
+split_tree_arg(Limit,cl(Cl),One,Two):-
+   ->
+   One=cl(Low),Two=cl(High),
+   partition(Cl,Limit,Low,High).
+split_tree_arg(Limit,c(Cs),One,Two):-
+   ->
+   One=c(Cs1),Two=c(Cs2),
+   split_tree_arg(Limit,Cs,Cs1,Cs2).
+split_tree_arg(Limit,u(cl(ClList)),One,Two):-
+   ->
+   One=u(cl(Low)),Two=u(cl(High)),
+   partition(ClList,Limit,Low,High).
+split_tree_arg(Limit,n(cl(ClList)),One,Two):-
+   ->
+   One=n(cl(Low)),Two=n(cl(High)),
+   partition(ClList,Limit,Low,High).
+split_tree_arg(Limit,f(Fs),One,Two):- 
+    ->
+    One=f(Fs1),Two=f(Fs2),
+    split_tree_arg(Limit,Fs,Fs1,Fs2).
+split_tree_arg(Limit,s(F,A,Args),One,Two):-
+    ->
+    One=s(F,A,Args1),Two=s(F,A,Args2),
+    split_tree_arg(Limit,Args,Args1,Args2).
+split_tree_arg(Limit,list(Car,Cdr),One,Two):-
+    ->
+    One=list(Car1,Cdr1),Two=list(Car2,Cdr2),
+    split_tree_arg(Limit,Car,Car1,Car2),
+    split_tree_arg(Limit,Cdr,Cdr1,Cdr2).
+split_tree_arg(Limit,ce(Simple,cl(ClList)),One,Two):-
+    ->
+    One=ce(Simple,cl(Low)),Two=ce(Simple,cl(High)),
+    partition(ClList,Limit,Low,High).       
+split_tree_arg(Limit,[X|Xs],One,Two):-
+    ->
+    One=[Y|Ys],Two=[Z|Zs],
+    split_tree_arg(Limit,X,Y,Z),
+    split_tree_arg(Limit,Xs,Ys,Zs).
+

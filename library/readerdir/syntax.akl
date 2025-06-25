@@ -1,0 +1,299 @@
+/*
+AKL (abstract) syntax support routines
+*/
+
+:- public guardop/1, akl_conjunction/3, is_unification/3,akl_true/1,
+	akl_fail/1, akl_negation/2, akl_if_then_else/4, akl_compound/4,
+	is_variable/1, akl_variable/2, akl_optimized_conjunction/3,
+	akl_very_optimized_conjunction/2, built_in_literal/2.
+
+guardop(Op) :- 
+    ->	guardop(Op,_).
+
+guardop((??),quiet-wait).
+guardop((?),noisy-wait).
+guardop((->),quiet-condition).
+guardop((!),noisy-condition).
+guardop((|),quiet-commit).
+
+akl_conjunction(Term,A,B) :- akl_compound(',',2,[A,B],Term).
+
+akl_disjunction(Term,A,B) :- akl_compound(';',2,[A,B],Term).
+
+is_unification(Term,A,B) :- akl_compound((=),2,[A,B],Term).
+
+akl_true(True) :- akl_compound(true,0,[],True).
+
+akl_fail(Fail) :- akl_compound(fail,0,[],Fail).
+
+akl_negation(X,Goal) :-	akl_compound('\+',1,[Goal],X).
+
+akl_if_then_else(X,If,Then,Else) :- 
+	akl_disjunction(X,D0,Else), 
+	akl_compound((->),2,[If,Then],D0).
+
+akl_compound(Name,Arity,List,struct(Name,Arity,List)).
+
+is_variable(var(_)).
+
+akl_variable(var(Name),Name).
+
+akl_optimized_conjunction(A,B,C) :-
+	akl_true(A)
+    ->  C=B.
+akl_optimized_conjunction(A,B,C) :-
+	akl_true(B)
+    ->  C=A.
+akl_optimized_conjunction(A,B,C) :-
+    ->  akl_conjunction(C,A,B).
+
+% this routine should remove all redundant true-literals
+
+akl_very_optimized_conjunction(A,B) :-
+	akl_conjunction(A,A0,A1)
+    ->	akl_very_optimized_conjunction(A0,B0),
+	akl_very_optimized_conjunction(A1,B1),
+	akl_optimized_conjunction(B0,B1,B).
+akl_very_optimized_conjunction(A,B) :-
+    ->  A=B.
+
+
+%built_in_literal(Name,Arity) succeeds for the known built in literals.
+
+built_in_literal(true,0) :- -> true.
+built_in_literal(abstraction,1) :- -> true.
+built_in_literal('COLLECTOR',2) :- -> true.
+built_in_literal(new_array,2) :- -> true.
+built_in_literal(new_array,3) :- -> true.
+built_in_literal('$var_descriptor',2) :- -> true.
+built_in_literal('$var',1) :- -> true.
+built_in_literal('$eq',2) :- -> true.
+built_in_literal(data,1) :- -> true.
+built_in_literal(atom,1) :- -> true.
+built_in_literal(integer,1) :- -> true.
+built_in_literal(float,1) :- -> true.
+built_in_literal(atomic,1) :- -> true.
+built_in_literal(compound,1) :- -> true.
+built_in_literal(tree,1) :- -> true.
+built_in_literal(sys_generic,1) :- -> true.
+built_in_literal(atom_char,3) :- -> true.
+built_in_literal(atom_to_chars,2) :- -> true.
+built_in_literal(integer_to_chars,2) :- -> true.
+built_in_literal(float_to_chars,2) :- -> true.
+built_in_literal(chars_to_atom,2) :- -> true.
+built_in_literal(chars_to_integer,2) :- -> true.
+built_in_literal(chars_to_float,2) :- -> true.
+built_in_literal(list_to_length,2) :- -> true.
+built_in_literal(length_to_list,2) :- -> true.
+built_in_literal(tree_to_functor,2) :- -> true.
+built_in_literal(functor_to_tree,2) :- -> true.
+built_in_literal(functor_size,2) :- -> true.
+built_in_literal(functor_arity,2) :- -> true.
+built_in_literal(functor_name,2) :- -> true.
+built_in_literal(functor_features,2) :- -> true.
+built_in_literal(functor_feature,3) :- -> true.
+built_in_literal(name_arity_to_functor,3) :- -> true.
+built_in_literal(adjoin,3) :- -> true.
+built_in_literal(arg,3) :- -> true.
+built_in_literal(sys_setarg,3) :- -> true.
+built_in_literal('$is_list',1) :- -> true.
+built_in_literal('$concat',3) :- -> true.
+built_in_literal('$memberchk',2) :- -> true.
+built_in_literal(dif,2) :- -> true.
+built_in_literal(innermost,0) :- -> true.
+built_in_literal(leftmost,0) :- -> true.
+built_in_literal(compare,3) :- -> true.
+built_in_literal('@<',2) :- -> true.
+built_in_literal('@=<',2) :- -> true.
+built_in_literal('@>',2) :- -> true.
+built_in_literal('@>=',2) :- -> true.
+built_in_literal('==',2) :- -> true.
+built_in_literal('\==',2) :- -> true.
+built_in_literal(pam_debug,0) :- -> true.
+built_in_literal(pam_nodebug,0) :- -> true.
+built_in_literal('$initialize_varname',0) :- -> true.
+built_in_literal(akl_in,8) :- -> true.
+built_in_literal(fd_size,2) :- -> true.
+built_in_literal(fd_min,2) :- -> true.
+built_in_literal(fd_one,1) :- -> true.
+built_in_literal(fd_one_ff,1) :- -> true.
+built_in_literal(fd_numberof,2) :- -> true.
+built_in_literal(fd_numberof_ff,2) :- -> true.
+built_in_literal('$unix_cd',2) :- -> true.
+built_in_literal('$unix_shell',0) :- -> true.
+built_in_literal('$unix_shell',2) :- -> true.
+built_in_literal('$unix_system',2) :- -> true.
+built_in_literal('$unix_argv',1) :- -> true.
+built_in_literal('$unix_exit',1) :- -> true.
+built_in_literal('$unix_mktemp',2) :- -> true.
+built_in_literal('$unix_access',2) :- -> true.
+built_in_literal('$unix_chmod',3) :- -> true.
+built_in_literal('$unix_umask',2) :- -> true.
+built_in_literal('$unix_modified',2) :- -> true.
+built_in_literal('$find_file',6) :- -> true.
+built_in_literal(break_to_gdb,0) :- -> true.
+built_in_literal(new_hash_table,1) :- -> true.
+built_in_literal(new_hash_table,2) :- -> true.
+built_in_literal(hash_table,1) :- -> true.
+built_in_literal(hash_value,2) :- -> true.
+built_in_literal(agents_features,1) :- -> true.
+built_in_literal('$display',1) :- -> true.
+built_in_literal(fopen,3) :- -> true.
+built_in_literal(fopen,4) :- -> true.
+built_in_literal(stdout,1) :- -> true.
+built_in_literal(stdin,1) :- -> true.
+built_in_literal(stderr,1) :- -> true.
+built_in_literal(is,2) :- -> true.
+built_in_literal('=:=',2) :- -> true.
+built_in_literal('=\=',2) :- -> true.
+built_in_literal('<',2) :- -> true.
+built_in_literal('>',2) :- -> true.
+built_in_literal('=<',2) :- -> true.
+built_in_literal('>=',2) :- -> true.
+built_in_literal(add,3) :- -> true.
+built_in_literal(sub,3) :- -> true.
+built_in_literal(mul,3) :- -> true.
+built_in_literal(div,3) :- -> true.
+built_in_literal(idiv,3) :- -> true.
+built_in_literal(mod,3) :- -> true.
+built_in_literal(min,3) :- -> true.
+built_in_literal(max,3) :- -> true.
+built_in_literal(and,3) :- -> true.
+built_in_literal(or,3) :- -> true.
+built_in_literal(xor,3) :- -> true.
+built_in_literal(shl,3) :- -> true.
+built_in_literal(shr,3) :- -> true.
+built_in_literal(neg,2) :- -> true.
+built_in_literal(plus,3) :- -> true.
+built_in_literal(integer,2) :- -> true.
+built_in_literal(com,2) :- -> true.
+built_in_literal(float,2) :- -> true.
+built_in_literal(acos,2) :- -> true.
+built_in_literal(asin,2) :- -> true.
+built_in_literal(atan,2) :- -> true.
+built_in_literal(atan2,2) :- -> true.
+built_in_literal(acosh,2) :- -> true.
+built_in_literal(asinh,2) :- -> true.
+built_in_literal(atanh,2) :- -> true.
+built_in_literal(ceil,2) :- -> true.
+built_in_literal(cos,2) :- -> true.
+built_in_literal(cosh,2) :- -> true.
+built_in_literal(exp,2) :- -> true.
+built_in_literal(fabs,2) :- -> true.
+built_in_literal(floor,2) :- -> true.
+built_in_literal(log,2) :- -> true.
+built_in_literal(log10,2) :- -> true.
+built_in_literal(pow,2) :- -> true.
+built_in_literal(sin,2) :- -> true.
+built_in_literal(sinh,2) :- -> true.
+built_in_literal(sqrt,2) :- -> true.
+built_in_literal(tan,2) :- -> true.
+built_in_literal(tanh,2) :- -> true.
+built_in_literal(inc,2) :- -> true.
+built_in_literal(dec,2) :- -> true.
+built_in_literal(equal,2) :- -> true.
+built_in_literal(not_equal,2) :- -> true.
+built_in_literal(less,2) :- -> true.
+built_in_literal(greater,2) :- -> true.
+built_in_literal(not_greater,2) :- -> true.
+built_in_literal(not_less,2) :- -> true.
+built_in_literal('$load',1) :- -> true.
+built_in_literal(port,1) :- -> true.
+built_in_literal(open_port,2) :- -> true.
+built_in_literal(close_port,1) :- -> true.
+built_in_literal(send,2) :- -> true.
+built_in_literal(send,3) :- -> true.
+built_in_literal(protect,0) :- -> true.
+built_in_literal(noprotect,0) :- -> true.
+built_in_literal(unprotectdef,2) :- -> true.
+built_in_literal(protection,0) :- -> true.
+built_in_literal(noprotection,0) :- -> true.
+built_in_literal(rat_add,3) :- -> true.
+built_in_literal(rat_sub,3) :- -> true.
+built_in_literal(rat_mul,3) :- -> true.
+built_in_literal(rat_div,3) :- -> true.
+built_in_literal(rat_to_big,3) :- -> true.
+built_in_literal(big_to_rat,3) :- -> true.
+built_in_literal(rat_equal,2) :- -> true.
+built_in_literal(rat_not_equal,2) :- -> true.
+built_in_literal(rat_less,2) :- -> true.
+built_in_literal(rat_not_less,2) :- -> true.
+built_in_literal(rat_greater,2) :- -> true.
+built_in_literal(rat_not_greater,2) :- -> true.
+built_in_literal(reflection,1) :- -> true.
+built_in_literal(reflective_call,3) :- -> true.
+built_in_literal(reflective_next,2) :- -> true.
+built_in_literal(reflective_print,2) :- -> true.
+built_in_literal('$statistics_program',2) :- -> true.
+built_in_literal('$statistics_runtime',2) :- -> true.
+built_in_literal('$statistics_copytime',2) :- -> true.
+built_in_literal('$statistics_nondet',2) :- -> true.
+built_in_literal('$statistics_gctime',2) :- -> true.
+built_in_literal('$statistics_core',1) :- -> true.
+built_in_literal('$statistics_gc',3) :- -> true.
+built_in_literal('$statistics_heap',2) :- -> true.
+built_in_literal('$statistics',0) :- -> true.
+built_in_literal(garbage_collect,0) :- -> true.
+built_in_literal(systime,1) :- -> true.
+built_in_literal(sysuntil,2) :- -> true.
+built_in_literal(trace,0) :- -> true.
+built_in_literal(notrace,0) :- -> true.
+built_in_literal(sys_notrace,0) :- -> true.
+built_in_literal(sys_check_trace,0) :- -> true.
+built_in_literal(debug,0) :- -> true.
+built_in_literal(nodebug,0) :- -> true.
+built_in_literal(failcatch,0) :- -> true.
+built_in_literal(nofailcatch,0) :- -> true.
+built_in_literal(spy,1) :- -> true.
+built_in_literal(nospy,1) :- -> true.
+built_in_literal(nospyall,0) :- -> true.
+built_in_literal(debugging,0) :- -> true.
+built_in_literal('$is_debugging',0) :- -> true.
+built_in_literal('$is_tracing',0) :- -> true.
+built_in_literal(suspend_depth,1) :- -> true.
+built_in_literal(trace_set_print_depth,1) :- -> true.
+built_in_literal(trace_get_print_depth,1) :- -> true.
+
+built_in_literal(list_to_integer,2) :- -> true.
+built_in_literal(list_to_float,2) :- -> true.
+built_in_literal(integer_to_list,2) :- -> true.
+built_in_literal(float_to_list,2) :- -> true.
+built_in_literal(write,3) :- -> true.
+built_in_literal(nl,2) :- -> true.
+built_in_literal(nl,0) :- -> true.
+built_in_literal(atom_chars,2) :- -> true.
+built_in_literal(memberchk,2) :- -> true.
+built_in_literal(call,1) :- -> true.
+built_in_literal(count,3) :- -> true.
+built_in_literal(lab,2) :- -> true.
+built_in_literal(fd,_) :- -> true.
+built_in_literal(fd_all_different,_) :- -> true.
+built_in_literal(read,1) :- -> true.
+built_in_literal(unordered_bagof,2) :- -> true.
+built_in_literal(bagof,2) :- -> true.
+built_in_literal(not,1) :- -> true.
+built_in_literal(load_quietly,1) :- -> true.
+built_in_literal(load,1) :- -> true.
+built_in_literal(compile,1) :- -> true.
+built_in_literal(compilef,1) :- -> true.
+built_in_literal(apply,2) :- -> true.
+built_in_literal(atmost,3) :- -> true.
+built_in_literal(domain,3) :- -> true.
+built_in_literal(element,3) :- -> true.
+built_in_literal(fnl,2) :- -> true.
+built_in_literal(functor,3) :- -> true.
+built_in_literal(num,3) :- -> true.
+built_in_literal(sort,2) :- -> true.
+built_in_literal(int_not_greater,2) :- -> true.
+built_in_literal(int_greater,2) :- -> true.
+built_in_literal(gmstart,1) :- -> true.
+built_in_literal(gmstart,2) :- -> true.
+built_in_literal(statistics,2) :- -> true.
+built_in_literal(format,1) :- -> true.
+built_in_literal(format,2) :- -> true.
+built_in_literal(functor_to_term,3) :- -> true.
+built_in_literal(term_to_functor,3) :- -> true.
+built_in_literal(numberof,2) :- -> true.
+built_in_literal(length,2) :- -> true.
+
+% most likely there are more predefined in the AKL-code

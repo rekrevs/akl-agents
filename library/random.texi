@@ -1,0 +1,34 @@
+@node Random, Reader, Prolog, Top
+@chapter Random Numbers
+@cindex random numbers
+
+This package provides a random number generator.  To load the package,
+enter the query
+
+@example
+| ?- load(library(random)).
+@end example
+@table @code
+@item random(@var{+List})
+@findex random/1
+if called with @var{List} as a list with uninstantiated variables, these
+variables will be instantiated to pseudo random floats in the
+interval [0.0, 1.0). Note that 1.0 will never be generated.
+If random/1 is called again, exactly the same list will be returned,
+as the same seed is used.
+@item random(@var{+Integer},@var{+List})
+@findex random/2
+Same as random/1 above, but the pseudo random numbers will be integers
+in the range [0, @var{Integer}-1].
+@item seed_random(@var{+List},@var{+SeedIn},@var{?SeedOut})
+Same as @code{random/1} above, but with the seed number given explicitly
+as a data structure of the form @code{seed(@var{N1},@var{N2},@var{N3})},
+where @var{N1},@var{N2},@var{N3} are integers.
+@item seed_random(@var{+Integer},@var{+List},@var{+SeedIn},@var{?SeedOut})
+Same as @code{random/2} above, but with the seed number given explicitly
+as a data structure of the form @code{seed(@var{N1},@var{N2},@var{N3})},
+where @var{N1},@var{N2},@var{N3} are integers.
+@item starting_seed(@var{?SeedOut})
+returns the starting seed used by @code{random/1} and @code{random/2}
+above.
+@end table

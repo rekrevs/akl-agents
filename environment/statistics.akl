@@ -1,0 +1,35 @@
+
+
+statistics:- '$statistics' -> true.
+
+statistics(T):- 
+	'$statistics_runtime'(RunT,RunS),
+	'$statistics_copytime'(CopyT, CopyS),
+	'$statistics_gctime'(GCT, GCS),
+	'$statistics_nondet'(NonT, NonS)
+    ->  T = statistics([runtime(RunT,RunS),copytime(CopyT,CopyS),gctime(GCT,GCS), nondet(NonT,NonS)]).
+
+
+statistics(runtime, S) :- 
+	'$statistics_runtime'(Total, Since) |
+	S = [Total,Since].
+
+statistics(copytime, S) :- 
+	'$statistics_copytime'(Total, Since) |
+	S = [Total,Since].
+
+statistics(gctime, S) :- 
+	'$statistics_gctime'(Total, Since) |
+	S = [Total,Since].
+
+statistics(garbage_collection, S) :- 
+	'$statistics_gctime'(Total, Since) |
+	S = [Total,Since].
+
+statistics(nondet, S) :- 
+	'$statistics_nondet'(Total, Since) |
+	S = [Total,Since].
+
+statistics(program, S) :-
+	'$statistics_program'(Size, Used) |
+	S = [Size, Used].

@@ -1,0 +1,352 @@
+test(term) :-
+
+/*	failcatch,*/
+% Type
+	data(f),
+	atom(foo),
+	integer(19),
+	float(1.4),
+	atomic(19),
+	atomic(foo),
+	atomic(1.4),
+	compound(f(19)),
+	compound([1]),
+
+% Atom compare
+
+/*	atom_equal(foo,foo),
+	atom_less(a,b),
+	atom_greater(b,a),
+
+	atom_not_less(a,a),
+	atom_not_greater(a,a),
+	atom_not_less(b,a),
+	atom_not_greater(a,b),*/
+
+	foo == foo,
+	a \== b,
+	b @> a,
+
+	a @>= a,
+	a @=< a,
+	b @>= a,
+	a @=< b,
+
+	compare('=',foo,foo),
+	compare('<',a,b),
+	compare('>',b,a),
+
+% Functor compare
+
+/*	functor_equal([a],[a]),
+	functor_equal(foo(1),foo(1)),
+	functor_less(a(1),a(1,2)),
+	functor_greater(a(1,2),a(1)),
+	functor_less(a(1),b(1)),
+	functor_greater(b(1),a(1)),
+
+	functor_not_less(a(1,2),a(1)),
+	functor_not_greater(a(1),a(1,2)),
+	functor_not_less(b(1),a(1)),
+	functor_not_greater(a(1),b(1)),
+
+	functor_not_less(a(1),a(1)),
+	functor_not_greater(a(1),a(1)),
+	functor_not_less([1],[1]),
+	functor_not_greater([1],[1]),*/
+
+	[a] == [a],
+	[a] \== [b],
+	foo(1) == foo(1),
+	a(1) @< a(1,2),
+	a(1,2) @> a(1),
+	a(1) @< b(1),
+	b(1) @> a(1),
+
+	a(1,2) @>= a(1),
+	a(1) @=< a(1,2),
+	b(1) @>= a(1),
+	a(1) @=< b(1),
+
+	a(1) @>= a(1),
+	a(1) @=< a(1),
+	[1] @>= [1],
+	[1] @=< [1],
+
+	compare('=',[a],[a]),
+	compare('=',foo(1),foo(1)),
+	compare('<',a(1),a(1,2)),
+	compare('>',a(1,2),a(1)),
+	compare('<',a(1),b(1)),
+	compare('>',b(1),a(1)),
+
+% Manipulation
+
+	atom_to_chars(foo,"foo"),
+	integer_to_chars(10,"10"),
+	float_to_chars(1.4,"1.4"),
+	chars_to_atom("foo",foo),
+	chars_to_integer("10",10),
+	chars_to_float("1.4",1.4),
+	term_to_functor(a(1,2),a,2),
+	term_to_list(a(1,2),[a,1,2]),
+	term_to_functor([a],'.',2),
+	term_to_list([a],['.',a,[]]),
+	functor_to_term(a,2,a(_,_)),
+	list_to_term([a,1,2],a(1,2)),
+	functor_to_term('.',2,[_|_]),
+	list_to_term(['.',a,[]],[a]),
+	arg(1,foo(42),42),
+	arg(1,[a],a),
+	arg(2,[a],[]),
+
+/*	integer_to_float(1, _),
+	float_to_integer(1.2, 1),
+	float_to_integer(1.8, 1),
+	float_to_integer(-1.8, -1),*/
+
+% Integer arithmetic
+
+	neg(1,-1),
+	inc(1, 2),
+	dec(2, 1),
+/*	abs(1, 1),
+	abs(-1,1),*/
+	min(1, 2, 1),
+	min(2, 1, 1),
+	max(1, 2, 2),
+	max(2, 1, 2),
+	add(1, 1, 2),
+	sub(2, 1, 1),
+	mul(2, 2, 4),
+/*	div(9, 4, 2),
+	div(11,4, 2),*/
+	mod(9, 4, 1),
+	mod(11,4, 3),
+/*	div(9, 4, 2, 1),
+	div(11,4, 2, 3),*/
+	and(2, 3, 2),
+	or(1, 2, 3),
+	xor(2, 3, 1),
+	shl(2, 4, 32),
+	shr(32, 4, 2),
+	shr(-32,4,-2),
+
+% Integer compare
+
+/*	int_equal(1, 1),
+	int_not_equal(1, 2),
+	int_less(1, 2),
+	int_greater(2, 1),
+	int_not_less(1, 1),
+	int_not_greater(1, 1),
+	int_not_less(2, 1),
+	int_not_greater(1, 2),*/
+	
+	1 =:= 1,
+	1 =\= 2,
+	1 < 2,
+	2 > 1,
+	1 >= 1,
+	1 =< 1,
+	2 >= 1,
+	1 =< 2,
+	
+	compare('=', 1, 1),
+	compare('<', 1, 2),
+	compare('>', 2, 1),
+
+% Float arith
+
+/*	fp_neg(1.0, _),
+	fp_inc(1.0, _),
+	fp_dec(2.0, _),
+	fp_abs(1.0, _),
+	fp_abs(-1.0,_),
+	fp_min(1.0, 2.0, 1.0),
+	fp_min(2.0, 1.0, 1.0),
+	fp_max(1.0, 2.0, 2.0),
+	fp_max(2.0, 1.0, 2.0),
+	fp_add(1.0, 1.0, _),
+	fp_sub(2.0, 1.0, _),
+	fp_mul(2.0, 2.0, _),
+	fp_div(9.0, 4.0, _),
+
+% Float compare
+
+	fp_equal(1.0, 1.0),
+	fp_not_equal(1.0, 2.0),
+	fp_less(1.0, 2.0),
+	fp_greater(2.0, 1.0),
+	fp_not_less(1.0, 1.0),
+	fp_not_greater(1.0, 1.0),
+	fp_not_less(2.0, 1.0),
+	fp_not_greater(1.0, 2.0),*/
+
+	1.0 =:= 1.0,
+	1.0 =\= 2.0,
+	1.0 < 2.0,
+	2.0 > 1.0,
+	1.0 >= 1.0,
+	1.0 =< 1.0,
+	2.0 >= 1.0,
+	1.0 =< 2.0,
+	
+	compare('=', 1.0, 1.0),
+	compare('<', 1.0, 2.0),
+	compare('>', 2.0, 1.0),
+
+% Int and Float compare
+
+	1 =:= 1.0,
+	1 =\= 2.0,
+	1 < 2.0,
+	2.0 > 1,
+	1 >= 1.0,
+	1 =< 1.0,
+	2.0 >= 1,
+	1 =< 2.0,
+	
+	1.0 =:= 1,
+	1.0 =\= 2,
+	1.0 < 2,
+	2 > 1.0,
+	1.0 >= 1,
+	1.0 =< 1,
+	2 >= 1.0,
+	1.0 =< 2,
+	
+	1 \== 1.0,
+	1.0 \== 1,
+	2.0 @< 1,
+	1 @> 2.0,
+
+	1 @>= 2.0,
+	2.0 @=< 1,
+
+	compare('>', 1, 2.0),
+	compare('<', 2.0, 1),
+
+	compare('<', 1.0, 2),
+	compare('>', 2, 1.0),
+
+	true.
+
+
+test(io) :-
+
+% open, put, get, and close file
+
+/*	open_file_write('unique_name',S0),
+	put_byte(S0, 32, S1),
+	put_byte(S1, 32, S2),
+	put_byte(S2, 47, S3),
+	close(S3, _),*/
+	fopen('unique_name', w, S0),
+	putc(32)@S0,
+	putc(32)@S0,
+	putc(47)@S0,
+	fclose@S0,
+/*	open_file_read('unique_name',S4),
+	get_byte(S4, X, S5), X = 32,
+	send(getc(Y), S5, S6), Y = 47,		% prolog
+	close(S6, _),*/
+	fopen('unique_name', r, S1),
+	getc(32)@S1,
+	getc(32)@S1,
+	getc(47)@S1,
+	fclose@S1,
+/*	open_file_write('unique_name',S7),
+	write(S7, 'test(foo). ', S8),
+	writeq(S8, 'test(bar). ', S9),
+	close(S9, _),*/
+	fopen('unique_name', w, S2),
+	write('test(foo). ', S2, S3),
+	fclose@S3,
+/*	open_file_append('unique_name',S10),
+	display(S10, 'test(zap). ', S11),
+%	print(S11, 'test(buz). ', S12),
+	S11 = S12,
+	close(S12, _),*/
+	fopen('unique_name', a, S4),
+	write('test(zap). ', S4, S5),
+	fclose@S5,
+/*	open_file_read('unique_name',S13),
+	read(S13, A, S14), A = test(foo),
+	read(S14, B, S15), B = test(bar),
+	read(S15, C, S16), C = test(zap),
+	read(S16, D, S17), D = test(buz),
+	close(S17, _),*/
+	fopen('unique_name', r, S6),
+	read(test(foo), S6, S7),
+	read(test(zap), S7, S8),
+	fclose@S8,
+	true.
+
+test(arith) :-
+	1 is 1,
+	1 =:= 1,
+	X = 0.3,
+	X =:= X,
+	2 is integer(2.3),
+	1.0 is float(1). % to be continued.....
+	
+/*test(big) :-
+
+% Bignum arith
+
+	list_to_big("1", ONE),
+	list_to_big("-1", MONE),
+	int_to_big(2, TWO),
+	int_to_big(4, FOUR),
+	int_to_big(9, NINE),
+
+	big_to_list(ONE, "1"),
+	big_to_list(MONE, "-1"),
+	big_to_int(ONE, 1),
+	big_to_int(MONE, -1),
+
+	big_add(ONE, ONE, TWO),
+	big_sub(TWO, ONE, ONE),
+	big_mul(TWO, TWO, FOUR),
+	big_div(NINE, FOUR, TWO),
+	big_mod(NINE, FOUR, ONE),
+
+% Bignum compare
+
+	big_equal(ONE, ONE),
+	big_not_equal(ONE, TWO),
+	big_less(ONE, TWO),
+	big_greater(TWO, ONE),
+	big_not_less(ONE, ONE),
+	big_not_greater(ONE, ONE),
+	big_not_less(TWO, ONE),
+	big_not_greater(ONE, TWO),
+
+% Rational arith
+	big_to_rat(ONE,ONE,RONE),
+	big_to_rat(MONE,ONE,RMONE),
+	big_to_rat(TWO,ONE,RTWO),
+	big_to_rat(FOUR,ONE,RFOUR),
+	big_to_rat(NINE,ONE,_RNINE),
+
+	rat_to_big(RONE,ONE,ONE),
+	rat_to_big(RMONE,MONE,ONE),
+
+	rat_add(RONE, RONE, RTWO),
+	rat_sub(RTWO, RONE, RONE),
+	rat_mul(RTWO, RTWO, RFOUR),
+	rat_div(RTWO, RONE, RTWO),
+
+% Rational compare
+
+	rat_equal(RONE, RONE),
+	rat_not_equal(RONE, RTWO),
+	rat_less(RONE, RTWO),
+	rat_greater(RTWO, RONE),
+	rat_not_less(RONE, RONE),
+	rat_not_greater(RONE, RONE),
+	rat_not_less(RTWO, RONE),
+	rat_not_greater(RONE, RTWO),
+
+	true.*/

@@ -1,0 +1,178 @@
+% $Id: writepam.akl,v 1.11 1994/05/19 00:14:47 secher Exp $
+
+write_pams([], S0, S) :- 
+    ->	S = S0.
+write_pams([Pam|Pams])-S :-
+    ->	write_pam(Pam)-S,
+	write_pams(Pams)-S.
+
+write_pam(pam(Name/Arity/Ext,Instrs))-S :- 
+	integer(Name)
+    ->	puts('predicate(')@S,
+	putd(Name)@S,
+	puts('/')@S,
+	putd(Arity)@S,
+	puts('/')@S,
+	putd(Ext)@S,
+	putc(10)@S,
+	write_instrs(Instrs)-S,
+	putc(10)@S,
+	putc(10)@S.
+
+write_pam(pam(Name/Arity,Instrs))-S :- 
+        integer(Name)
+    ->	puts('predicate(')@S,
+	putd(Name)@S,
+	puts('/')@S,
+	putd(Arity)@S,
+	putc(10)@S,
+	write_instrs(Instrs)-S,
+	putc(10)@S,
+	putc(10)@S.
+
+write_pam(pam(Name/Arity,Instrs))-S :- 
+        atom(Name)
+    ->	puts('predicate(')@S,
+	putsq(Name,0'')@S,
+	puts('/')@S,
+	putd(Arity)@S,
+	putc(10)@S,
+	write_instrs(Instrs)-S,
+	putc(10)@S,
+	putc(10)@S.
+
+write_instrs([])-S :-
+    ->	puts(')')@S,
+	putc(10)@S.
+write_instrs([H|T])-S :-
+    ->	write_inst_indented(H)-S,
+	putc(10)@S,
+	write_instrs(T)-S.
+
+write_inst_indented(guard_cond)-S :-
+    ->	puts('    guard_cond')@S.
+write_inst_indented(guard_commit)-S :-
+    ->	puts('    guard_commit')@S.
+write_inst_indented(guard_wait)-S :-
+    ->	puts('    guard_wait')@S.
+write_inst_indented(guard_cut)-S :-
+    ->	puts('    guard_cut')@S.
+write_inst_indented(label(L))-S :-
+    ->	puts('label(')@S,
+	putd(L)@S,
+	puts(')')@S.
+write_inst_indented(Inst)-S :-
+    ->	puts('	')@S,
+	write_inst(Inst)-S.
+
+write_inst(fd_code(Reg,Code))-S :- 
+    ->	puts(fd_code)@S,
+	puts('(')@S,
+	putd(Reg)@S,
+	puts(',')@S,
+	putc(10)@S,
+	write_fd_code(Code)-S.
+write_inst(Inst)-S :-
+	atom(Inst)
+    ->	puts(Inst)@S.
+write_inst(Inst)-S :-
+    ->	term_to_functor(Inst, F, N),
+	puts(F)@S,
+	puts('(')@S,
+	write_inst_args(N, Inst)-S,
+	puts(')')@S.
+
+write_inst_args(N, Inst)-S :-
+    ->	arg(1, Inst, A),
+	write_inst_arg(A)-S,
+	write_inst_args(1, N, Inst)-S.
+
+write_inst_args(N, N, _Inst)-_S :-
+    ->	true.
+write_inst_args(M, N, Inst)-S :-
+    ->	M1 is 1+M,
+	arg(M1, Inst, A),
+	puts(',')@S,
+	write_inst_arg(A)-S,
+	write_inst_args(M1, N, Inst)-S.
+
+write_inst_arg(A)-S :-
+	atom(A)
+    ->	putsq(A,0'')@S.
+write_inst_arg(A)-S :-
+	integer(A)
+    ->	putd(A)@S.
+write_inst_arg(A)-S :-
+	float(A)
+    ->	putf(A)@S.
+write_inst_arg(F/N)-S :-
+	integer(N)
+    ->	putsq(F,0'')@S,
+	puts('/')@S,
+	putd(N)@S.
+write_inst_arg(F/[Ar|L])-S :-  %record without hashed features
+	true_features(L,1,[])
+    ->	putsq(F,0'')@S,
+	puts('/')@S,
+	putd(Ar)@S.
+write_inst_arg(F/[Ar|L])-S :-  %record with hashed features
+	true_features(L,1,Fe)
+    ->	putsq(F,0'')@S,
+	puts(',')@S,
+	putd(Ar)@S,
+	puts(',')@S,
+    	puts('[')@S,
+	write_list_elts(Fe)-S,
+	puts(']')@S.
+
+write_inst_arg(List)-S :-
+    ->	puts('[')@S,
+	write_list_elts(List)-S,
+	puts(']')@S.
+
+write_list_elts([E|List])-S :-
+    ->	write_list_elt(E)-S,
+	write_list_elts_aux(List)-S.
+
+write_list_elts_aux([])-_S :-
+    ->	true.
+write_list_elts_aux([E|List])-S :-
+    ->	puts(',')@S,
+	write_list_elt(E)-S,
+	write_list_elts_aux(List)-S.
+
+write_list_elt(K-L)-S :-
+    ->	puts('(')@S,
+	write_inst_arg(K)-S,
+	puts(',')@S,
+	putd(L)@S,
+	puts(')')@S.
+write_list_elt(A)-S :-
+	atom(A)
+    ->	putsq(A,0'')@S.
+write_list_elt(A)-S :-
+	integer(A)
+    ->	putd(A)@S.
+
+write_fd_instr(N)-S :-
+	integer(N) 
+    ->	putd(N)@S.
+write_fd_instr(A)-S :-
+	atom(A) 
+    ->	puts(A)@S.
+
+write_fd_code([])-S :- 
+    ->	puts('	)')@S.
+write_fd_code([I|C])-S :- 
+    ->	puts('	')@S,
+	write_fd_instr(I)-S,
+	putc(10)@S,
+	write_fd_code(C)-S.
+
+dec_or_list(N,S):-
+     	integer(N)
+    ->	putd(N)@S.	
+dec_or_list(L,S):-
+    ->	puts('[')@S,
+	write_list_elts(L)-S,
+	puts(']')@S.
