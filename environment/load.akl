@@ -1,0 +1,67 @@
+% $Id: load.akl,v 1.3 1993/10/22 12:59:14 sverker Exp $
+
+%%%
+%%% load/1
+%%%
+
+load([]) :-
+    ->	true.
+load([File|Files]) :-
+    ->	load(File),
+	load(Files).
+load(library(File)) :-
+    ->	load_library(File).
+load(File) :-
+	find_file('.',File,'.pam',true,Name,_)
+    ->	load_immediate(Name).
+
+load_library(File) :-
+	library_directory(Lib),
+	find_file(Lib, File, '.pam', true, Name, _) ->
+	load_immediate(Name).
+
+load_immediate(Name) :-
+	stdout(S0),
+	format('{loading ~w...}~n',[Name], S0, S1),
+	'$statistics_program'(_,P0),
+	statistics(runtime, _),
+	'$load'(Name),
+	statistics(runtime, [_,T]),
+	'$statistics_program'(_,P1),
+	P is P1-P0,
+	format('{~w loaded, ~w ms, ~w bytes}~n', [Name, T, P], S1, _).
+
+%%%
+%%% load_quietly/1
+%%%
+
+load_quietly([]) :-
+    ->	true.
+load_quietly([File|Files]) :-
+    ->	load_quietly(File),
+	load_quietly(Files).
+load_quietly(library(File)) :- ->
+	load_library_quietly(File).
+load_quietly(File) :-
+	find_file('.',File,'.pam',true,Name,_) ->
+	load_immediate_quietly(Name).
+
+load_library_quietly(File) :-
+	library_directory(Lib),
+	find_file(Lib, File, '.pam', true, Name, _) ->
+	load_immediate_quietly(Name).
+
+load_immediate_quietly(Name) :-
+	'$load'(Name).
+
+%%%
+%%% find_file/6
+%%%
+
+find_file(A,B,C,D,E,F) :-
+	atom(A), atom(B), atom(C) ->
+	find_file_aux(A,B,C,D,E,F).
+
+find_file_aux(A,B,C,D,E,F) :-
+	'$find_file'(A,B,C,D0,E0,F0) ->
+	D=D0, E=E0, F=F0.

@@ -1,0 +1,158 @@
+% $Id: lambda.akl,v 1.7 1993/10/22 12:59:12 sverker Exp $
+
+%%%
+%%% APPLYING PREDICATIONS TO ARGUMENTS
+%%%
+%%% File   : LAMBDA.PL
+%%% Author : Sverker Janson
+%%% Updated: 17 October 1988
+%%% Purpose: Simple function-syntax
+%%% Needs  : ()
+
+% A predication is either of the following
+%
+% 1. arbitrary p(A1,..,An) (other than the following two)
+% 2. lambda abstraction X\<formula>
+% 3. lambda abstraction [X1,..,Xn]\\<formula>
+%
+% apply p(A1,..,An) [B1,..,Bm] R => R = p(A1,..,An,B1,..,Bm)
+% apply X\<formula> [Y] R        => R = <formula>[Y/X]
+% apply Xs\\<formula> Ys R       => R = <formula>[Ys/Xs]
+%
+% apply P Ys <=> apply P Ys R, call(R).
+%
+
+apply(F,Y) :- akl_apply(F,Y).  % For compatibility
+
+akl_apply(F,Y) :-
+	akl_apply(F,Y,G),
+	call(G).
+
+akl_apply(F,[Y],P) :- F = _\_ -> akl_apply_lambda(F,Y,P).
+akl_apply(F,Y,P) :- F = A\\B -> akl_apply_lambda(A\B,Y,P).
+akl_apply(F,Y,P) :- -> akl_apply_funsym(F,Y,P).
+
+akl_apply_funsym(F,Y,G) :-
+	atom(F)
+    ->	G =.. [F|Y].
+akl_apply_funsym(F,Y,G) :-
+    ->	term_to_functor(F,S,N),
+	length(Y,M),
+	L is N+M,
+	functor_to_term(S,L,G),
+	akl_apply_funsym_1(N,F,G),
+	akl_apply_funsym_2(Y,N,G).
+
+akl_apply_funsym_1(0,_,_) :-
+    ->	true.
+akl_apply_funsym_1(N,F,G) :-
+    ->	arg(N,F,A),
+	arg(N,G,A),
+	N1 is N-1,
+	akl_apply_funsym_1(N1,F,G).
+
+akl_apply_funsym_2([],_,_) :-
+    ->	true.
+akl_apply_funsym_2([X|Xs],M,G) :-
+    ->	M1 is M+1,
+	arg(M1,G,X),
+	akl_apply_funsym_2(Xs,M1,G).
+
+
+akl_apply_lambda(F,Y,G) :-
+	free_variables(F,FVs),
+	copy_term(F,H),
+	free_variables(H,FVs),
+	H = Y\G0,
+	lambda_existential(G0,G,_).
+
+
+% free_variables "Function" FreeVars <-
+%   FreeVars is a list of free variables in "Function" such that
+%   corresponding variables are in the same position when applied
+%   to terms that are equal upto renaming.  This is of course to
+%   allow a simple unification.
+
+free_variables(V,R) :-
+	'$var'(V)
+    ->	R = [V].
+free_variables(F,R) :-
+	atomic(F)
+    ->	R = [].
+free_variables([X|Y],Vs) :-
+    ->	free_variables(X,Vs1),
+	free_variables(Y,Vs2),
+	lambda_variable_union(Vs1,Vs2,Vs).
+free_variables(F,Vs) :-
+	F=X\E
+    ->	lambda_variables(X,XV),
+	free_variables(E,EV),
+	lambda_existential(E,_,LV),
+	lambda_variable_union(XV,LV,BV),
+	lambda_variable_difference(EV,BV,Vs).
+free_variables(F,Vs) :-
+    ->	term_to_functor(F,_,N),
+	free_vars_1(N,F,Vs).
+
+free_vars_1(0,_,Vs) :-
+    ->	Vs=[].
+free_vars_1(N,F,Vs) :-
+    ->	N1 is N-1,
+	free_vars_1(N1,F,Vs1),
+	arg(N,F,A),
+	free_variables(A,Vs2),
+	lambda_variable_union(Vs1,Vs2,Vs).
+
+
+% The following are copies of equivalent predicates in other files.
+% They are copied to allow a stand-alone use of this utility.
+
+lambda_variable_union([],Y,Z) :- 
+    ->	Y=Z.
+lambda_variable_union([E|X],Y,Z) :- 
+	lambda_variable_member(E,Y)
+    ->	lambda_variable_union(X,Y,Z).
+lambda_variable_union([E|X],Y,Z0) :-
+    ->	Z0 = [E|Z],
+	lambda_variable_union(X,Y,Z).
+
+lambda_variable_difference([],_,Z) :-
+    ->	Z = [].
+lambda_variable_difference([E|X],Y,Z) :-
+	lambda_variable_member(E,Y)
+    ->	lambda_variable_difference(X,Y,Z).
+lambda_variable_difference([E|X],Y,Z0) :-
+    ->	Z0 = [E|Z],
+	lambda_variable_difference(X,Y,Z).
+
+lambda_variable_member(E,[E1|_]) :-
+	'$eq'(E, E1)
+    ->	true.
+lambda_variable_member(E,[_|R]) :-
+    ->	lambda_variable_member(E,R).
+
+lambda_existential(V^E,G,R0) :-
+    ->	R0 = [V|R], lambda_existential(E,G,R).
+lambda_existential(G0,G,R) :-
+    ->	G = G0, R = [].
+
+lambda_variables(T,V) :-
+	lambda_variables(T,V,[]).
+
+lambda_variables(T, S0, S) :-
+	'$var'(T)
+    ->	S0 = [T|S].
+lambda_variables(T, S0, S) :-
+	atomic(T)
+    ->	S0 = S.
+lambda_variables(T, S0, S) :-
+    ->	term_to_functor(T,_,N),
+	lambda_variables_args(N, T, S0, S).
+
+lambda_variables_args(0, _, S0, S) :-
+    ->	S0 = S.
+lambda_variables_args(N, T, S0, S) :-
+    ->	arg(N,T,A),
+	N1 is N-1,
+	lambda_variables(A, S0, S1),
+	lambda_variables_args(N1, T, S1, S).

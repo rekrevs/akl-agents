@@ -1,0 +1,3297 @@
+predicate('cipher'/0
+	try_single(0)
+label(0)
+	allocate(1)
+    guard_wait
+	put_y_variable(0,0)
+	call('text'/1)
+	put_constant('The cipher is: ~s ~nTry substitution and frequency~n',0)
+	put_list(1)
+	unify_y_value(0)
+	unify_nil
+	dealloc_execute('format'/2)
+)
+
+
+predicate('substitution'/0
+	try_single(0)
+label(0)
+	allocate(2)
+	put_constant('runtime',0)
+	put_x_void(1)
+	call('statistics'/2)
+	put_constant(1,0)
+	put_y_variable(0,1)
+	call('substitution'/2)
+    guard_cond
+	put_constant('runtime',0)
+	put_list(2)
+	unify_y_variable(1)
+	unify_nil
+	put_list(1)
+	unify_void
+	unify_x_value(2)
+	call('statistics'/2)
+	put_constant('One possible solution is : ~n ~w ~n~nSolution found in ~w msec. ~n',0)
+	put_list(2)
+	unify_y_value(1)
+	unify_nil
+	put_list(1)
+	unify_y_value(0)
+	unify_x_value(2)
+	dealloc_execute('format'/2)
+)
+
+
+predicate('frequency'/0
+	try_single(0)
+label(0)
+	allocate(2)
+	put_constant('runtime',0)
+	put_x_void(1)
+	call('statistics'/2)
+	put_constant(1,0)
+	put_y_variable(0,1)
+	call('frequency'/2)
+    guard_cond
+	put_constant('runtime',0)
+	put_list(2)
+	unify_y_variable(1)
+	unify_nil
+	put_list(1)
+	unify_void
+	unify_x_value(2)
+	call('statistics'/2)
+	put_constant('One possible solution is : ~n ~w ~n~n Solution found in ~w msec. ~n',0)
+	put_list(2)
+	unify_y_value(1)
+	unify_nil
+	put_list(1)
+	unify_y_value(0)
+	unify_x_value(2)
+	dealloc_execute('format'/2)
+)
+
+
+predicate('substitution'/2
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(4)
+	get2_y_variable(3,1,2,0)
+    guard_wait
+	put_y_value(3,0)
+	put_y_variable(3,1)
+	put_y_variable(1,2)
+	call('init'/3)
+	put_y_variable(0,0)
+	call('alphabet'/1)
+	put2_y_value(3,0,2,1)
+	call('dictionary'/2)
+	put2_y_value(1,0,0,1)
+	call('indomain'/2)
+	put2_y_value(1,0,0,1)
+	dealloc_execute('control'/2)
+)
+
+
+predicate('frequency'/2
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(6)
+	get2_y_variable(4,1,3,0)
+    guard_wait
+	put_y_value(4,0)
+	put_y_variable(4,1)
+	put_y_variable(1,2)
+	call('init'/3)
+	put_y_variable(0,0)
+	call('alphabet'/1)
+	put_constant(3,0)
+	put_y_value(1,1)
+	put_y_variable(5,2)
+	put_y_variable(2,3)
+	call('top'/4)
+	put_list(4)
+	unify_constant('r')
+	unify_nil
+	put_list(5)
+	unify_constant('i')
+	unify_x_value(4)
+	put_list(4)
+	unify_constant('a')
+	unify_x_value(5)
+	put_list(5)
+	unify_constant('o')
+	unify_x_value(4)
+	put_list(4)
+	unify_constant('n')
+	unify_x_value(5)
+	put_list(5)
+	unify_constant('t')
+	unify_x_value(4)
+	put_list(1)
+	unify_constant('e')
+	unify_x_value(5)
+	put_y_value(5,0)
+	call('indomain'/2)
+	put2_y_value(4,0,3,1)
+	call('dictionary'/2)
+	put2_y_value(2,0,0,1)
+	call('indomain'/2)
+	put2_y_value(1,0,0,1)
+	dealloc_execute('control'/2)
+)
+
+
+predicate('text'/1
+label(3)
+	switch_on_term(6,5,5,5,5,6,5)
+label(5)
+	fail
+label(6)
+	try_single(0)
+label(0)
+	allocate(0)
+	get_list_x0
+	unify_constant(116)
+	unify_list
+	unify_constant(102)
+	unify_list
+	unify_constant(111)
+	unify_list
+	unify_constant(101)
+	unify_list
+	unify_constant(32)
+	unify_list
+	unify_constant(110)
+	unify_list
+	unify_constant(112)
+	unify_list
+	unify_constant(115)
+	unify_list
+	unify_constant(102)
+	unify_list
+	unify_constant(32)
+	unify_list
+	unify_constant(110)
+	unify_list
+	unify_constant(112)
+	unify_list
+	unify_constant(111)
+	unify_list
+	unify_constant(102)
+	unify_list
+	unify_constant(122)
+	unify_list
+	unify_constant(32)
+	unify_list
+	unify_constant(117)
+	unify_list
+	unify_constant(112)
+	unify_list
+	unify_constant(32)
+	unify_list
+	unify_constant(110)
+	unify_list
+	unify_constant(102)
+	unify_list
+	unify_constant(32)
+	unify_list
+	unify_constant(111)
+	unify_list
+	unify_constant(102)
+	unify_list
+	unify_constant(121)
+	unify_list
+	unify_constant(117)
+	unify_list
+	unify_constant(32)
+	unify_list
+	unify_constant(110)
+	unify_list
+	unify_constant(102)
+	unify_list
+	unify_constant(102)
+	unify_list
+	unify_constant(117)
+	unify_list
+	unify_constant(106)
+	unify_list
+	unify_constant(111)
+	unify_list
+	unify_constant(104)
+	unify_list
+	unify_constant(32)
+	unify_list
+	unify_constant(120)
+	unify_list
+	unify_constant(106)
+	unify_list
+	unify_constant(109)
+	unify_list
+	unify_constant(109)
+	unify_list
+	unify_constant(32)
+	unify_list
+	unify_constant(99)
+	unify_list
+	unify_constant(102)
+	unify_list
+	unify_constant(32)
+	unify_list
+	unify_constant(112)
+	unify_list
+	unify_constant(111)
+	unify_list
+	unify_constant(32)
+	unify_list
+	unify_constant(103)
+	unify_list
+	unify_constant(115)
+	unify_list
+	unify_constant(106)
+	unify_list
+	unify_constant(101)
+	unify_list
+	unify_constant(98)
+	unify_list
+	unify_constant(122)
+	unify_list
+	unify_constant(32)
+	unify_list
+	unify_constant(98)
+	unify_list
+	unify_constant(117)
+	unify_list
+	unify_constant(32)
+	unify_list
+	unify_constant(112)
+	unify_list
+	unify_constant(109)
+	unify_list
+	unify_constant(101)
+	unify_list
+	unify_constant(32)
+	unify_list
+	unify_constant(113)
+	unify_list
+	unify_constant(109)
+	unify_list
+	unify_constant(98)
+	unify_list
+	unify_constant(100)
+	unify_list
+	unify_constant(102)
+	unify_nil
+    guard_wait
+	dealloc_proceed
+)
+
+
+predicate('init'/3
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(3)
+	get3_y_variable(0,2,1,1,2,0)
+    guard_wait
+	put_y_value(2,3)
+	get_list(3)
+	unify_x_variable(3)
+	unify_list
+	unify_x_variable(4)
+	unify_list
+	unify_x_variable(5)
+	unify_list
+	unify_x_variable(6)
+	unify_list
+	unify_constant(' ')
+	unify_list
+	unify_x_variable(7)
+	unify_list
+	unify_x_variable(8)
+	unify_list
+	unify_x_variable(9)
+	unify_list
+	unify_x_value(4)
+	unify_list
+	unify_constant(' ')
+	unify_list
+	unify_x_value(7)
+	unify_list
+	unify_x_value(8)
+	unify_list
+	unify_x_value(5)
+	unify_list
+	unify_x_value(4)
+	unify_list
+	unify_x_variable(10)
+	unify_list
+	unify_constant(' ')
+	unify_list
+	unify_x_variable(11)
+	unify_list
+	unify_x_value(8)
+	unify_list
+	unify_constant(' ')
+	unify_list
+	unify_x_value(7)
+	unify_list
+	unify_x_value(4)
+	unify_list
+	unify_constant(' ')
+	unify_list
+	unify_x_value(5)
+	unify_list
+	unify_x_value(4)
+	unify_list
+	unify_x_variable(12)
+	unify_list
+	unify_x_value(11)
+	unify_list
+	unify_constant(' ')
+	unify_list
+	unify_x_value(7)
+	unify_list
+	unify_x_value(4)
+	unify_list
+	unify_x_value(4)
+	unify_list
+	unify_x_value(11)
+	unify_list
+	unify_x_variable(13)
+	unify_list
+	unify_x_value(5)
+	unify_list
+	unify_x_variable(14)
+	unify_list
+	unify_constant(' ')
+	unify_list
+	unify_x_variable(15)
+	unify_list
+	unify_x_value(13)
+	unify_list
+	unify_x_variable(16)
+	unify_list
+	unify_x_value(16)
+	unify_list
+	unify_constant(' ')
+	unify_list
+	unify_x_variable(17)
+	unify_list
+	unify_x_value(4)
+	unify_list
+	unify_constant(' ')
+	unify_list
+	unify_x_value(8)
+	unify_list
+	unify_x_value(5)
+	unify_list
+	unify_constant(' ')
+	unify_list
+	unify_x_variable(18)
+	unify_list
+	unify_x_value(9)
+	unify_list
+	unify_x_value(13)
+	unify_list
+	unify_x_value(6)
+	unify_list
+	unify_x_variable(19)
+	unify_list
+	unify_x_value(10)
+	unify_list
+	unify_constant(' ')
+	unify_list
+	unify_x_value(19)
+	unify_list
+	unify_x_value(11)
+	unify_list
+	unify_constant(' ')
+	unify_list
+	unify_x_value(8)
+	unify_list
+	unify_x_value(16)
+	unify_list
+	unify_x_value(6)
+	unify_list
+	unify_constant(' ')
+	unify_list
+	unify_x_variable(20)
+	unify_list
+	unify_x_value(16)
+	unify_list
+	unify_x_value(19)
+	unify_list
+	unify_x_variable(21)
+	unify_list
+	unify_x_value(4)
+	unify_nil
+	put_y_value(1,22)
+	get_list(22)
+	unify_x_variable(22)
+	unify_x_variable(23)
+	get_list(22)
+	unify_x_value(7)
+	unify_list
+	unify_x_value(4)
+	unify_nil
+	get_list(23)
+	unify_x_variable(23)
+	unify_x_variable(22)
+	get_list(23)
+	unify_x_value(17)
+	unify_list
+	unify_x_value(4)
+	unify_nil
+	get_list(22)
+	unify_x_variable(22)
+	unify_x_variable(23)
+	get_list(22)
+	unify_x_value(8)
+	unify_list
+	unify_x_value(5)
+	unify_nil
+	get_list(23)
+	unify_x_variable(23)
+	unify_x_variable(22)
+	get_list(23)
+	unify_x_value(3)
+	unify_list
+	unify_x_value(4)
+	unify_list
+	unify_x_value(5)
+	unify_list
+	unify_x_value(6)
+	unify_nil
+	get_list(22)
+	unify_x_variable(22)
+	unify_x_variable(23)
+	get_list(22)
+	unify_x_value(5)
+	unify_list
+	unify_x_value(4)
+	unify_list
+	unify_x_value(12)
+	unify_list
+	unify_x_value(11)
+	unify_nil
+	get_list(23)
+	unify_x_variable(23)
+	unify_x_variable(22)
+	get_list(23)
+	unify_x_value(7)
+	unify_list
+	unify_x_value(8)
+	unify_list
+	unify_x_value(9)
+	unify_list
+	unify_x_value(4)
+	unify_nil
+	get_list(22)
+	unify_x_variable(22)
+	unify_x_variable(23)
+	get_list(22)
+	unify_x_value(7)
+	unify_list
+	unify_x_value(8)
+	unify_list
+	unify_x_value(5)
+	unify_list
+	unify_x_value(4)
+	unify_list
+	unify_x_value(10)
+	unify_nil
+	get_list(23)
+	unify_x_variable(23)
+	unify_x_variable(22)
+	get_list(23)
+	unify_x_value(11)
+	unify_list
+	unify_x_value(8)
+	unify_nil
+	get_list(22)
+	unify_x_variable(22)
+	unify_x_variable(23)
+	get_list(22)
+	unify_x_value(19)
+	unify_list
+	unify_x_value(11)
+	unify_nil
+	get_list(23)
+	unify_x_variable(23)
+	unify_x_variable(22)
+	get_list(23)
+	unify_x_value(8)
+	unify_list
+	unify_x_value(16)
+	unify_list
+	unify_x_value(6)
+	unify_nil
+	get_list(22)
+	unify_x_variable(22)
+	unify_x_variable(23)
+	get_list(22)
+	unify_x_value(15)
+	unify_list
+	unify_x_value(13)
+	unify_list
+	unify_x_value(16)
+	unify_list
+	unify_x_value(16)
+	unify_nil
+	get_list(23)
+	unify_x_variable(23)
+	unify_x_variable(22)
+	get_list(23)
+	unify_x_value(20)
+	unify_list
+	unify_x_value(16)
+	unify_list
+	unify_x_value(19)
+	unify_list
+	unify_x_value(21)
+	unify_list
+	unify_x_value(4)
+	unify_nil
+	get_list(22)
+	unify_x_variable(22)
+	unify_x_variable(23)
+	get_list(22)
+	unify_x_value(18)
+	unify_list
+	unify_x_value(9)
+	unify_list
+	unify_x_value(13)
+	unify_list
+	unify_x_value(6)
+	unify_list
+	unify_x_value(19)
+	unify_list
+	unify_x_value(10)
+	unify_nil
+	get_list(23)
+	unify_x_variable(23)
+	unify_nil
+	get_list(23)
+	unify_x_value(7)
+	unify_list
+	unify_x_value(4)
+	unify_list
+	unify_x_value(4)
+	unify_list
+	unify_x_value(11)
+	unify_list
+	unify_x_value(13)
+	unify_list
+	unify_x_value(5)
+	unify_list
+	unify_x_value(14)
+	unify_nil
+	put_y_value(0,23)
+	get_list(23)
+	unify_x_value(4)
+	unify_list
+	unify_x_value(8)
+	unify_list
+	unify_x_value(5)
+	unify_list
+	unify_x_value(11)
+	unify_list
+	unify_x_value(7)
+	unify_list
+	unify_x_value(16)
+	unify_list
+	unify_x_value(13)
+	unify_list
+	unify_x_value(19)
+	unify_list
+	unify_x_value(6)
+	unify_list
+	unify_x_value(9)
+	unify_list
+	unify_x_value(10)
+	unify_list
+	unify_x_value(3)
+	unify_list
+	unify_x_value(17)
+	unify_list
+	unify_x_value(15)
+	unify_list
+	unify_x_value(20)
+	unify_list
+	unify_x_value(21)
+	unify_list
+	unify_x_value(18)
+	unify_list
+	unify_x_value(14)
+	unify_list
+	unify_x_value(12)
+	unify_nil
+	dealloc_proceed
+)
+
+
+predicate('alphabet'/1
+label(3)
+	switch_on_term(6,5,5,5,5,6,5)
+label(5)
+	fail
+label(6)
+	try_single(0)
+label(0)
+	allocate(0)
+	get_list_x0
+	unify_constant('a')
+	unify_list
+	unify_constant('b')
+	unify_list
+	unify_constant('c')
+	unify_list
+	unify_constant('d')
+	unify_list
+	unify_constant('e')
+	unify_list
+	unify_constant('f')
+	unify_list
+	unify_constant('g')
+	unify_list
+	unify_constant('h')
+	unify_list
+	unify_constant('i')
+	unify_list
+	unify_constant('j')
+	unify_list
+	unify_constant('k')
+	unify_list
+	unify_constant('l')
+	unify_list
+	unify_constant('m')
+	unify_list
+	unify_constant('n')
+	unify_list
+	unify_constant('o')
+	unify_list
+	unify_constant('p')
+	unify_list
+	unify_constant('q')
+	unify_list
+	unify_constant('r')
+	unify_list
+	unify_constant('s')
+	unify_list
+	unify_constant('t')
+	unify_list
+	unify_constant('u')
+	unify_list
+	unify_constant('v')
+	unify_list
+	unify_constant('w')
+	unify_list
+	unify_constant('x')
+	unify_list
+	unify_constant('y')
+	unify_list
+	unify_constant('z')
+	unify_nil
+    guard_wait
+	dealloc_proceed
+)
+
+
+predicate('top'/4
+label(5)
+	switch_on_term(8,9,7,9,9,9,9)
+label(7)
+	switch_on_constant(1,[(0,8)],9)
+label(8)
+	try(0)
+	trust(1)
+label(9)
+	try_single(1)
+label(0)
+	allocate(0)
+	get_x_variable(4,3)
+	get_x_value(4,1)
+	get_constant(0,0)
+	get_nil(2)
+    guard_wait
+	dealloc_proceed
+label(1)
+	allocate(4)
+	get2_y_variable(0,3,3,0)
+	get_list(1)
+	unify_x_variable(4)
+	unify_y_variable(2)
+	get_list(2)
+	unify_x_value(4)
+	unify_y_variable(1)
+	put_constant(0,1)
+	put_y_value(3,0)
+	call('>'/2)
+    guard_wait
+	put_structure('-'/2,1)
+	unify_y_value(3)
+	unify_constant(1)
+	put_x_variable(4,0)
+	call('is'/2)
+	put_x_value(4,0)
+	put3_y_value(2,1,1,2,0,3)
+	dealloc_execute('top'/4)
+)
+
+
+predicate('dictionary'/2
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(4)
+	get2_y_variable(0,1,1,0)
+    guard_wait
+	put_y_variable(3,0)
+	put_y_variable(2,1)
+	call('open_port'/2)
+	put2_y_value(1,0,3,1)
+	call('lookup'/2)
+	put_y_value(1,0)
+	put_y_variable(1,1)
+	call('length'/2)
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('counter'/3)
+)
+
+
+predicate('lookup'/2
+label(5)
+	switch_on_term(10,8,7,7,7,11,7)
+label(8)
+	switch_on_constant(1,[('[]',9)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(0)
+	get_nil_x0
+    guard_wait
+	dealloc_proceed
+label(1)
+	allocate(3)
+	get_y_variable(0,1)
+	get_list_x0
+	unify_y_variable(2)
+	unify_y_variable(1)
+    guard_wait
+	put2_y_value(2,0,0,1)
+	call('check'/2)
+	put2_y_value(1,0,0,1)
+	dealloc_execute('lookup'/2)
+)
+
+
+predicate('counter'/3
+label(7)
+	switch_on_term(10,9,9,9,9,10,9)
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	retry(1)
+	trust(2)
+label(0)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant(0,1)
+    guard_commit
+	put_constant(0,1)
+	put_y_value(0,0)
+	dealloc_execute('>='/2)
+label(1)
+	allocate(3)
+	get2_y_variable(0,2,2,1)
+	get_list_x0
+	unify_constant('ok')
+	unify_y_variable(1)
+    guard_commit
+	put_structure('-'/2,1)
+	unify_y_value(2)
+	unify_constant(1)
+	put_x_variable(3,0)
+	call('is'/2)
+	put_y_value(1,0)
+	put_x_value(3,1)
+	put_y_value(0,2)
+	dealloc_execute('counter'/3)
+label(2)
+	allocate(3)
+	get2_y_variable(1,2,2,1)
+	get_list_x0
+	unify_constant('err')
+	unify_y_variable(0)
+	put_constant(0,1)
+	put_y_value(1,0)
+	call('>'/2)
+    guard_commit
+	put_structure('-'/2,1)
+	unify_y_value(2)
+	unify_constant(1)
+	put_x_variable(3,0)
+	call('is'/2)
+	put_structure('-'/2,1)
+	unify_y_value(1)
+	unify_constant(1)
+	put_x_variable(4,0)
+	call('is'/2)
+	put_y_value(0,0)
+	put_x_value(3,1)
+	put_x_value(4,2)
+	dealloc_execute('counter'/3)
+)
+
+
+predicate('check'/2
+label(15)
+	switch_on_term(18,17,17,17,17,18,17)
+label(17)
+	fail
+label(18)
+	try(0)
+	retry(1)
+	retry(2)
+	retry(3)
+	retry(4)
+	retry(5)
+	trust(6)
+label(0)
+	allocate(2)
+	get_y_variable(0,1)
+	get_list_x0
+	unify_y_variable(1)
+	unify_nil
+    guard_wait
+	put_y_value(1,0)
+	put_y_variable(1,1)
+	call('word'/2)
+	put2_y_value(1,0,0,1)
+	dealloc_execute('message'/2)
+label(1)
+	allocate(3)
+	get_y_variable(0,1)
+	get_list_x0
+	unify_y_variable(2)
+	unify_list
+	unify_y_variable(1)
+	unify_nil
+    guard_wait
+	put2_y_value(2,0,1,1)
+	put_y_variable(1,2)
+	call('word'/3)
+	put2_y_value(1,0,0,1)
+	dealloc_execute('message'/2)
+label(2)
+	allocate(4)
+	get_y_variable(0,1)
+	get_list_x0
+	unify_y_variable(3)
+	unify_list
+	unify_y_variable(2)
+	unify_list
+	unify_y_variable(1)
+	unify_nil
+    guard_wait
+	put3_y_value(3,0,2,1,1,2)
+	put_y_variable(1,3)
+	call('word'/4)
+	put2_y_value(1,0,0,1)
+	dealloc_execute('message'/2)
+label(3)
+	allocate(5)
+	get_y_variable(0,1)
+	get_list_x0
+	unify_y_variable(4)
+	unify_list
+	unify_y_variable(3)
+	unify_list
+	unify_y_variable(2)
+	unify_list
+	unify_y_variable(1)
+	unify_nil
+    guard_wait
+	put4_y_value(4,0,3,1,2,2,1,3)
+	put_y_variable(1,4)
+	call('word'/5)
+	put2_y_value(1,0,0,1)
+	dealloc_execute('message'/2)
+label(4)
+	allocate(6)
+	get_y_variable(0,1)
+	get_list_x0
+	unify_y_variable(5)
+	unify_list
+	unify_y_variable(4)
+	unify_list
+	unify_y_variable(3)
+	unify_list
+	unify_y_variable(2)
+	unify_list
+	unify_y_variable(1)
+	unify_nil
+    guard_wait
+	put5_y_value(5,0,4,1,3,2,2,3,1,4)
+	put_y_variable(1,5)
+	call('word'/6)
+	put2_y_value(1,0,0,1)
+	dealloc_execute('message'/2)
+label(5)
+	allocate(7)
+	get_y_variable(0,1)
+	get_list_x0
+	unify_y_variable(6)
+	unify_list
+	unify_y_variable(5)
+	unify_list
+	unify_y_variable(4)
+	unify_list
+	unify_y_variable(3)
+	unify_list
+	unify_y_variable(2)
+	unify_list
+	unify_y_variable(1)
+	unify_nil
+    guard_wait
+	put5_y_value(6,0,5,1,4,2,3,3,2,4)
+	put_y_value(1,5)
+	put_y_variable(1,6)
+	call('word'/7)
+	put2_y_value(1,0,0,1)
+	dealloc_execute('message'/2)
+label(6)
+	allocate(8)
+	get_y_variable(0,1)
+	get_list_x0
+	unify_y_variable(7)
+	unify_list
+	unify_y_variable(6)
+	unify_list
+	unify_y_variable(5)
+	unify_list
+	unify_y_variable(4)
+	unify_list
+	unify_y_variable(3)
+	unify_list
+	unify_y_variable(2)
+	unify_list
+	unify_y_variable(1)
+	unify_nil
+    guard_wait
+	put5_y_value(7,0,6,1,5,2,4,3,3,4)
+	put2_y_value(2,5,1,6)
+	put_y_variable(1,7)
+	call('word'/8)
+	put2_y_value(1,0,0,1)
+	dealloc_execute('message'/2)
+)
+
+
+predicate('message'/2
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(2)
+	get2_y_variable(0,1,1,0)
+	put_y_value(1,0)
+	call('data'/1)
+    guard_commit
+	put2_y_value(1,0,0,1)
+	put_x_void(2)
+	send3
+	dealloc_proceed
+)
+
+
+predicate('indomain'/2
+label(5)
+	switch_on_term(10,8,7,7,7,11,7)
+label(8)
+	switch_on_constant(1,[('[]',9)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(0)
+	get_nil_x0
+    guard_wait
+	dealloc_proceed
+label(1)
+	allocate(3)
+	get_y_variable(0,1)
+	get_list_x0
+	unify_y_variable(2)
+	unify_y_variable(1)
+    guard_wait
+	put2_y_value(2,0,0,1)
+	call('member'/2)
+	put2_y_value(1,0,0,1)
+	dealloc_execute('indomain'/2)
+)
+
+
+predicate('member'/2
+label(5)
+	switch_on_term(7,7,7,7,7,7,7)
+label(7)
+	try(0)
+	trust(1)
+label(0)
+	allocate(0)
+	get_x_variable(2,0)
+	get_list(1)
+	unify_x_value(2)
+	unify_void
+    guard_wait
+	dealloc_proceed
+label(1)
+	allocate(2)
+	get_y_variable(1,0)
+	get_list(1)
+	unify_void
+	unify_y_variable(0)
+    guard_wait
+	put2_y_value(1,0,0,1)
+	dealloc_execute('member'/2)
+)
+
+
+predicate('control'/2
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(4)
+	get2_y_variable(0,1,1,0)
+    guard_wait
+	put_y_variable(3,0)
+	put_y_variable(2,1)
+	call('open_port'/2)
+	put2_y_value(1,0,3,1)
+	call('spawn'/2)
+	put_y_value(1,0)
+	put_y_variable(1,1)
+	call('length'/2)
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('controller'/3)
+)
+
+
+predicate('spawn'/2
+label(5)
+	switch_on_term(10,8,7,7,7,11,7)
+label(8)
+	switch_on_constant(1,[('[]',9)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(0)
+	get_nil_x0
+    guard_wait
+	dealloc_proceed
+label(1)
+	allocate(3)
+	get_y_variable(0,1)
+	get_list_x0
+	unify_y_variable(2)
+	unify_y_variable(1)
+    guard_wait
+	put2_y_value(2,0,0,1)
+	call('monitor'/2)
+	put2_y_value(1,0,0,1)
+	dealloc_execute('spawn'/2)
+)
+
+
+predicate('monitor'/2
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(2)
+	get2_y_variable(0,1,1,0)
+	put_y_value(1,0)
+	call('data'/1)
+    guard_commit
+	put2_y_value(1,0,0,1)
+	put_x_void(2)
+	send3
+	dealloc_proceed
+)
+
+
+predicate('controller'/3
+label(5)
+	switch_on_term(8,7,7,7,7,8,7)
+label(7)
+	try_single(0)
+label(8)
+	try(0)
+	trust(1)
+label(0)
+	allocate(0)
+	get_constant(0,1)
+    guard_cond
+	dealloc_proceed
+label(1)
+	allocate(4)
+	get2_y_variable(0,2,2,1)
+	get_list_x0
+	unify_y_variable(3)
+	unify_y_variable(1)
+    guard_cond
+	put2_y_value(3,0,0,1)
+	put_y_variable(0,2)
+	call('del'/3)
+	put_structure('-'/2,1)
+	unify_y_value(2)
+	unify_constant(1)
+	put_x_variable(3,0)
+	call('is'/2)
+	put_y_value(1,0)
+	put_x_value(3,1)
+	put_y_value(0,2)
+	dealloc_execute('controller'/3)
+)
+
+
+predicate('del'/3
+label(5)
+	switch_on_term(7,7,7,7,7,7,7)
+label(7)
+	try(0)
+	trust(1)
+label(0)
+	allocate(2)
+	get_y_variable(1,2)
+	get_x_variable(3,0)
+	get_list(1)
+	unify_x_value(3)
+	unify_y_variable(0)
+    guard_cond
+	put_y_value(1,3)
+	get_y_value(0,3)
+	dealloc_proceed
+label(1)
+	allocate(4)
+	get2_y_variable(3,2,1,0)
+	get_list(1)
+	unify_y_variable(2)
+	unify_y_variable(0)
+    guard_cond
+	put_y_value(3,3)
+	get_list(3)
+	unify_y_value(2)
+	unify_x_variable(3)
+	put2_y_value(1,0,0,1)
+	put_x_value(3,2)
+	dealloc_execute('del'/3)
+)
+
+
+predicate('word'/2
+label(5)
+	switch_on_term(10,8,7,7,7,7,7)
+label(8)
+	switch_on_constant(2,[('a',9),('i',11)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(0)
+	get_constant('a',0)
+	get_constant('ok',1)
+    guard_wait
+	dealloc_proceed
+label(1)
+	allocate(0)
+	get_constant('i',0)
+	get_constant('ok',1)
+    guard_wait
+	dealloc_proceed
+)
+
+
+predicate('word'/3
+label(47)
+	switch_on_term(52,50,49,49,49,49,49)
+label(50)
+	switch_on_constant(13,[('a',51),('b',53),('d',54),('g',55),('h',56),('i',57),('m',58),('n',59),('o',60),('s',61),('t',62),('u',63),('w',64)],49)
+label(49)
+	fail
+label(51)
+	try(0)
+	retry(1)
+	trust(2)
+label(52)
+	try(0)
+	retry(1)
+	retry(2)
+	retry(3)
+	retry(4)
+	retry(5)
+	retry(6)
+	retry(7)
+	retry(8)
+	retry(9)
+	retry(10)
+	retry(11)
+	retry(12)
+	retry(13)
+	retry(14)
+	retry(15)
+	retry(16)
+	retry(17)
+	retry(18)
+	retry(19)
+	retry(20)
+	retry(21)
+	trust(22)
+label(53)
+	try(3)
+	trust(4)
+label(54)
+	try_single(5)
+label(55)
+	try_single(6)
+label(56)
+	try_single(7)
+label(57)
+	try(8)
+	retry(9)
+	retry(10)
+	trust(11)
+label(58)
+	try(12)
+	trust(13)
+label(59)
+	try_single(14)
+label(60)
+	try(15)
+	retry(16)
+	trust(17)
+label(61)
+	try_single(18)
+label(62)
+	try_single(19)
+label(63)
+	try(20)
+	trust(22)
+label(64)
+	try_single(21)
+label(0)
+	allocate(0)
+	get_constant('a',0)
+	get_constant('m',1)
+	get_constant('ok',2)
+    guard_wait
+	dealloc_proceed
+label(1)
+	allocate(0)
+	get_constant('a',0)
+	get_constant('n',1)
+	get_constant('ok',2)
+    guard_wait
+	dealloc_proceed
+label(2)
+	allocate(0)
+	get_constant('a',0)
+	get_constant('t',1)
+	get_constant('ok',2)
+    guard_wait
+	dealloc_proceed
+label(3)
+	allocate(0)
+	get_constant('b',0)
+	get_constant('e',1)
+	get_constant('ok',2)
+    guard_wait
+	dealloc_proceed
+label(4)
+	allocate(0)
+	get_constant('b',0)
+	get_constant('y',1)
+	get_constant('ok',2)
+    guard_wait
+	dealloc_proceed
+label(5)
+	allocate(0)
+	get_constant('d',0)
+	get_constant('o',1)
+	get_constant('ok',2)
+    guard_wait
+	dealloc_proceed
+label(6)
+	allocate(0)
+	get_constant('g',0)
+	get_constant('o',1)
+	get_constant('ok',2)
+    guard_wait
+	dealloc_proceed
+label(7)
+	allocate(0)
+	get_constant('h',0)
+	get_constant('e',1)
+	get_constant('ok',2)
+    guard_wait
+	dealloc_proceed
+label(8)
+	allocate(0)
+	get_constant('i',0)
+	get_constant('f',1)
+	get_constant('ok',2)
+    guard_wait
+	dealloc_proceed
+label(9)
+	allocate(0)
+	get_constant('i',0)
+	get_constant('n',1)
+	get_constant('ok',2)
+    guard_wait
+	dealloc_proceed
+label(10)
+	allocate(0)
+	get_constant('i',0)
+	get_constant('s',1)
+	get_constant('ok',2)
+    guard_wait
+	dealloc_proceed
+label(11)
+	allocate(0)
+	get_constant('i',0)
+	get_constant('t',1)
+	get_constant('ok',2)
+    guard_wait
+	dealloc_proceed
+label(12)
+	allocate(0)
+	get_constant('m',0)
+	get_constant('e',1)
+	get_constant('ok',2)
+    guard_wait
+	dealloc_proceed
+label(13)
+	allocate(0)
+	get_constant('m',0)
+	get_constant('y',1)
+	get_constant('ok',2)
+    guard_wait
+	dealloc_proceed
+label(14)
+	allocate(0)
+	get_constant('n',0)
+	get_constant('o',1)
+	get_constant('ok',2)
+    guard_wait
+	dealloc_proceed
+label(15)
+	allocate(0)
+	get_constant('o',0)
+	get_constant('f',1)
+	get_constant('ok',2)
+    guard_wait
+	dealloc_proceed
+label(16)
+	allocate(0)
+	get_constant('o',0)
+	get_constant('n',1)
+	get_constant('ok',2)
+    guard_wait
+	dealloc_proceed
+label(17)
+	allocate(0)
+	get_constant('o',0)
+	get_constant('r',1)
+	get_constant('ok',2)
+    guard_wait
+	dealloc_proceed
+label(18)
+	allocate(0)
+	get_constant('s',0)
+	get_constant('o',1)
+	get_constant('ok',2)
+    guard_wait
+	dealloc_proceed
+label(19)
+	allocate(0)
+	get_constant('t',0)
+	get_constant('o',1)
+	get_constant('ok',2)
+    guard_wait
+	dealloc_proceed
+label(20)
+	allocate(0)
+	get_constant('u',0)
+	get_constant('p',1)
+	get_constant('ok',2)
+    guard_wait
+	dealloc_proceed
+label(21)
+	allocate(0)
+	get_constant('w',0)
+	get_constant('e',1)
+	get_constant('ok',2)
+    guard_wait
+	dealloc_proceed
+label(22)
+	allocate(0)
+	get_constant('u',0)
+	get_constant('s',1)
+	get_constant('ok',2)
+    guard_wait
+	dealloc_proceed
+)
+
+
+predicate('word'/4
+label(79)
+	switch_on_term(82,81,96,96,96,96,96)
+label(81)
+	switch_on_constant(13,[('a',83),('c',84),('d',85),('f',86),('h',87),('i',88),('m',89),('n',90),('o',91),('s',92),('t',93),('w',94),('y',95)],96)
+label(82)
+	try(0)
+	retry(1)
+	retry(2)
+	retry(3)
+	retry(4)
+	retry(5)
+	retry(6)
+	retry(7)
+	retry(8)
+	retry(9)
+	retry(10)
+	retry(11)
+	retry(12)
+	retry(13)
+	retry(14)
+	retry(15)
+	retry(16)
+	retry(17)
+	retry(18)
+	retry(19)
+	retry(20)
+	retry(21)
+	retry(22)
+	retry(23)
+	retry(24)
+	retry(25)
+	retry(26)
+	retry(27)
+	retry(28)
+	retry(29)
+	retry(30)
+	retry(31)
+	retry(32)
+	retry(33)
+	retry(34)
+	retry(35)
+	retry(36)
+	retry(37)
+	trust(38)
+label(83)
+	try(0)
+	retry(1)
+	retry(2)
+	retry(3)
+	retry(4)
+	trust(38)
+label(84)
+	try(5)
+	trust(38)
+label(85)
+	try(6)
+	retry(7)
+	trust(38)
+label(86)
+	try(8)
+	trust(38)
+label(87)
+	try(9)
+	retry(10)
+	retry(11)
+	retry(12)
+	retry(13)
+	retry(14)
+	trust(38)
+label(88)
+	try(15)
+	trust(38)
+label(89)
+	try(16)
+	retry(17)
+	retry(18)
+	trust(38)
+label(90)
+	try(19)
+	retry(20)
+	retry(21)
+	trust(38)
+label(91)
+	try(22)
+	retry(23)
+	retry(24)
+	trust(38)
+label(92)
+	try(25)
+	retry(26)
+	retry(27)
+	retry(28)
+	retry(29)
+	trust(38)
+label(93)
+	try(30)
+	retry(31)
+	retry(32)
+	retry(33)
+	trust(38)
+label(94)
+	try(34)
+	retry(35)
+	retry(36)
+	trust(38)
+label(95)
+	try(37)
+	trust(38)
+label(96)
+	try_single(38)
+label(0)
+	allocate(0)
+	get_constant('a',0)
+	get_constant('c',1)
+	get_constant('t',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(1)
+	allocate(0)
+	get_constant('a',0)
+	get_constant('l',1)
+	get_constant('l',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(2)
+	allocate(0)
+	get_constant('a',0)
+	get_constant('n',1)
+	get_constant('y',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(3)
+	allocate(0)
+	get_constant('a',0)
+	get_constant('n',1)
+	get_constant('d',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(4)
+	allocate(0)
+	get_constant('a',0)
+	get_constant('r',1)
+	get_constant('e',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(5)
+	allocate(0)
+	get_constant('c',0)
+	get_constant('a',1)
+	get_constant('n',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(6)
+	allocate(0)
+	get_constant('d',0)
+	get_constant('a',1)
+	get_constant('y',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(7)
+	allocate(0)
+	get_constant('d',0)
+	get_constant('i',1)
+	get_constant('d',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(8)
+	allocate(0)
+	get_constant('f',0)
+	get_constant('o',1)
+	get_constant('r',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(9)
+	allocate(0)
+	get_constant('h',0)
+	get_constant('a',1)
+	get_constant('d',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(10)
+	allocate(0)
+	get_constant('h',0)
+	get_constant('a',1)
+	get_constant('s',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(11)
+	allocate(0)
+	get_constant('h',0)
+	get_constant('e',1)
+	get_constant('r',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(12)
+	allocate(0)
+	get_constant('h',0)
+	get_constant('i',1)
+	get_constant('m',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(13)
+	allocate(0)
+	get_constant('h',0)
+	get_constant('i',1)
+	get_constant('s',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(14)
+	allocate(0)
+	get_constant('h',0)
+	get_constant('o',1)
+	get_constant('w',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(15)
+	allocate(0)
+	get_constant('i',0)
+	get_constant('t',1)
+	get_constant('s',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(16)
+	allocate(0)
+	get_constant('m',0)
+	get_constant('a',1)
+	get_constant('n',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(17)
+	allocate(0)
+	get_constant('m',0)
+	get_constant('a',1)
+	get_constant('y',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(18)
+	allocate(0)
+	get_constant('m',0)
+	get_constant('e',1)
+	get_constant('n',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(19)
+	allocate(0)
+	get_constant('n',0)
+	get_constant('e',1)
+	get_constant('w',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(20)
+	allocate(0)
+	get_constant('n',0)
+	get_constant('o',1)
+	get_constant('t',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(21)
+	allocate(0)
+	get_constant('n',0)
+	get_constant('o',1)
+	get_constant('w',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(22)
+	allocate(0)
+	get_constant('o',0)
+	get_constant('n',1)
+	get_constant('e',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(23)
+	allocate(0)
+	get_constant('o',0)
+	get_constant('l',1)
+	get_constant('d',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(24)
+	allocate(0)
+	get_constant('o',0)
+	get_constant('u',1)
+	get_constant('r',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(25)
+	allocate(0)
+	get_constant('s',0)
+	get_constant('a',1)
+	get_constant('w',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(26)
+	allocate(0)
+	get_constant('s',0)
+	get_constant('a',1)
+	get_constant('y',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(27)
+	allocate(0)
+	get_constant('s',0)
+	get_constant('e',1)
+	get_constant('e',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(28)
+	allocate(0)
+	get_constant('s',0)
+	get_constant('h',1)
+	get_constant('e',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(29)
+	allocate(0)
+	get_constant('s',0)
+	get_constant('i',1)
+	get_constant('x',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(30)
+	allocate(0)
+	get_constant('t',0)
+	get_constant('e',1)
+	get_constant('n',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(31)
+	allocate(0)
+	get_constant('t',0)
+	get_constant('h',1)
+	get_constant('e',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(32)
+	allocate(0)
+	get_constant('t',0)
+	get_constant('r',1)
+	get_constant('y',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(33)
+	allocate(0)
+	get_constant('t',0)
+	get_constant('w',1)
+	get_constant('o',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(34)
+	allocate(0)
+	get_constant('w',0)
+	get_constant('a',1)
+	get_constant('s',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(35)
+	allocate(0)
+	get_constant('w',0)
+	get_constant('h',1)
+	get_constant('o',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(36)
+	allocate(0)
+	get_constant('w',0)
+	get_constant('a',1)
+	get_constant('s',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(37)
+	allocate(0)
+	get_constant('y',0)
+	get_constant('o',1)
+	get_constant('u',2)
+	get_constant('ok',3)
+    guard_wait
+	dealloc_proceed
+label(38)
+	allocate(0)
+	get_constant('err',3)
+    guard_wait
+	dealloc_proceed
+)
+
+
+predicate('word'/5
+label(121)
+	switch_on_term(124,123,143,143,143,143,143)
+label(123)
+	switch_on_constant(18,[('a',125),('b',126),('c',128),('d',127),('f',129),('g',130),('h',131),('i',132),('l',133),('m',134),('n',135),('o',136),('s',137),('t',138),('u',139),('v',140),('w',141),('y',142)],143)
+label(124)
+	try(0)
+	retry(1)
+	retry(2)
+	retry(3)
+	retry(4)
+	retry(5)
+	retry(6)
+	retry(7)
+	retry(8)
+	retry(9)
+	retry(10)
+	retry(11)
+	retry(12)
+	retry(13)
+	retry(14)
+	retry(15)
+	retry(16)
+	retry(17)
+	retry(18)
+	retry(19)
+	retry(20)
+	retry(21)
+	retry(22)
+	retry(23)
+	retry(24)
+	retry(25)
+	retry(26)
+	retry(27)
+	retry(28)
+	retry(29)
+	retry(30)
+	retry(31)
+	retry(32)
+	retry(33)
+	retry(34)
+	retry(35)
+	retry(36)
+	retry(37)
+	retry(38)
+	retry(39)
+	retry(40)
+	retry(41)
+	retry(42)
+	retry(43)
+	retry(44)
+	retry(45)
+	retry(46)
+	retry(47)
+	retry(48)
+	retry(49)
+	retry(50)
+	retry(51)
+	retry(52)
+	retry(53)
+	retry(54)
+	retry(55)
+	retry(56)
+	retry(57)
+	retry(58)
+	trust(59)
+label(125)
+	try(0)
+	trust(59)
+label(126)
+	try(1)
+	retry(2)
+	retry(3)
+	retry(4)
+	trust(59)
+label(127)
+	try(5)
+	retry(6)
+	retry(9)
+	retry(10)
+	trust(59)
+label(128)
+	try(7)
+	retry(8)
+	trust(59)
+label(129)
+	try(11)
+	retry(12)
+	retry(13)
+	retry(14)
+	trust(59)
+label(130)
+	try(15)
+	retry(16)
+	retry(17)
+	retry(18)
+	trust(59)
+label(131)
+	try(19)
+	retry(20)
+	retry(21)
+	trust(59)
+label(132)
+	try(22)
+	trust(59)
+label(133)
+	try(23)
+	retry(24)
+	trust(59)
+label(134)
+	try(25)
+	retry(26)
+	retry(27)
+	trust(59)
+label(135)
+	try(28)
+	retry(29)
+	trust(59)
+label(136)
+	try(30)
+	trust(59)
+label(137)
+	try(31)
+	retry(32)
+	retry(33)
+	retry(34)
+	retry(35)
+	retry(36)
+	retry(37)
+	retry(38)
+	trust(59)
+label(138)
+	try(39)
+	retry(40)
+	retry(41)
+	retry(42)
+	retry(43)
+	retry(44)
+	retry(45)
+	retry(46)
+	trust(59)
+label(139)
+	try(47)
+	trust(59)
+label(140)
+	try(48)
+	trust(59)
+label(141)
+	try(49)
+	retry(50)
+	retry(51)
+	retry(52)
+	retry(53)
+	retry(55)
+	retry(56)
+	retry(57)
+	trust(59)
+label(142)
+	try(54)
+	retry(58)
+	trust(59)
+label(143)
+	try_single(59)
+label(0)
+	allocate(0)
+	get_constant('a',0)
+	get_constant('b',1)
+	get_constant('l',2)
+	get_constant('e',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(1)
+	allocate(0)
+	get_constant('b',0)
+	get_constant('e',1)
+	get_constant('e',2)
+	get_constant('n',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(2)
+	allocate(0)
+	get_constant('b',0)
+	get_constant('i',1)
+	get_constant('l',2)
+	get_constant('l',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(3)
+	allocate(0)
+	get_constant('b',0)
+	get_constant('o',1)
+	get_constant('o',2)
+	get_constant('k',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(4)
+	allocate(0)
+	get_constant('b',0)
+	get_constant('o',1)
+	get_constant('t',2)
+	get_constant('h',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(5)
+	allocate(0)
+	get_constant('d',0)
+	get_constant('o',1)
+	get_constant('e',2)
+	get_constant('s',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(6)
+	allocate(0)
+	get_constant('d',0)
+	get_constant('o',1)
+	get_constant('n',2)
+	get_constant('e',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(7)
+	allocate(0)
+	get_constant('c',0)
+	get_constant('a',1)
+	get_constant('l',2)
+	get_constant('l',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(8)
+	allocate(0)
+	get_constant('c',0)
+	get_constant('i',1)
+	get_constant('t',2)
+	get_constant('y',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(9)
+	allocate(0)
+	get_constant('d',0)
+	get_constant('a',1)
+	get_constant('y',2)
+	get_constant('s',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(10)
+	allocate(0)
+	get_constant('d',0)
+	get_constant('o',1)
+	get_constant('w',2)
+	get_constant('n',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(11)
+	allocate(0)
+	get_constant('f',0)
+	get_constant('a',1)
+	get_constant('c',2)
+	get_constant('t',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(12)
+	allocate(0)
+	get_constant('f',0)
+	get_constant('i',1)
+	get_constant('v',2)
+	get_constant('e',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(13)
+	allocate(0)
+	get_constant('f',0)
+	get_constant('o',1)
+	get_constant('u',2)
+	get_constant('r',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(14)
+	allocate(0)
+	get_constant('f',0)
+	get_constant('r',1)
+	get_constant('o',2)
+	get_constant('m',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(15)
+	allocate(0)
+	get_constant('g',0)
+	get_constant('a',1)
+	get_constant('v',2)
+	get_constant('e',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(16)
+	allocate(0)
+	get_constant('g',0)
+	get_constant('i',1)
+	get_constant('v',2)
+	get_constant('e',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(17)
+	allocate(0)
+	get_constant('g',0)
+	get_constant('o',1)
+	get_constant('n',2)
+	get_constant('e',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(18)
+	allocate(0)
+	get_constant('g',0)
+	get_constant('o',1)
+	get_constant('e',2)
+	get_constant('s',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(19)
+	allocate(0)
+	get_constant('h',0)
+	get_constant('a',1)
+	get_constant('l',2)
+	get_constant('f',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(20)
+	allocate(0)
+	get_constant('h',0)
+	get_constant('a',1)
+	get_constant('v',2)
+	get_constant('e',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(21)
+	allocate(0)
+	get_constant('h',0)
+	get_constant('i',1)
+	get_constant('g',2)
+	get_constant('h',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(22)
+	allocate(0)
+	get_constant('i',0)
+	get_constant('n',1)
+	get_constant('t',2)
+	get_constant('o',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(23)
+	allocate(0)
+	get_constant('l',0)
+	get_constant('a',1)
+	get_constant('s',2)
+	get_constant('t',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(24)
+	allocate(0)
+	get_constant('l',0)
+	get_constant('o',1)
+	get_constant('v',2)
+	get_constant('e',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(25)
+	allocate(0)
+	get_constant('m',0)
+	get_constant('a',1)
+	get_constant('n',2)
+	get_constant('y',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(26)
+	allocate(0)
+	get_constant('m',0)
+	get_constant('e',1)
+	get_constant('e',2)
+	get_constant('t',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(27)
+	allocate(0)
+	get_constant('m',0)
+	get_constant('o',1)
+	get_constant('r',2)
+	get_constant('e',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(28)
+	allocate(0)
+	get_constant('n',0)
+	get_constant('e',1)
+	get_constant('x',2)
+	get_constant('t',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(29)
+	allocate(0)
+	get_constant('n',0)
+	get_constant('i',1)
+	get_constant('n',2)
+	get_constant('e',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(30)
+	allocate(0)
+	get_constant('o',0)
+	get_constant('v',1)
+	get_constant('e',2)
+	get_constant('r',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(31)
+	allocate(0)
+	get_constant('s',0)
+	get_constant('a',1)
+	get_constant('i',2)
+	get_constant('d',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(32)
+	allocate(0)
+	get_constant('s',0)
+	get_constant('a',1)
+	get_constant('y',2)
+	get_constant('s',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(33)
+	allocate(0)
+	get_constant('s',0)
+	get_constant('e',1)
+	get_constant('e',2)
+	get_constant('s',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(34)
+	allocate(0)
+	get_constant('s',0)
+	get_constant('e',1)
+	get_constant('e',2)
+	get_constant('m',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(35)
+	allocate(0)
+	get_constant('s',0)
+	get_constant('e',1)
+	get_constant('n',2)
+	get_constant('d',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(36)
+	allocate(0)
+	get_constant('s',0)
+	get_constant('e',1)
+	get_constant('n',2)
+	get_constant('t',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(37)
+	allocate(0)
+	get_constant('s',0)
+	get_constant('o',1)
+	get_constant('m',2)
+	get_constant('e',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(38)
+	allocate(0)
+	get_constant('s',0)
+	get_constant('u',1)
+	get_constant('c',2)
+	get_constant('h',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(39)
+	allocate(0)
+	get_constant('t',0)
+	get_constant('a',1)
+	get_constant('k',2)
+	get_constant('e',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(40)
+	allocate(0)
+	get_constant('t',0)
+	get_constant('h',1)
+	get_constant('a',2)
+	get_constant('n',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(41)
+	allocate(0)
+	get_constant('t',0)
+	get_constant('h',1)
+	get_constant('a',2)
+	get_constant('t',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(42)
+	allocate(0)
+	get_constant('t',0)
+	get_constant('h',1)
+	get_constant('e',2)
+	get_constant('m',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(43)
+	allocate(0)
+	get_constant('t',0)
+	get_constant('h',1)
+	get_constant('e',2)
+	get_constant('y',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(44)
+	allocate(0)
+	get_constant('t',0)
+	get_constant('h',1)
+	get_constant('i',2)
+	get_constant('s',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(45)
+	allocate(0)
+	get_constant('t',0)
+	get_constant('i',1)
+	get_constant('m',2)
+	get_constant('e',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(46)
+	allocate(0)
+	get_constant('t',0)
+	get_constant('o',1)
+	get_constant('o',2)
+	get_constant('k',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(47)
+	allocate(0)
+	get_constant('u',0)
+	get_constant('p',1)
+	get_constant('o',2)
+	get_constant('n',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(48)
+	allocate(0)
+	get_constant('v',0)
+	get_constant('e',1)
+	get_constant('r',2)
+	get_constant('y',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(49)
+	allocate(0)
+	get_constant('w',0)
+	get_constant('h',1)
+	get_constant('a',2)
+	get_constant('t',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(50)
+	allocate(0)
+	get_constant('w',0)
+	get_constant('h',1)
+	get_constant('o',2)
+	get_constant('m',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(51)
+	allocate(0)
+	get_constant('w',0)
+	get_constant('i',1)
+	get_constant('t',2)
+	get_constant('h',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(52)
+	allocate(0)
+	get_constant('w',0)
+	get_constant('i',1)
+	get_constant('l',2)
+	get_constant('l',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(53)
+	allocate(0)
+	get_constant('w',0)
+	get_constant('h',1)
+	get_constant('e',2)
+	get_constant('n',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(54)
+	allocate(0)
+	get_constant('y',0)
+	get_constant('o',1)
+	get_constant('u',2)
+	get_constant('r',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(55)
+	allocate(0)
+	get_constant('w',0)
+	get_constant('a',1)
+	get_constant('i',2)
+	get_constant('t',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(56)
+	allocate(0)
+	get_constant('w',0)
+	get_constant('e',1)
+	get_constant('n',2)
+	get_constant('t',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(57)
+	allocate(0)
+	get_constant('w',0)
+	get_constant('e',1)
+	get_constant('r',2)
+	get_constant('e',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(58)
+	allocate(0)
+	get_constant('y',0)
+	get_constant('e',1)
+	get_constant('a',2)
+	get_constant('r',3)
+	get_constant('ok',4)
+    guard_wait
+	dealloc_proceed
+label(59)
+	allocate(0)
+	get_constant('err',4)
+    guard_wait
+	dealloc_proceed
+)
+
+
+predicate('word'/6
+label(101)
+	switch_on_term(104,103,121,121,121,121,121)
+label(103)
+	switch_on_constant(16,[('a',105),('b',106),('c',107),('e',108),('f',109),('g',110),('l',111),('m',112),('o',113),('p',114),('r',115),('s',116),('t',117),('u',118),('w',119),('y',120)],121)
+label(104)
+	try(0)
+	retry(1)
+	retry(2)
+	retry(3)
+	retry(4)
+	retry(5)
+	retry(6)
+	retry(7)
+	retry(8)
+	retry(9)
+	retry(10)
+	retry(11)
+	retry(12)
+	retry(13)
+	retry(14)
+	retry(15)
+	retry(16)
+	retry(17)
+	retry(18)
+	retry(19)
+	retry(20)
+	retry(21)
+	retry(22)
+	retry(23)
+	retry(24)
+	retry(25)
+	retry(26)
+	retry(27)
+	retry(28)
+	retry(29)
+	retry(30)
+	retry(31)
+	retry(32)
+	retry(33)
+	retry(34)
+	retry(35)
+	retry(36)
+	retry(37)
+	retry(38)
+	retry(39)
+	retry(40)
+	retry(41)
+	retry(42)
+	retry(43)
+	retry(44)
+	retry(45)
+	retry(46)
+	retry(47)
+	retry(48)
+	trust(49)
+label(105)
+	try(0)
+	retry(1)
+	retry(2)
+	retry(3)
+	retry(4)
+	retry(5)
+	retry(6)
+	trust(49)
+label(106)
+	try(7)
+	retry(8)
+	retry(9)
+	trust(49)
+label(107)
+	try(10)
+	retry(11)
+	trust(49)
+label(108)
+	try(12)
+	trust(49)
+label(109)
+	try(13)
+	retry(14)
+	trust(49)
+label(110)
+	try(15)
+	retry(16)
+	trust(49)
+label(111)
+	try(17)
+	retry(18)
+	retry(19)
+	trust(49)
+label(112)
+	try(20)
+	retry(21)
+	trust(49)
+label(113)
+	try(22)
+	trust(49)
+label(114)
+	try(23)
+	trust(49)
+label(115)
+	try(24)
+	trust(49)
+label(116)
+	try(25)
+	retry(26)
+	retry(27)
+	retry(28)
+	retry(29)
+	retry(30)
+	trust(49)
+label(117)
+	try(31)
+	retry(32)
+	retry(33)
+	retry(34)
+	retry(35)
+	retry(36)
+	retry(37)
+	retry(38)
+	trust(49)
+label(118)
+	try(39)
+	trust(49)
+label(119)
+	try(40)
+	retry(41)
+	retry(42)
+	retry(43)
+	retry(44)
+	retry(45)
+	retry(46)
+	retry(47)
+	trust(49)
+label(120)
+	try(48)
+	trust(49)
+label(121)
+	try_single(49)
+label(0)
+	allocate(0)
+	get_constant('a',0)
+	get_constant('b',1)
+	get_constant('o',2)
+	get_constant('u',3)
+	get_constant('t',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(1)
+	allocate(0)
+	get_constant('a',0)
+	get_constant('b',1)
+	get_constant('o',2)
+	get_constant('v',3)
+	get_constant('e',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(2)
+	allocate(0)
+	get_constant('a',0)
+	get_constant('d',1)
+	get_constant('o',2)
+	get_constant('p',3)
+	get_constant('t',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(3)
+	allocate(0)
+	get_constant('a',0)
+	get_constant('f',1)
+	get_constant('t',2)
+	get_constant('e',3)
+	get_constant('r',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(4)
+	allocate(0)
+	get_constant('a',0)
+	get_constant('l',1)
+	get_constant('o',2)
+	get_constant('n',3)
+	get_constant('g',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(5)
+	allocate(0)
+	get_constant('a',0)
+	get_constant('m',1)
+	get_constant('o',2)
+	get_constant('n',3)
+	get_constant('g',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(6)
+	allocate(0)
+	get_constant('a',0)
+	get_constant('w',1)
+	get_constant('a',2)
+	get_constant('r',3)
+	get_constant('e',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(7)
+	allocate(0)
+	get_constant('b',0)
+	get_constant('e',1)
+	get_constant('i',2)
+	get_constant('n',3)
+	get_constant('g',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(8)
+	allocate(0)
+	get_constant('b',0)
+	get_constant('e',1)
+	get_constant('l',2)
+	get_constant('o',3)
+	get_constant('w',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(9)
+	allocate(0)
+	get_constant('b',0)
+	get_constant('o',1)
+	get_constant('o',2)
+	get_constant('k',3)
+	get_constant('s',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(10)
+	allocate(0)
+	get_constant('c',0)
+	get_constant('a',1)
+	get_constant('l',2)
+	get_constant('l',3)
+	get_constant('s',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(11)
+	allocate(0)
+	get_constant('c',0)
+	get_constant('o',1)
+	get_constant('u',2)
+	get_constant('l',3)
+	get_constant('d',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(12)
+	allocate(0)
+	get_constant('e',0)
+	get_constant('i',1)
+	get_constant('g',2)
+	get_constant('h',3)
+	get_constant('t',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(13)
+	allocate(0)
+	get_constant('f',0)
+	get_constant('a',1)
+	get_constant('c',2)
+	get_constant('t',3)
+	get_constant('s',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(14)
+	allocate(0)
+	get_constant('f',0)
+	get_constant('i',1)
+	get_constant('r',2)
+	get_constant('s',3)
+	get_constant('t',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(15)
+	allocate(0)
+	get_constant('g',0)
+	get_constant('i',1)
+	get_constant('v',2)
+	get_constant('e',3)
+	get_constant('n',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(16)
+	allocate(0)
+	get_constant('g',0)
+	get_constant('i',1)
+	get_constant('v',2)
+	get_constant('e',3)
+	get_constant('s',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(17)
+	allocate(0)
+	get_constant('l',0)
+	get_constant('a',1)
+	get_constant('r',2)
+	get_constant('g',3)
+	get_constant('e',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(18)
+	allocate(0)
+	get_constant('l',0)
+	get_constant('o',1)
+	get_constant('v',2)
+	get_constant('e',3)
+	get_constant('d',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(19)
+	allocate(0)
+	get_constant('l',0)
+	get_constant('o',1)
+	get_constant('v',2)
+	get_constant('e',3)
+	get_constant('s',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(20)
+	allocate(0)
+	get_constant('m',0)
+	get_constant('i',1)
+	get_constant('g',2)
+	get_constant('h',3)
+	get_constant('t',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(21)
+	allocate(0)
+	get_constant('m',0)
+	get_constant('o',1)
+	get_constant('n',2)
+	get_constant('e',3)
+	get_constant('y',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(22)
+	allocate(0)
+	get_constant('o',0)
+	get_constant('t',1)
+	get_constant('h',2)
+	get_constant('e',3)
+	get_constant('r',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(23)
+	allocate(0)
+	get_constant('p',0)
+	get_constant('l',1)
+	get_constant('a',2)
+	get_constant('c',3)
+	get_constant('e',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(24)
+	allocate(0)
+	get_constant('r',0)
+	get_constant('e',1)
+	get_constant('a',2)
+	get_constant('c',3)
+	get_constant('h',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(25)
+	allocate(0)
+	get_constant('s',0)
+	get_constant('i',1)
+	get_constant('n',2)
+	get_constant('c',3)
+	get_constant('e',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(26)
+	allocate(0)
+	get_constant('s',0)
+	get_constant('e',1)
+	get_constant('e',2)
+	get_constant('m',3)
+	get_constant('s',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(27)
+	allocate(0)
+	get_constant('s',0)
+	get_constant('e',1)
+	get_constant('v',2)
+	get_constant('e',3)
+	get_constant('n',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(28)
+	allocate(0)
+	get_constant('s',0)
+	get_constant('h',1)
+	get_constant('a',2)
+	get_constant('l',3)
+	get_constant('l',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(29)
+	allocate(0)
+	get_constant('s',0)
+	get_constant('l',1)
+	get_constant('e',2)
+	get_constant('e',3)
+	get_constant('p',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(30)
+	allocate(0)
+	get_constant('s',0)
+	get_constant('l',1)
+	get_constant('e',2)
+	get_constant('p',3)
+	get_constant('t',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(31)
+	allocate(0)
+	get_constant('t',0)
+	get_constant('a',1)
+	get_constant('k',2)
+	get_constant('e',3)
+	get_constant('s',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(32)
+	allocate(0)
+	get_constant('t',0)
+	get_constant('h',1)
+	get_constant('e',2)
+	get_constant('i',3)
+	get_constant('r',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(33)
+	allocate(0)
+	get_constant('t',0)
+	get_constant('h',1)
+	get_constant('i',2)
+	get_constant('n',3)
+	get_constant('k',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(34)
+	allocate(0)
+	get_constant('t',0)
+	get_constant('h',1)
+	get_constant('r',2)
+	get_constant('e',3)
+	get_constant('e',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(35)
+	allocate(0)
+	get_constant('t',0)
+	get_constant('i',1)
+	get_constant('m',2)
+	get_constant('e',3)
+	get_constant('s',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(36)
+	allocate(0)
+	get_constant('t',0)
+	get_constant('r',1)
+	get_constant('a',2)
+	get_constant('d',3)
+	get_constant('e',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(37)
+	allocate(0)
+	get_constant('t',0)
+	get_constant('r',1)
+	get_constant('i',2)
+	get_constant('e',3)
+	get_constant('s',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(38)
+	allocate(0)
+	get_constant('t',0)
+	get_constant('r',1)
+	get_constant('i',2)
+	get_constant('e',3)
+	get_constant('d',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(39)
+	allocate(0)
+	get_constant('u',0)
+	get_constant('n',1)
+	get_constant('d',2)
+	get_constant('e',3)
+	get_constant('r',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(40)
+	allocate(0)
+	get_constant('w',0)
+	get_constant('a',1)
+	get_constant('t',2)
+	get_constant('e',3)
+	get_constant('r',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(41)
+	allocate(0)
+	get_constant('w',0)
+	get_constant('h',1)
+	get_constant('i',2)
+	get_constant('c',3)
+	get_constant('h',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(42)
+	allocate(0)
+	get_constant('w',0)
+	get_constant('a',1)
+	get_constant('i',2)
+	get_constant('t',3)
+	get_constant('s',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(43)
+	allocate(0)
+	get_constant('w',0)
+	get_constant('h',1)
+	get_constant('i',2)
+	get_constant('c',3)
+	get_constant('h',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(44)
+	allocate(0)
+	get_constant('w',0)
+	get_constant('h',1)
+	get_constant('o',2)
+	get_constant('s',3)
+	get_constant('e',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(45)
+	allocate(0)
+	get_constant('w',0)
+	get_constant('o',1)
+	get_constant('u',2)
+	get_constant('l',3)
+	get_constant('d',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(46)
+	allocate(0)
+	get_constant('w',0)
+	get_constant('o',1)
+	get_constant('m',2)
+	get_constant('a',3)
+	get_constant('n',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(47)
+	allocate(0)
+	get_constant('w',0)
+	get_constant('o',1)
+	get_constant('m',2)
+	get_constant('e',3)
+	get_constant('n',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(48)
+	allocate(0)
+	get_constant('y',0)
+	get_constant('e',1)
+	get_constant('a',2)
+	get_constant('r',3)
+	get_constant('s',4)
+	get_constant('ok',5)
+    guard_wait
+	dealloc_proceed
+label(49)
+	allocate(0)
+	get_constant('err',5)
+    guard_wait
+	dealloc_proceed
+)
+
+
+predicate('word'/7
+label(5)
+	switch_on_term(7,7,7,7,7,7,7)
+label(7)
+	try(0)
+	trust(1)
+label(0)
+	allocate(4)
+	get4_y_variable(0,6,1,2,2,1,3,0)
+	get_constant('i',3)
+	get_constant('n',4)
+	get_constant('g',5)
+    guard_wait
+	put4_y_value(3,0,2,1,1,2,0,3)
+	dealloc_execute('word'/4)
+label(1)
+	allocate(0)
+	get_constant('err',6)
+    guard_wait
+	dealloc_proceed
+)
+
+
+predicate('word'/8
+label(5)
+	switch_on_term(7,7,7,7,7,7,7)
+label(7)
+	try(0)
+	trust(1)
+label(0)
+	allocate(5)
+	get5_y_variable(0,7,1,3,2,2,3,1,4,0)
+	get_constant('i',4)
+	get_constant('n',5)
+	get_constant('g',6)
+    guard_wait
+	put5_y_value(4,0,3,1,2,2,1,3,0,4)
+	dealloc_execute('word'/5)
+label(1)
+	allocate(0)
+	get_constant('err',7)
+    guard_wait
+	dealloc_proceed
+)
+
+

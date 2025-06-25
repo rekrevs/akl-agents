@@ -1,0 +1,13 @@
+$Id: auto-close,v 1.1 1994/03/09 11:54:56 bd Exp $
+
+Port-like objects should place a constraint in their environment andbox.
+This constraint points out structures that need to be copied by GC when
+the object is auto-closed.
+
+Ordinary ports should be specially treated in gc_close(), so that streams
+that are instantiated to structures need not be copied. Instead, a special
+recall entry is made that causes the port's andbox to fail.
+
+An object that wants to be closed in the wrong branch is simply copied,
+and a special magic constraint is placed in the toplevel andbox of that
+branch, that causes the object to be closed when installing the andbox.

@@ -1,0 +1,8 @@
+$Id: switch_on_constant,v 1.1 1992/12/10 20:33:36 sverker Exp $
+
+921210 sverker
+
+Introduce (simple) switch_on_constant and switch_on_functor
+in the *old* compiler.
+
+ONLY IF DONE QUICKLY!

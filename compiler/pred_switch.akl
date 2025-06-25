@@ -1,0 +1,1118 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%    generating decision tree code
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% dec_code
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+dec_code(Mode,Tree,Code,Defs,ArgInfo,Flag):-
+   ->
+   analyze(Flag,Tree,Out),
+   dec_code1(Out,Mode,Tree,Code,Defs,ArgInfo,Flag).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+dec_code1(p(ArgNo,TArg),Mode,Tree,Code,Defs,ArgInfo,Flag):-
+   ->
+   maybe_dec_write(Defs,unify(ArgNo,Flag)),
+   delete_in_plist(ArgNo,Tree,Tree1),
+   switch_code_begin(Mode,TArg,Tree1,ArgNo,Code,Defs,ArgInfo,Flag).
+dec_code1(no,Mode,Tree,Code,Defs,ArgInfo,Flag):-
+   ->
+   dec_code_test(Mode,Tree,Code,Defs,ArgInfo,Flag).
+dec_code1(split(_Limit,X),Mode,Tree,Code,Defs,ArgInfo,Flag):-
+   can_reorder_mode(Mode)
+   ->
+   dec_code1(X,Mode,Tree,Code,Defs,ArgInfo,Flag).
+dec_code1(split(Limit,_),Mode,Tree,Code,Defs,ArgInfo,Flag):-
+   ->
+   Code=[back(l(Label)),FCode,label(Label)|SCode],
+   split_tree(Limit,Tree,Tree1,Tree2),
+   split_defs(Limit,Defs,Defs1,Defs2),
+   error_if_equal(Defs1,[],dec_code1(Limit,Defs1,Defs2)),
+   error_if_equal(Defs2,[],dec_code1(Limit,Defs1,Defs2)),
+   arginfo_split(ArgInfo,ArgInfo1,ArgInfo2),
+   dec_code(Mode,Tree1,FCode,Defs1,ArgInfo1,Flag),
+   dec_code(Mode,Tree2,SCode,Defs2,ArgInfo2,Flag).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+split_defs(_Limit,[],Defs1,Defs2):- -> Defs1=[],Defs2=[].
+split_defs(Limit,[D|Defs],Defs1,Defs2):- 
+    def_find_clno(D,ClNo),
+    ClNo=<Limit
+    -> 
+    Defs1=[D|Defs1_1],
+    split_defs(Limit,Defs,Defs1_1,Defs2).
+split_defs(Limit,[D|Defs],Defs1,Defs2):- 
+    -> 
+    Defs2=[D|Defs2_1],
+    split_defs(Limit,Defs,Defs1,Defs2_1).
+
+%%%%%%%%%%%%%%%%%%   DEBUG  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+maybe_dec_write(Defs,X):-
+   decision_debug_flag(yes)
+   ->
+   defs_clno(Defs,Cl),
+   write('DECISION: '),write(Cl),
+   write('  '),write(X),nl.
+maybe_dec_write(_,_X):-
+   decision_debug_flag(no)
+   ->
+   true.
+
+defs_clno([],Out):- -> Out=[].
+defs_clno([D|Defs],Out):- 
+   -> 
+   def_find_clno(D,ClNo),
+   Out=[ClNo|Out1],
+   defs_clno(Defs,Out1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%       Unification indexing
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% MAIN
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% switch_code_begin
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+switch_code_begin(Mode,TArg,Tree,ArgNo,Code,Defs,ArgInfo,Flag):-
+   ->
+   arginfo_is_typed(ArgNo,ArgInfo,Type),
+   switch_code_begin2(Type,Mode,TArg,ArgNo,Code,ArgInfo,[final(Tree,Defs)],Flag).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+switch_code_begin2(no,Mode,TArg,ArgNo,Code,ArgInfo,Cont,Flag):-
+   ->
+   switch_code(Mode,TArg,ArgNo,Code,ArgInfo,no,Cont,Flag).
+switch_code_begin2(struct,Mode,t([],[],[],[],[],TArg,[]),ArgNo,Code,ArgInfo,Cont,Flag):-
+   ->
+   known_struct_switch_code(Mode,TArg,ArgNo,Code,ArgInfo,no,Cont,fail_dec,Flag).
+switch_code_begin2(integer,Mode,t([],TArg,[],[],[],[],[]),ArgNo,Code,ArgInfo,Cont,Flag):-
+   ->
+   known_integer_switch_code(Mode,TArg,ArgNo,Code,ArgInfo,no,Cont,fail_dec,Flag).
+switch_code_begin2(atom,Mode,t(TArg,[],[],[],[],[],[]),ArgNo,Code,ArgInfo,Cont,Flag):-
+   ->
+   known_atom_switch_code(Mode,TArg,ArgNo,Code,ArgInfo,no,Cont,fail_dec,Flag).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% switch_code
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+%%%%  simples
+
+switch_code(Mode,t([],[],[],[],[],[],_V),_ArgNo,Code,ArgInfo,no,[final(Tree,Defs)],_Flag):-
+   ->
+   dec_code(Mode,Tree,Code,Defs,ArgInfo,first(excl)).
+switch_code(Mode,t([],[],[],[],[],[],V),ArgNo,Code,ArgInfo,Sus,Cont,Flag):-
+   ->
+   suspend_update(Sus,abandon(ArgNo),Sus0),
+   switch_code_next(Mode,V,Code,ArgInfo,Sus0,Cont,Flag).
+switch_code(Mode,t(A,[],[],N,[],[],V),ArgNo,Code,ArgInfo,Sus,Cont,Flag):-
+   -> 
+   join_nil(A,N,A1),
+   atom_switch_code(Mode,A1,V,ArgNo,Code,ArgInfo,Sus,Cont,Flag).
+switch_code(Mode,t([],I,[],[],[],[],V),ArgNo,Code,ArgInfo,Sus,Cont,Flag):-
+   -> 
+   integer_switch_code(Mode,I,V,ArgNo,Code,ArgInfo,Sus,Cont,Flag).
+switch_code(Mode,t([],[],G,[],[],[],V),ArgNo,Code,ArgInfo,Sus,Cont,Flag):-
+   -> 
+   generic_switch_code(Mode,G,V,ArgNo,Code,ArgInfo,Sus,Cont,Flag).
+switch_code(Mode,t([],[],[],[],L,[],V),ArgNo,Code,ArgInfo,Sus,Cont,Flag):-
+   -> 
+   list_switch_code(Mode,L,V,ArgNo,Code,ArgInfo,Sus,Cont,Flag).
+switch_code(Mode,t([],[],[],[],[],S,V),ArgNo,Code,ArgInfo,Sus,Cont,Flag):-
+   -> 
+   struct_switch_code(Mode,S,V,ArgNo,Code,ArgInfo,Sus,Cont,Flag).
+
+%%%%%%%%%%%%%%%%%%%%%%%
+%% list_switch appropriate
+
+switch_code(Mode,t([],[],[],N,L,[],[]),ArgNo,Code,ArgInfo,Sus,Cont,Flag):-
+   -> 
+   ln_switch_code(Mode,N,L,ArgNo,Code,ArgInfo,Sus,Cont,Flag).
+
+%%%%%%%%%%%%%%%%%%%%%%%
+%% term_switch appropriate
+
+switch_code(Mode,TArg,ArgNo,Code,ArgInfo,Sus,Cont,Flag):-
+   TArg=t(_A,_I,_G,_N,_L,_S,[])
+   ->
+   suspend(Sus,ArgNo,VarCode,l(ILabel),Sus0),
+   Code=[label(ILabel),Term,VarCode|Code1],
+   Term=term_switch(ArgNo,_AL,_IL,_LL,_SL,_GL),
+   term_switch(Term,Mode,TArg,ArgNo,Code1,ArgInfo,Sus0,Cont,fail_dec,Flag).
+switch_code(Mode,TArg,ArgNo,Code,ArgInfo,Sus,Cont,Flag):-
+   TArg=t(_A,_I,_G,_N,_L,_S,V)
+   ->
+   Code=[label(ILabel),Term,VarCode,l(ELabel),Else|Code1],
+   suspend(Sus,ArgNo,VarCode,l(ILabel),Sus0),
+   Term=term_switch(ArgNo,_AL,_IL,_LL,_SL,_GL),
+   switch_split(Sus0,Sus1,Sus2,ArgInfo,ArgInfo1,ArgInfo2),
+   term_switch(Term,Mode,TArg,ArgNo,Code1,ArgInfo1,Sus1,Cont,l(ELabel),Flag),
+   suspend_update(Sus2,abandon(ArgNo),Sus2A),
+   switch_code_next(Mode,V,Else,ArgInfo2,Sus2A,Cont,Flag).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% term_switch
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+term_switch(Term,Mode,TArg,ArgNo,Code,ArgInfo,Sus,Cont,Back,Flag):-
+   TArg=t([],I,F,[],L,S,_V),
+   Term=term_switch(ArgNo,ALabel,_IL,_LL,_SL,_GL)
+   ->
+   ALabel=Back,
+   term_switch1(Term,Mode,[I,L,S,F],Code,ArgInfo,Sus,Cont,Back,Flag).
+term_switch(Term,Mode,TArg,ArgNo,Code,ArgInfo,Sus,Cont,Back,Flag):-
+   TArg=t(A,I,F,N,L,S,_V),
+   Term=term_switch(ArgNo,ALabel,_IL,_LL,_SL,_GL)
+   ->
+   ALabel=l(AL),Code=[label(AL),Code1|Code2],
+   join_nil(A,N,A1),
+   switch_split_o(A,[I,F,N,L,S],Sus,Sus1,Sus2,ArgInfo,ArgInfo1,ArgInfo2),
+   known_atom_switch_code(Mode,A1,ArgNo,Code1,ArgInfo1,Sus1,Cont,Back,Flag),
+   term_switch1(Term,Mode,[I,L,S,F],Code2,ArgInfo2,Sus2,Cont,Back,Flag).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+   
+term_switch1(Term,Mode,[[]|TArg],Code,ArgInfo,Sus,Cont,Back,Flag):-
+   Term=term_switch(_ArgNo,_AL,ILabel,_LL,_SL,_GL)
+   ->
+   ILabel=Back,
+   term_switch2(Term,Mode,TArg,Code,ArgInfo,Sus,Cont,Back,Flag).
+term_switch1(Term,Mode,[I|TArg],Code,ArgInfo,Sus,Cont,Back,Flag):-
+   Term=term_switch(ArgNo,_AL,ILabel,_LL,_SL,_GL)
+   ->
+   Code=[label(IL),Code1|Code2],ILabel=l(IL),
+   switch_split_o(I,TArg,Sus,Sus1,Sus2,ArgInfo,ArgInfo1,ArgInfo2),
+   known_integer_switch_code(Mode,I,ArgNo,Code1,ArgInfo1,Sus1,Cont,Back,Flag),
+   term_switch2(Term,Mode,TArg,Code2,ArgInfo2,Sus2,Cont,Back,Flag).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+term_switch2(Term,Mode,[[]|TArg],Code,ArgInfo,Sus,Cont,Back,Flag):-
+   Term=term_switch(_ArgNo,_AL,_IL,LLabel,_SL,_GL)
+   ->
+   LLabel=Back,
+   term_switch3(Term,Mode,TArg,Code,ArgInfo,Sus,Cont,Back,Flag).
+term_switch2(Term,Mode,[L|TArg],Code,ArgInfo,Sus,Cont,Back,Flag):-
+   Term=term_switch(ArgNo,_AL,_IL,LLabel,_SL,_GL)
+   ->
+   Code=[label(LL),Code1|Code2],LLabel=l(LL),
+   switch_split_o(L,TArg,Sus,Sus1,Sus2,ArgInfo,ArgInfo1,ArgInfo2),
+   known_list_switch_code(Mode,L,ArgNo,Code1,ArgInfo1,Sus1,Cont,Back,Flag),
+   term_switch3(Term,Mode,TArg,Code2,ArgInfo2,Sus2,Cont,Back,Flag).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+term_switch3(Term,Mode,[[]|TArg],Code,ArgInfo,Sus,Cont,Back,Flag):-
+   Term=term_switch(_ArgNo,_AL,_IL,_LL,SLabel,_GL)
+   ->
+   SLabel=Back,
+   term_switch4(Term,Mode,TArg,Code,ArgInfo,Sus,Cont,Back,Flag).
+term_switch3(Term,Mode,[S|TArg],Code,ArgInfo,Sus,Cont,Back,Flag):-
+   Term=term_switch(ArgNo,_AL,_IL,_LL,SLabel,_GL)
+   ->
+   Code=[label(SL),Code1|Code2],SLabel=l(SL),
+   switch_split_o(S,TArg,Sus,Sus1,Sus2,ArgInfo,ArgInfo1,ArgInfo2),
+   known_struct_switch_code(Mode,S,ArgNo,Code1,ArgInfo1,Sus1,Cont,Back,Flag),
+   term_switch4(Term,Mode,TArg,Code2,ArgInfo2,Sus2,Cont,Back,Flag).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+term_switch4(Term,_Mode,[[]],Code,ArgInfo,Sus,_Cont,Back,_Flag):-
+   Term=term_switch(_ArgNo,_AL,_IL,_LL,_SL,GLabel)
+   ->
+   GLabel=Back,Code=[],
+   suspend_end(Sus),
+   arginfo_end(ArgInfo).
+term_switch4(Term,Mode,[G],Code,ArgInfo,Sus,Cont,Back,Flag):-
+   Term=term_switch(ArgNo,_AL,_IL,_LL,_SL,GLabel)
+   ->
+   GLabel=l(GL),Code=[label(GL)|Code1],
+   known_gen_switch_code(Mode,G,ArgNo,Code1,ArgInfo,Sus,Cont,Back,Flag).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% switch_code_next
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+switch_code_next(Mode,Extract,Code,ArgInfo,Sus,[final(Tree,Defs)],_Flag):-
+   ->
+   extract_all_clno(Extract,ClSet),
+   Code=[Code1|Code2],
+   suspend_node_end(Sus,ClSet,Code1),
+   edit_tree(ClSet,Tree,Tree2),
+   extract_defs(ClSet,Defs,Defs1),
+   defs_update(ArgInfo,ArgInfo1,Defs1,Defs2),
+   arginfo_next(ArgInfo1,ArgInfo2),
+   dec_code(Mode,Tree2,Code2,Defs2,ArgInfo2,first(excl)).
+switch_code_next(Mode,Extract,Code,ArgInfo,Sus,Cont,Flag):-
+   ->
+   extract_all_clno(Extract,ClSet),
+   edit_cont(ClSet,Cont,Cont1),
+   switch_code_next1(Mode,Code,ArgInfo,Sus,Cont1,Flag).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+edit_cont(_,[Final],Out):- -> Out=[Final].
+edit_cont(ClSet,[list(cdr(ArgNo),Cdr)|Cont],Out):-
+   ->
+   main_edit_tree_arg(ClSet,Cdr,Cdr1),
+   Out=[list(cdr(ArgNo),Cdr1)|Out1],
+   edit_cont(ClSet,Cont,Out1).
+edit_cont(ClSet,[list(car(ArgNo),Car)|Cont],Out):-
+   ->
+   main_edit_tree_arg(ClSet,Car,Car1),
+   Out=[list(car(ArgNo),Car1)|Out1],
+   edit_cont(ClSet,Cont,Out1).
+edit_cont(ClSet,[struct(ArgNo,List)|Cont],Out):-
+   ->
+   edit_tree(ClSet,List,List1),
+   Out=[struct(ArgNo,List1)|Out1],
+   edit_cont(ClSet,Cont,Out1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+switch_code_next1(Mode,Code,ArgInfo,Sus,[list(cdr(ArgNo),Cdr)|Cont],Flag):-
+   ->
+   Code=[label(ContLabel),read_cdr(ArgNo,Reg)|Code1],
+   suspend_update(Sus,up(l(ContLabel)),Sus0),
+   suspend_update(Sus0,arg(ArgNo,arg(cdr,Reg)),Sus1),
+   arginfo_updates([get_reg(Reg),cdr(ArgNo,Reg),dead(ArgNo)],ArgInfo,ArgInfo1),
+   switch_code(Mode,Cdr,Reg,Code1,ArgInfo1,Sus1,Cont,Flag).
+switch_code_next1(Mode,Code,ArgInfo,Sus,[list(car(ArgNo),Car)|Cont],Flag):-
+   ->
+   Code=[label(ContLabel),read_car(ArgNo,Reg)|Code1],
+   suspend_update(Sus,up(l(ContLabel)),Sus0),
+   suspend_update(Sus0,arg(ArgNo,arg(car,Reg)),Sus1),
+   arginfo_updates([get_reg(Reg),car(ArgNo,Reg),dead(ArgNo)],ArgInfo,ArgInfo1),
+   switch_code(Mode,Car,Reg,Code1,ArgInfo1,Sus1,Cont,Flag).
+switch_code_next1(Mode,Code,ArgInfo,Sus,[StructCont|Cont],Flag):-
+   StructCont=struct(ArgNo,_)
+   ->
+   best_struct_arg(StructCont,BestCt,BestArg,StructCont1,Flag),
+   Code=[label(ContLabel),read_arg(ArgNo,BestCt,Reg)|Code1],
+   suspend_update(Sus,up(l(ContLabel)),Sus0),
+   suspend_update(Sus0,arg(ArgNo,arg(BestCt,Reg)),Sus1),   
+   arginfo_updates([get_reg(Reg),arg(ArgNo,BestCt,Reg)],ArgInfo,ArgInfo1),
+   s_c_n(StructCont1,ArgNo,Cont,Cont1,ArgInfo1,ArgInfo2),
+   switch_code(Mode,BestArg,Reg,Code1,ArgInfo2,Sus1,Cont1,Flag).
+
+%%%%
+
+s_c_n([],ArgNo,Cont,Cont1,ArgInfo,ArgInfo1):-
+   ->
+   Cont1=Cont,arginfo_update(dead(ArgNo),ArgInfo,ArgInfo1).
+s_c_n(StructCont,_,Cont,Cont1,ArgInfo,ArgInfo1):-
+   ->
+   Cont1=[StructCont|Cont],ArgInfo=ArgInfo1.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% Unification indexing: Various Cases
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% atom_switch_code(Mode,Atoms,Vars,...)   
+%%%%                           
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+atom_switch_code(Mode,c(AList),[],ArgNo,Code,ArgInfo,Sus,Cont,Flag):-
+   ->
+   Code=[label(ILabel),atom_switch(ArgNo,AtomList),VarCode|Code1],
+   suspend(Sus,ArgNo,VarCode,l(ILabel),Sus1),
+   constant_switch(Mode,AList,ArgNo,AtomList,Code1,ArgInfo,Sus1,Cont,fail_dec,Flag).
+atom_switch_code(Mode,c(AList),V,ArgNo,Code,ArgInfo,Sus,Cont,Flag):-
+   ->
+   Code=[label(ILabel),atom_with_else_switch(ArgNo,l(VarLabel),AtomList),label(ELabel),
+        Else,label(VarLabel),VarCode|Code1],
+   suspend(Sus,ArgNo,VarCode,l(ILabel),Sus0),
+   switch_split(Sus0,Sus1,Sus2,ArgInfo,ArgInfo1,ArgInfo2),
+   constant_switch(Mode,AList,ArgNo,AtomList,Code1,ArgInfo1,Sus1,Cont,l(ELabel),Flag),
+   suspend_update(Sus2,abandon(ArgNo),Sus2A),
+   switch_code_next(Mode,V,Else,ArgInfo2,Sus2A,Cont,Flag).
+atom_switch_code(Mode,v(VList),[],ArgNo,Code,ArgInfo,Sus,Cont,Flag):-
+   ->
+   Code=[label(ILabel),atom_type(ArgNo,l(VarLabel)),Code1,label(VarLabel),VarCode],
+   suspend(Sus,ArgNo,VarCode,l(ILabel),Sus0),
+   arginfo_update(type(ArgNo,atom),ArgInfo,ArgInfo1),
+   suspend_update(Sus0,end(ArgNo,typed(atom)),Sus1),
+   switch_code_next(Mode,VList,Code1,ArgInfo1,Sus1,Cont,Flag).
+atom_switch_code(Mode,v(VList),V,ArgNo,Code,ArgInfo,Sus,Cont,Flag):-
+   ->
+   Code=[label(ILabel),atom_type_with_else(ArgNo,l(VarLabel),l(ElseLabel)),back(l(ElseLabel)),AtomCode,
+          label(ElseLabel),Else,label(VarLabel),VarCode],
+   suspend(Sus,ArgNo,VarCode,l(ILabel),Sus0),
+   switch_split(Sus0,Sus1,Sus2,ArgInfo,ArgInfo1,ArgInfo2),
+   arginfo_update(type(ArgNo,atom),ArgInfo1,ArgInfo1A),
+   suspend_update(Sus1,end(ArgNo,typed(atom)),Sus1A),
+   switch_code_next(Mode,VList,AtomCode,ArgInfo1A,Sus1A,Cont,Flag),
+   suspend_update(Sus2,abandon(ArgNo),Sus2A),
+   switch_code_next(Mode,V,Else,ArgInfo2,Sus2A,Cont,Flag).
+atom_switch_code(Mode,CV,[],ArgNo,Code,ArgInfo,Sus,Cont,Flag):-
+   CV=cv(_,_),Flag=first(_)
+   ->
+   Code=[label(ILabel),atom_type(ArgNo,l(VarLabel)),Code1,label(VarLabel),VarCode],
+   suspend(Sus,ArgNo,VarCode,l(ILabel),Sus0),
+   arginfo_update(type(ArgNo,atom),ArgInfo,ArgInfo1),
+   suspend_update(Sus0,end(ArgNo,typed(atom)),Sus1),
+   switch_code_next(Mode,CV,Code1,ArgInfo1,Sus1,Cont,Flag).
+atom_switch_code(Mode,cv(AList,VAList),[],ArgNo,Code,ArgInfo,Sus,Cont,Flag):-
+   Flag=second(_)
+   ->
+   Code=[l(ILabel),atom_with_atom_else_switch(ArgNo,l(VarLabel),AtomList),
+         label(ElseLabel),ElseCode,label(VarLabel),VarCode|Code1],
+   suspend(Sus,ArgNo,VarCode,l(ILabel),Sus0),	 
+   switch_split(Sus0,Sus1,Sus2,ArgInfo,ArgInfo1,ArgInfo2),
+   constant_switch(Mode,AList,ArgNo,AtomList,Code1,ArgInfo1,Sus1,Cont,l(ElseLabel),Flag),
+   suspend_update(Sus2,end(ArgNo,typed(atom)),Sus2A),
+   arginfo_update(type(ArgNo,atom),ArgInfo2,ArgInfo2A),
+   switch_code_next(Mode,VAList,ElseCode,ArgInfo2A,Sus2A,Cont,Flag).
+atom_switch_code(Mode,CV,V,ArgNo,Code,ArgInfo,Sus,Cont,Flag):-
+   CV=cv(_,_)
+   ->
+   Code=[l(ILabel),atom_type_with_else(ArgNo,l(VarLabel),l(ElseLabel)),AtomCode,label(ElseLabel),
+        Else,label(VarLabel)|VarCode],
+   suspend(Sus,ArgNo,VarCode,l(ILabel),Sus0),
+   switch_split(Sus0,Sus1,Sus2,ArgInfo,ArgInfo1,ArgInfo2),
+   known_atom_switch_code(Mode,CV,ArgNo,AtomCode,ArgInfo1,Sus1,Cont,l(ElseLabel),Flag),
+   suspend_update(Sus2,abandon(ArgNo),Sus2A),
+   switch_code_next(Mode,V,Else,ArgInfo2,Sus2A,Cont,Flag).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% known_atom_switch_code
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+known_atom_switch_code(Mode,c(AList),ArgNo,Code,ArgInfo,Sus,Cont,Back,Flag):-
+   ->
+   Code=[known_atom_switch(ArgNo,AtomList)|Code1],
+   constant_switch(Mode,AList,ArgNo,AtomList,Code1,ArgInfo,Sus,Cont,Back,Flag).
+known_atom_switch_code(Mode,v(VList),ArgNo,Code,ArgInfo,Sus,Cont,Back,Flag):-
+   ->
+   maybe_back(Back,Maybe_Back),
+   Code=[Maybe_Back|Code1],
+   arginfo_update(type(ArgNo,atom),ArgInfo,ArgInfo1),
+   suspend_update(Sus,end(ArgNo,typed(atom)),Sus1),
+   switch_code_next(Mode,VList,Code1,ArgInfo1,Sus1,Cont,Flag).
+known_atom_switch_code(Mode,CV,ArgNo,Code,ArgInfo,Sus,Cont,Back,Flag):-
+   Flag=first(_),CV=cv(_,_)
+   ->
+   maybe_back(Back,Maybe_Back),
+   Code=[Maybe_Back|Code1],
+   suspend_update(Sus,end(ArgNo,typed(atom)),Sus1),
+   arginfo_update(type(ArgNo,atom),ArgInfo,ArgInfo1),
+   switch_code_next(Mode,CV,Code1,ArgInfo1,Sus1,Cont,Flag).
+known_atom_switch_code(Mode,cv(AList,VAList),ArgNo,Code,ArgInfo,Sus,Cont,Back,Flag):-
+   Flag=second(_)
+   ->
+   maybe_back(Back,Maybe_Back),
+   Code=[known_atom_with_atom_else_switch(ArgNo,AtomList),label(ELabel),Maybe_Back,AElseCode|Code1],
+   switch_split(Sus,Sus1,Sus2,ArgInfo,ArgInfo1,ArgInfo2),
+   constant_switch(Mode,AList,ArgNo,AtomList,Code1,ArgInfo1,Sus1,Cont,l(ELabel),Flag),
+   suspend_update(Sus2,end(ArgNo,typed(atom)),Sus2A),
+   arginfo_update(type(ArgNo,atom),ArgInfo2,ArgInfo2A),
+   switch_code_next(Mode,VAList,AElseCode,ArgInfo2A,Sus2A,Cont,Flag).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% integer_switch_code
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+integer_switch_code(Mode,c(IList),[],ArgNo,Code,ArgInfo,Sus,Cont,Flag):-
+   ->
+   Code=[label(ILabel),integer_switch(ArgNo,IntList),VarCode|Code1],
+   suspend(Sus,ArgNo,VarCode,l(ILabel),Sus1),
+   constant_switch(Mode,IList,ArgNo,IntList,Code1,ArgInfo,Sus1,Cont,fail_dec,Flag).
+integer_switch_code(Mode,c(IList),V,ArgNo,Code,ArgInfo,Sus,Cont,Flag):-
+   ->
+   Code=[label(ILabel),integer_with_else_switch(ArgNo,l(VarLabel),IntList),
+        label(ELabel),Else,label(VarLabel),VarCode|Code1],
+   suspend(Sus,ArgNo,VarCode,l(ILabel),Sus0),
+   switch_split(Sus0,Sus1,Sus2,ArgInfo,ArgInfo1,ArgInfo2),
+   constant_switch(Mode,IList,ArgNo,IntList,Code1,ArgInfo1,Sus1,Cont,l(ELabel),Flag),
+   suspend_update(Sus2,abandon(ArgNo),Sus2A),
+   switch_code_next(Mode,V,Else,ArgInfo2,Sus2A,Cont,Flag).
+integer_switch_code(Mode,v(VList),[],ArgNo,Code,ArgInfo,Sus,Cont,Flag):-
+   ->
+   Code=[label(ILabel),integer_type(ArgNo,l(VarLabel)),Code1,label(VarLabel),VarCode],
+   suspend(Sus,ArgNo,VarCode,l(ILabel),Sus0),
+   arginfo_update(type(ArgNo,integer),ArgInfo,ArgInfo1),
+   suspend_update(Sus0,end(ArgNo,typed(integer)),Sus1),
+   switch_code_next(Mode,VList,Code1,ArgInfo1,Sus1,Cont,Flag).
+integer_switch_code(Mode,v(VList),V,ArgNo,Code,ArgInfo,Sus,Cont,Flag):-
+   ->
+   Code=[label(ILabel),integer_type_with_else(ArgNo,l(VarLabel),l(ElseLabel)),back(l(ElseLabel)),
+	IntCode,label(ElseLabel),Else,label(VarLabel),VarCode],
+   suspend(Sus,ArgNo,VarCode,l(ILabel),Sus0),
+   switch_split(Sus0,Sus1,Sus2,ArgInfo,ArgInfo1,ArgInfo2),
+   arginfo_update(type(ArgNo,integer),ArgInfo1,ArgInfo1A),
+   suspend_update(Sus1,end(ArgNo,typed(integer)),Sus1A),
+   switch_code_next(Mode,VList,IntCode,ArgInfo1A,Sus1A,Cont,Flag),
+   suspend_update(Sus2,abandon(ArgNo),Sus2A),
+   switch_code_next(Mode,V,Else,ArgInfo2,Sus2A,Cont,Flag).
+integer_switch_code(Mode,CV,[],ArgNo,Code,ArgInfo,Sus,Cont,Flag):-
+   Flag=first(_),CV=cv(_,_)
+   ->
+   Code=[label(ILabel),integer_type(ArgNo,l(VarLabel)),Code1,label(VarLabel)|VarCode],
+   suspend(Sus,ArgNo,VarCode,l(ILabel),Sus0),
+   arginfo_update(type(ArgNo,integer),ArgInfo,ArgInfo1),
+   suspend_update(Sus0,end(ArgNo,typed(integer)),Sus1),   
+   switch_code_next(Mode,CV,Code1,ArgInfo1,Sus1,Cont,Flag).
+integer_switch_code(Mode,cv(IList,VAList),[],ArgNo,Code,ArgInfo,Sus,Cont,Flag):-
+   Flag=second(_)
+   ->
+   Code=[label(ILabel),integer_with_integer_else_switch(ArgNo,l(VarLabel),IntList),
+         label(ELabel),IElseCode,label(VarLabel),VarCode|Code1],
+   suspend(Sus,ArgNo,VarCode,l(ILabel),Sus0),
+   switch_split(Sus0,Sus1,Sus2,ArgInfo,ArgInfo,ArgInfo1,ArgInfo2),
+   constant_switch(Mode,IList,ArgNo,IntList,Code1,ArgInfo1,Sus1,Cont,l(ELabel),Flag),
+   suspend_update(Sus2,end(ArgNo,typed(integer)),Sus2A),
+   arginfo_update(type(ArgNo,integer),ArgInfo2,ArgInfo2A),
+   switch_code_next(Mode,VAList,IElseCode,ArgInfo2A,Sus2A,Cont,Flag).
+integer_switch_code(Mode,CV,V,ArgNo,Code,ArgInfo,Sus,Cont,Flag):-
+   CV=cv(_,_)
+   ->
+   Code=[l(ILabel),integer_type_with_else(ArgNo,l(VarLabel),l(ElseLabel)),IntCode,label(ElseLabel),
+        Else,label(VarLabel),VarCode],
+   suspend(Sus,ArgNo,VarCode,l(ILabel),Sus0),
+   switch_split(Sus0,Sus1,Sus2,ArgInfo,ArgInfo1,ArgInfo2),
+   known_integer_switch(Mode,CV,ArgNo,IntCode,ArgInfo1,Sus1,l(ElseLabel),Cont),
+   suspend_update(Sus2,abandon(ArgNo),Sus2A),
+   switch_code_next(Mode,V,Else,ArgInfo2,Sus2A,Cont,Flag).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% known_integer_switch_code
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+known_integer_switch_code(Mode,c(IList),ArgNo,Code,ArgInfo,Sus,Cont,Back,Flag):-
+   ->
+   Code=[known_integer_switch(ArgNo,IntList)|Code1],
+   constant_switch(Mode,IList,ArgNo,IntList,Code1,ArgInfo,Sus,Cont,Back,Flag).
+known_integer_switch_code(Mode,v(VList),ArgNo,Code,ArgInfo,Sus,Cont,Back,Flag):-
+   ->
+   maybe_back(Back,Maybe_Back),
+   Code=[Maybe_Back|Code1],
+   suspend_update(Sus,end(ArgNo,typed(integer)),Sus1),
+   arginfo_update(type(ArgNo,integer),ArgInfo,ArgInfo1),
+   switch_code_next(Mode,VList,Code1,ArgInfo1,Sus1,Cont,Flag).
+known_integer_switch_code(Mode,CV,ArgNo,Code,ArgInfo,Sus,Cont,Back,Flag):-
+   Flag=first(_),CV=cv(_,_)
+   ->
+   maybe_back(Back,Maybe_Back),
+   Code=[Maybe_Back|Code1],
+   suspend_update(Sus,end(ArgNo,typed(integer)),Sus1),
+   arginfo_update(type(ArgNo,atom),ArgInfo,ArgInfo1),
+   switch_code_next(Mode,CV,Code1,ArgInfo1,Sus1,Cont,Flag).
+known_integer_switch_code(Mode,cv(IList,VAList),ArgNo,Code,ArgInfo,Sus,Cont,Back,Flag):-
+   Flag=second(_)
+   ->
+   maybe_back(Back,Maybe_Back),
+   Code=[known_integer_with_integer_else_switch(ArgNo,IntList),label(ELabel),Maybe_Back,
+            IElseCode|Code1],
+   switch_split(Sus,Sus2,Sus1,ArgInfo,ArgInfo1,ArgInfo2),
+   constant_switch(Mode,IList,ArgNo,IntList,Code1,ArgInfo1,Sus1,Cont,l(ELabel),Flag),
+   suspend_update(Sus2,end(ArgNo,typed(integer)),Sus2A),
+   arginfo_update(type(ArgNo,integer),ArgInfo2,ArgInfo2A),
+   switch_code_next(Mode,VAList,IElseCode,ArgInfo2A,Sus2A,Cont,Flag).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% constant_switch
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+constant_switch(_Mode,[],_ArgNo,LList,Code,_ArgInfo,Sus,_Cont,_,_):-
+   ->
+   Code=[],LList=[],suspend_end(Sus).
+constant_switch(Mode,[E|Consts],ArgNo,LList,Code,ArgInfo,Sus,Cont,Back,Flag):-
+   E=ce(X,ClList)
+   ->
+   maybe_back(Back,Maybe_Back),
+   Code=[label(Label),Maybe_Back,CCode|Code1],
+   LList=[X,l(Label)|LList1],
+   switch_split_o(E,c(Consts),Sus,Sus1,Sus2,ArgInfo,ArgInfo1,ArgInfo2),
+   arginfo_update(dead(ArgNo),ArgInfo2,ArgInfo3),
+   suspend_update(Sus1,end(ArgNo,is(X)),Sus11),
+   switch_code_next(Mode,ClList,CCode,ArgInfo3,Sus11,Cont,Flag),
+   constant_switch(Mode,Consts,ArgNo,LList1,Code1,ArgInfo1,Sus2,Cont,Back,Flag).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% list_switch_code
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+list_switch_code(Mode,L,[],ArgNo,Code,ArgInfo,Sus,Cont,Flag):-
+   ->
+   suspend(Sus,ArgNo,VarCode,l(ILabel),Sus0),
+   Code=[label(ILabel),list_switch(ArgNo,fail_dec,l(VarLabel)),ListCode,label(VarLabel)|VarCode],
+   known_list_switch_code(Mode,L,ArgNo,ListCode,ArgInfo,Sus0,Cont,fail_dec,Flag).
+list_switch_code(Mode,L,V,ArgNo,Code,ArgInfo,Sus,Cont,Flag):-
+   ->
+   suspend(Sus,ArgNo,VarCode,l(ILabel),Sus0),
+   Code=[label(ILabel),list_type_with_else(ArgNo,l(VarLabel),l(ElseLabel)),ListCode,
+         label(ElseLabel),ElseCode,label(VarLabel)|VarCode],
+   switch_split(Sus0,Sus1,Sus2,ArgInfo,ArgInfo1,ArgInfo2),
+   known_list_switch_code(Mode,L,ArgNo,ListCode,ArgInfo1,Sus1,Cont,l(ElseLabel),Flag),
+   suspend_update(Sus2,abandon(ArgNo),Sus2A),
+   switch_code_next(Mode,V,ElseCode,ArgInfo2,Sus2A,Cont,Flag).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% ln_switch_code
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+ln_switch_code(Mode,cl(NilClNo),L,ArgNo,Code,ArgInfo,Sus,Cont,Flag):-
+   ->
+   suspend(Sus,ArgNo,VarCode,l(ILabel),Sus0),   
+   Code=[label(ILabel),list_switch(ArgNo,l(NilLabel),l(VarLabel)),ListCode,
+        label(NilLabel),NilCode,label(VarLabel)|VarCode],
+   switch_split_o(L,cl(NilClNo),Sus0,Sus1,Sus2,ArgInfo,ArgInfo1,ArgInfo2),
+   known_list_switch_code(Mode,L,ArgNo,ListCode,ArgInfo1,Sus1,Cont,fail_dec,Flag),
+   arginfo_update(dead(ArgNo),ArgInfo2,ArgInfo2A),
+   suspend_update(Sus2,end(ArgNo,is(nil)),Sus2A),
+   switch_code_next(Mode,cl(NilClNo),NilCode,ArgInfo2A,Sus2A,Cont,Flag).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% known_list_switch_code
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+known_list_switch_code(Mode,list(Car,Cdr),ArgNo,Code,ArgInfo,Sus,Cont,Back,Flag):-
+   Car=t([],[],[],[],[],[],X),X=v(u(_)),Cdr=t([],[],[],[],[],[],v(u(_)))
+   ->
+   maybe_back(Back,Maybe_Back),
+   Code=[Maybe_Back|Code1],
+   suspend_update(Sus,unpack(0,ArgNo,list),Sus1),
+   arginfo_updates([type(ArgNo,list),dead(ArgNo)],ArgInfo,ArgInfo1),
+   switch_code_next(Mode,X,Code1,ArgInfo1,Sus1,Cont,Flag).
+known_list_switch_code(Mode,list(Car,Cdr),ArgNo,Code,ArgInfo,Sus,Cont,Back,Flag):-
+   Car=t([],[],[],[],[],[],v(u(_)))
+   ->
+   maybe_back(Back,Maybe_Back),
+   Code=[Maybe_Back,read_cdr(ArgNo,Reg)|Code1],
+   suspend_update(Sus,unpack(1,ArgNo,list),Sus1),
+   suspend_update(Sus1,arg(ArgNo,arg(cdr,Reg)),Sus2),
+   arginfo_updates([get_reg(Reg),cdr(ArgNo,Reg),dead(ArgNo)],ArgInfo,ArgInfo1),
+   switch_code(Mode,Cdr,Reg,Code1,ArgInfo1,Sus2,Cont,Flag).
+known_list_switch_code(Mode,list(Car,Cdr),ArgNo,Code,ArgInfo,Sus,Cont,Back,Flag):-
+   Cdr=t([],[],[],[],[],[],v(u(_)))
+   ->
+   maybe_back(Back,Maybe_Back),
+   Code=[Maybe_Back,read_car(ArgNo,Reg)|Code1],
+   suspend_update(Sus,unpack(1,ArgNo,list),Sus1),
+   suspend_update(Sus1,arg(ArgNo,arg(car,Reg)),Sus2),
+   arginfo_updates([get_reg(Reg),car(ArgNo,Reg),dead(ArgNo)],ArgInfo,ArgInfo1),
+   switch_code(Mode,Car,Reg,Code1,ArgInfo1,Sus2,Cont,Flag).
+known_list_switch_code(Mode,list(Car,Cdr),ArgNo,Code,ArgInfo,Sus,Cont,Back,Flag):-
+   ->
+   maybe_back(Back,Maybe_Back),
+   Code=[Maybe_Back|Code1],
+   best_list_arg(Car,Cdr,Best,Flag),
+   suspend_update(Sus,unpack(2,ArgNo,list),Sus1),
+   arginfo_updates([get_reg(Reg)],ArgInfo,ArgInfo1),
+   k_list_switch_code(Mode,Best,Car,Cdr,Reg,ArgNo,Code1,ArgInfo1,Sus1,Cont,Flag).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+k_list_switch_code(Mode,1,Car,Cdr,Reg,ArgNo,Code,ArgInfo,Sus,Cont,Flag):-
+   ->
+   suspend_update(Sus,arg(ArgNo,arg(car,Reg)),Sus1),
+   Code=[read_car(ArgNo,Reg)|Code1],
+   arginfo_update(car(ArgNo,Reg),ArgInfo,ArgInfo1),
+   switch_code(Mode,Car,Reg,Code1,ArgInfo1,Sus1,[list(cdr(ArgNo),Cdr)|Cont],Flag).
+k_list_switch_code(Mode,2,Car,Cdr,Reg,ArgNo,Code,ArgInfo,Sus,Cont,Flag):-
+   ->
+   suspend_update(Sus,arg(ArgNo,arg(cdr,Reg)),Sus1),
+   Code=[read_cdr(ArgNo,Reg)|Code1],
+   arginfo_update(cdr(ArgNo,Reg),ArgInfo,ArgInfo1),
+   switch_code(Mode,Cdr,Reg,Code1,ArgInfo1,Sus1,[list(car(ArgNo),Car)|Cont],Flag).
+ 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% struct_switch_code
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+struct_switch_code(Mode,S,[],ArgNo,Code,ArgInfo,Sus,Cont,Flag):-
+   ->
+   Code=[label(ILabel),struct_type(ArgNo,l(VarLabel)),Code1,label(VarLabel)|VarCode],
+   suspend(Sus,ArgNo,VarCode,l(ILabel),Sus0),   
+   known_struct_switch_code(Mode,S,ArgNo,Code1,ArgInfo,Sus0,Cont,fail_dec,Flag).
+struct_switch_code(Mode,S,V,ArgNo,Code,ArgInfo,Sus,Cont,Flag):-
+   ->
+   Code=[label(ILabel),struct_type_with_else(ArgNo,l(VarLabel),l(ElseLabel)),Code1,
+            label(ElseLabel),ElseCode,label(VarLabel)|VarCode],
+   suspend(Sus,ArgNo,VarCode,l(ILabel),Sus0),   
+   switch_split(Sus0,Sus1,Sus2,ArgInfo,ArgInfo1,ArgInfo2),
+   known_struct_switch_code(Mode,S,ArgNo,Code1,ArgInfo1,Sus1,Cont,l(ElseLabel),Flag),
+   suspend_update(Sus2,abandon(ArgNo),Sus2A),
+   switch_code_next(Mode,V,ElseCode,ArgInfo2,Sus2A,Cont,Flag).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% known_struct_switch_code  
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+known_struct_switch_code(Mode,f(S),ArgNo,Code,ArgInfo,Sus,Cont,Back,Flag):-
+   ->
+   Code=[known_functor_switch(ArgNo,FList)|Code1], 
+   functor_switch(Mode,S,ArgNo,FList,Code1,ArgInfo,Sus,Cont,Back,Flag).
+known_struct_switch_code(Mode,v(Vs),ArgNo,Code,ArgInfo,Sus,Cont,Back,Flag):-
+   ->
+   Code=[Maybe_Back|Code1],
+   maybe_back(Back,Maybe_Back),
+   arginfo_update(type(ArgNo,struct),ArgInfo,ArgInfo1),
+   suspend_update(Sus,end(ArgNo,type(struct)),Sus1),
+   switch_code_next(Mode,Vs,Code1,ArgInfo1,Sus1,Cont,Flag).
+known_struct_switch_code(Mode,VF,ArgNo,Code,ArgInfo,Sus,Cont,Back,Flag):-
+   VF=fv(_,_),Flag=first(_)
+   ->
+   maybe_back(Back,Maybe_Back),
+   Code=[Maybe_Back|Code1],
+   suspend_update(Sus,end(ArgNo,typed(struct)),Sus1),
+   arginfo_update(type(ArgNo,struct),ArgInfo,ArgInfo1),
+   switch_code_next(Mode,VF,Code1,ArgInfo1,Sus1,Cont,Flag).
+known_struct_switch_code(Mode,fv(S,Vs),ArgNo,Code,ArgInfo,Sus,Cont,Back,Flag):-
+   Flag=second(_)
+   ->
+   Code=[functor_with_functor_else_switch(ArgNo,FList),label(ELabel),Maybe_Back,Else|Code1],    
+   maybe_back(Back,Maybe_Back),
+   switch_split(Sus,Sus1,Sus2,ArgInfo,ArgInfo1,ArgInfo2),
+   functor_switch(Mode,S,ArgNo,FList,Code1,ArgInfo1,Sus1,Cont,l(ELabel),Flag),
+   arginfo_update(type(ArgNo,struct),ArgInfo2,ArgInfo2A),
+   suspend_update(Sus2,end(ArgNo,typed(struct)),Sus2A),
+   switch_code_next(Mode,Vs,Else,ArgInfo2A,Sus2A,Cont).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% functor_switch
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+functor_switch(_Mode,[],_ArgNo,FList,Code,ArgInfo,Sus,_Cont,_,_):-
+   ->
+   Code=[],FList=[],suspend_end(Sus),arginfo_end(ArgInfo).
+functor_switch(Mode,[S1|S],ArgNo,FList,Code,ArgInfo,Sus,Cont,Back,Flag):-
+   S1=s(F,A,Args)
+   ->
+   Code=[label(Label),Maybe_Back,CCode|Code1],
+   maybe_back(Back,Maybe_Back),
+   FList=[F,A,l(Label)|FList1],
+   init_struct_cont(ArgNo,Args,StructCont,Number),
+   switch_split_o(S1,f(S),Sus,Sus1,Sus2,ArgInfo,ArgInfo1,ArgInfo2),
+   best_struct_arg(StructCont,BestCt,BestArg,StructCont1,Flag),
+   suspend_update(Sus1,unpack(Number,ArgNo,struct(F,A)),Sus1A),
+   functor_switch1(S1,BestCt,BestArg,Mode,ArgNo,CCode,ArgInfo1,Sus1A,Cont,Flag,StructCont1,F,A),
+   functor_switch(Mode,S,ArgNo,FList1,Code1,ArgInfo2,Sus2,Cont,Back,Flag).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+functor_switch1(S1,[],_BestArg,Mode,ArgNo,Code,ArgInfo,Sus,Cont,Flag,_,F,A):-
+  ->
+  arginfo_updates([type(ArgNo,struct(F,A)),dead(ArgNo)],ArgInfo,ArgInfo1),
+  switch_code_next(Mode,S1,Code,ArgInfo1,Sus,Cont,Flag).
+functor_switch1(_,BestCt,BestArg,Mode,ArgNo,Code,ArgInfo,Sus,Cont,Flag,StructCont,_,_):-
+   ->
+   suspend_update(Sus,arg(ArgNo,arg(BestCt,Reg)),Sus1),
+   arginfo_updates([get_reg(Reg),arg(ArgNo,BestCt,Reg)],ArgInfo,ArgInfo1),
+   Code=[read_arg(ArgNo,BestCt,Reg)|Code1],
+   maybe_add_struct_cont(StructCont,Cont,Cont1,ArgInfo1,ArgInfo2,ArgNo),
+   switch_code(Mode,BestArg,Reg,Code1,ArgInfo2,Sus1,Cont1,Flag).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+maybe_add_struct_cont([],Cont,Cont1,AI1,AI2,ArgNo):- 
+    -> 
+    Cont1=Cont,
+    arginfo_update(dead(ArgNo),AI1,AI2).
+maybe_add_struct_cont(S,Cont,Cont1,AI1,AI2,_):-  -> Cont1=[S|Cont],AI1=AI2.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% known_gen_switch
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+known_gen_switch(Mode,v(Vs),ArgNo,Code,ArgInfo,Sus,Cont,Back,Flag):-
+   ->
+   Code=[Maybe_Back|Code1],
+   maybe_back(Back,Maybe_Back),
+   arginfo_updates([type(ArgNo,gen),dead(ArgNo)],ArgInfo,ArgInfo1),
+   suspend_update(Sus,end(ArgNo,typed(gen)),Sus1),
+   switch_code_next(Mode,Vs,Code1,ArgInfo1,Sus1,Cont,Flag).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% switch_split
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+switch_split_o(A,B,Sus,Sus1,Sus2,ArgInfo,ArgInfo1,ArgInfo2):-
+   ->
+   extract_one_clno(A,no,A1),extract_one_clno(B,no,B1),
+   switch_split_o1(A1,B1,Sus,Sus1,Sus2,ArgInfo,ArgInfo1,ArgInfo2).
+
+switch_split_o1(_A1,no,Sus,Sus1,Sus2,ArgInfo,ArgInfo1,ArgInfo2):-	
+   ->
+   switch_split(Sus,Sus1,Sus2,ArgInfo,ArgInfo1,ArgInfo2).
+switch_split_o1(A1,B1,Sus,Sus1,Sus2,ArgInfo,ArgInfo1,ArgInfo2):-	
+   A1<B1
+   ->
+   switch_split(Sus,Sus1,Sus2,ArgInfo,ArgInfo1,ArgInfo2).
+switch_split_o1(A1,B1,Sus,Sus1,Sus2,ArgInfo,ArgInfo1,ArgInfo2):-	
+   A1>B1
+   ->
+   switch_split(Sus,Sus2,Sus1,ArgInfo,ArgInfo2,ArgInfo1).
+  
+switch_split(sus(Sus),Sus1,Sus2,ArgInfo,ArgInfo1,ArgInfo2):-
+   ->
+   Sus=[Sus1X|Sus2X],
+   Sus1=sus(Sus1X),Sus2=sus(Sus2X),
+   arginfo_split(ArgInfo,ArgInfo1,ArgInfo2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%   SUSPEND NODE
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+suspend(no,ArgNo,VarCode,ILabel,Sus):-
+    ->
+    Sus=sus(Sus0),
+    suspend_node(Sus0,ArgNo,VarCode,ILabel).
+suspend(sus(Sus),ArgNo,VarCode,ILabel,Sus1):-
+    ->
+    suspend_update(sus(Sus),internal(ArgNo,Internal),Sus1),
+    Sus1=sus(Sus2),
+    int_suspend_node(Sus2,Internal,ArgNo,VarCode,ILabel).
+
+
+suspend_node_end(no,ClSet,_Code):-      -> error(suspend_node_end(ClSet)).
+suspend_node_end(sus(Sus),ClSet,Code):- -> Code=label(Label),Sus=end(ClSet,l(Label)).
+
+suspend_end(sus(Sus)):- -> Sus=[].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% suspend_update(SusIn,ArgNo,What,SusOut)
+%%%%                   What= end(ArgNo,typed(X)) {X=integer,atom,gen,struct}
+%%%%                   What= end(ArgNo,is(X))    {X=integer(I),atom(A),nil}
+%%%%                   What= unpack(ArgNo,list)
+%%%%                   What= unpack(ArgNo,struct(F,A))
+%%%%                   What= abandon(ArgNo)
+%%%%                   What= arg(ArgNo,arg(X,Reg))     {X=car,cdr,INTEGER}
+%%%%                   What= up(ContLabel)
+%%%%                   What= internal(Reg,Internal)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+suspend_update(sus(Sus),X,Sus1):- -> Sus=node(X,Sus0),Sus1=sus(Sus0).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%   ARGINFO
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% arginfo_initialize
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+arginfo_initialize(Arity,ArgInfo):-
+    ->
+    mul(Arity,2,Size),
+    ArgInfo=arginfo(A,max(Arity,Size),[]),
+    functor(A,arginfo,Size),
+    arginfo_init(Arity,A).
+ 
+arginfo_init(0,_Array):- -> true.
+arginfo_init(N,Array):- N>0 -> arg(N,Array,t(init,no,live)),dec(N,N1),arginfo_init(N1,Array).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% arginfo_split
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+arginfo_split(ArgInfo,ArgInfo1,ArgInfo2):-
+   ->
+   ArgInfo1=ArgInfo,
+   arginfo_copy(ArgInfo,ArgInfo2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+arginfo_copy(ArgInfo,ArgInfo1):- -> ArgInfo=ArgInfo1.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% arginfo_next
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+arginfo_next(arginfo(A,M,_H),Out):- -> Out=arginfo(A,M,[]).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% accessing
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+arginfo_get_current_max(arginfo(_,max(M,_),_),Out):- -> Out=M.
+
+arginfo_get_history(arginfo(_,_,History),Out):-      -> Out=History.
+
+arginfo_get_arg(Reg,arginfo(A,_,_),Arg):-            -> arg(Reg,A,Arg).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% arginfo_make_live
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+arginfo_make_live([],ArgInfo,ArgInfo1):- -> ArgInfo=ArgInfo1.
+arginfo_make_live(List,arginfo(Array,M,H),ArgInfo1):- 
+   -> 
+   ArgInfo1=arginfo(NArray,M,H),
+   arginfo_make_live1(List,Array,NArray).
+
+arginfo_make_live1([],Array,NArray):- -> Array=NArray.
+arginfo_make_live1([X|Xs],Array,NArray):- 
+   -> 
+   arg(X,Array,t(Source,Type,Live)),
+   error_if_not_equal(Live,dead,arginfo_make_live1),
+   my_set_arg(X,Array,t(Source,Type,live),Array1),
+   arginfo_make_live1(Xs,Array1,NArray).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% arginfo_end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+arginfo_end(_ArgInfo):- -> true.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% arginfo_is_typed
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+arginfo_is_typed(ArgNo,arginfo(I,_,_),Type):-
+   arg(ArgNo,I,t(_,Type,_)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% arginfo_updates
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+arginfo_updates([],ArgInfo,ArgInfoX):- -> ArgInfo=ArgInfoX.
+arginfo_updates([X|Xs],ArgInfo,ArgInfoX):-
+  ->
+  arginfo_update(X,ArgInfo,ArgInfo1),
+  arginfo_updates(Xs,ArgInfo1,ArgInfoX).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% arginfo_live_regs
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+arginfo_live_regs(arginfo(A,max(M,_),_),Live):- -> 
+   arginfo_live(1,M,A,Live).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+arginfo_live(N,M,_A,Live):- N>M -> Live=[].
+arginfo_live(N,M,A,Live):- 
+   ->
+   arg(N,A,t(_,_,Dead)),
+   arginfo_live2(Dead,N,M,A,Live).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+arginfo_live2(dead,N,M,A,Live):-
+   ->
+   inc(N,N1),
+   arginfo_live(N1,M,A,Live).
+arginfo_live2(live,N,M,A,Live):-
+   ->
+   inc(N,N1),Live=[N|Live1],
+   arginfo_live(N1,M,A,Live1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% arginfo_regs_depend_with_reg arginfo_regs_depend_without_reg
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+arginfo_regs_depend_with_reg(Regs,arginfo(A,_,_),Depend):-
+   ->
+   app(Regs,D,D1),
+   arginfo_regs_depend(Regs,A,D,[]),
+   qsort_rem_dupl(D1,Depend).
+
+arginfo_regs_depend_without_reg(Regs,arginfo(A,_,_),Depend):-
+   ->
+   arginfo_regs_depend(Regs,A,D,[]),
+   qsort_rem_dupl(D,Depend).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+arginfo_regs_depend([],_A,B,E):- -> B=E.
+arginfo_regs_depend([R|Regs],A,B,E):-
+    ->
+   arg(R,A,t(Source,_,_)),
+   reg_depend(Source,B,B1),
+   arginfo_regs_depend(Regs,A,B1,E).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+reg_depend(init,B,E):-                    -> B=E.
+reg_depend(car(ArgNo,Source),B,E):-    -> B=[ArgNo|B1],reg_depend(Source,B1,E).
+reg_depend(cdr(ArgNo,Source),B,E):-    -> B=[ArgNo|B1],reg_depend(Source,B1,E).
+reg_depend(arg(ArgNo,_,Source),B,E):-  -> B=[ArgNo|B1],reg_depend(Source,B1,E).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%xe%%%%%%%%%%%%%%%%%
+%%%% arginfo_update
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+arginfo_update(X,arginfo(A,max(M,M),H),ArgInfo1):-
+  X=get_reg(_)
+  ->
+  mul(M,2,Size),
+  functor(Array,arginfo,Size),
+  copy_array(1,M,A,Array),
+  arginfo_update(X,arginfo(Array,max(M,Size),H),ArgInfo1).
+arginfo_update(get_reg(Reg),arginfo(A,max(M,MMax),H),ArgInfo1):-
+  ->
+  inc(M,Reg),
+  ArgInfo1=arginfo(A,max(Reg,MMax),H).
+arginfo_update(Else,arginfo(Info,M,H),ArgInfo1):-
+  ->
+  ArgInfo1=arginfo(Info1,M,[Else|H]),
+  arginfo_update1(Else,Info,Info1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+arginfo_update1(cdr(ArgNo,Cdr),Info,Info1):-
+  ->
+  arg(ArgNo,Info,t(Source,_,Dead)),
+  error_if_not_equal(Dead,live,arginfo_update),
+  my_set_arg(Cdr,Info,t(cdr(ArgNo,Source),no,live),Info1).
+arginfo_update1(car(ArgNo,Car),Info,Info1):-
+  ->
+  arg(ArgNo,Info,t(Source,_,Dead)),
+  error_if_not_equal(Dead,live,arginfo_update),
+  my_set_arg(Car,Info,t(car(ArgNo,Source),no,live),Info1).
+arginfo_update1(arg(ArgNo,Index,Sub),Info,Info1):-
+  ->
+  arg(ArgNo,Info,t(Source,_,Live)),
+  error_if_not_equal(Live,live,arginfo_update),
+  my_set_arg(Sub,Info,t(arg(ArgNo,Index,Source),no,live),Info1).
+arginfo_update1(type(ArgNo,Type),Info,Info1):-
+  ->
+  arg(ArgNo,Info,t(Source,T,Dead)),
+  error_if_not_equal(T,no,arginfo_update),
+  error_if_not_equal(Dead,live,arginfo_update),
+  my_set_arg(ArgNo,Info,t(Source,Type,Dead),Info1).
+arginfo_update1(dead(ArgNo),Info,Info1):-
+  ->
+  arg(ArgNo,Info,t(Source,T,Live)),
+  error_if_not_equal(Live,live,arginfo_update),
+  my_set_arg(ArgNo,Info,t(Source,T,dead),Info1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%    MISC
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% init_struct_cont
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+init_struct_cont(ArgNo,Args,StructCont,Number):-
+   -> 
+   StructCont=struct(ArgNo,List),
+   init_struct_cont1(1,Args,List,0,Number).
+
+%%%%
+
+init_struct_cont1(_Ct,[],List,N,N1):- -> List=[],N=N1.
+init_struct_cont1(Ct,[t([],[],[],[],[],[],v(u(_)))|Xs],List,N,N1):-
+   ->
+   inc(Ct,Ct1),
+   init_struct_cont1(Ct1,Xs,List,N,N1).
+init_struct_cont1(Ct,[A|Xs],List,N,N1):-
+   ->
+   inc(N,N2),
+   List=[p(Ct,A)|List1],inc(Ct,Ct1),
+   init_struct_cont1(Ct1,Xs,List1,N2,N1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% best_struct_arg
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+best_struct_arg(struct(_,[]),BestCt,BestArg,Out,_Flag):-                -> Out=[],BestCt=[],BestArg=[].
+best_struct_arg(struct(_,[p(Ct,Arg)]),BestCt,BestArg,Out,_Flag):-       -> Out=[],BestCt=Ct,BestArg=Arg.
+best_struct_arg(struct(ArgNo,List),BestCt,BestArg,Out,Flag):- 
+    -> 
+    Out=struct(ArgNo,NList),
+    analyze_internal(Flag,List,BestCt,BestArg,NList).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%% best_list_arg
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+best_list_arg(Car,Cdr,Ct,Flag):-
+   ->
+   main_analyze_arg(Car,Flag,CarN),
+   main_analyze_arg(Cdr,Flag,CdrN),
+   best_list_arg2(CarN,CdrN,Ct).
+
+best_list_arg2(CarN,CdrN,Ct):-   CarN >= CdrN   ->   Ct=1.
+best_list_arg2(_,_,Ct):-                        ->   Ct=2.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% join_nil
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+join_nil(X,[],A1):-
+   ->
+   A1=X.
+join_nil([],cl(NilClNo),A1):-
+   ->
+   A1=c([ce(atom(nil),cl(NilClNo))]).
+join_nil(c(Cs),cl(NilClNo),A1):-
+   ->
+   A1=c([ce(atom(nil),cl(NilClNo))|Cs]).
+join_nil(cv(Cs,Vs),cl(NilClNo),A1):-
+   ->
+   A1=cv([ce(atom(nil),cl(NilClNo))|Cs],Vs).
+join_nil(v(Vs),cl(NilClNo),A1):-
+   ->
+   A1=cv([ce(atom(nil),cl(NilClNo))],Vs).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% maybe_back
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+maybe_back(fail_dec,Code):- -> Code=[].
+maybe_back(Label,Code):-    -> Code=back(Label).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%   ATTENTION
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+my_set_arg(ArgNo,Array,ToBe,Array1):-
+   ->
+   functor(Array,F,A),
+   functor(Array1,F,A),
+   arg(ArgNo,Array1,ToBe),
+   dec(ArgNo,X),inc(ArgNo,Y),
+   copy_array(1,X,Array,Array1),
+   copy_array(Y,A,Array,Array1).
+
+copy_array(ArgNo,Limit,_Array,_Array1):- ArgNo>Limit -> true.
+copy_array(ArgNo,Limit,Array,Array1):- 
+   -> 
+   arg(ArgNo,Array,X),
+   arg(ArgNo,Array1,X),
+   inc(ArgNo,ArgNo1),
+   copy_array(ArgNo1,Limit,Array,Array1).

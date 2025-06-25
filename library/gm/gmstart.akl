@@ -1,0 +1,41 @@
+/**************************************************************************
+				START
+ *************************************************************************/
+
+gmstart(GM) :-
+    ->	gmstart(local, GM).
+gmstart(Host, GM) :-
+    ->	gmstart(Host, '', GM).
+gmstart(Host, User, GM) :-
+    ->	gm_start(Host, User, ProcID, Socket),	% Start gm process
+	new_hash_table(DB),			% Open database handler
+	gmio_open(DB, M, ProcID, Socket),	% Open io handler
+	gm_open(M, GM).				% Open gm handler
+
+gm_open(M, GM) :-
+	open_port(GM, Req),
+	gmhandle(Req, M).
+
+gmhandle([], _):-
+    ->	true.
+gmhandle([Req|Reqs], M) :- 
+	data(M)
+    ->	gmhandle_one(Req)-M,
+	gmhandle(Reqs, M).
+
+
+gmhandle_one(create(Def,Obj))-M :- ->		% create(+,-)
+	gmcreate(Def, _, noname, Obj)-M.
+
+gmhandle_one(nextevent(E))-M :- ->		% nextevent(-)
+	gmnextevent(E)-M.
+
+gmhandle_one(waitevent(E))-M :- ->		% waitevent(-)
+	gmwaitevent(E)-M.
+
+gmhandle_one(message(Message, Object))-M :- ->	% message(+, +)
+	gmsend(Object, Message)-M.
+
+gmhandle_one(sync(Flag))-M :- ->
+	sync(Flag)@M.
+

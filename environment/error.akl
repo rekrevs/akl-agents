@@ -1,0 +1,18 @@
+domain_error(Goal, ArgNo, Expected) :-
+    ->	arg(ArgNo, Goal, Culprit),
+	stderr(Stderr0),
+	format('{DOMAIN ERROR: ~q - arg ~d: expected ~a, found ~q}~n',
+	       [Goal, ArgNo, Expected, Culprit],
+	       Stderr0, Stderr),
+	error_fail(Stderr).
+
+permission_error(Goal, Operation, ObjectType, Culprit, Message) :-
+    ->	stderr(Stderr0),
+	format('{PERMISSION ERROR: ~q - cannot ~a ~a ~q - ~a}~n',
+	       [Goal, Operation, ObjectType, Culprit, Message],
+	       Stderr0, Stderr),
+	error_fail(Stderr).
+
+error_fail(Stream) :-
+	port(Stream) ->
+	fail.

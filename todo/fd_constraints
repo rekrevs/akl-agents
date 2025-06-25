@@ -1,0 +1,5 @@
+$Id: fd_constraints,v 1.2 1993/06/07 11:02:41 sverker Exp $
+
+Being taken care of by bjornc.
+Compatibility with the new constraint mechanisms
+and with the tagged pointer version remain.

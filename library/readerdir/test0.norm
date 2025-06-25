@@ -1,0 +1,29 @@
+%--- entries([])
+
+%--definition(info_args/5,quiet-condition,no_of_clauses(2))
+%--predhead:info_args(A,B,C,D,E)
+info_args(F,G,H,I,J) :- 
+        (F = [])
+    ->  ((J = I),
+        ((K = []),
+        (H = K))).
+info_args(L,M,N,O,P) :- 
+        (L = [Q|R])
+    ->  ((P = S),
+        (info_arg(Q,M,T,O,U),
+        ((V = [T|W]),
+        ((N = V),
+        info_args(R,M,W,U,S))))).
+
+%--definition(info_arg/5,quiet-condition,no_of_clauses(2))
+%--predhead:info_arg(X,Y,Z,AA,AB)
+info_arg(AC,AD,AE,AF,AG) :- 
+        get_assoc(AC,AH,AD,AI)
+    ->  ((AG = AJ),
+        ((AF = value(AH)),
+        ((AE = AF),
+        not_bottom(AH,AF,AJ)))).
+info_arg(AK,AL,AM,AN,AO) :- 
+    ->  ((AO = AN),
+        ((AP = var(AK)),
+        (AM = AP))).

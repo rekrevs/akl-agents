@@ -1,0 +1,251 @@
+% File: 	fskel.akl
+% Author: 	Anders Andersson
+% Purpose:      Driver program for lexical analyser
+
+new_listLex(D, _, L, O) :-
+    ->  new_listlex(D, _, L, P),
+	get(T,S)@P,
+	build_token_list(T, S, P, O).
+
+build_token_list(-1, _, _, O) :-
+    ->	O = [].
+build_token_list(T, S, P, O) :-
+	data(T)
+    ->  [T-S]-O,
+	get(NewT, NewS)@P,
+	build_token_list(NewT, NewS, P, O).
+
+% Create a lexer with a dfa, user data U, that reads characters from List 
+% return a port to ask for tokens
+new_listlex(dfa(StartState, NextT, CheckT, XltState), _, List, Port) :-
+    ->	open_port(Lex, LexStream),
+	open_port(Port, ExtStream),
+	newline(NL),
+	accept(NL)@Lex,
+	ext_lex(ExtStream, Lex, List, -1, _, StartState, XltState,
+	    _, NextT, CheckT, LexStream).
+
+ext_lex([get(Token, Value)|Cmds], Lex, List, PFCh, Stream, StartState, 
+        XltState, LastMatch, NextT, CheckT, LexStream) :-
+    ->	lex(LexStream, Lex, List, PFCh, Stream, Token, Value, StartState, 
+                   XltState, LastMatch, NextT, CheckT, Cmds).
+ext_lex([begin(S)|Cmds], Lex, List, PFCh, Stream, _, 
+        XltState, LastMatch, NextT, CheckT, LexStream) :-
+    ->	XltState(S, StartState),
+	ext_lex(Cmds, Lex, List, PFCh, Stream, StartState, 
+             XltState, LastMatch, NextT, CheckT, LexStream).
+ext_lex([], _, _, _, _, _, _, _, _, _, _) :-
+    ->  true.
+	 
+% Create a lexer with dfa D, user data U, that reads characters from Stream 
+% return a port to ask for tokens
+new_lex(dfa(StartState, NextT, CheckT, XltState), 
+	      _, Stream, Port) :-
+    ->	open_port(Lex, LexStream),
+	open_port(Port, ExtStream),
+	newline(NL),
+	accept(NL)@Lex,
+	getc(Ch)@Stream,
+	ext_lex(ExtStream, Lex, [], Ch, Stream, StartState, XltState,
+	    _, NextT, CheckT, LexStream). 
+
+newline(X) :- 
+    ->	X = [10].
+
+% The lex object responds to several messages...
+% User-only actions:
+%   token/1     - return given token, no semantic value
+%   token/2     - return given token and semantic value
+%   begin/1     - change the start condition i.e. the group of rules
+%   unget/1     - put given list of characters first on the input
+% Special matching actions (user probably won't want them)
+%   match/2     - given a starting state no, check if it would match. 
+%                 Second arg is bound to true/false accordingly
+%   at_bol/1    - check if last match ended with a newline, returns true/false
+%   at_eol/1    - check if remaining input starts with a newline
+%   at_eof/1    - check if the next char is end of file, returns true/false
+% For internal use only:
+%   accept/1    - given a list of chars, log them as the last match and
+%                 get the next token
+%   backtrack/1 - given a list of chars, put them on the input and match
+%                 the longest prefix shorter than that list
+lex([token(T)|Cmds], Self, List, PFCh, Stream, RT, _, StartState, XltState, 
+	LastMatch, NextT, CheckT, ExtStream) :- 
+    ->	RT = T,
+	ext_lex(ExtStream, Self, List, PFCh, Stream, StartState, XltState, 
+	    LastMatch, NextT, CheckT, Cmds).
+lex([token(T,S)|Cmds], Self, List, PFCh, Stream, RT, RS, StartState, XltState, 
+	LastMatch, NextT, CheckT, ExtStream) :- 
+    ->	RT = T,
+	RS = S,
+	ext_lex(ExtStream, Self, List, PFCh, Stream, StartState, XltState, 
+	    LastMatch, NextT, CheckT, Cmds).
+lex([begin(S)|Cmds], Self, List, PFCh, Stream, RT, RS, _, XltState,
+	LastMatch, NextT, CheckT, ExtStream) :- 
+    ->	XltState(S, StartState),
+	lex(Cmds, Self, List, PFCh, Stream, RT, RS, StartState, XltState, 
+	    LastMatch, NextT, CheckT, ExtStream).
+lex([unget(L)|Cmds], Self, OldList, PFCh, Stream, RT, RS, StartState, XltState,
+	LastMatch, NextT, CheckT, ExtStream) :- 
+    ->	fappend(L, OldList, List),
+	lex(Cmds, Self, List, PFCh, Stream, RT, RS, StartState, XltState, 
+	    LastMatch, NextT, CheckT, ExtStream).
+lex([match(State, Result)|Cmds], Self, List, PFCh, Stream, RT, RS, StartState, 
+	XltState, LastMatch, NextT, CheckT, ExtStream) :-
+    ->	lfmatch(List, State, Stream, NextT, CheckT, Token, R, PFCh),
+	R = result(NewList, NewPFCh, NewStream, EndState),
+	sub(EndState, 2, Offset),
+	arg(Offset, CheckT, Act),
+	check_accept(Act, Result),
+	fappend(Token, NewList, FinalList),
+	lex(Cmds, Self, FinalList, NewPFCh, NewStream, RT, RS, StartState, 
+	    XltState, LastMatch, NextT, CheckT, ExtStream).
+lex([at_bol(Result)|Cmds], Self, List, PFCh, Stream, RT, RS, StartState, 
+	XltState, LastMatch, NextT, CheckT, ExtStream) :- 
+    ->	at_bol(LastMatch, Result),
+	lex(Cmds, Self, List, PFCh, Stream, RT, RS, StartState, XltState, 
+	    LastMatch, NextT, CheckT, ExtStream).
+lex([at_eol(Result)|Cmds], Self, List, PFCh, Stream, RT, RS, StartState, 
+	XltState, LastMatch, NextT, CheckT, ExtStream) :- 
+    ->	at_eol(Result)-List-PFCh-Stream,
+	lex(Cmds, Self, List, PFCh, Stream, RT, RS, StartState, XltState, 
+	    LastMatch, NextT, CheckT, ExtStream).
+lex([at_eof(Result)|Cmds], Self, List, PFCh, Stream, RT, RS, StartState, 
+	XltState, LastMatch, NextT, CheckT, ExtStream) :- 
+    ->	at_eof(List, PFCh, Result),
+	lex(Cmds, Self, List, PFCh, Stream, RT, RS, StartState, XltState, 
+	    LastMatch, NextT, CheckT, ExtStream).
+lex([accept(_)|_], _, [], -1, _, RT, RS, _, _, _, _,_, _):-
+    ->	RT = -1,
+	RS = [-1].
+lex([accept(LastMatch)|Cmds], Self, List, PFCh, Stream, RT, RS, StartState, 
+	XltState, _, NextT, CheckT, ExtStream) :-
+    ->	lfmatch(List, StartState, Stream, NextT, CheckT, Token, R, PFCh),
+	R = result(NewList, NewPFCh, NewStream, EndState),
+	sub(EndState, 2, Offset),
+	arg(Offset, CheckT, Action),
+	Action(Token, Self, Self1),
+	lex(Cmds, Self1, NewList, NewPFCh, NewStream, RT, RS, StartState, 
+	    XltState, LastMatch, NextT, CheckT, ExtStream).
+lex([backtrack(Match)|Cmds], Self, List, PFCh, Stream, RT, RS, StartState, 
+	XltState, LastMatch, NextT, CheckT, ExtStream) :-
+    ->	smatch(Match, StartState, [], NextT, CheckT, [], R),
+	R = [_,State|States]-[Ch|RToken], % NB: single char match can't backtr.
+	backtrack(State, States, RToken, [Ch|List], CheckT, 
+	          Token, List1, Action),
+	Action(Token, Self, Self1),
+	lex(Cmds, Self1, List1, PFCh, Stream, RT, RS, StartState, 
+	    XltState, LastMatch, NextT, CheckT, ExtStream).
+
+check_accept(act_fail, Result) :- 
+    ->	Result = 'false'.
+check_accept(_, Result) :-
+    ->	Result = 'true'.
+
+% Must be modified/inserted for each environment for portability
+% Current version is Unix and the like (<LF> termination)
+at_bol(LastMatch, Result) :-
+	last(LastMatch, 10)
+    ->	Result = 'true'.
+at_bol(_, Result) :-
+    ->	Result = 'false'.
+
+% Must be modified/inserted for each environment for portability
+% Current version is Unix and the like (<LF> termination)
+at_eol(Result)-List-PFCh-_Stream :-
+	List = [], 
+	PFCh = 10
+    ->	Result = 'true'.
+at_eol(Result)-List-_PFCh-_Stream :-
+	List = [10|_]
+    ->	Result = 'true'.
+at_eol(Result)-_List-_PFCh-_Stream :-
+    ->	Result = 'false'.
+
+at_eof([], -1, Result) :-
+    ->	Result = 'true'.
+at_eof(_, _, Result) :-
+    ->	Result = 'false'.
+
+% Run the DFA on the stream
+fmatch(Ch, State, Input, NextT, CheckT, Token, R) :-
+	add(State, Ch, Offset),
+	arg(Offset, CheckT, State)
+    ->	arg(Offset, NextT, NextState),
+	getc(NextCh)@Input,
+	Token = [Ch|Token1],
+	fmatch(NextCh, NextState, Input, NextT, CheckT, Token1, R).
+fmatch(Ch, State, Input,  NextT, CheckT, Token, R) :-
+	sub(State, 2, DefOffset),
+	arg(DefOffset, NextT, DefState),
+	add(DefState, Ch, Offset),
+	arg(Offset, CheckT, DefState)
+    ->  arg(Offset, NextT, NextState),
+	getc(NextCh)@Input,
+	Token = [Ch|Token1],
+	fmatch(NextCh, NextState, Input, NextT, CheckT, Token1, R).
+fmatch(Ch, State, Input, _, _, Token, R) :-
+    ->  R = result([], Ch, Input, State),
+	Token = [].
+
+% Run the DFA on the list, then the stream
+lfmatch([Ch|Rest], State, Input, NextT, CheckT, Token, R, PFCh) :-
+	add(State, Ch, Offset),
+	arg(Offset, CheckT, State)
+    ->	arg(Offset, NextT, NextState),
+	Token = [Ch|Token1],
+	lfmatch(Rest, NextState, Input, NextT, CheckT, Token1, R, PFCh).
+lfmatch([Ch|Rest], State, Input,  NextT, CheckT, Token, R, PFCh) :-
+	sub(State, 2, DefOffset),
+	arg(DefOffset, NextT, DefState),
+	add(DefState, Ch, Offset),
+	arg(Offset, CheckT, DefState)
+    ->  arg(Offset, NextT, NextState),
+	Token = [Ch|Token1],
+	lfmatch(Rest, NextState, Input, NextT, CheckT, Token1, R, PFCh).
+lfmatch([Ch|Rest], State, Input,  _, _, Token, R, PFCh) :-
+    ->  R = result([Ch|Rest], PFCh, Input, State),
+	Token = [].
+lfmatch([], State, Input,  NextT, CheckT, Token, R, PFCh) :-
+    ->	fmatch(PFCh, State, Input,  NextT, CheckT, Token, R).
+
+% Run the DFA on list and build info needed for backtrack
+smatch([Ch|Rest], State, States, NextT, CheckT, RToken, R) :-
+	add(State, Ch, Offset),
+ 	arg(Offset, CheckT, State)
+    ->	arg(Offset, NextT, NextState),
+ 	smatch(Rest, NextState, [NextState|States], NextT, CheckT,
+ 	       [Ch|RToken], R).
+smatch([Ch|Rest], State, States, NextT, CheckT, RToken, R) :-
+	sub(State, 2, DefOffset),
+	arg(DefOffset, NextT, DefState),
+	add(DefState, Ch, Offset),
+	arg(Offset, CheckT, DefState)
+    ->  arg(Offset, NextT, NextState),
+	smatch(Rest, NextState, [NextState|States], NextT, CheckT, 
+	       [Ch|RToken], R).
+smatch([], _, States, _, _, RToken, R) :-
+    ->	R = States-RToken.
+
+% Given a stack of passed states and a stack of read chars, find the last
+% action that may be accepting and the string matched.
+backtrack(State, _, RTok, List, CheckT, Token, NewList, Action) :-
+    	sub(State,2,Offset),
+	arg(Offset, CheckT, Act)
+%	Act \== act_fail               No longer works...
+%       atom_not_equal(Act, act_fail)
+    ->  reverse(RTok, Token),
+	NewList = List,
+	Action = Act.
+backtrack(_, [State|States], [Ch|RTok], List, CheckT, Tok, NewL, Action) :-
+    ->	backtrack(State, States, RTok, [Ch|List], CheckT, Tok, NewL, Action).
+
+act_fail(Token)-Lex :-
+    ->  backtrack(Token)@Lex.
+
+
+
+
+
+
+

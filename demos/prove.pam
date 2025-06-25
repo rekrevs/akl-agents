@@ -1,0 +1,273 @@
+predicate('prove'/1
+label(13)
+	switch_on_term(17,15,21,21,21,21,16)
+label(15)
+	switch_on_constant(1,[('true',18)],21)
+label(16)
+	switch_on_structure(2,[(','/2,19),('='/2,20)],21)
+label(17)
+	try(0)
+	retry(1)
+	retry(2)
+	retry(3)
+	retry(4)
+	trust(5)
+label(18)
+	try(0)
+	retry(3)
+	retry(4)
+	trust(5)
+label(19)
+	try(1)
+	retry(3)
+	retry(4)
+	trust(5)
+label(20)
+	try(2)
+	retry(3)
+	retry(4)
+	trust(5)
+label(21)
+	try(3)
+	retry(4)
+	trust(5)
+label(0)
+	allocate(0)
+	get_constant('true',0)
+    guard_commit
+	dealloc_proceed
+label(1)
+	allocate(2)
+	get_structure_x0(','/2)
+	unify_y_variable(1)
+	unify_y_variable(0)
+    guard_commit
+	put_y_value(1,0)
+	call('prove'/1)
+	put_y_value(0,0)
+	dealloc_execute('prove'/1)
+label(2)
+	allocate(2)
+	get_structure_x0('='/2)
+	unify_y_variable(1)
+	unify_y_variable(0)
+    guard_commit
+	put_y_value(1,1)
+	get_y_value(0,1)
+	dealloc_proceed
+label(3)
+	allocate(1)
+	get_y_variable(0,0)
+	put_constant('wait',1)
+	put_y_value(0,0)
+	call('guard'/2)
+    guard_commit
+	put_y_value(0,0)
+	dealloc_execute('wait_prove'/1)
+label(4)
+	allocate(1)
+	get_y_variable(0,0)
+	put_constant('conditional',1)
+	put_y_value(0,0)
+	call('guard'/2)
+    guard_commit
+	put_y_value(0,0)
+	dealloc_execute('conditonal_prove'/1)
+label(5)
+	allocate(1)
+	get_y_variable(0,0)
+	put_constant('commit',1)
+	put_y_value(0,0)
+	call('guard'/2)
+    guard_commit
+	put_y_value(0,0)
+	dealloc_execute('commit_prove'/1)
+)
+
+
+predicate('wait_prove'/1
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(2)
+	get_x_variable(3,0)
+	put_x_value(3,0)
+	put_y_variable(1,1)
+	put_y_variable(0,2)
+	call('clause'/3)
+	put_y_value(1,0)
+	call('prove'/1)
+    guard_wait
+	put_y_value(0,0)
+	dealloc_execute('prove'/1)
+)
+
+
+predicate('conditional_prove'/1
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(2)
+	get_x_variable(3,0)
+	put_x_value(3,0)
+	put_y_variable(1,1)
+	put_y_variable(0,2)
+	call('clause'/3)
+	put_y_value(1,0)
+	call('prove'/1)
+    guard_cond
+	put_y_value(0,0)
+	dealloc_execute('prove'/1)
+)
+
+
+predicate('commit_prove'/1
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(2)
+	get_x_variable(3,0)
+	put_x_value(3,0)
+	put_y_variable(1,1)
+	put_y_variable(0,2)
+	call('clause'/3)
+	put_y_value(1,0)
+	call('prove'/1)
+    guard_commit
+	put_y_value(0,0)
+	dealloc_execute('prove'/1)
+)
+
+
+predicate('guard'/2
+label(5)
+	switch_on_term(10,7,7,7,7,7,8)
+label(8)
+	switch_on_structure(2,[('app'/3,11),('nreverse'/2,9)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(0)
+	get_structure_x0('nreverse'/2)
+	unify_void
+	unify_void
+	get_constant('commit',1)
+    guard_commit
+	dealloc_proceed
+label(1)
+	allocate(0)
+	get_structure_x0('app'/3)
+	unify_void
+	unify_void
+	unify_void
+	get_constant('wait',1)
+    guard_commit
+	dealloc_proceed
+)
+
+
+predicate('clause'/3
+label(9)
+	switch_on_term(14,11,11,11,11,11,12)
+label(12)
+	switch_on_structure(2,[('app'/3,15),('nreverse'/2,13)],11)
+label(11)
+	fail
+label(13)
+	try(0)
+	trust(1)
+label(14)
+	try(0)
+	retry(1)
+	retry(2)
+	trust(3)
+label(15)
+	try(2)
+	trust(3)
+label(0)
+	allocate(0)
+	get_structure_x0('nreverse'/2)
+	unify_nil
+	unify_x_variable(3)
+	get_constant('true',1)
+	get_structure('='/2,2)
+	unify_x_value(3)
+	unify_nil
+    guard_wait
+	dealloc_proceed
+label(1)
+	allocate(0)
+	get_structure_x0('nreverse'/2)
+	unify_x_variable(3)
+	unify_x_variable(4)
+	get_list(3)
+	unify_x_variable(3)
+	unify_x_variable(5)
+	get_constant('true',1)
+	get_structure(','/2,2)
+	unify_x_variable(6)
+	unify_x_variable(7)
+	get_structure('nreverse'/2,6)
+	unify_x_value(5)
+	unify_x_variable(5)
+	get_structure('app'/3,7)
+	unify_x_value(5)
+	unify_x_variable(5)
+	unify_x_value(4)
+	get_list(5)
+	unify_x_value(3)
+	unify_nil
+    guard_wait
+	dealloc_proceed
+label(2)
+	allocate(0)
+	get_structure_x0('app'/3)
+	unify_nil
+	unify_x_variable(3)
+	unify_x_variable(4)
+	get_constant('true',1)
+	get_structure('='/2,2)
+	unify_x_value(3)
+	unify_x_value(4)
+    guard_wait
+	dealloc_proceed
+label(3)
+	allocate(0)
+	get_structure_x0('app'/3)
+	unify_x_variable(3)
+	unify_x_variable(4)
+	unify_x_variable(5)
+	get_list(3)
+	unify_x_variable(3)
+	unify_x_variable(6)
+	get_constant('true',1)
+	get_structure(','/2,2)
+	unify_x_variable(7)
+	unify_x_variable(8)
+	get_structure('='/2,7)
+	unify_x_value(5)
+	unify_list
+	unify_x_value(3)
+	unify_x_variable(3)
+	get_structure('app'/3,8)
+	unify_x_value(6)
+	unify_x_value(4)
+	unify_x_value(3)
+    guard_wait
+	dealloc_proceed
+)
+
+

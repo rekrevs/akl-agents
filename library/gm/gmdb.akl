@@ -1,0 +1,79 @@
+/* Copyright(C) 1989, Swedish Institute of Computer Science */
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%  Name: db.pl
+%  Author: Kent Boortz
+%  Date: 12 November 1991
+%  Purpose: Database handler using ports
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%  This is a database handler that will let you insert and look up
+%%%%  data based on a ground key. The data also has to be ground.
+%%%%  
+%%%%  A lookup will suspend until there is somthing to read based on that
+%%%%  key. This will allow syncronisation but be carefull not to close
+%%%%  before you are done with the database.
+%%%%
+%%%%  db_open(-Port)			Create database port
+%%%%
+%%%%  clean				Remove all data
+%%%%  kill				Close the port
+%%%%  insert(+Key, +Val)		Insert data
+%%%%  lookup(+Key, -Val, -Status)	Lookup data, Status = yes or no
+%%%%  sync(-Flag)			Something to wait for even if no
+%%%%					real need of data.
+
+
+db_open(P):-
+	open_port(P,S),
+	db(S,T,T).
+
+
+db([], _, _):-
+    ->	true.
+db([H|T], DH, DT):- 
+    ->	db_one(H, DH, NewDH, DT, NewDT),
+	db(T, NewDH, NewDT).
+
+
+db_one(sync(Flag))-_DH-_DT :- 
+    ->
+%	format('sync: ~w~n',[DH]),
+	Flag = [].
+
+db_one(insert(K,V))-_DH-DT:- 
+    ->
+%	format('insert: ~w - ~w~n',[insert(K,V),DH]),
+	[rec(K,V)]-DT.
+
+db_one(lookup(K,V,Status))-DH-DT :- 
+	data(K)
+    ->
+%	format('lookup: ~w - ~w~n',[lookup(K,'?','?'),DH]),
+	dblookup(K,V, Status, DH, DT).
+
+db_one(delete(K,V,Status))-DH-DT :- 
+	data(K)
+    ->
+%	format('delete: ~w - ~w~n',[delete(K,V,'?'),DH]),
+	dbdelete(K,V, Status, DH, DT).
+
+
+dblookup(_, _, Status, DH, DH):-		% Not found
+    |	Status = no.
+dblookup(Key, Value, Status, DH, _):-		% Found
+	DH = [rec(Key,V)|_]
+    |	Status = yes,
+	Value = V.
+dblookup(Key, Value, Status, [_|DH], DT):-	% Continue search
+    |	dblookup(Key, Value, Status, DH, DT).
+
+dbdelete(_, _, Status, DH, DH):-		% Not found
+    |	Status = no.
+dbdelete(Key, Value, Status, DH, _):-		% Found, mark deleted
+	DH = [rec(Key,V)|_]
+    |	sys_setarg(1, DH, deleted),
+	Status = yes,
+	Value = V.
+dbdelete(Key, Value, Status, [_|DH], DT):-	% Continue search
+    |	dbdelete(Key, Value, Status, DH, DT).

@@ -1,0 +1,11 @@
+:- public append/3, nrev/2.
+
+append([],L,R) :-
+    -> 	L=R.
+append([H|T],L,R) :-
+    ->	R=[H|M],
+	append(T,L,M).
+
+nrev([H|T],R) :-
+    ->  nrev(T,R0),
+	append(R0,[H],R).

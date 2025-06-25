@@ -1,0 +1,98 @@
+%   File   : RANDOM.PL
+%   Author : R.A.O'Keefe
+%   Updated: 1 October 1984
+%   NIP version: 13 May 1987
+%   Purpose: Random number generator.
+%   Adapted for AKL: Sverker Janson, 1993.
+
+/*****
+:- module(random, [
+	random/1,
+	random/2,
+	seed_random/3,
+	seed_random/4,
+	starting_seed/1
+	]).
+*/
+
+%i @node Random, Reader, Prolog, Top
+%i @chapter Random Numbers
+%i @cindex random numbers
+%i 
+%i This package provides a random number generator.  To load the package,
+%i enter the query
+%i 
+%i @example
+%i | ?- load(library(random)).
+%i @end example
+
+%i @table @code
+
+%i @item random(@var{+List})
+%i @findex random/1
+%i if called with @var{List} as a list with uninstantiated variables, these
+%i variables will be instantiated to pseudo random floats in the
+%i interval [0.0, 1.0). Note that 1.0 will never be generated.
+%i If random/1 is called again, exactly the same list will be returned,
+%i as the same seed is used.
+
+random(Fs) :-
+	starting_seed(seed(N1,N2,N3)),
+	random(Fs, N1, N2, N3, _OutSeed).
+
+%i @item random(@var{+Integer},@var{+List})
+%i @findex random/2
+%i Same as random/1 above, but the pseudo random numbers will be integers
+%i in the range [0, @var{Integer}-1].
+
+random(N, Is) :-
+	random(Fs),
+	make_integers(Is, N, Fs).
+
+%i @item seed_random(@var{+List},@var{+SeedIn},@var{?SeedOut})
+%i Same as @code{random/1} above, but with the seed number given explicitly
+%i as a data structure of the form @code{seed(@var{N1},@var{N2},@var{N3})},
+%i where @var{N1},@var{N2},@var{N3} are integers.
+
+seed_random(Fs, seed(A0, A1, A2), OutSeed) :-
+	random(Fs, A0, A1, A2, OutSeed).
+
+seed_random(N, Is, seed(A0, A1, A2), OutSeed) :-
+	random(Fs, A0, A1, A2, OutSeed),
+	make_integers(Is, N, Fs).
+
+%i @item seed_random(@var{+Integer},@var{+List},@var{+SeedIn},@var{?SeedOut})
+%i Same as @code{random/2} above, but with the seed number given explicitly
+%i as a data structure of the form @code{seed(@var{N1},@var{N2},@var{N3})},
+%i where @var{N1},@var{N2},@var{N3} are integers.
+
+random([], A0, A1, A2, OutSeed) :-
+    ->	OutSeed = seed(A0,A1,A2).
+random([F|Fs], A0, A1, A2, OutSeed) :-
+    ->	B0 is (A0*171) mod 30269,
+	B1 is (A1*172) mod 30307,
+	B2 is (A2*170) mod 30323,
+	R is B0/30269 + B1/30307 + B2/30323,
+	F is R - integer(R),
+	random(Fs, B0, B1, B2, OutSeed).
+
+make_integers([], _, Fs) :-
+    ->	Fs = [].
+make_integers([I|Is], N, Fs) :-
+    ->	Fs = [F|Fs1],
+	I is integer(F*N),
+	make_integers(Is, N, Fs1).
+
+%i @item starting_seed(@var{?SeedOut})
+%i returns the starting seed used by @code{random/1} and @code{random/2}
+%i above.
+%i
+
+starting_seed(seed(27134, 9213, 17773)).
+
+/* old value (not used!)
+starting_seed(seed(3172,9814,20125)).
+*/
+
+% last line of texinfo:
+%i @end table

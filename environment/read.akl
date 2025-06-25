@@ -1,0 +1,698 @@
+% $Id: read.akl,v 1.28 1994/05/05 10:45:22 secher Exp $
+
+%   File   : READ.PL
+%   Author : D.H.D.Warren + Richard O'Keefe
+%   Updated: 5 July 1984
+%   Purpose: Read Prolog terms in Dec-10 syntax.
+
+/*  Modified for the Andorra Kernel Language by Sverker Janson */
+
+/*
+    Modified by Alan Mycroft to regularise the functor modes.
+    This is both easier to understand (there are no more '?'s),
+    and also fixes bugs concerning the curious interaction of cut with
+    the state of parameter instantiation.
+
+    Since this file doesn't provide "metaread", it is considerably
+    simplified.  The token list format has been changed somewhat, see
+    the comments in the RDTOK file.
+
+    I have added the rule X(...) -> apply(X,[...]) for Alan Mycroft.
+*/
+
+/*
+:- mode
+	after_prefix_op(+, +, +, +, +, -, -),
+	ambigop(+, -, -, -, -, -),
+	cant_follow_expr(+, -),
+	expect(+, +, -),
+	exprtl(+, +, +, +, -, -),
+	exprtl0(+, +, +, -, -),
+	infixop(+, -, -, -),
+	postfixop(+, -, -),
+	prefixop(+, -, -),
+	prefix_is_atom(+, +),
+	read(?, ?),
+	read(+, +, -, -),
+	read(+, +, +, -, -),
+	read_args(+, -, -),
+	read_list(+, -, -),
+	syntax_error(+),
+	syntax_error(+, +).
+*/
+
+
+%   read(?Answer, +Stream, -Stream)
+%   reads a term from the current input stream and unifies it with
+%   Answer.
+
+%   Ansver is on the form term(Instance) or error(Tokens)
+
+
+read(Instance) :- 
+	stdin(In0),
+	read(Instance, In0, _).
+
+meta_read(Term):-
+	stdin(In0),
+	meta_read(Term, In0, _).
+
+read(Instance, Result) :- 
+	stdin(In0),
+	read(Instance, Result, In0, _).
+
+meta_read(Term, Result):-
+	stdin(In0),
+	meta_read(Term, Result, In0, _).
+
+read(Instance)-S :-
+	akl_read_tokens(Tokens, Flag)-S,
+	akl_tokens_to_term(Tokens, Flag, Term),
+	akl_term_to_instance(Term, Instance0),
+	read_diagnosis(Instance0, Instance)-S.
+
+meta_read(Term)-S :-
+	akl_read_tokens(Tokens, Flag)-S,
+	akl_tokens_to_term(Tokens, Flag, Term0),
+	meta_read_diagnosis(Term0, Term)-S.
+
+read(Instance, Result)-S :-
+	akl_read_tokens(Tokens, Flag)-S,
+	akl_tokens_to_term(Tokens, Flag, Term),
+	akl_term_to_instance(Term, Instance0),
+	read_diagnosis(Instance0, Instance, Result).
+
+meta_read(Term, Result)-S :-
+	akl_read_tokens(Tokens, Flag)-S,
+	akl_tokens_to_term(Tokens, Flag, Term0),
+	meta_read_diagnosis(Term0, Term, Result).
+
+read_diagnosis(instance(Tree), Instance)-_S :-
+    ->	Instance = Tree.
+read_diagnosis(exception(Tokens), Instance)-S :-
+    ->	stderr(StdErr),
+	format('{SYNTAX ERROR: ~q}~n', [Tokens], StdErr, _),
+	read(Instance)-S.
+
+meta_read_diagnosis(term(Tree), Term)-_S :-
+    ->	Term = Tree.
+meta_read_diagnosis(exception(Tokens), Term)-S :-
+    ->	stderr(StdErr),
+	format('{SYNTAX ERROR: ~q}~n', [Tokens], StdErr, _),
+	meta_read(Term)-S.
+
+read_diagnosis(instance(Tree), Instance, Result) :-
+    ->	Instance = Tree,
+	Result = true.
+read_diagnosis(exception(Tokens), _Instance, Result) :-
+    ->	Result = exception(syntax_error(Tokens)).
+
+meta_read_diagnosis(term(Tree), Term, Result) :-
+    ->	Term = Tree,
+	Result = true.
+meta_read_diagnosis(exception(Tokens), _Term, Result) :-
+    ->	Result = exception(syntax_error(Tokens)).
+
+/* read_term/[1,3] is retained but without documentation in the user manual. */
+
+read_term(Term):-
+	stdin(In0),
+	read_term(Term, In0, _).
+
+read_term(Term)-S :-
+	akl_read_tokens(Tokens, Flag)-S,
+	akl_tokens_to_term(Tokens, Flag, Term).
+
+/* ---------------------------------------------------------------------- */
+
+akl_read_clause(Clause)-S :- 
+	akl_read_tokens(Tokens, Flag)-S,
+	akl_tokens_to_term(Tokens, Flag, Clause),
+	akl_singleton_warn(Tokens, Clause).
+
+akl_singleton_warn(Tokens, Clause) :-
+	collect_variable_tokens(Tokens, Vars),
+	keysort(Vars, SortedVars),
+	group_edges(SortedVars, GroupedVars),
+	collect_singles_doubles(GroupedVars, Singles, Doubles),
+	report_warnings(Singles, Doubles, Clause).
+
+collect_variable_tokens([], V) :-
+    ->	V = [].
+collect_variable_tokens([var(Var)|Tokens], V0) :-
+    ->	V0 = [Var-[]|V1],
+	collect_variable_tokens(Tokens, V1).
+collect_variable_tokens([_Token|Tokens], V) :-
+    ->	collect_variable_tokens(Tokens, V).
+
+report_warnings(Singles, Doubles, Clause) :-
+	warn_singles(Singles, Clause),
+	warn_doubles(Doubles, Clause).
+
+warn_singles([], _) :-
+    ->	true.
+warn_singles(Vars, Clause) :-
+    ->	write('{Warning: '),
+	write(Vars),
+	write(' - singleton variable(s) in '),
+	nl,
+	portray_clause(Clause),
+	nl,
+	write('}'),
+	nl.
+
+warn_doubles([], _) :-
+    ->	true.
+warn_doubles(Vars, Clause) :-
+    ->	write('{Warning: '),
+	write(Vars),
+	write(' - multiple occurrences in '),
+	nl,
+	portray_clause(Clause),
+	nl,
+	write('}'),
+	nl.
+
+collect_singles_doubles([], Singles, Doubles) :-
+    ->	Singles = [],
+	Doubles = [].
+collect_singles_doubles(['_'-_|Vars], Singles, Doubles) :-
+    ->	collect_singles_doubles(Vars, Singles, Doubles).
+collect_singles_doubles([Var-Occ|Vars], Singles, Doubles) :-
+	atom_to_chars(Var, [0'_|_])
+    ->	check_for_double(Var, Occ, Doubles, Doubles1),
+	collect_singles_doubles(Vars, Singles, Doubles1).
+collect_singles_doubles([Var-[_]|Vars], Singles, Doubles) :-
+    ->	Singles = [Var|Singles1],
+	collect_singles_doubles(Vars, Singles1, Doubles).
+collect_singles_doubles([_|Vars], Singles, Doubles) :-
+    ->	collect_singles_doubles(Vars, Singles, Doubles).
+
+check_for_double(Var, [_,_|_], Doubles0, Doubles) :-
+    ->	Doubles0 = [Var|Doubles].
+check_for_double(_, _, Doubles0, Doubles) :-
+    ->	Doubles = Doubles0.
+
+%%%% portray_clause(X) :- write(X). /* dummy */
+portray_clause(term(X)) :-	 /* slightly better dummy */
+    ->	insterm(X, Y),
+	writeq(Y),
+	write(' .').
+portray_clause(_) :-
+    ->	write('syntax error').
+
+/* ---------------------------------------------------------------------- */
+
+akl_tokens_to_term([], error, Term):-
+    ->  Term = exception(error).
+akl_tokens_to_term([], end_of_file, Term):-
+    ->  Term = exception(end_of_file).
+akl_tokens_to_term(Tokens, stop, Term):-
+	parse(Tokens, 1200, Temp, [])
+    ->  Term = term(Temp).
+akl_tokens_to_term(Tokens, _, Term):-
+    ->  Term = exception(Tokens).
+
+akl_term_to_instance(exception(E), Term):-
+    -> Term = exception(E).
+akl_term_to_instance(term(Term), Instance):-
+    -> instance(Term, Temp),
+       Instance = instance(Temp).
+
+         
+
+
+
+
+%   expect(Token, TokensIn, TokensOut)
+%   reads the next token, checking that it is the one expected, and
+%   giving an error message if it is not.  It is used to look for
+%   right brackets of various sorts, as they're all we can be sure of.
+
+expect(Token, [Token|Rest], Rest1) :- -> Rest1 = Rest.
+expect(Token, S0, _) :- ->
+	syntax_error([Token,or,operator,expected], S0).
+
+
+%   I want to experiment with having the operator information held as
+%   ordinary Prolog facts.  For the moment the following predicates
+%   remain as interfaces to current_op.
+%   prefixop(O -> Self, Rarg)
+%   postfixop(O -> Larg, Self)
+%   infixop(O -> Larg, Self, Rarg)
+
+
+prefixop(Op, Prec1, Prec2) :-
+	internal_current_op(Op, Prec, fy) ->
+	Prec1 = Prec,
+	Prec2 = Prec.
+prefixop(Op, Prec, Less) :-
+	internal_current_op(Op, Prec1, fx) ->
+	Prec = Prec1,
+	Less is Prec1-1.
+
+
+postfixop(Op, Prec1, Prec2) :-
+	internal_current_op(Op, Prec, yf) ->
+	Prec1 = Prec,
+	Prec2 = Prec.
+postfixop(Op, Less, Prec) :-
+	internal_current_op(Op, Prec1, xf) ->
+	Prec = Prec1,
+	Less is Prec1-1.
+
+
+infixop(Op, Less, Prec, Less1) :-
+	internal_current_op(Op, Prec1, xfx) ->
+	Prec = Prec1,
+	Less is Prec1-1,
+	Less = Less1.
+infixop(Op, Less, Prec, Prec2) :-
+	internal_current_op(Op, Prec1, xfy) ->
+	Prec = Prec1,
+	Less is Prec1-1,
+	Prec = Prec2.
+infixop(Op, Prec, Prec2, Less) :-
+	internal_current_op(Op, Prec1, yfx) ->
+	Prec = Prec1,
+	Less is Prec1-1,
+	Prec = Prec2.
+
+
+ambigop(F, L1, O1, R1, L2, O2) :-
+	postfixop(F, L2, O2),
+	infixop(F, L1, O1, R1).
+
+
+%   parse(+TokenList, +Precedence, -Term, -LeftOver)
+%   parses a Token List in a context of given Precedence,
+%   returning a Term and the unread Left Over tokens.
+
+parse([Token|RestTokens], Precedence, Term, LeftOver) :- ->
+	parse(Token, RestTokens, Precedence, Term, LeftOver).
+parse([], _, _, _) :- ->
+	syntax_error([expression,expected], []).
+
+
+%   parse(+Token, +RestTokens, +Precedence, -Term, -LeftOver)
+
+parse(var(Name), ['(',')'|S1], Precedence, Answer, S) :- ->
+	T = struct(apply,2,[var(Name),struct([],0,[])]),
+	exprtl0(S1, T, Precedence, Answer, S).
+
+parse(var(Name), ['('|S1], Precedence, Answer, S) :- ->
+	parse(S1, 999, Arg2, S2),
+	parse_args(S2, 2, RestArgs, _N, S3), % ->
+        ArgList = [Arg2|RestArgs],
+	list_to_parsed_list(ArgList, ParsedArgList),
+	T = struct(apply,2,[var(Name),ParsedArgList]),
+	exprtl0(S3, T, Precedence, Answer, S).
+
+parse(var('_'), S0, Precedence, Answer, S) :- ->
+	exprtl0(S0, var('_'), Precedence, Answer, S).
+
+parse(var(Name), S0, Precedence, Answer, S) :- ->
+	exprtl0(S0, var(Name), Precedence, Answer, S).
+
+parse(atom(-), [integer(Integer)|S1], Precedence, Answer, S) :-
+    ->	Negative is -Integer,
+	exprtl0(S1, struct(Negative,0,[]), Precedence, Answer, S).
+
+parse(atom(-), [float(Float)|S1], Precedence, Answer, S) :-
+    ->	Negative is -Float,
+	exprtl0(S1, struct(Negative,0,[]), Precedence, Answer, S).
+
+parse(atom(Functor), ['(',Feature,atom(':')|S1], Precedence, Answer, S) :-
+	legal_feature(Feature,F)
+    ->	parse(S1,999,V1,S2),
+	parse_feature_args(S2,1,RestArgs,Ar,[Feature],S3),
+	keysort([F-V1|RestArgs],Sorted),
+	split_features_values(Sorted,Fs,Vs),
+	exprtl0(S3,struct(Functor,[Ar|Fs],Vs),Precedence,Answer,S).
+
+parse(atom(Functor), ['(',atom(-),integer(F),atom(':')|S1], Precedence, Answer, S) :-
+    ->	parse(S1,999,V1,S2),
+	parse_feature_args(S2,1,RestArgs,Ar,[-F],S3),
+	Nf is 0 - F,
+	keysort([Nf-V1|RestArgs],Sorted),
+	split_features_values(Sorted,Fs,Vs),
+	exprtl0(S3,struct(Functor,[Ar|Fs],Vs),Precedence,Answer,S).
+
+parse(atom(Functor), ['('|S1], Precedence, Answer, S) :-
+    ->	parse(S1, 999, Arg1, S2),
+	parse_args(S2, 1, RestArgs, N, S3),
+	exprtl0(S3, struct(Functor,N,[Arg1|RestArgs]) , Precedence, Answer, S).
+
+parse(atom(Functor), S0, Precedence, Answer, S) :-
+	prefixop(Functor, Prec, Right) ->
+	after_prefix_op(Functor, Prec, Right, S0, Precedence, Answer, S).
+
+parse(atom(Atom), S0, Precedence, Answer, S) :- ->
+	exprtl0(S0, struct(Atom,0,[]), Precedence, Answer, S).
+
+parse(integer(Integer), S0, Precedence, Answer, S) :- ->
+	exprtl0(S0, struct(Integer,0,[]), Precedence, Answer, S).
+
+parse(float(Float), S0, Precedence, Answer, S) :- ->
+	exprtl0(S0, struct(Float,0,[]), Precedence, Answer, S).
+
+parse(bignum(Bignum), S0, Precedence, Answer, S) :- ->
+	exprtl0(S0, struct(Bignum,0,[]), Precedence, Answer, S).
+
+parse(rational(Rational), S0, Precedence, Answer, S) :- ->
+	exprtl0(S0, struct(Rational,0,[]), Precedence, Answer, S).
+
+parse('[', [']'|S1], Precedence, Answer, S) :- ->
+	exprtl0(S1, struct([],0,[]), Precedence, Answer, S).
+
+parse('[', S1, Precedence, Answer, S) :- ->
+	parse(S1, 999, Arg1, S2),
+	parse_list(S2, RestArgs, S3), % ->
+	exprtl0(S3, struct('.',2,[Arg1,RestArgs]), Precedence, Answer, S).
+
+parse('(', [')'|S1], Precedence, Answer, S) :- ->
+	exprtl0(S1, struct('()',0,[]), Precedence, Answer, S).
+
+parse(' (', [')'|S1], Precedence, Answer, S) :- ->
+	exprtl0(S1, struct('()',0,[]), Precedence, Answer, S).
+
+parse('(', S1, Precedence, Answer, S) :- ->
+	parse(S1, 1200, Term, S2),
+	expect(')', S2, S3), % ->
+	exprtl0(S3, Term, Precedence, Answer, S).
+
+parse(' (', S1, Precedence, Answer, S) :- ->
+	parse(S1, 1200, Term, S2),
+	expect(')', S2, S3), % ->
+	exprtl0(S3, Term, Precedence, Answer, S).
+
+parse('{', ['}'|S1], Precedence, Answer, S) :- ->
+	exprtl0(S1, struct('{}',0,[]) , Precedence, Answer, S).
+
+parse('{', S1, Precedence, Answer, S) :- ->
+	parse(S1, 1200, Term, S2),
+	expect('}', S2, S3), % ->
+	exprtl0(S3, struct('{}',1,[Term]), Precedence, Answer, S).
+
+parse(string(List), S0, Precedence, Answer, S) :-
+    ->	string_to_parsed_string(List, ParsedList),
+	exprtl0(S0, ParsedList, Precedence, Answer, S).
+
+parse(Token, S0, _Predecence, _Answer, _S) :-
+    ->	syntax_error([Token, cannot, start, an, expression], S0).
+
+
+
+
+list_to_parsed_list([], PL) :-
+    ->	PL = struct([],0,[]).
+list_to_parsed_list([X|L], PL) :-
+    ->	PL = struct('.',2,[X,PL1]),
+	list_to_parsed_list(L, PL1).
+
+string_to_parsed_string([], PL) :-
+    ->	PL = struct([],0,[]).
+string_to_parsed_string([X|L], PL) :-
+    ->	PL = struct('.',2,[struct(X,0,[]),PL1]),
+	string_to_parsed_string(L, PL1).
+
+
+%   parse_args(+Tokens, +Sofar, -TermList, -Number, -LeftOver)
+%   parses {',' expr(999)} ')' and returns a list of terms.
+
+parse_args([','|S1], N1, List, N, S) :- ->
+	List = [Term|Rest],
+	parse(S1, 999, Term, S2), % ->
+	parse_args(S2, N1, Rest, N2,S),
+	N is N2 + 1.
+parse_args([')'|S], N, List, N1, S1) :- ->
+	List = [], N = N1, S = S1.
+parse_args(S, _, _) :- ->
+	syntax_error([', or )',expected,in,arguments], S).
+
+parse_feature_args([',',Feature,atom(':')|S1], N1, List, N, Prev, S) :- 
+	legal_feature(Feature,F),
+	not( '$memberchk'(Feature,Prev))
+    -> 	parse(S1, 999, V, S2),
+	List = [F-V|Rest],
+	parse_feature_args(S2, N1, Rest, N2,[Feature|Prev],S),
+	N is N2 + 1. 
+parse_feature_args([',',atom(-),integer(F),atom(':')|S1], N1, List, N, Prev, S) :- 
+	legal_feature(Feature,F),
+	not( '$memberchk'(Feature,Prev))
+    -> 	parse(S1, 999, V, S2),
+	Nf is 0 - F,
+	List = [Nf-V|Rest],
+	parse_feature_args(S2, N1, Rest, N2,[-F|Prev],S),
+	N is N2 + 1. 
+parse_feature_args([')'|S], N, List, N1, _,S1) :- ->
+	List = [], N = N1, S = S1.
+parse_feature_args(S, _, _,_,_,_) :- ->
+	syntax_error([', or )', expected,in,arguments], S).
+
+
+%   parse_list(+Tokens, -TermList, -LeftOver)
+%   parses {',' expr(999)} ['|' expr(999)] ']' and returns a list of terms.
+
+parse_list([','|S1], List, S) :-
+    ->	List = struct('.',2,[Term,Rest]),
+	parse(S1, 999, Term, S2), % !
+	parse_list(S2, Rest, S).
+parse_list([atom(('|'))|S1], List, S) :-
+    ->	parse(S1, 999, Rest, S2), % !
+	List = Rest,
+	expect(']', S2, S).
+parse_list([infixop(('|'),_,_,_)|S1], List, S) :-
+    ->	parse(S1, 999, Rest, S2), % !
+	List = Rest,
+	expect(']', S2, S).
+parse_list([']'|S], List, S1) :-
+    ->	List = struct([],0,[]),
+	S = S1.
+parse_list(S, _, _) :-
+    ->	syntax_error([', | or ]',expected,in,list], S).
+
+
+%   after_prefix_op(+Op, +Prec, +ArgPrec, +Rest, +Precedence, -Ans, -LeftOver)
+
+after_prefix_op(Op, Oprec, _Aprec, S0, Precedence, _, _) :-
+	Precedence < Oprec
+    ?	syntax_error([prefix,operator,Op,in,context,
+		with,precedence,Precedence], S0).
+
+after_prefix_op(Op, Oprec, _Aprec, S0, Precedence, Answer, S) :-
+	Precedence >= Oprec,
+	peepop(S0, S1),
+	prefix_is_atom(S1, Oprec) ? % can't cut but would like to
+	exprtl(S1, Oprec, struct(Op,0,[]), Precedence, Answer, S).
+
+after_prefix_op(Op, Oprec, Aprec, S1, Precedence, Answer, S) :-
+	Precedence >= Oprec,
+	parse(S1, Aprec, Arg, S2) ?
+	exprtl(S2, Oprec, struct(Op,1,[Arg]), Precedence, Answer, S).
+
+
+%   The next clause fixes a bug concerning "mop dop(1,2)" where
+%   mop is monadic and dop dyadic with higher Prolog priority.
+
+peepop([atom(F),'('|S1], Out) :- -> Out = [atom(F),'('|S1].
+peepop(In, Out) :- -> peepop_aux(In, Out).
+
+peepop_aux([atom(F)|S1], Out) :-
+	infixop(F, L, P, R) ? Out = [infixop(F,L,P,R)|S1].
+peepop_aux([atom(F)|S1], Out) :-
+	postfixop(F, L, P) ? Out = [postfixop(F,L,P)|S1].
+peepop_aux(S0, Out) :- ? Out = S0.
+
+
+%   prefix_is_atom(+TokenList, +Precedence)
+%   is true when the right context TokenList of a prefix operator
+%   of result precedence Precedence forces it to be treated as an
+%   atom, e.g. (- = X), p(-), [+], and so on.
+
+prefix_is_atom([Token|_], Precedence) :-
+	prefix_is_atom(Token, Precedence).
+
+prefix_is_atom(infixop(_,L,_,_), P) :-
+	L >= P ? true.
+prefix_is_atom(postfixop(_,L,_), P) :- 
+	L >= P ? true.
+prefix_is_atom(')', _).
+prefix_is_atom(']', _).
+prefix_is_atom('}', _).
+prefix_is_atom(atom(('|')), P) :- 
+	1100 >= P ? true.
+prefix_is_atom(',', P) :- 
+	1000 >= P ? true.
+prefix_is_atom([],  _).
+
+
+%   exprtl0(+Tokens, +Term, +Prec, -Answer, -LeftOver)
+%   is called by parse/4 after it has read a primary (the Term).
+%   It checks for following postfix or infix operators.
+
+exprtl0([atom(F)|S1], Term, Precedence, Answer, S) :-
+	ambigop(F, L1, O1, R1, L2, O2) ->
+	exprtl0_aux(F, L1, O1, R1, L2, O2, S1, Term, Precedence, Answer, S).
+exprtl0([atom(F)|S1], Term, Precedence, Answer, S) :-
+	infixop(F, L1, O1, R1) ->
+	exprtl([infixop(F,L1,O1,R1)|S1], 0, Term, Precedence, Answer, S).
+exprtl0([atom(F)|S1], Term, Precedence, Answer, S) :-
+	postfixop(F, L2, O2) ->
+	exprtl([postfixop(F,L2,O2) |S1], 0, Term, Precedence, Answer, S).
+
+exprtl0([','|S1], Term, Precedence, Answer, S) :-
+	Precedence >= 1000 ->
+	parse(S1, 1000, Next, S2), % ->
+	exprtl(S2, 1000, struct(',',2,[Term,Next]), Precedence, Answer, S).
+
+exprtl0([Thing|S1], _, _, _, _) :-
+	cant_follow_expr(Thing, Culprit) ->
+	syntax_error([Culprit,follows,expression], [Thing|S1]).
+
+exprtl0(S, Term, _, Term1, S1) :- -> Term1 = Term, S1 = S.
+
+
+exprtl0_aux(F, L1, O1, R1, _L2, _O2, S1, Term, Precedence, Answer, S) :-
+	exprtl([infixop(F,L1,O1,R1)|S1], 0, Term, Precedence, Answer, S).
+exprtl0_aux(F, _L1, _O1, _R1, L2, O2, S1, Term, Precedence, Answer, S) :-
+	exprtl([postfixop(F,L2,O2) |S1], 0, Term, Precedence, Answer, S).
+
+
+cant_follow_expr(atom(A),	atom) :- dif(A,('|')) ? true.
+cant_follow_expr(var(_,_),	variable).
+cant_follow_expr(integer(_),	integer).
+cant_follow_expr(float(_),	float).
+cant_follow_expr(bignum(_),	bignum).
+cant_follow_expr(rational(_),	rational).
+cant_follow_expr(string(_),	string).
+cant_follow_expr(' (',		bracket).
+cant_follow_expr('(',		bracket).
+cant_follow_expr('[',		bracket).
+cant_follow_expr('{',		bracket).
+
+
+
+exprtl([infixop(F,L,O,R)|S1], C, Term, Precedence, Answer, S) :-
+	Precedence >= O, 
+	C =< L ->
+	parse(S1, R, Other, S2),
+	Expr = struct(F,2,[Term,Other]), /*->*/
+	exprtl(S2, O, Expr, Precedence, Answer, S).
+
+exprtl([postfixop(F,L,O)|S1], C, Term, Precedence, Answer, S) :-
+	Precedence >= O, 
+	C =< L ->
+	Expr = struct(F,1,[Term]),
+	peepop(S1, S2),
+	exprtl(S2, O, Expr, Precedence, Answer, S).
+
+exprtl([','|S1], C, Term, Precedence, Answer, S) :-
+	Precedence >= 1000,
+	C < 1000 ->
+	parse(S1, 1000, Next, S2), /*->*/
+	exprtl(S2, 1000, struct(',',2,[Term,Next]), Precedence, Answer, S).
+
+exprtl(S, _, Term, _, Term1, S1) :- -> Term1 = Term, S1 = S.
+
+
+syntax_error(_Message, _List) :-
+%	stderr(S), fnl(S, S1), display('**'...),
+%	'$display'(Message...) ->
+	fail.
+
+instance(S,T):- instance(S,T,[],_,[],_).
+
+instance(S,T,D,U):- instance(S,T,[],D,[],U).
+
+instance(var('_'),T,D,D1,U,U1) :-
+    ->	D = D1, 
+	U1 = [T|U].
+instance(var(Name),T,D,D1,U,U1):-
+    ->	U = U1, 
+	objectvar(D,Name,T,D1).
+instance(struct(X,0,_),T,D,D1,U,U1):-
+    ->	T = X, 
+	D = D1, 
+	U = U1.
+
+instance(struct(S,[_|Features],Arg),T,D,D1,U,U1):- 
+    ->	name_arity_to_functor(S,Features,Functor),
+	functor_to_tree(Functor,T),
+	instance_feature_arg(Arg,T,Features,D,D1,U,U1).
+instance(struct(S,N,Arg),T,D,D1,U,U1):- 
+    ->	functor_to_term(S,N,T),
+	instance_arg(Arg,T,1,D,D1,U,U1).
+
+instance_arg([],_T,_,D,D1,U,U1):-
+    ->	D = D1, 
+	U = U1.
+instance_arg([A|Arg],T,N,D,D2,U,U2):- 
+	N > 0
+    ->	arg(N,T,Tn),
+	instance(A,Tn,D,D1,U,U1),
+	N1 is N + 1,
+	instance_arg(Arg,T,N1,D1,D2,U1,U2).
+
+instance_feature_arg([],_T,_,D,D1,U,U1):-
+    ->	D = D1, 
+	U = U1.
+instance_feature_arg([A|Arg],T,[Fe|R],D,D2,U,U2):- 
+    ->	arg(Fe,T,Tn),
+	instance(A,Tn,D,D1,U,U1),
+	instance_feature_arg(Arg,T,R,D1,D2,U1,U2).
+
+objectvar(Dict, Name, Var, Dict1) :-
+	objectvar(Dict, Name, Var1)
+    ->	Var = Var1, Dict1 = Dict.
+objectvar(Dict, Name, Var, Dict1) :-
+    ->	Dict1 = [Name=Var|Dict].
+
+objectvar([Name=Var|_], Name, Var1) :-
+    ->	Var1=Var.
+objectvar([_|T], Name, Var) :-
+    ->	objectvar(T, Name, Var). 
+
+
+insterm(var(Name),T):-
+    ->	T = '$VAR'(Name).
+insterm(struct(Name,0,[]),T):-
+    ->	T = Name.
+insterm(struct(S,[_|F],Arg),T):- 
+    ->	name_arity_to_functor(S,F,Fu),
+	functor_to_tree(Fu,T),
+	insterm_feature_arg(Arg,T,F).
+insterm(struct(S,N,Arg),T):- 
+    ->	functor_to_term(S,N,T),
+	insterm_arg(Arg,T,1).
+
+insterm_arg([],_T,_):-
+    ->	true.
+insterm_arg([A|Arg],T,N):- 
+	N > 0
+    ->	arg(N,T,Tn),
+	insterm(A,Tn),
+	N1 is N + 1,
+	insterm_arg(Arg,T,N1).
+
+insterm_feature_arg([],_T,_):-
+    ->	true.
+insterm_feature_arg([A|Arg],T,[F|R]):- 
+    ->	arg(F,T,Tn),
+	insterm(A,Tn),
+	insterm_feature_arg(Arg,T,R).
+
+
+legal_feature(atom(F),F).
+legal_feature(integer(F),F).
+
+split_features_values([],F,V):-
+    ->	F =[],
+	V =[].
+split_features_values([F-V|R],Fe,Va):-
+    ->	Fe = [F|Fr],
+	Va = [V|Vr],
+	split_features_values(R,Fr,Vr).
+
+
+

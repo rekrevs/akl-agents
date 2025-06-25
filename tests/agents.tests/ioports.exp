@@ -1,0 +1,43 @@
+load_lib agents_test.exp
+
+agents_test_initialize
+
+agents_test ioports1 \
+"stdout(P),putc(0'a)@P.\n" \
+"^a\n"
+
+agents_test ioports2 \
+"stdout(P),putd(42)@P.\n" \
+"^42\n"
+
+agents_test ioports3 \
+"stdout(P),putf(3.14)@P.\n" \
+"^3.14\n"
+
+agents_test ioports4 \
+"stdout(P),puts(foo)@P.\n" \
+"^foo\n"
+
+agents_test ioports5 \
+"stdout(P),puts('foo bar')@P.\n" \
+"^foo bar\n"
+
+agents_test ioports6 \
+"stdout(P),putsq(foo,0'')@P.\n" \
+"^'foo'\n"
+
+agents_test ioports7 \
+"stdout(P),putsq('foo bar',0'')@P.\n" \
+"^'foo bar'\n"
+
+agents_test ioports8 \
+"stdout(P),putsq('foo''bar',0'')@P.\n" \
+"^'foo''bar'\n"
+
+agents_test ioports9 \
+"stdout(P),putsq('foo''bar',0'a)@P.\n" \
+"^afoo'baara\n"
+
+agents_test ioports10 \
+"stdin(P),getc(C)@P.\na" \
+"C = 97"

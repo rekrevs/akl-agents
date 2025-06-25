@@ -1,0 +1,377 @@
+% File: 	dfa.akl
+% Author: 	Anders Andersson
+% Purpose:	Converting regular expressions with actions to DFA
+
+% Takes a list or rules and construct an action augmented DFA
+% Implemented by iterative transformations of the regular expressions
+dfa(RuleList, DFA, ActList) :-
+    ->	ord_list_to_assoc([], Disjs),
+	merge_rules(RuleList, 0, ActList)-Disjs,
+	assoc_to_list(Disjs, DisjList),
+	ord_list_to_assoc([], ExprLookup),
+        expand_disjs(DisjList, Disjs, 0, ExprLookup, TransList), 
+	minimalize_dfa(TransList, MinTransList),
+	DFA = MinTransList.	     
+
+% Takes a rule list and a assoc of start condition names to startcond/2 terms
+% that contain a list of states to inherit from and a disjunction list. 
+% Add the rules to the correct disjunction.
+% Uses a counter to determine the relative precedence between conflicting 
+% rules, and to generate unique names for special start conditions that
+% are generated for special matches
+merge_rules([startcond(Name)|Xs], Counter, ActList)-Disjs :-
+    ->	merge_rules([startcond(Name, [])|Xs], Counter, ActList)-Disjs.
+merge_rules([startcond(Name, InheritList)|Xs], Counter, ActList)-Disjs :-
+    ->	put_assoc(Name, startcond(InheritList,[]))-Disjs,
+	merge_rules(Xs, Counter, ActList)-Disjs.
+merge_rules([rule(Reg, Act)|Xs], Counter, ActList)-Disjs :-
+    ->	merge_rules([rule(Reg,'true',Act)|Xs], Counter, ActList)-Disjs.
+merge_rules([rule(Reg, Cond, Act)|Xs], Counter, ActList)-Disjs :-
+    ->	inc-Counter,
+	strip_custom(Reg, Cond, Counter, start)-Disjs,
+	[Counter-Act]-ActList,
+	merge_rules(Xs, Counter, ActList)-Disjs. 
+merge_rules([], Counter, ActList)-Disjs :-
+    ->	inc-Counter,
+	map_assoc((X,Y)\add_default_rule(Counter,X,Y))-Disjs,
+	default_action(D),
+	ActList = [Counter-D].	
+
+add_default_rule(Counter, startcond([], DisjL), New) :-
+    ->  New = startcond([], 
+	             [accept(Counter, 'true', Counter, 'false')-any|DisjL]).
+add_default_rule(_, startcond(match, DisjL), New) :-
+    ->	New = startcond([], DisjL).
+add_default_rule(_, Old, New) :-
+    ->	New = Old.
+
+expand_disjs([StartCond-startcond(Super, DisjL)|Xs], 
+	     Disjs, Counter, ExprLookup, TransList) :-
+    ->  merge_inherited(Super, [DisjL], Disjs, Merged),
+	Start = [Merged-Counter],
+	inc-Counter,
+	build_states(Start, accept(-1, mark, startcond(StartCond), 'false')
+	            )-TransList-Counter-ExprLookup,
+	expand_disjs(Xs, Disjs, Counter, ExprLookup, TransList).
+expand_disjs([], _, _, _, TransList) :-
+    ->  TransList = [].
+
+merge_inherited([X|Xs], Ac, Disjs, Merged) :-
+	get_assoc(X, startcond(_, Disj), Disjs, _)
+    ->	merge_inherited(Xs, [Disj|Ac], Disjs, Merged).
+merge_inherited([], Ac, _, Merged) :-
+    ->	ord_union(Ac, Union),
+	Merged = disjunction(Union).
+
+strip_custom(cond(Start, Reg), Cond, Counter, _)-Disjs :-
+    ->  strip_custom(Reg, Cond, Counter, Start)-Disjs.
+strip_custom(Reg, Cond, Counter, Start)-Disjs :-
+	get_assoc(Start, Body, Disjs, _)
+    ->  strip_custom(Reg, Cond, Counter, Start, Body)-Disjs.
+strip_custom(Reg, Cond, Counter, Start)-Disjs :-
+    ->  Body = startcond([], []),
+	put_assoc(Start, Body)-Disjs,
+	strip_custom(Reg, Cond, Counter, Start, Body)-Disjs.
+
+strip_custom(at_eol(Reg), Cond, Counter, StartCond, Body)-Disjs :-
+    ->  strip_custom(Reg, custom('$', Cond), Counter, StartCond, Body)-Disjs.
+strip_custom(at_bol(Reg), Cond, Counter, StartCond, Body)-Disjs :-
+    ->  strip_custom(Reg, custom('^', Cond), Counter, StartCond, Body)-Disjs.
+strip_custom(ahead(Reg, Context), Cond, Counter, StartCond, Body)-Disjs :-
+    ->  numbered_atom([], "trail_context", Counter, Atom),
+	CBody = startcond(match, []),
+	put_assoc(Atom, CBody)-Disjs,
+	strip_custom(Context, 'true', match, Atom, CBody)-Disjs,
+	strip_custom(Reg, custom(trailing_context(Atom), Cond), Counter,
+	             StartCond, Body)-Disjs.
+strip_custom(Reg, Cond, Counter, StartCond, startcond(Inherit,Body))-Disjs :-
+    ->  set_assoc(StartCond, _, startcond(Inherit, 
+	        [accept(Counter, Cond, Counter, 'false')-Reg|Body]))-Disjs.
+
+% Takes a stack of regular expr. to build DFA's for and add new ones as
+% we go along.
+build_states([Tree-I|Xs], Mark)-TransList-Counter-ExprLookup :-
+    ->  extract_head(Tree, dummy, Expr),
+	build_transitions(Expr, Trans)-Xs-Counter-ExprLookup,
+	mark(Mark)-Trans,
+	[I-Trans]-TransList,
+	build_states(Xs, dummy)-TransList-Counter-ExprLookup.
+build_states([], _)-_TransList-_C-_E :-
+    ->	true.
+
+mark(M)-Trans :-
+	M = accept(_,_,_,_)
+    ->  add_accept(M)-Trans.
+mark(_)-_T :-
+    ->	true.
+
+% Takes a set of input char - reg. expr pairs and add all new reg exprs
+% to the stack. Reg. exprs. previously converted are not added. In both
+% cases the reg. expr. is associated with a state, new or old, and this
+% number is inserted into the transition tables.
+build_transitions([Acc | _], Trans)-_Xs-_Counter-_ExprLookup :-
+	Acc = accept(_,_,match,_) % if it match no further search is needed
+    ->	Trans = [Acc].
+build_transitions([Acc | Ys], Trans)-Xs-Counter-ExprLookup :-
+	Acc = accept(_,_,_,_)
+    ->	[Acc]-Trans,
+	build_transitions(Ys, Trans)-Xs-Counter-ExprLookup.
+build_transitions([(Ch & New)|Ys], Trans)-Xs-Counter-ExprLookup :-
+    ->	get_state_index(New, I)-Xs-Counter-ExprLookup,
+	[Ch-I]-Trans,
+	build_transitions(Ys, Trans)-Xs-Counter-ExprLookup.
+build_transitions([], Trans)-_Xs-_C-_E :-
+    ->	Trans = [].
+
+% Find the index associated with a regular expression, or make a new assoc
+% if necessary.
+get_state_index(Expr, I, Xs, Xs1)-_C-ExprLookup :-
+	get_assoc(Expr, N, ExprLookup , _)
+    ->  I = N,
+	Xs1 = Xs.
+get_state_index(Expr, I, Xs, Xs1)-Counter-ExprLookup :-
+    ->	put_assoc(Expr, Counter)-ExprLookup,
+	I = Counter,
+	Xs1 = [Expr-I|Xs],
+	inc-Counter.
+
+% Takes a regular expression and and Accept action and transform it to the
+% form of a disjunction between transitions, each for a unique character and
+% the regular expression still to be matched.
+extract_head(any, Accept, Expr) :- 
+    ->	extract_head(any, [], Accept, Expr).
+extract_head(in(List), Accept, Expr) :- 
+    ->	extract_head(in(List), [], Accept, Expr).
+extract_head(not_in(List), Accept, Expr) :- 
+    ->	extract_head(not_in(List), [], Accept, Expr).
+extract_head(range(A, B), Accept, Expr) :- 
+    ->	extract_head(range(A, B), [], Accept, Expr).
+extract_head([X | Xs], Accept, Expr) :- 
+    ->	extract_head([X | Xs], [], Accept, Expr).
+extract_head([], Accept, Expr) :- 
+    -> 	add_accept(Accept, [], Expr).
+extract_head(opt(A), Accept, Expr) :-
+    ->  extract_head(A, Accept, Aexpr),
+	add_accept(Accept, Aexpr, Expr).
+extract_head(plus(A), Accept, Expr) :-
+    ->  extract_head((A & star(A)), Accept, Expr).
+extract_head(star(A), Accept, Expr) :-
+    ->  extract_head(plus(A), Accept, Aexpr),
+	add_accept(Accept, Aexpr, Expr).
+extract_head(rep(A, N), Accept, Expr) :-
+    ->  expand_rep(N, A, Expansion),
+	extract_head(Expansion, Accept, Expr).
+extract_head(rep(A, N, M), Accept, Expr) :-
+    ->  expand_rep(N, M, A, Expansion),
+	extract_head(Expansion, Accept, Expr).
+extract_head(disjunction([Accept-X]), _, Expr) :-
+    ->  extract_head(X, Accept, Expr).
+extract_head(disjunction([Accept-X|Xs]), _, Expr) :-
+    ->	extract_head(X, Accept, Xexpr),
+	extract_head(disjunction(Xs), dummy, XsExpr),
+	merge_headed(Xexpr, XsExpr, Expr).
+extract_head(or(A, B), Accept, Expr) :-
+    ->  extract_head(A, Accept, Aexpr),
+      	extract_head(B, Accept, Bexpr),
+	merge_headed(Aexpr, Bexpr, Expr).
+extract_head((A & B), Accept, Expr) :-
+    ->	extract_head(A, B, Accept, Expr).
+
+extract_head(any, Tail, Accept, Expr) :- 
+    ->	all_chars(ALL),
+	expand_set(ALL, disjunction([Accept-Tail]), Expr).
+extract_head(in(List), Tail, Accept, Expr) :- 
+    ->  list_to_ord_set(List, Set),
+	expand_set(Set, disjunction([Accept-Tail]), Expr). 		
+extract_head(not_in(List), Tail, Accept, Expr) :- 
+    ->  all_chars(ALL),
+	list_to_ord_set(List, Set), 
+	ord_subtract(ALL, Set, Rest),
+	expand_set(Rest, disjunction([Accept-Tail]), Expr).	
+extract_head(range([A], [B]), Tail, Accept, Expr) :- 
+    -> 	expand_range(A, B, disjunction([Accept-Tail]), Expr).	
+extract_head(range(A, B), Tail, Accept, Expr) :- 
+    -> 	expand_range(A, B, disjunction([Accept-Tail]), Expr).	
+extract_head([X1, X2 | Xs], Tail, Accept, Expr) :- 
+    -> 	Expr = [(X1 & disjunction([Accept-([X2 | Xs] & Tail)]))].
+extract_head([X], Tail, Accept, Expr) :- 
+    -> 	Expr = [(X & disjunction([Accept-Tail]))].
+extract_head([], Tail, Accept, Expr) :- 
+    -> 	extract_head(Tail, Accept, Expr).
+extract_head(opt(A), B, Accept, Expr) :-
+    ->  extract_head(B, Accept, Bexpr),
+	extract_head(A, B, Accept, ABexpr),
+	merge_headed(Bexpr, ABexpr, Expr).
+extract_head(plus(A), B, Accept, Expr) :-
+    ->  extract_head(A, (star(A) & B), Accept, Expr).
+extract_head(star(A), B, Accept, Expr) :-
+    ->  extract_head(B, Accept, Bexpr),
+	extract_head(plus(A), B, Accept, ApBexpr),
+	merge_headed(Bexpr, ApBexpr, Expr).
+extract_head(rep(A, N), B, Accept, Expr) :-
+    ->  expand_rep(N, A, Expansion),
+	extract_head(Expansion, B, Accept, Expr).
+extract_head(rep(A, N, M), B, Accept, Expr) :-
+    ->  expand_rep(N, M, A, Expansion),
+	extract_head(Expansion, B, Accept, Expr).
+extract_head(disjunction([X]), C, Accept, Expr) :-
+    ->  extract_head(X, C, Accept, Expr).
+extract_head(disjunction([X | Xs]), C, Accept, Expr) :-
+    ->	extract_head(X, C, Accept, XCexpr),
+	extract_head(disjunction(Xs), C, Accept, XsCexpr),
+	merge_headed(XCexpr, XsCexpr, Expr).
+extract_head(or(A, B), C, Accept, Expr) :-
+    ->  extract_head(A, C, Accept, ACexpr),
+	extract_head(B, C, Accept, BCexpr),
+	merge_headed(ACexpr, BCexpr, Expr).
+extract_head((A & B), C, Accept, Expr) :-
+    ->  extract_head(A, (B & C), Accept, Expr).
+
+% An special case of merge_headed/3. 
+% add_accept(Accept)-X --- merge_headed(X0, [Accept], X)
+add_accept(Accept, [X|Xs], Ys) :-
+	X = accept(_,_,_,_)
+    ->  choose_accept(X, Accept, BestAcc),
+	Ys = [BestAcc | Xs].
+add_accept(Accept, Xs, Ys) :-
+    ->  Ys = [Accept | Xs].
+
+% Constructs a new accept from two. The result is the one with higher priority
+% if unconditional, and a merged one otherwise.
+choose_accept(X, X, Result) :-
+    ->	Result = X.
+choose_accept(X, Y, Result) :-
+	X = accept(Pri1, Cond1, Action1, Unless1),
+	Y = accept(Pri2,_,_,_),
+	less(Pri1, Pri2)
+    ->	insert_unless(Cond1, Unless1, Y, NewUnless1),
+	Result = accept(Pri1, Cond1, Action1, NewUnless1).
+choose_accept(X, Y, Result) :-
+	X = accept(_,_,_,_),
+	Y = accept(Pri2, Cond2, Action2, Unless2)
+    ->	insert_unless(Cond2, Unless2, X, NewUnless2),
+	Result = accept(Pri2, Cond2, Action2, NewUnless2).
+
+insert_unless('true', Unless, _, NewUnless) :-
+    ->	NewUnless = Unless.
+insert_unless(_, 'false', Action, NewUnless) :-
+    ->	NewUnless = Action.
+insert_unless(_, Unless, Action, NewUnless) :-
+    ->	choose_accept(Action, Unless, NewUnless).
+
+% Takes two disjunction lists and merge them so that there is still a unique
+% transition for input characters in the result, by use of distributive law
+merge_headed([A|As], [B|Bs], C) :-
+	A = accept(_,_,_,_),
+	B = accept(_,_,_,_)
+    ->	choose_accept(A, B, Acc),
+	C = [Acc | Xs],
+	pure_merge(As, Bs, Xs).
+merge_headed([A|As], Bs, C) :-
+	A = accept(_,_,_,_)
+    -> 	C = [A|Xs],
+	pure_merge(As, Bs, Xs).	  
+merge_headed(As, [B | Bs], C) :-
+	B = accept(_,_,_,_)
+    -> 	C = [B|Xs],
+	pure_merge(As, Bs, Xs).	  
+merge_headed(As, Bs, C) :-
+    -> 	pure_merge(As, Bs, C).
+
+pure_merge([], Bs, Tail) :-
+    ->  Tail = Bs.
+pure_merge(As, [], Tail) :-
+    ->  Tail = As.
+pure_merge([(CharA & RestA)|As], [(CharB & RestB)|Bs], Tail) :-
+    ->  pure_merge(CharA, CharB, RestA, RestB, As, Bs, Tail).
+
+pure_merge(Char, Char, RestA, RestB, As, Bs, Tail) :-
+    ->  build_disjunction(RestA, RestB, Disj),
+	Tail = [(Char & Disj) | Tail2],
+	pure_merge(As, Bs, Tail2).
+pure_merge(CharA, CharB, RestA, RestB, As, Bs, Tail) :-
+	not_greater(CharA, CharB)
+    ->  Tail = [(CharA & RestA) | Tail2],
+	pure_merge(As, [(CharB & RestB)|Bs], Tail2).
+pure_merge(CharA, CharB, RestA, RestB, As, Bs, Tail) :-
+    ->  Tail = [(CharB & RestB) | Tail2],
+	pure_merge([(CharA & RestA)|As], Bs, Tail2).
+
+% Takes two disjunctions and make a new joined one
+build_disjunction(RestA, RestB, Disj) :-
+    ->	ord_disj_set(RestA, DisSetA),
+	ord_disj_set(RestB, DisSetB),
+	ord_union(DisSetA, DisSetB, DisSet),
+	Disj = disjunction(DisSet).
+
+% Makes a disjunction set of an augmented reg. expr.
+ord_disj_set(disjunction([X]), Result) :-
+    ->	ord_disj_set(X, Result).
+ord_disj_set(disjunction(Set), Result) :-
+    ->	Result = Set.
+ord_disj_set(or(A, B), Result) :-
+    ->  ord_disj_set(A, SetA),
+	ord_disj_set(B, SetB),
+	ord_union(SetA, SetB, Result).
+ord_disj_set(X, Result) :-
+    ->	Result = [X].
+
+% expand_set(Set, Expansion, Result) attaches the expansion to all the
+% characters in set by concatenation
+expand_set([X|Xs], Expansion, Result) :-
+    ->	Result = [(X & Expansion) | Result2],
+	expand_set(Xs, Expansion, Result2).
+expand_set([], _, Result) :-
+    ->	Result = [].
+
+% as construct_range followed by expand_set
+expand_range(A, B, Expansion, Result) :-
+	not_greater(A, B)
+    ->	inc(A, A1),
+	Result = [(A & Expansion) | Result2],
+	expand_range(A1, B, Expansion, Result2).
+expand_range(_, _, _, Result) :- 
+    ->	Result = [].
+
+% Used to expand the rep(Match, From)
+expand_rep(0, Expr, Expanded) :- 
+    ->	Expanded = star(Expr).
+expand_rep(1, Expr, Expanded) :- 
+    ->	Expanded = plus(Expr).
+expand_rep(N, Expr, Expanded) :-
+	greater(N, 1)
+    ->	dec-N,
+	Expanded = (Expr & rep(Expr, N)).
+
+% Used to expand the rep(Expr, From, To)
+expand_rep(0, 1, Expr, Expanded) :- 
+    ->	Expanded = opt(Expr).
+expand_rep(0, To, Expr, Expanded) :- 
+	greater(To, 1)
+    ->	dec-To,
+	Expanded = (opt(Expr)&rep(Expr, 0, To)).
+expand_rep(1, 1, Expr, Expanded) :-
+    ->	Expanded = Expr.
+expand_rep(From, To, Expr, Expanded) :-
+	greater(From, 0)
+    ->	dec-From,
+	dec-To,
+	Expanded = (Expr & rep(Expr, From, To)).
+expand_rep(_,_,Expr, Expanded) :-
+    ->	format('ERROR. Illegal repetition expression.~n'),
+	Expanded = Expr.
+
+% Character set stuff.
+% These are really not so hot! Find a portable way that is not dependent
+% on the size of the charset and the value of newline!!! AKL-builtin???
+all_chars(ALL) :-
+    ->	construct_range(0, 255, ALL).
+newline_char(NL) :-
+    ->	NL = 10.
+
+
+
+
+
+
+

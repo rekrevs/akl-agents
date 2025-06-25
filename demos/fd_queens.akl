@@ -1,0 +1,57 @@
+qc(D,E,S) :- 
+	fd(
+        D \= E,
+	D \= E+S,
+	D \= E-S).
+
+q_c(D,E,S) :- 
+	fd(
+	D in -dom(E) /\ -(dom(E)+S) /\ -(dom(E)-S), 
+	E in -dom(D) /\ -(dom(D)+S) /\ -(dom(D)-S)).
+
+q(Lab) :-
+	q(Lab, 64, _).
+
+q(Lab, N, L) :-
+	construct_domains(N, L),
+	constrain(L),
+	lab(Lab, L).
+
+all_q(Lab) :-
+	all_q(Lab, 8, _).
+
+all_q(Lab, N, Num) :-
+	construct_domains(N, L),
+	constrain(L),
+	num(Lab, L, Num).
+
+all_q_copy :- 
+	all_q_copy(8, _).
+
+all_q_copy(N, Num) :-
+	numberof(X\q(normal,N,X), Num).
+
+get_domains(0, _, L) :- 
+    ->	L=[].
+get_domains(M, N, L) :- 
+    ->	L = [D|L0],
+	fd(D in 0..N),
+	M1 is M-1,
+	get_domains(M1, N, L0).
+
+construct_domains(N, L) :-
+	N1 is N-1,
+	get_domains(N, N1, L).
+
+constrain([]) :- 
+    ->	true.
+constrain([D|R]) :- 
+    ->	constrain_each(R, D, 1),
+	constrain(R).
+
+constrain_each([], _, _) :- 
+    ->	true.
+constrain_each([E|R], D, S) :- 
+    ->	q_c(D,E,S),
+	S1 is S+1,
+	constrain_each(R, D, S1).

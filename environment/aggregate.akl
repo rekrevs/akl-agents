@@ -1,0 +1,49 @@
+% $Id: aggregate.akl,v 1.15 1994/04/06 12:16:09 jm Exp $ 
+
+% bagof
+
+bagof(F, Y) :-
+	'COLLECTOR'(C, Y),
+	ordered_bagof_aux(F, C).
+
+ordered_bagof_aux(F, A):- 'ORDER'(F(X), A, A1, A2, A1 = [X|A2]).
+ordered_bagof_aux(_F, A):- 'UNIT'(true, A, A1, A1 = []).
+
+
+unordered_bagof(F, Y) :-
+	'COLLECTOR'(C, Y),
+	unordered_bagof_aux(F, C).
+
+unordered_bagof_aux(F, A):- 'UNORDER'(F(X), A, A1, A2, A1 = [X|A2]).
+unordered_bagof_aux(_F, A):- 'UNIT'(true, A, A1, A1 = []).
+
+
+% numberof
+
+numberof(F, Y) :-
+	'COLLECTOR'(C, 0),
+	numberof_aux(F, C, Y).
+
+numberof_aux(F, A, _):- 'UNORDER'(F(_), A, A1, A2, A2 is 1+A1).
+numberof_aux(_F, A, Y):- 'UNIT'(true, A, A1, A1 = Y).
+
+% aggregate
+
+aggregate(Generator, Collect, Unit, Aggregate) :-
+	'COLLECTOR'(A, Aggregate),
+        aggregate_aux(Generator, Collect, Unit, A).
+
+aggregate_aux(G, Collect, _, A) :-
+	'ORDER'(G(X), A, A1, A2, Collect(X, A2, A1)).
+aggregate_aux(_, _, Unit, A):-
+	'UNIT'(true, A, A1, A1 = Unit).
+
+
+unordered_aggregate(Generator, Collect, Unit, Aggregate) :-
+	'COLLECTOR'(A, Aggregate),
+        unordered_aggregate_aux(Generator, Collect, Unit, A).
+
+unordered_aggregate_aux(G, Collect, _, A) :-
+	'UNORDER'(G(X), A, A1, A2, Collect(X, A2, A1)).
+unordered_aggregate_aux(_, _, Unit, A):-
+	'UNIT'(true, A, A1, A1 = Unit).

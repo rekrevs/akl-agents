@@ -1,0 +1,298 @@
+%--- Conversion routines
+
+:- public dterms1_to_program/2, program_to_terms1/2, dcg_expand/2, 
+	read_program/3, read_program/2, write_program/3, write_program/2.
+	
+%--- dterms1_to_program(+DTERM1-list,-PROGRAM)
+% 	This conversion takes case of special cases, e.g.
+% 	"p.", "p:-?true" both mean "p :- true?true".
+dterms1_to_program(Ds,P) :- 
+    ->	parse_definitions(P,Ds,[]).
+
+
+write_conflicting_prednames(DefinedNames) :-
+    	reverse(DefinedNames,RDef)
+    ->	stdout(O),
+    	check_unique(RDef,O,_).
+
+check_unique([],S0,S1) :- 
+    ->  S0=S1.
+check_unique([(H/A-_Gop)|_T],S0,_S2) :-
+	built_in_literal(H,A)
+    ->  writenl('### redefining built-in ###'(H/A),S0,_),
+	fail.
+check_unique([(H-Gop)|T],S0,S2) :-
+	member((H-Gop0),T)
+    ->  writenl('### duplicate definition ###'(H,Gop,Gop0),S0,S1),
+	check_unique(T,S1,S2).
+check_unique([_|T],S0,S1) :-
+    ->  check_unique(T,S0,S1).
+
+parse_definitions(D,S0,S1) :-
+    ->	parse_definitions(D,S0,S1,[],DefinedNames),
+	write_conflicting_prednames(DefinedNames).
+
+parse_definitions(D,[],S1,A,DefinedNames) :-
+    -> 	D=[],
+       	S1=[],
+	A=DefinedNames.
+parse_definitions(D,S0,S2,A,DefinedNames) :-
+       	parse_definition(D0,S0,S1),
+     	D0=DefName-def(Gop,_PredHead,_Clauses),
+	guardop(Goptoken,Gop)
+    -> 	D=[D0|R],
+       	parse_definitions(R,S1,S2,[(DefName-Goptoken)|A],DefinedNames).
+parse_definitions(D,S0,S1,A,DefinedNames) :-
+    -> D=[exception(parse_error(S0))],
+       S1=[],
+       A=DefinedNames.
+
+parse_definition(D,S0,S1) :-
+        parse_clauses(C,S0,S2)
+    ->	S2=S1,
+	definition_name(C,Dn,Guardop),
+	Dn=Name/Arity,
+	mk_predhd(Name,Arity,PredHead),
+	D=Dn-def(Guardop,PredHead,C).
+parse_definition(D,S0,S1) :-
+    ->  D=nodef/0-def('???','???',[exception(E)]),
+	S0=[E|S1].
+
+mk_predhd(Name,Arity,PredHead) :-
+    ->  PredHead=struct(Name,Arity,Args),
+	mk_args(Arity,0,Args).
+
+mk_args(0,_,A) :-
+    ->	A=[].
+mk_args(A,I,Args) :-
+    ->	Args=[arg(I)|T],
+	A1 is A-1,
+	I1 is I+1,
+	mk_args(A1,I1,T).
+
+definition_name(Cs,Dn,Guardop) :-
+    ->  Cs=[clause(Head,_,Guardop0,_)|_],
+        Head=struct(Name,Arity,_),
+	Dn=Name/Arity,
+	Guardop=Guardop0.
+
+parse_clauses(C,S0,S2) :-
+   ->   parse_clause(Name,Head,Guard,Guardop,Body,S0,S1),
+	parse_clauses(Name,Guardop,T,S1,S2),
+	C=[clause(Head,Guard,Guardop,Body)|T].
+
+parse_clauses(Name,Guardop,Cls,S0,S2) :-
+        parse_clause(Name,Head,Guard,Guardop,Body,S0,S1)
+    ->  Cls=[clause(Head,Guard,Guardop,Body)|T],
+	parse_clauses(Name,Guardop,T,S1,S2).
+parse_clauses(_Name,_Guardop,Cls,S0,S1) :-
+    ->  S0=S1,
+	Cls=[].
+		
+parse_clause(Name,Head,Guard,Guardop,Body,S0,S1) :-
+        S0=[term(T)|R]
+    ->	expand_term(T,T0),
+    	R=S1, 
+	x8(T0,Name,Head,Guard,Guardop,Body).
+
+x8(S,Name,Head,Guard,Guardop,Body) :- 
+	S=struct((:-),2,[Head0,struct(Goptoken,2,[Guard0,Body0])]),
+     	guardop(Goptoken,Guardop0),
+     	Head0=struct(Name0,Arity0,_)
+    ->	Name=Name0/Arity0,
+        Head0=Head,
+	Guardop0=Guardop,
+	Guard0=Guard,
+	Body0=Body.
+x8(S,Name,Head,Guard,Guardop,Body) :- 
+	S=struct((:-),2,[Head0,struct(Goptoken,1,[Body0])]),
+    	guardop(Goptoken,Guardop0),
+     	Head0=struct(Name0,Arity0,_)
+    ->	Name=Name0/Arity0,
+        Head0=Head,
+	Guardop0=Guardop,
+	Guard=struct(true,0,[]),
+	Body0=Body.
+x8(S,Name,Head,Guard,Guardop,Body) :- 
+	S=struct((:-),2,[Head0,Body0]),
+     	Head0=struct(Name0,Arity0,_)
+    ->  Name=Name0/Arity0,
+	Head0=Head,
+	Body0=Body,
+	guardop((?),Guardop),
+	Guard=struct(true,0,[]).
+x8(H, Name,Head,Guard,Guardop,Body) :- 
+    ->  H=struct(Name0,Arity0,_),
+	Head=H,
+	Name=Name0/Arity0,
+	guardop((?),Guardop),
+	Guard=struct(true,0,[]),
+	Body=struct(true,0,[]).
+
+
+%--- program_to_terms1(+PROGRAM,-TERM1-list)
+%program_to_terms1(PROGRAM,TERM1-list) :-
+
+
+%--- dcg_expand(+TERM1,-TERM1)
+% dcg_expand(+TERM1,-TERM1) :-
+
+
+
+/*
+    I/O:
+	read_program(-DPROGRAM,+Stream,-Stream)
+		or possibly
+	read_program(+Filename,-DPROGRAM)
+*/
+
+%---read_program(-DPROGRAM,+Stream,-Stream)
+read_program(P,S0,S1) :-
+    ->  read_dterms1(T,S0,S1),
+	dterms1_to_program(T,D0),
+	P0=prog([],D0),
+	filter_public(P0,P).
+
+
+
+%---read_program(+Filename,-DPROGRAM)
+read_program(F,P) :-
+    ->	read_dterms1(F,T),
+	dterms1_to_program(T,D0),
+	P0=prog([],D0),
+	filter_public(P0,P).
+
+
+/*
+	write_program(+PROGRAM,+Stream,-Stream)
+		or possibly
+	write_program(+Filename,+PROGRAM)
+		pretty-prints the clause
+*/
+%---write_program(+PROGRAM,+Stream,-Stream)
+write_program(prog(Entries,Defs),S0,S4) :-
+    ->  writenl(':- public ',S0,S1),
+	write_deflits_nl(Entries,S1,S2),
+	nl(S2,S3),
+	smap((D,Sa,Sb)\write_definition(D,Sa,Sb),Defs,S3,S4).
+write_program(prog(Entries,Defs),S0,S2) :-
+    ->  writenl('%--- couldn''t write program '(Entries),S0,S1),
+	smap((D,Sa,Sb)\writenl(D,Sa,Sb),Defs,S1,S2).
+
+%---write_program(+Filename,+PROGRAM)
+write_program(F,P) :-
+   ->   fopen(F,write,S0),
+	write_program(P,S0,S1),
+	send(fclose,S1,_S2).
+
+write_deflits_nl([],S0,S1) :-
+    ->	S0=S1.
+write_deflits_nl([H],S0,S2) :-
+    ->	write_deflitname(H,'.',S0,S1),
+	write_deflit(H,S1,S2).
+write_deflits_nl([H|T],S0,S3) :-
+    ->	write_deflitname(H,',',S0,S1),
+	write_deflit(H,S1,S2),
+	write_deflits_nl(T,S2,S3).
+
+write_deflitname(H$_,C,S0,S1) :-
+    ->	write_deflitname(H,C,S0,S1).
+	
+write_deflitname(H,C,S0,S3) :-
+	H=struct(Name,Arity,_)
+    ->	write('        ',S0,S1),
+	write(Name/Arity,S1,S2), 
+	write(C,S2,S3).
+
+write_deflit(H,S0,S3) :-
+    ->	write(' % ',S0,S1),
+	write_goal(H,S1,S2),
+	nl(S2,S3).
+
+
+write_definition(nodef/0-def(_Gop,nohead,Error),S0,S2) :-
+    ->  nl(S0,S1),
+	writenl('%-- not a definition:'(Error),S1,S2).
+
+write_definition(_Dname-def(_Gop,PredHead,Cls),S0,S5) :-
+    ->  nl(S0,S1),
+    	write('%',S1,S2), 
+	write_goal(PredHead,S2,S3),
+	nl(S3,S4),
+	smap((C,Sa,Sb)\write_clause(C,Sa,Sb),Cls,S4,S5).
+
+write_definition(D,S0,S1) :-
+    ->  S0=S1, 
+	stdout(Error), 
+	writenl(fail(write_definition(D)),Error,_), 
+	fail.
+
+
+write_annotation(A,S0,S1) :- write(A,S0,S1).
+
+
+write_gop(Gop,S0,S1) :-
+    ->	guardop(Goptoken,Gop),
+    	atom_to_chars(Goptoken,L),
+	fill_gop(L,Gc),
+        write0(Gc,S0,S1).
+
+fill_gop([A],Gc) :-
+    ->	
+	S=32,
+%	atom_chars(' ',[S]),
+     	L=[S,S,S,S,A,S,S,S],
+	chars_to_atom(L,Gc).
+fill_gop([A,B],Gc) :-
+    ->	S=32,
+%	atom_chars(' ',[S]),
+     	L=[S,S,S,S,A,B,S,S],
+	chars_to_atom(L,Gc).
+
+write_clause(clause(Head,struct(true,0,[]),Gop,Body),S0,S6) :-
+    ->  write_goal(Head,S0,S1),
+	nl(S1,S2),
+	writenl('     :- ',S2,S3),
+	write_gop(Gop,S3,S4),
+	write_goals(Body,S4,S5),
+	writenl('.',S5,S6).
+
+write_clause(clause(Head,Guard,Gop,Body),S0,S9) :-
+    ->  write_goal(Head,S0,S1),
+	nl(S1,S2),
+	writenl('     :- ',S2,S3),
+	write0('        ',S3,S4),
+	write_goals(Guard,S4,S5),
+	nl(S5,S6),
+	write_gop(Gop,S6,S7),
+	write_goals(Body,S7,S8),
+	writenl('.',S8,S9).
+
+write_goals([],S0,S1) :-
+    ->  S0=S1.
+write_goals([H|T],S0,S3) :-
+    ->  write_goals(H,S0,S1),
+	nl(S1,S2),
+	write_goals(T,S2,S3).
+write_goals(H,S0,S6) :-
+	akl_conjunction(H,A,B)
+    ->  write0('(',S0,S1),
+	write_goals(A,S1,S2),
+	writenl(',',S2,S3),
+	write0('        ',S3,S4),
+	write_goals(B,S4,S5),
+	write0(')',S5,S6).
+write_goals(G$A,S0,S3) :- 
+    ->	write_goals(G,S0,S1),
+	write(' $ ',S1,S2),
+	write_annotation(A,S2,S3).
+write_goals(H,S0,S1) :-
+    ->  write_goal(H,S0,S1).
+
+write_goal(H$A,S0,S3) :-
+    ->  write_goal(H,S0,S1),
+	write0(' $ ',S1,S2),
+	write_annotation(A,S2,S3).
+write_goal(H,S0,S1) :-
+    ->  write_term1(H,S0,S1).
+

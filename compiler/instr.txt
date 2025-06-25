@@ -1,0 +1,358 @@
+Symbols
+	RegN = X-register index
+	YVar = Y-variable index
+	Label= l(Integer) or possibly fail_dec (decsions code failure}
+	VarLabel= jump if variable
+	ElseLabel= else case jump
+
+Machine Registers
+	H
+	LEVEL
+	MODE_FLAG  (default FIRST)
+
+Machine Stack
+	CONS_STACK
+	TRY_STACK
+	CONS_SAVE_STACK
+
+Fail_dec:  failure in decision code (described later)
+
+	Get_Term(REG,OFFSET) :: REG is a ptr (REF-tagged) and the term
+				is found at offset OFFSET 
+	Set_Term(REG,OFFSET) :: REG is a ptr (REF-tagged) and the variable to be set
+				is found at offset OFFSET 
+
+
+
+SIMPLE
+	LOADING	
+		load_nil(Reg)			constant loaded into x register
+	 	load_atom(Reg,Atom)             constant loaded into x register
+		load_integer(Reg,Integer)       constant loaded into x register
+	READ
+		read_car(Reg1,Reg2)	        Reg1 derefed and known to be list
+						Reg2 initialized to car(Reg1)
+		read_cdr(Reg1,Reg2)		analagous
+		read_arg(Reg1,Index,Reg2)	Reg1 deref and known to be struct
+						Reg2 intialized to the Index element
+ 	MOVE
+		set_reg_reg(SReg,DReg)		DReg initialized to SReg
+		set_reg_yvar(SYvar,DReg)	analgous
+		set_yvar_reg(SReg,DYvar)
+	
+
+BRANCH			Note:	Case pass: 	case when the instruction following the
+						branch instruction is to be executed
+				Case fail:      decision code failure
+						
+				
+	ATOMS:  	Note: AtomList=N-[Atom1,Label1,Atom2,Label2,...]
+			
+
+		atom_switch(Reg,AtomList)				Pass:var  
+									FailDec: nonatom | not in list
+		atom_with_else_switch(Reg,VarLabel,AtomList)		Pass: nonatom | not in llist
+									FailDec: impossible
+		atom_with_atom_else_switch(Reg,VarLabel,AtomList)	Pass: atom & not in list
+									FailDec: nonatom
+		atom_type(ArgNo,VarLabel),				Pass: atom
+									FailDec: nonatom
+		atom_type_with_else(ArgNo,VarLabel,ElseLabel)		Pass: atom
+									FailDec: impossible
+		known_atom_switch(Reg,AtomList),			Pass: impossible
+									FailDec: not in list 
+									Note: deref and known to be atom
+		known_atom_with_atom_else_switch(Reg,AtomList),		Pass: atom & not in list
+									FailDec: impossible
+									Note: deref and known to be atom
+									
+	INTEGERS:	Note: analagous to above
+
+		integer_switch(Reg,IntList)
+		integer_with_else_switch(Reg,VarLabel,IntList)
+		integer_with_integer_else_switch(Reg,VarLabel,IntList)
+		integer_type(ArgNo,VarLabel),
+		integer_type_with_else(ArgNo,VarLabel)
+		known_integer_switch(Reg,IntList),
+		known_integer_with_integer_else_switch(Reg,IntList),
+
+	LIST:
+		list_switch(Reg,NilLabel,VarLabel)		Pass: list case
+								FailDec: nonvar & nonlist & nonnil
+		list_type_with_else(Reg,VarLabel,ElseLabel)	Pass: list case
+								FailDec: impossible
+								Else: nonvar & nonlist
+	STRUCT: 
+		struct_type(Reg,VarLabel)			Pass: struct
+								FailDec: nonvar & nonstruct
+		struct_type_with_else(Reg,VarLabel,ElseLabel)	Pass: struct
+								FailDec: impossible
+								Else: nonvar & nonlist
+	
+		known_functor_switch(Reg,FunctorList)		Pass: impossible
+								FailDec: not in list
+			Note: known to be structure
+		known_functor_with_functor_else_switch(Reg,FunctorList)	Pass: non in list
+			Note: known to be structure
+
+
+	BUILTINS-STATIC
+
+		int_compare_reg_reg(Reg1,Reg2,JumpOnLess,JumpOnEqual)	Pass: Reg1>Reg2
+			Note: Reg1,Reg2 are derefed and known to be integers
+		int_compare_reg_int(Reg,Integer,JumpOnLess,JumpOnEqual)	Pass: Reg1>Integer
+			Note: Reg1 is derefed and known to be integers
+	BUILTINS-DYNAMIC
+		eq_reg_reg(Reg1,Reg2,JumpOnNotEqual,JumpOnDontKnow)	Pass: equal
+									JumpOnDontKnow:
+										leaves entries on
+										constraint stack
+
+UNIFICATION
+	NO WRITE JUMP
+		match_reg_reg(Reg1,Reg2)		
+		match_reg_reg_off(Reg1,Reg2,Off2)		unify(Reg,Get_Term(Reg2,Off))
+		match_reg_atom(Reg,Atom)
+		match_reg_off_atom(Reg,Off,Atom)
+		match_reg_integer(Reg,Integer)
+		match_reg_off_integer(Reg,Off,Integer)
+		match_reg_nil(Reg)
+		match_reg_off_nil(Reg,Off)
+		match_reg_yvar(Reg,YVar)
+		match_yvar_yvar(YVar1,YVar2)
+		match_yvar_reg_off(Yvar,Reg,Offset)
+		
+	H MATCH
+		match_reg_H_list(Reg,HeapOffset)	unify(Reg,term(LST,*(H-Offset)))
+		match_yvar_H_list(Reg,HeapOffset)	
+
+		match_reg_H_struct(Reg,HeapOffset)
+		match_yvar_H_struct(Reg,HeapOffset)
+
+	WRITE JUMP
+		match_reg_struct(Reg,F,A,WriteLabel,NextOff,NextReg)
+			if(var(Reg))
+				Reg = term(STR,H)
+				*H++ = F/A
+				jump to WriteLabel
+			else if matches
+			 	NextReg := REF-tagges ptr to NextOff argument of structure 
+			else 				
+				Fail
+
+		match_reg_struct_level(Reg,F,A,WriteLabel,Level,NextOff,NextReg)
+			as above but on jump LEVEL=level
+
+		match_reg_off_struct(Reg,Off,F,A,WriteLabel,NextOff,NextReg)
+			if(var(Get_Term(Reg,Off))
+				Set_Term(Reg,Off) = tagged(STR,H)
+				*H++ = F/A
+				jump to WriteLabel
+			else if matches
+			 	NextReg := REF-tagges ptr to NextOff argument of structure 
+			else 				
+				Fail
+			
+		match_reg_off_struct_level(Reg,Off,F,A,WriteLabel,Level,NextOff,NextReg)
+			as above but on jump LEVEL=level
+
+		match_yvar_struct(YVar,F,A,WriteLabel,NextOff,NextReg)
+		match_yvar_struct_lvel(YVar,F,A,WriteLabel,Level,NextOff,NextReg)
+	
+		match_reg_list_car(Reg,WriteLabel,NextReg)		
+			if(var(Reg))
+				Reg = tagged(LST,H)
+				jump to WriteLabel
+			else if matches
+			 	NextReg := REF-tagges ptr to car of list
+			else 				
+				Fail
+			
+		match_reg_list_car_level(Reg,WriteLabel,Level,NextReg)		
+		match_reg_off_list_car(Reg,Off,WriteLabel,NextReg)		
+		match_reg_off_list_car_level(Reg,Off,WriteLabel,Level,NextReg)		
+		match_yvar_list_car(YVar,WriteLabel,NextReg)		
+		match_yvar_list_car_level(YVar,WriteLabel,Level,NextReg)		
+			
+		match_reg_list_cdr(Reg,WriteLabel,NextReg)		
+		match_reg_list_cdr_level(Reg,WriteLabel,Level,NextReg)		
+		match_reg_off_list_cdr(Reg,Off,WriteLabel,NextReg)		
+		match_reg_off_list_cdr_level(Reg,Off,WriteLabel,Level,NextReg)		
+		match_yvar_list_cdr(YVar,WriteLabel,NextReg)		
+		match_yvar_list_cdr_level(YVar,WriteLabel,Level,NextReg)		
+PUSH
+	HEAP INCREMENTING
+		push_list_imm      		push(LST,H+1)
+		push_list(Offset)		push(LST,H+OffSet)
+		push_structure_imm		push(STR,H+1)
+		push_structure(OffSet)		push(STR,H+Offset)
+	        push_nil			push(nil)
+		push_reg(Reg)			
+		push_yvar(YReg),		
+		push_void			push({void variable}
+		set_reg_H_and_push_void(Reg)	
+		set_yvar_H_and_push_void(YReg)	
+		set_reg_and_yvar_H_and_push_void(Reg,YReg)
+		push_functor(F,A)
+		
+	PREP
+		set_reg_H(Reg)			Reg=tagged(REF,*H) 
+		set_yvar_H(Yvar)
+
+TRY
+		try(JumpLabel,Reg,Binding)
+			*(TRY_STACK++) = (tagged(NORMAL,PC+1),CONS_STACK)
+			*(CONS_STACK++)= {tagged(REG,Reg),Binding}
+			jump to JumpLabel
+		trust(JumpLabel,Reg,Binding)
+			*(CONS_STACK++)= {tagged(REG,Reg),Binding}
+			jump to JumpLabel
+		test_try(JumpLabel,TestLabel)
+			*(TRY_STACK++) = (tagged(NORMAL,PC+1),CONS_STACK)
+			*(CONS_STACK++)= {TEST,TestLabel}
+			jump to JumpLabel
+		test_trust(JumpLabel,TestLabel)
+			*(CONS_STACK++)= {TEST,TestLabel}
+			jump to JumpLabel
+		s_try(JumpLabel)
+			*(TRY_STACK++) = (tagged(NORMAL,PC+1),CONS_STACK)			
+		s_trust(JumpLabel)
+			jump to JumpLabel			
+		back(JumpLabel)
+			*(TRY_STACK++) = (tagged(NORMAL,PC),CONS_STACK)			
+		gen_try(JumpLabel,MaxLive-Live)
+			$$ make_and_box
+			$$ alias_check_stack
+			$$ save_state(Live)
+			$$ cons_stack_bind_with_test
+			jump to JumpLabel
+		gen_trust
+			$$ alias_check_stack
+			$$ make_and_box
+			$$ cons_stack_bind_with_test
+			
+
+CONTROL
+	NORMAL
+		label(LabelNumber)
+		execute_simple(Functor,Arity)	{no cont ever made}
+		execute(Functor,Arity)		{cont dumped}
+		call(Functor,Arity,MaxLive-LiveYvars)
+		jump_gc_and_dump_cont(JumpLabel)
+		jump_gc(JumpLabel)			{gc and jump
+		jump(JumpLabel)
+		proceed_simple			{no cont ever made
+		proceed				{cont dump}
+		create_cont(MaxSize)
+		test_level(Level,Jump)      	{if level>Level jump}
+
+CONSTRAINT STACK
+
+	JUMPS
+		jump_on_nonempty_constraint_stack(Jump)
+
+	EXPLICIT ALIAS CHECK
+		alias_check			$$ alias_check_stack
+		alias_check(Reg,Binding)	$$ alias_check_reg
+		fail_on_alias(Reg)		{ if Reg aliased with some entry on constraint 
+						  stack then faildec}
+
+CHOICE
+		choice_quiet_cut		$$ make_choice_box
+			
+	
+SUSPENSION
+		suspend_lone_var(Reg,Label,Arity)	$$ suspend_reg(uncond,Reg)
+		suspend(Reg,Label,EffArity)		$$ get_suspend_vars
+							$$ suspend_stack_and_reg(uncond,Reg)
+		suspend_without_reg(Label,EffArity)     $$ get_suspend_vars
+							$$ suspend_stack(uncond)
+
+GUARD
+	FLAT
+		flat_quiet_cut(Label,Arity)
+			if empty(CONS_STACK)
+				dump(try_stack)
+			else
+				$$ alias_check_stack
+				$$ get_suspend_vars
+				$$ suspend_stack(uncond)
+		flat_quiet_commit(Label,Arity,Live)
+			if empty(CONS_STACK)
+				dump_all_stacks
+			else
+				$$ alias_check_stack
+				if empty(try_stack)
+					$$ get_suspend_vars
+					$$ suspend_stack(uncond)
+				else
+					$$ get_suspend_vars
+					$$ save_suspend_vars
+					$$ fail_dec	
+		   	
+					
+		flat_noisy_wait(Label,Live,Arity)		
+	            if(MODE_FLAG & first)
+			if empty(TRY_stack)
+				if{CONS_STACK does not contain TEST)
+					$$ bind_cons_stack
+				else
+					{create and-box with test}
+   			else
+				MODE_FLAG=second
+				$$ get_suspend_vars_with_bind
+				$$ save_suspend_vars
+				$$ save_live_regs
+				$$ fail_dec
+		    if(MODE_FLAG & second)
+				$$ alias_check_stack
+				$$ get_suspend_vars
+				$$ suspend_stack(nondet)
+		    if(MODE_FLAG & nondet)
+			??
+			
+					
+
+	DEEP
+		shortcut_quiet_cut(Label)
+			if quiet 
+				$$ promote
+				jump(Label)
+		shortcut_quiet_commit(Label)
+			if quiet 
+				$$ promote
+				jump(Label)
+		shortcut_noisy_wait(Label)
+			??
+		
+		deep_quiet_cut			
+			if quiet
+				dump_state
+				$$ promote
+			else
+				?? 
+		deep_quiet_commit
+		deep_noisy_wait
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% CONSTRAINT STACK
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+Tag		Arg1				Arg2
+
+REG		{X-reg index}                   ATM: 	imm
+						INT: 	imm
+						LST: 	-> 
+						STRUCT:	->
+						GEN:	->
+						TYPE:	id
+
+DYN-REG	 	{X-reg index}			term
+DYN-GEN		variable			term
+DYN-REGREG	{X-reg index}			{X-reg index}
+
+TEST		----				Code Ptr
+

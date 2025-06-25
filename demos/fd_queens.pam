@@ -1,0 +1,597 @@
+predicate('qc'/3
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(4)
+	get3_y_variable(2,2,1,1,3,0)
+    guard_wait
+	fd_code(8,
+	dom_max_0
+	dom_min_0
+	range
+	compl
+	)
+	put_structure('args'/1,3)
+	unify_y_value(1)
+	put_structure('prop'/1,4)
+	unify_constant(3)
+	put_list(9)
+	unify_y_value(1)
+	unify_nil
+	put_structure('dec'/2,5)
+	unify_x_value(9)
+	unify_nil
+	put_constant(1,6)
+	put_structure('domains'/1,7)
+	unify_y_value(1)
+	put_y_value(3,0)
+	put_x_value(8,1)
+	put_y_variable(0,2)
+	call('akl_in'/8)
+	fd_code(8,
+	dom_max_0
+	dom_min_0
+	range
+	compl
+	)
+	put_structure('args'/1,3)
+	unify_y_value(3)
+	put_structure('prop'/1,4)
+	unify_constant(3)
+	put_list(9)
+	unify_y_value(3)
+	unify_nil
+	put_structure('dec'/2,5)
+	unify_x_value(9)
+	unify_nil
+	put_constant(1,6)
+	put_structure('domains'/1,7)
+	unify_y_value(3)
+	put_y_value(1,0)
+	put_x_value(8,1)
+	put_y_value(0,2)
+	call('akl_in'/8)
+	fd_code(8,
+	dom_max_1
+	dom_max_0
+	add
+	dom_min_1
+	dom_min_0
+	add
+	range
+	compl
+	)
+	put_structure('args'/2,3)
+	unify_y_value(1)
+	unify_y_value(2)
+	put_structure('prop'/2,4)
+	unify_constant(3)
+	unify_constant(3)
+	put_list(9)
+	unify_y_value(2)
+	unify_nil
+	put_list(10)
+	unify_y_value(1)
+	unify_x_value(9)
+	put_structure('dec'/2,5)
+	unify_x_value(10)
+	unify_nil
+	put_constant(1,6)
+	put_structure('domains'/2,7)
+	unify_y_value(1)
+	unify_y_value(2)
+	put_y_value(3,0)
+	put_x_value(8,1)
+	put_y_variable(0,2)
+	call('akl_in'/8)
+	fd_code(8,
+	dom_min_1
+	dom_max_0
+	sub
+	dom_max_1
+	dom_min_0
+	sub
+	range
+	compl
+	)
+	put_structure('args'/2,3)
+	unify_y_value(3)
+	unify_y_value(2)
+	put_structure('prop'/2,4)
+	unify_constant(3)
+	unify_constant(3)
+	put_list(10)
+	unify_y_value(2)
+	unify_nil
+	put_list(9)
+	unify_y_value(3)
+	unify_x_value(10)
+	put_structure('dec'/2,5)
+	unify_x_value(9)
+	unify_nil
+	put_constant(1,6)
+	put_structure('domains'/2,7)
+	unify_y_value(3)
+	unify_y_value(2)
+	put_y_value(1,0)
+	put_x_value(8,1)
+	put_y_value(0,2)
+	call('akl_in'/8)
+	fd_code(8,
+	dom_min_1
+	dom_max_0
+	sub
+	dom_max_1
+	dom_min_0
+	sub
+	range
+	compl
+	)
+	put_structure('args'/2,3)
+	unify_y_value(3)
+	unify_y_value(1)
+	put_structure('prop'/2,4)
+	unify_constant(3)
+	unify_constant(3)
+	put_list(9)
+	unify_y_value(1)
+	unify_nil
+	put_list(10)
+	unify_y_value(3)
+	unify_x_value(9)
+	put_structure('dec'/2,5)
+	unify_x_value(10)
+	unify_nil
+	put_constant(1,6)
+	put_structure('domains'/2,7)
+	unify_y_value(3)
+	unify_y_value(1)
+	put_y_value(2,0)
+	put_x_value(8,1)
+	put_y_value(0,2)
+	call('akl_in'/8)
+	fd_code(8,
+	dom_min_1
+	dom_max_0
+	sub
+	dom_max_1
+	dom_min_0
+	sub
+	range
+	compl
+	)
+	put_structure('args'/2,3)
+	unify_y_value(1)
+	unify_y_value(2)
+	put_structure('prop'/2,4)
+	unify_constant(3)
+	unify_constant(3)
+	put_list(10)
+	unify_y_value(2)
+	unify_nil
+	put_list(9)
+	unify_y_value(1)
+	unify_x_value(10)
+	put_structure('dec'/2,5)
+	unify_x_value(9)
+	unify_nil
+	put_constant(1,6)
+	put_structure('domains'/2,7)
+	unify_y_value(1)
+	unify_y_value(2)
+	put_y_value(3,0)
+	put_x_value(8,1)
+	put_y_variable(0,2)
+	call('akl_in'/8)
+	fd_code(8,
+	dom_min_1
+	dom_max_0
+	sub
+	dom_max_1
+	dom_min_0
+	sub
+	range
+	compl
+	)
+	put_structure('args'/2,3)
+	unify_y_value(1)
+	unify_y_value(3)
+	put_structure('prop'/2,4)
+	unify_constant(3)
+	unify_constant(3)
+	put_list(9)
+	unify_y_value(3)
+	unify_nil
+	put_list(10)
+	unify_y_value(1)
+	unify_x_value(9)
+	put_structure('dec'/2,5)
+	unify_x_value(10)
+	unify_nil
+	put_constant(1,6)
+	put_structure('domains'/2,7)
+	unify_y_value(1)
+	unify_y_value(3)
+	put_y_value(2,0)
+	put_x_value(8,1)
+	put_y_value(0,2)
+	call('akl_in'/8)
+	fd_code(8,
+	dom_max_1
+	dom_max_0
+	add
+	dom_min_1
+	dom_min_0
+	add
+	range
+	compl
+	)
+	put_structure('args'/2,3)
+	unify_y_value(3)
+	unify_y_value(2)
+	put_structure('prop'/2,4)
+	unify_constant(3)
+	unify_constant(3)
+	put_list(10)
+	unify_y_value(2)
+	unify_nil
+	put_list(9)
+	unify_y_value(3)
+	unify_x_value(10)
+	put_structure('dec'/2,5)
+	unify_x_value(9)
+	unify_nil
+	put_constant(1,6)
+	put_structure('domains'/2,7)
+	unify_y_value(3)
+	unify_y_value(2)
+	put_y_value(1,0)
+	put_x_value(8,1)
+	put_y_value(0,2)
+	dealloc_execute('akl_in'/8)
+)
+
+
+predicate('q_c'/3
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(4)
+	get3_y_variable(3,2,1,1,2,0)
+    guard_wait
+	fd_code(8,
+	val_1
+	dom_0
+	setsub
+	compl
+	val_1
+	dom_0
+	setadd
+	compl
+	dom_0
+	compl
+	inter
+	inter
+	)
+	put_structure('args'/2,3)
+	unify_y_value(1)
+	unify_y_value(3)
+	put_structure('prop'/1,4)
+	unify_constant(0)
+	put_list(9)
+	unify_y_value(1)
+	unify_nil
+	put_structure('dec'/2,5)
+	unify_x_value(9)
+	unify_nil
+	put_constant(1,6)
+	put_structure('domains'/1,7)
+	unify_y_value(1)
+	put_y_value(2,0)
+	put_x_value(8,1)
+	put_y_variable(0,2)
+	call('akl_in'/8)
+	fd_code(8,
+	val_1
+	dom_0
+	setsub
+	compl
+	val_1
+	dom_0
+	setadd
+	compl
+	dom_0
+	compl
+	inter
+	inter
+	)
+	put_structure('args'/2,3)
+	unify_y_value(2)
+	unify_y_value(3)
+	put_structure('prop'/1,4)
+	unify_constant(0)
+	put_list(9)
+	unify_y_value(2)
+	unify_nil
+	put_structure('dec'/2,5)
+	unify_x_value(9)
+	unify_nil
+	put_constant(1,6)
+	put_structure('domains'/1,7)
+	unify_y_value(2)
+	put_y_value(1,0)
+	put_x_value(8,1)
+	put_y_value(0,2)
+	dealloc_execute('akl_in'/8)
+)
+
+
+predicate('q'/1
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(1)
+	get_y_variable(0,0)
+    guard_wait
+	put_constant(64,1)
+	put_y_value(0,0)
+	put_x_void(2)
+	dealloc_execute('q'/3)
+)
+
+
+predicate('q'/3
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(3)
+	get3_y_variable(0,2,2,1,1,0)
+    guard_wait
+	put2_y_value(2,0,0,1)
+	call('construct_domains'/2)
+	put_y_value(0,0)
+	call('constrain'/1)
+	put2_y_value(1,0,0,1)
+	dealloc_execute('lab'/2)
+)
+
+
+predicate('all_q'/1
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(1)
+	get_y_variable(0,0)
+    guard_wait
+	put_constant(8,1)
+	put_y_value(0,0)
+	put_x_void(2)
+	dealloc_execute('all_q'/3)
+)
+
+
+predicate('all_q'/3
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(3)
+	get3_y_variable(0,2,1,1,2,0)
+    guard_wait
+	put_y_value(1,0)
+	put_y_variable(1,1)
+	call('construct_domains'/2)
+	put_y_value(1,0)
+	call('constrain'/1)
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('num'/3)
+)
+
+
+predicate('all_q_copy'/0
+	try_single(0)
+label(0)
+	allocate(0)
+    guard_wait
+	put_constant(8,0)
+	put_x_void(1)
+	dealloc_execute('all_q_copy'/2)
+)
+
+
+predicate(0/2/1
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(2)
+	get2_y_variable(1,1,0,0)
+    guard_cond
+	put_constant('normal',0)
+	put2_y_value(1,1,0,2)
+	dealloc_execute('q'/3)
+)
+
+
+predicate('all_q_copy'/2
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(2)
+	get2_y_variable(0,1,1,0)
+    guard_wait
+	put_abstraction(0,0)
+	unify_y_value(1)
+	put_y_value(0,1)
+	dealloc_execute('numberof'/2)
+)
+
+
+predicate('get_domains'/3
+label(5)
+	switch_on_term(8,9,7,9,9,9,9)
+label(7)
+	switch_on_constant(1,[(0,8)],9)
+label(8)
+	try(0)
+	trust(1)
+label(9)
+	try_single(1)
+label(0)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant(0,0)
+    guard_cond
+	put_y_value(0,3)
+	get_nil(3)
+	dealloc_proceed
+label(1)
+	allocate(3)
+	get3_y_variable(0,2,1,1,2,0)
+    guard_cond
+	put_y_value(0,8)
+	get_list(8)
+	unify_x_variable(8)
+	unify_y_variable(0)
+	fd_code(9,
+	val_0
+	const
+	0
+	outer_range
+	)
+	put_structure('args'/1,3)
+	unify_y_value(1)
+	put_constant('prop',4)
+	put_list(10)
+	unify_y_value(1)
+	unify_nil
+	put_list(11)
+	unify_y_value(1)
+	unify_nil
+	put_structure('dec'/2,5)
+	unify_x_value(10)
+	unify_x_value(11)
+	put_constant(1,6)
+	put_constant('domains',7)
+	put_x_value(8,0)
+	put_x_value(9,1)
+	put_x_void(2)
+	call('akl_in'/8)
+	put_structure('-'/2,1)
+	unify_y_value(2)
+	unify_constant(1)
+	put_x_variable(9,0)
+	call('is'/2)
+	put_x_value(9,0)
+	put2_y_value(1,1,0,2)
+	dealloc_execute('get_domains'/3)
+)
+
+
+predicate('construct_domains'/2
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(2)
+	get2_y_variable(0,1,1,0)
+    guard_wait
+	put_structure('-'/2,1)
+	unify_y_value(1)
+	unify_constant(1)
+	put_x_variable(3,0)
+	call('is'/2)
+	put_y_value(1,0)
+	put_x_value(3,1)
+	put_y_value(0,2)
+	dealloc_execute('get_domains'/3)
+)
+
+
+predicate('constrain'/1
+label(5)
+	switch_on_term(10,8,7,7,7,11,7)
+label(8)
+	switch_on_constant(1,[('[]',9)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(0)
+	get_nil_x0
+    guard_cond
+	dealloc_proceed
+label(1)
+	allocate(2)
+	get_list_x0
+	unify_y_variable(1)
+	unify_y_variable(0)
+    guard_cond
+	put_constant(1,2)
+	put2_y_value(0,0,1,1)
+	call('constrain_each'/3)
+	put_y_value(0,0)
+	dealloc_execute('constrain'/1)
+)
+
+
+predicate('constrain_each'/3
+label(5)
+	switch_on_term(10,8,7,7,7,11,7)
+label(8)
+	switch_on_constant(1,[('[]',9)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(0)
+	get_nil_x0
+    guard_cond
+	dealloc_proceed
+label(1)
+	allocate(4)
+	get2_y_variable(2,2,0,1)
+	get_list_x0
+	unify_y_variable(3)
+	unify_y_variable(1)
+    guard_cond
+	put3_y_value(0,0,3,1,2,2)
+	call('q_c'/3)
+	put_structure('+'/2,1)
+	unify_y_value(2)
+	unify_constant(1)
+	put_x_variable(3,0)
+	call('is'/2)
+	put2_y_value(1,0,0,1)
+	put_x_value(3,2)
+	dealloc_execute('constrain_each'/3)
+)
+
+

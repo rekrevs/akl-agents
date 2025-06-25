@@ -1,0 +1,668 @@
+% File: 	gram.akl
+% Author: 	Anders Andersson
+% Purpose:	Computations on (LALR) grammars
+
+% Representation of the grammar:
+% The non-terminals are represented as consecutive integers from 1 and up,
+% 0 is used for the augmented start symbol S'
+% The grammar is a list of rules, the first rule is for non-terminal 0 and
+% so on. Each rule is a list of alternative productions and each production
+% is a list of grammar symbols. The terminal repr. is as t(Num) where Num is
+% consecutive integers from 0 and up. Example (e is empty string): 
+% A -> B C
+% B -> B B | b | e 
+% C -> A C
+% becomes:
+% [[[1]],
+%  [[2,3]],
+%  [[2,2],[t(0)],[]],
+%  [[1,3],[t(1)]]]
+
+% Take a Grammar and a assoclist of (Nonterm-Production)-(Prec-Action) pairs 
+% and compute the Action and Goto tables and any conflicts or other problems.
+% Also need the start symbol and the accepting action, and an assoc of all
+% terminals that have a precedence associated with them.
+lalr(Grammar, UserActs, Start, Accept, Prec, Status, Action, Goto) :-
+    ->  user_acts_to_items(UserActs, ItemActs),
+	list_to_assoc([item(0,0,p(Start))-(no_prec-Accept)|ItemActs], User),
+	AugGrammar = [[[Start]]|Grammar],
+	find_infinite(AugGrammar, Infinite),
+	find_unreachable(AugGrammar, 0, Unreachable),
+	first_e_arrs(AugGrammar, EArr, FArr),
+	item_array(AugGrammar, IArr),
+	list_to_assoc([[item(0,1,p(Start))]-0], States),
+	goto_and_prop_info([item(0,1,p(Start))], 0, EArr, FArr, IArr,
+	                   GotoInfo, [], Edges, [], Inits, [],0-States,_),
+	reduce_actions(Edges, Inits, (0-item(0,1,p(Start)))-[-1], Reds),
+	lalr_tables(GotoInfo, Reds, User, Prec, SR, RR, Action, Goto),
+	Status = status(Infinite, Unreachable, SR, RR, GotoInfo, Reds).
+
+user_acts_to_items([(N-X)-A|Xs], ItemActs) :-
+    ->	length(X, L),
+	reverse-X,
+	item_body_construct(L, X, Body),
+	[item(N, 0, Body)-A]-ItemActs,
+	user_acts_to_items(Xs, ItemActs).
+user_acts_to_items([], ItemActs) :-
+    ->	ItemActs = [].
+
+% Compute arrays with "first" and epsilon-derivation information
+first_e_arrs(Grammar, EArray, FirstArray) :-
+    ->  check_e(Grammar, EArr),
+	first_prop_V_E(Grammar, 0, Edges, Initials)-EArr,
+	union_propagation(Edges, Initials, ResultingValues),
+	assoclist_to_array(ResultingValues, _, FirstArray),
+	EArray = EArr.
+
+% Compute a array, indexed with non-terminals, that has zero entries for a
+% particular non-terminal iff it can derive epsilon
+check_e(Grammar, EArr) :-
+    ->	check_e_size(Grammar, Size, EList),
+	new_array(Size, PropArray),
+	new_array(Size, CounterArray),
+	length(Grammar, N),
+	build_check_e_arr(Grammar, N, Size, EList)-PropArray-CounterArray,
+	propagate_e(EList)-PropArray-CounterArray,
+	subarray(0, N, EArr)@CounterArray.
+
+% Determine the number of nodes needed in the epsilon derivation check
+% and track the non-terminals that can produce epsilon in one step.
+check_e_size(Grammar, Size, EpsilonList) :-
+    ->	check_e_size(Grammar, EpsilonList, 0, 0, Size).
+check_e_size([X|Xs], EpsilonList, RuleNo)-Counter :-
+    ->  count_rule(X, RuleNo, 0, RuleSize)-EpsilonList,
+	add(RuleSize)-Counter,
+	inc-Counter,
+	inc-RuleNo,
+	check_e_size(Xs, EpsilonList, RuleNo)-Counter.
+check_e_size([], EpsilonList, _)-_Counter :-
+    ->	EpsilonList = [].
+
+% Determine the storage needed for a non-terminal
+count_rule([[]|_], RuleNo, _, Size)-EpsilonList :-
+    ->	Size = 0,
+	[RuleNo]-EpsilonList.
+count_rule([Prod|Rest],  RuleNo)-Size-EpsilonList :-
+	no_terminals(Prod)
+    ->  inc-Size,
+	count_rule(Rest, RuleNo)-Size-EpsilonList.
+count_rule([_|Rest], RuleNo)-Size-EpsilonList :-
+    ->  count_rule(Rest, RuleNo)-Size-EpsilonList.
+count_rule([], _)-_Size-_EL :-
+    ->	true.
+
+% Check that a production consists of non-terminals only
+no_terminals([X|Xs]) :-
+	integer(X)
+    ->  no_terminals(Xs).
+no_terminals([]) :-
+    ->	true.
+
+% Allocate and fill arrays with the graph of the grammar
+build_check_e_arr(Grammar, N, Size, EpsilonList)-PropArray-CounterArray :-
+    ->  initialize_array(N, 1)-CounterArray,
+	initialize_array(Size, [])-PropArray,
+	grammar_graph(Grammar, N, EpsilonList, 0)-PropArray-CounterArray.
+
+% Fill the arrays with the graph of the grammar
+grammar_graph([_|Xs], N, [RuleNo|Rest], RuleNo)-PropArray-CounterArray :-
+    ->  inc-RuleNo,
+	grammar_graph(Xs, N, Rest, RuleNo)-PropArray-CounterArray. 
+grammar_graph([X|Xs], N, EpsilonList, RuleNo)-PropArray-CounterArray :-
+    ->  install_prod(X, RuleNo)-N-PropArray-CounterArray,
+	inc-RuleNo,
+	grammar_graph(Xs, N, EpsilonList, RuleNo)-PropArray-CounterArray.
+grammar_graph([], _, _, _)-_PropArray-_CounterArray :-
+    ->	true.
+
+% Insert a production into the graph.
+install_prod([X|Xs], RuleNo)-N-PropArray-CounterArray :-
+	no_terminals(X)
+    ->  set(N, _, [RuleNo])@PropArray,
+	sort-X,
+	length(X, L),
+	set(N, _, L)@CounterArray,
+	map_set_cons(X, N)-PropArray,
+	inc-N,
+	install_prod(Xs, RuleNo)-N-PropArray-CounterArray.
+install_prod([_|Xs], RuleNo)-N-PropArray-CounterArray :-
+    ->  install_prod(Xs, RuleNo)-N-PropArray-CounterArray.
+install_prod([], _)-_N-_P-_C :-
+    ->	true.
+
+% Propagate the epsilons through the graph
+propagate_e([X|Xs])-PropArray-CounterArray :-	
+    ->  get(X, Val)@CounterArray,
+	propagate_e1(Val, X, Xs)-PropArray-CounterArray.
+propagate_e([])-_PropArray-_CounterArray :-
+    ->	true.
+
+propagate_e1(0, _, Xs)-PropArray-CounterArray :-
+    ->  propagate_e(Xs)-PropArray-CounterArray.
+propagate_e1(N, X, Xs)-PropArray-CounterArray :-
+    ->  dec-N,
+	set(X, _, N)@CounterArray,
+	propagate_e2(N, X)-PropArray-CounterArray,
+	propagate_e(Xs)-PropArray-CounterArray.
+
+propagate_e2(0, X)-PropArray-CounterArray :-
+    ->	get(X, PropSet)@PropArray,
+	propagate_e(PropSet)-PropArray-CounterArray.
+propagate_e2(_,_)-_P-_C :-
+    ->	true.
+
+% Check if there are any non-terminals that cannot derive anything
+find_infinite(Grammar, Infinites) :-
+    ->	strip_terminals-Grammar,
+	check_e(Grammar, EArr),
+	length(Grammar, L),
+	collect_non_zero(L, EArr, Infinites).
+
+% Removes all terminals from a grammar
+strip_terminals([N|Rest], Out) :-
+	integer(N)	
+    ->  [N]-Out, 
+	strip_terminals(Rest, Out).
+strip_terminals([t(_)|Rest], Out) :-
+    ->	strip_terminals(Rest, Out).
+strip_terminals([[]|Rest], Out) :-
+    ->	[[]]-Out,
+	strip_terminals(Rest, Out).
+strip_terminals([List|Rest], Out) :-
+	List = [_|_]
+    ->  strip_terminals-List,
+	[List]-Out,
+	 strip_terminals(Rest, Out).
+strip_terminals([], Out) :-
+    ->	Out = [].
+   
+% Find all indices among the N first that have non-zero entries 
+collect_non_zero(0, _, Coll) :-
+    ->	Coll = [].
+collect_non_zero(N, Arr, Coll) :-
+    ->  dec-N,
+	get(N, Val)@Arr,
+	addlast_non_zero(Val, N)-Coll,
+	collect_non_zero(N, Arr, Coll).
+
+addlast_non_zero(0, _)-_Coll :-
+    ->	true.
+addlast_non_zero(_, N)-Coll :-
+    ->	[N]-Coll.
+
+% Check if there are any non-terminals that cannot be reached from the
+% start symbol
+find_unreachable(Grammar, Start, Unreachables) :-
+    ->	make_reach_graph(Grammar, Graph),
+	list_to_assoc(Graph, GraphAssoc),
+	graph_assoc_reachable([Start], GraphAssoc, Reachables),
+	length(Grammar, L),
+	dec-L,
+	construct_range(0, L, AllNonTerminals),
+	ord_subtract(AllNonTerminals, Reachables, Unreachables).
+
+% Make a graph where each non-terminal has a edge to all non-terminals in
+% any of its productions
+make_reach_graph(Grammar, Graph) :-
+    ->  strip_terminals-Grammar,
+	make_reach_graph(Grammar, 0, Graph).
+
+make_reach_graph([X|Xs], Counter, Graph) :-
+    ->  lists_to_ord_set(X, Set),
+	[Counter-Set]-Graph,
+	inc-Counter,
+	make_reach_graph(Xs, Counter, Graph).
+make_reach_graph([], _, Graph) :-
+    ->	Graph = [].
+
+% Given a list of edges and a list of vertices-valueSet pairs, compute
+% an assoclist of the vertices-valueSet pairs that result from propagating
+% the values through the graph, taking union at each vertex
+% A vertex not in the initial value list has empty set as initial value,
+% and a vertex that has a initial value but isn't in the edges is a unconnected
+% piece of the graph. A vertex may occur several times in the list of initial
+% values, understanding that the union of them is intended.
+union_propagation(Edges, InitialValues, ResultingValues) :-
+    ->  key_sort_union-InitialValues,
+	extract_keys(InitialValues, InitialVertices),
+	vertices_edges_to_ugraph(InitialVertices, Edges, Graph),
+	list_to_assoc(InitialValues, VertexValues),
+	reduce-Graph,
+	map(Graph, (X,Y)\component_union(VertexValues,X,Y),ComponentValueList),
+	list_to_assoc(ComponentValueList, ComponentValues),
+	top_sort(Graph, NodeList),
+	ord_list_to_assoc(Graph, GraphAssoc),
+	union_propagate_reduced(NodeList, GraphAssoc, ComponentValues,
+	                   ResultingValues).
+
+% takes the union of the vertices in a strongly connected component and
+% associate it with the component, actually the "union" is "lazy", i.e.
+% ord_union/2 is needed to make it a union 
+component_union(Assoc, Vert-_, Res) :-
+    ->	component_union1(Vert, Assoc, SetList),
+	Res = Vert-SetList.
+
+component_union1([X|Xs], Assoc, Out) :-
+	get_assoc(X, Val, Assoc, _)
+    ->  [Val]-Out,
+	component_union1(Xs, Assoc, Out).
+component_union1([_|Xs], Assoc, Out) :-
+    ->  component_union1(Xs, Assoc, Out).
+component_union1([], _, Out) :-
+    ->	Out = [].
+
+% Propagate the union through the top_sorted reduced graph
+union_propagate_reduced([X|Xs], GraphAssoc, Values, Results) :-
+    ->  get_assoc(X, Value, Values, _),
+	ord_union(Value, Set),
+	get_assoc(X, Neighbors, GraphAssoc, _),
+	map_cons(Neighbors, Set)-Values,
+	append_expanded(X, Set)-Results,
+	union_propagate_reduced(Xs, GraphAssoc, Values, Results).
+union_propagate_reduced([], _, _, Results) :-
+    ->	Results = [].
+
+% Cons the propagated value to the values of neighbors
+map_cons([X|Xs], Value)-Assoc :-
+    ->	set_assoc(X, Old, New)-Assoc,
+	New = [Value|Old],
+	map_cons(Xs, Value)-Assoc.
+map_cons([], _)-_Assoc :-
+    ->	true.
+
+% Given a grammar and a counter and the epsilon array it computes the
+% edges and the initial values of the graph that propagate firsts
+first_prop_V_E([X|Xs], Counter, Edges, Initials)-EArr :-
+    ->	first_prop_V_E_rule(X, Counter, Inits)-EArr-Edges,
+	sort-Inits,
+	[Counter-Inits]-Initials,
+	inc-Counter,
+	first_prop_V_E(Xs, Counter, Edges, Initials)-EArr.
+first_prop_V_E([], _, Edges, Initials)-_EArr :-
+    ->	Edges = [],
+	Initials = [].
+
+first_prop_V_E_rule([X|Xs], Counter, Inits)-EArr-Edges :-
+    ->	first_prop_V_E_prod(X, Counter)-EArr-Edges-Inits,
+	first_prop_V_E_rule(Xs, Counter, Inits)-EArr-Edges.
+first_prop_V_E_rule([], _, Inits)-_A-_E :-
+    ->	Inits = [].
+
+first_prop_V_E_prod([t(T)|_], _)-_EArr-_Edges-Inits :-
+    ->	[T]-Inits.
+first_prop_V_E_prod([X|Xs], Counter)-EArr-Edges-Inits :-
+    ->	[X-Counter]-Edges,
+	get(X, DerE)@EArr,
+	first_prop_V_E_prod1(DerE, Xs, Counter)-EArr-Edges-Inits.
+first_prop_V_E_prod([], _)-_A-_E-_I :-
+    ->	true.
+
+first_prop_V_E_prod1(0, Xs, Counter)-EArr-Edges-Inits :-
+    ->	first_prop_V_E_prod(Xs, Counter)-EArr-Edges-Inits.
+first_prop_V_E_prod1(_, _, _)-_A-_E-_I :-
+    ->	true.
+
+% Builds an array indexed by non-terminals that contains lists of items that
+% are associated with it. An item is represented as item(A,L,P), where 
+% A is the non-terminal, L the position of the dot, counting the number of
+% symbols to the *right* of the dot and P is p/N where the
+% components are the grammar symbols of the production in *reverse* order
+% For example:
+% A -> B . C D        item(0, 2, p(3,2,1))
+% B -> . C D          item(1, 2, p(3,2))
+% C -> .              item(2, 0, p)
+% D -> d .            item(3, 0, p(t(0)))
+% The chosen representation makes it easy to spot the rules that has the dot
+% at the extreme right and makes it easy to pick out the symbol to the right
+% of the dot (with arg) for the others
+item_array(Grammar, ItemArray) :-
+    ->	length(Grammar, L),
+	new_array(L, ItemArr),
+	grammar_to_items(Grammar, 0)-ItemArr,
+	ItemArray = ItemArr.
+
+grammar_to_items([X|Xs], Counter)-ItemArr :-
+    ->  rule_to_items(X, Counter, Items),
+	set(Counter, _, Items)@ItemArr,
+	inc-Counter,
+	grammar_to_items(Xs, Counter)-ItemArr.
+grammar_to_items([], _)-_A :-
+    ->	true.
+
+rule_to_items([X|Xs], Counter, Items) :-
+    ->  length(X, L),
+	reverse-X,
+	item_body_construct(L, X, Body),
+	[item(Counter, L, Body)]-Items,
+	rule_to_items(Xs, Counter, Items).
+rule_to_items([], _, Items) :-
+    ->	Items = [].
+
+item_body_construct(0, _, Body) :-
+    ->	Body = p.
+item_body_construct(L, X, Body) :-
+    ->  functor_to_term(p, L, Body),    %DS
+	tree_to_list(Body,[p|X]).
+%   ->  compound_construct(p, L, X, Body).
+
+% Check if the item is a epsilon production and if so return the non-term
+epsilon_item(item(_, _, p)) :-
+    ->	true.
+
+% Check if the things to the right of the non-terminal to the right of the 
+% dot can yield epsilon (must be a symbol to the right of the dot
+possible_empty_tail(item(_, C, P), EArr, Res) :-
+    ->  dec-C,
+	poss_empty(C, P, EArr, Res).
+
+poss_empty(0, _, _, Res) :-
+    ->	Res = 'true'.
+poss_empty(C, P, _, Res) :-
+	arg(C, P, t(_))
+    ->  Res = 'false'.
+poss_empty(C, P, EArr, Res) :-
+    ->  arg(C, P, N),
+	get(N, E)@EArr,
+	poss_empty1(E, C, P, EArr, Res).
+
+poss_empty1(0, C, P, EArr, Res) :-
+    ->	dec-C,
+	poss_empty(C, P, EArr, Res).
+poss_empty1(_, _, _, _, Res) :-
+    ->	Res = 'false'.
+
+% Determine the `first' set of the things to the right of the non-terminal
+% to the right of the dot (there must be symbol to the right of the dot)
+first_of_tail(item(_, C, P), EArr, FArr, Res) :-
+    ->  dec-C,
+	first1(C, P, EArr, FArr, ResList),
+	ord_union(ResList, Res).
+
+first1(0, _, _, _, ResList) :-
+    ->	ResList = [].
+first1(C, P, _, _, ResList) :-
+	arg(C, P, t(T))
+    ->	ResList = [[T]].
+first1(C, P, EArr, FArr, ResList) :-
+    ->	arg(C, P, N),
+	get(N, Val)@FArr,
+	[Val]-ResList,
+	get(N, E)@EArr, 
+	first2(E, C, P, EArr, FArr, ResList).
+
+first2(0, C, P, EArr, FArr, ResList) :-
+    ->  dec-C,
+	first1(C, P, EArr, FArr, ResList).
+first2(_, _, _, _, _, ResList) :-
+    ->	ResList = [].
+
+% Returns the non-terminal to the right of the dot, fail if there is no one
+at_dot(item(_, C, P), NonTerm) :-
+	greater(C, 0),
+        arg(C, P, Symbol),
+	integer(Symbol)
+    ->  NonTerm = Symbol.
+
+% Moves the dot one step to the right, and return the new item and the symbol
+% stepped over. Fails if the dot is at the extreme right.
+forward_dot(item(N, C, P), Symbol, NewItem) :-
+	greater(C, 0)
+    ->  arg(C, P, Symbol),
+	dec-C,
+	NewItem = item(N, C, P).
+
+% Computes closure({(LR0Item,(Mark-LR0Item)) | LR0Item <- Kernel})
+% LR(1) items are represented as LR0Item-LookAheadSet
+% Mark-LR0Item tells where things should propagate from and can be used as
+% the dummy # from the red dragon book, but allows us to do lookahead
+% propagation determination on the entire kernel at once
+closure_with_dummy_LA(K, Mark, EArr, FArr, IArr, Closure) :-
+    ->  ord_list_to_assoc([], Marked),
+	initial_prop_list(K, Mark, Ins),
+	lr0_closure_and_prop_info(K, EArr, FArr, IArr, Initials, 
+	                          Ins, Edges, [])-Marked,
+	union_propagation(Edges, Initials, Closure).
+
+initial_prop_list([X|Xs], Mark, Initials) :-
+    ->	[X-[(Mark-X)]]-Initials,
+	initial_prop_list(Xs, Mark, Initials).
+initial_prop_list([], _, Initials) :-
+    ->	Initials = [].
+
+lr0_closure_and_prop_info([Item|Items], E, F, I)-Initials-Edges-Marked :-
+	get_assoc(Item, _, Marked, _)
+    ->  lr0_closure_and_prop_info(Items, E, F, I)-Initials-Edges-Marked.
+lr0_closure_and_prop_info([Item|Items], E, F, I)-Initials-Edges-Marked :-
+	at_dot(Item, X)
+    ->	put_assoc(Item, marked)-Marked,
+	get(X, CItems)@I,
+	possible_empty_tail(Item, E, EmptyRes),
+	first_of_tail(Item, E, F, First),
+	add_initials(CItems, First)-Initials,
+	add_edges(EmptyRes, Item, CItems)-Edges,
+	lr0_closure_and_prop_info(CItems, E, F, I)-Initials-Edges-Marked,
+	lr0_closure_and_prop_info(Items, E, F, I)-Initials-Edges-Marked.
+lr0_closure_and_prop_info([_|Items], E, F, I)-Initials-Edges-Marked :-
+    ->	lr0_closure_and_prop_info(Items, E, F, I)-Initials-Edges-Marked.
+lr0_closure_and_prop_info([], _, _, _)-_Initials-_Edges-_Marked :-
+    ->	true.
+
+add_initials([X|Xs], LA)-Initials :-
+    ->	[X-LA]-Initials,
+	add_initials(Xs, LA)-Initials.
+add_initials([], _)-_I :-
+    ->	true.
+
+add_edges('true', Item, CItems)-Edges :-
+    ->  really_add_edges(CItems, Item)-Edges.
+add_edges('false', _, _)-_Edges :-
+    ->	true.
+
+really_add_edges([X|Xs], From)-Edges :-
+    ->	[From-X]-Edges,
+	really_add_edges(Xs, From)-Edges.
+really_add_edges([], _)-_E :-
+    ->	true.
+
+% Given the kernel of a LR(0) set of items and a state number, compute the
+% goto function and the lookahead propagation information 
+goto_and_prop_info(Kernel, State, EArr, FArr, IArr)-Goto-Edges-Inits-States :-
+    ->	closure_with_dummy_LA(Kernel, State, EArr, FArr, IArr, Closure),
+	goto_and_e_prod_split(Closure, State, MessyGotos)-Edges-Inits,
+	key_sort_custom((X,Y)\key_sort_union(X,Y))-MessyGotos,
+	install_and_forward(MessyGotos, State, EArr, FArr, 
+                            IArr)-Goto-Edges-Inits-States.
+
+goto_and_e_prod_split([X-LA|Xs], State, MessyGotos)-Edges-Inits :-
+	forward_dot(X, Symbol, GotoX)
+    ->  [Symbol-(GotoX-LA)]-MessyGotos,
+	goto_and_e_prod_split(Xs, State, MessyGotos)-Edges-Inits.
+goto_and_e_prod_split([X-LA|Xs], State, MessyGotos)-Edges-Inits :-
+	epsilon_item(X)
+    ->  prop_info([X-LA], State)-Edges-Inits,
+	goto_and_e_prod_split(Xs, State, MessyGotos)-Edges-Inits.
+goto_and_e_prod_split([_|Xs], State, MessyGotos)-Edges-Inits :-
+    ->	goto_and_e_prod_split(Xs, State, MessyGotos)-Edges-Inits.
+goto_and_e_prod_split([], _, MessyGotos)-_Edges-_Inits :-
+    ->	MessyGotos = [].
+
+install_and_forward([On-New|Xs], State, E, F, I)-Goto-Edges-Inits-States :-
+    ->	extract_keys(New, NewKernel),
+        install(NewKernel, NewState, E, F, I)-Goto-Edges-Inits-States,
+	[State-(On-NewState)]-Goto,
+	prop_info(New, NewState)-Edges-Inits,
+	install_and_forward(Xs, State, E, F, I)-Goto-Edges-Inits-States.
+install_and_forward([], _,_,_,_)-_G-_E-_I-_S :-
+    ->	true.
+
+install(NewKernel, NewState, _, _, _)-_Goto-_Edges-_Inits-States :-
+	States = _-Assoc,
+	get_assoc(NewKernel, No, Assoc, _)
+    ->  NewState = No.
+install(NewKernel, NewState, EArr, FArr, IArr)-Goto-Edges-Inits-States :-
+	States = Counter-Assoc
+    ->  inc-Counter,
+	put_assoc(NewKernel, Counter)-Assoc,
+	let(Counter-Assoc)-States,
+	goto_and_prop_info(NewKernel, Counter, EArr, FArr, 
+	                   IArr)-Goto-Edges-Inits-States,
+	NewState = Counter.
+
+let(Val, _, Out) :-
+    ->	Out = Val.
+
+prop_info([LR0Item-DummyLA|Xs], NewState)-Edges-Inits :-
+    ->  prop_info1(DummyLA, LR0Item, NewState, TokenSet)-Edges,
+	[(NewState-LR0Item)-TokenSet]-Inits,
+	prop_info(Xs, NewState)-Edges-Inits.
+prop_info([], _)-_E-_I :-
+    ->	true.
+
+prop_info1([Token|Xs], NewItem, NewState, TokenSet)-Edges :-
+	integer(Token)
+    ->  [Token]-TokenSet,
+	prop_info1(Xs, NewItem, NewState, TokenSet)-Edges.
+prop_info1([StateItem|Xs], NewItem, NewState, TokenSet)-Edges :-
+    ->  [StateItem-(NewState-NewItem)]-Edges,
+	prop_info1(Xs, NewItem, NewState, TokenSet)-Edges.
+prop_info1([], _, _, TokenSet)-_E :-
+    ->	TokenSet = [].
+
+% Must add $ in a cleaner way ? 
+reduce_actions(Edges, Initials, Dollar, ReduceActions) :-
+    ->	union_propagation(Edges, [Dollar|Initials], LAinfo),
+	extract_reductions(LAinfo, Reds),
+	key_sort_union(Reds, ReduceActions).
+
+extract_reductions([(State-Item)-LA|Xs], Reds) :-
+	Item = item(_, 0, _),
+	LA = [_|_]
+    ->  append_expanded(LA, Item, Transes, []),
+	[State-Transes]-Reds,
+	extract_reductions(Xs, Reds).
+extract_reductions([_|Xs], Reds) :-
+    ->  extract_reductions(Xs, Reds).
+extract_reductions([], Reds) :-
+    ->  Reds = [].
+
+% Given unsorted info about the goto function and reductions, compute the
+% action and goto tables and report the number of conflicts
+lalr_tables(GotoInfo, ReduceInfo, UserActs, Prec, SR, RR, Action, Goto) :-
+    ->	split_goto(GotoInfo, ShiftInfo, Goto0),
+	key_sort_set-ShiftInfo,
+	key_sort_set(Goto0, Goto),
+	fappend(ReduceInfo, ShiftInfo, Info), 
+	key_sort_union-Info,
+	fix_actions(Info, UserActs, Prec, Action, 0, SR, 0, RR).
+
+% The goto function info is used for goto table and shift actions
+split_goto([State-(t(T)-NewState)|Xs], Shift, Goto) :-
+    ->  [State-(T-NewState)]-Shift,
+	split_goto(Xs, Shift, Goto).
+split_goto([X|Xs], Shift, Goto) :-
+    ->  [X]-Goto,
+	split_goto(Xs, Shift, Goto).
+split_goto([], Shift, Goto) :-
+    ->	Shift = [], 
+	Goto = [].
+
+% Translate the items into actions and handle any conflicts in table
+fix_actions([State-Row|Xs], UserActs, Prec, Action)-SR-RR :-
+    ->  key_sort_set-Row,
+	resolve_actions(Row, UserActs, Prec, RowActions)-SR-RR,
+	[State-RowActions]-Action,
+	fix_actions(Xs, UserActs, Prec, Action)-SR-RR.
+fix_actions([], _, _, Action)-_SR-_RR :-
+    ->	Action = []. 
+
+% Translate the items into actions and handle any conflicts in a row
+resolve_actions([LA-[Single]|Xs], UserActions, Prec, RowActions)-SR-RR :-
+    ->	translate_action(Single, UserActions, Action),
+	[LA-Action]-RowActions,
+	resolve_actions(Xs, UserActions, Prec, RowActions)-SR-RR.
+resolve_actions([LA-[Sh, Red]|Xs], UserActions, Prec, RowActions)-SR-RR :- 
+	integer(Sh),                % it's a shift and thus a S/R conflict
+	get_assoc(LA, P2, Prec, _), % the terminal has a precedence
+	get_assoc(Red, P1-Act, UserActions, _),
+	integer(P1),                % the reduction has a precedence
+	not_equal(P1, P2)       % it's not a nonassoc case
+    ->  op_prec_resolve(P1, P2, Act, Sh, Action),
+	[LA-Action]-RowActions,
+	resolve_actions(Xs, UserActions, Prec, RowActions)-SR-RR.
+resolve_actions([LA-Multi|Xs], UserActions, Prec, RowActions)-SR-RR :- 
+    ->  resolve_conflict(Multi, UserActions, Action),
+	count_conflicts(Action, Multi)-SR-RR,
+	[LA-Action]-RowActions,
+	resolve_actions(Xs, UserActions, Prec, RowActions)-SR-RR.
+resolve_actions([], _, _, RowActions)-_SR-_RR :-
+    ->  RowActions = [].
+
+% Shifts are translated as themselves and reduce is translated to actions
+translate_action(Shift, _, Action) :-
+	integer(Shift)
+    ->  Action = Shift.
+translate_action(Reduce, UserActs, Action) :-
+    	get_assoc(Reduce, _-Act, UserActs, _)
+    ->	Action = Act.
+translate_action(_, _, Action) :-
+    ->	Action = false.
+
+% Solve a conflict with operator precedence information
+op_prec_resolve(RedPrec, ShiftPrec, RedAct, _, Action) :-
+	greater(RedPrec, ShiftPrec)
+    ->	Action = RedAct.
+op_prec_resolve(_, _, _, ShiftAct, Action) :-
+    ->	Action = ShiftAct.
+
+% Pick a shift action if any, else take the first user action
+resolve_conflict([X|_], _, Action) :-
+	integer(X)
+    ->	Action = X.
+resolve_conflict([X|Xs], UserAction, Action) :-
+    ->  get_assoc(X, Y, UserAction, _),
+	resolve_conflict(Xs, Y, UserAction, Action).
+
+resolve_conflict([X|_], _, _, Action) :-
+	integer(X)
+    ->  Action = X.
+resolve_conflict([X|Xs], Z, UserAction, Action) :-
+	get_assoc(X, Y, UserAction, _),
+	Y @< Z
+    ->  resolve_conflict(Xs, Y, UserAction, Action).
+resolve_conflict([_|Xs], Z, UserAction, Action) :-
+    ->  resolve_conflict(Xs, Z, UserAction, Action).
+resolve_conflict([], X, _, Action) :-
+    ->  Action = X.
+
+% Count a shift-reduce, reduce-reduce or both
+count_conflicts(Shift, [_,_,_|_])-SR-RR :-
+	integer(Shift)
+    ->  inc-SR,
+	inc-RR.
+count_conflicts(Shift, _)-SR-_RR :-
+	integer(Shift)
+    ->  inc-SR.
+count_conflicts(_, _)-_SR-RR :- 
+    ->  inc-RR.
+
+% Like reachable/3, but takes a set of vertices and the graph as an assoc
+graph_assoc_reachable(InitialList, GraphAssoc, Reachable) :-
+    ->	ord_list_to_assoc([], Marked),
+	reach_visit(InitialList, GraphAssoc, ReachList, [])-Marked,
+	list_to_ord_set(ReachList, Reachable).
+
+reach_visit([X|Xs], GraphAssoc)-ReachList-Marked :-
+	get_assoc(X, _, Marked, _)
+    ->  reach_visit(Xs, GraphAssoc)-ReachList-Marked.
+reach_visit([X|Xs], GraphAssoc)-ReachList-Marked :-
+    ->  get_assoc(X, Neighbors, GraphAssoc, _),
+	put_assoc(X, marked)-Marked,
+	[X]-ReachList,
+	reach_visit(Neighbors, GraphAssoc)-ReachList-Marked,
+	reach_visit(Xs, GraphAssoc)-ReachList-Marked.
+reach_visit([], _)-_R-_M :-
+    ->	true.
+			 
+
+
+

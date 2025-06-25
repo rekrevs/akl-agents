@@ -1,0 +1,30 @@
+/* the Ith element of List equals V,
+   where List is a list of natural numbers.
+*/
+fd_element(I, X, V) :-
+	constrain_I(X, 1, V, I),
+	constrain_V(X, 1, I, V).
+
+constrain_I([], _K, _V, I) :-
+    ->	fd( I in 0 ).
+constrain_I([X|R], K, V, I) :-
+    ->	K1 is K+1,
+	constrain_I(R, K1, V, I0),
+	fd( I in (X/\dom(V)) => K \/ dom(I0) ).
+
+constrain_V([], _K, _I, V) :-
+    ->	fd( V in max ).
+constrain_V([X|R], K, I, V) :-
+    ->	K1 is K+1,
+	constrain_V(R, K1, I, V0),
+	fd( V in (dom(I)/\K) => X \/ dom(V0) ).
+
+element(I, X, V) :-
+	integer_list(X) 
+    ->	fd(element(I, X, V)).
+
+integer_list([]) :-
+    ->	true.
+integer_list([I|R]) :-
+	integer(I)
+    ->	integer_list(R).

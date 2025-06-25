@@ -1,0 +1,90 @@
+% $Id: call.akl,v 1.7 1993/10/22 12:59:08 sverker Exp $
+
+%%%
+%%% CALLING PREDICATES WITH ARGUMENTS
+%%%
+%%% File   : call.akl
+%%% Author : Sverker Janson
+%%% Updated: 21 November 1990
+%%% Purpose: Efficent interface to lambda
+%%% Needs  : ()
+
+% call(P,A1,..,An) <=> apply(P,[A1,..,An]), but it can be implemented
+% more efficiently---in this case only for atomic predications.
+
+call(P,A1) :-
+	atom(P)
+    ->	functor_to_term(P,1,G),
+	arg(1,G,A1),
+	call(G).
+call(P,A1) :-
+    ->	akl_apply(P,[A1],R),
+	R.
+
+call(P,A1,A2) :-
+	atom(P)
+    -> 	functor_to_term(P,2,G),
+	arg(1,G,A1),
+	arg(2,G,A2),
+	call(G).
+call(P,A1,A2) :-
+    ->	akl_apply(P,[A1,A2],R),
+	R.
+
+call(P,A1,A2,A3) :-
+	atom(P)
+    -> 	functor_to_term(P,3,G),
+	arg(1,G,A1),
+	arg(2,G,A2),
+	arg(3,G,A3),
+	call(G).
+call(P,A1,A2,A3) :-
+    ->	akl_apply(P,[A1,A2,A3],R),
+	R.
+
+call(P,A1,A2,A3,A4) :-
+	atom(P)
+    -> 	functor_to_term(P,4,G),
+	arg(1,G,A1),
+	arg(2,G,A2),
+	arg(3,G,A3),
+	arg(4,G,A4),
+	call(G).
+call(P,A1,A2,A3,A4) :-
+    ->	akl_apply(P,[A1,A2,A3,A4],R),
+	R.
+
+call(P,A1,A2,A3,A4,A5) :-
+	atom(P)
+    -> 	functor_to_term(P,5,G),
+	arg(1,G,A1),
+	arg(2,G,A2),
+	arg(3,G,A3),
+	arg(4,G,A4),
+	arg(5,G,A5),
+	call(G).
+call(P,A1,A2,A3,A4,A5) :-
+    ->	akl_apply(P,[A1,A2,A3,A4,A5],R),
+	R.
+
+call(P,A1,A2,A3,A4,A5,A6) :-
+	atom(P)
+    -> 	functor_to_term(P,6,G),
+	arg(1,G,A1),
+	arg(2,G,A2),
+	arg(3,G,A3),
+	arg(4,G,A4),
+	arg(5,G,A5),
+	arg(5,G,A6),
+	call(G).
+call(P,A1,A2,A3,A4,A5,A6) :-
+    ->	akl_apply(P,[A1,A2,A3,A4,A5,A6],R),
+	R.
+
+call(P,A1,A2,A3,A4,A5,A6,A7) :-
+	akl_apply(P,[A1,A2,A3,A4,A5,A6,A7],R),
+	R.
+
+call(P,A1,A2,A3,A4,A5,A6,A7,A8) :-
+	akl_apply(P,[A1,A2,A3,A4,A5,A6,A7,A8],R),
+	R.

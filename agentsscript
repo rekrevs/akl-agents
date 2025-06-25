@@ -1,0 +1,208 @@
+set EMUL = $AGENTSPATH/emulator
+set ENVI = $AGENTSPATH/environment
+set COMP = $AGENTSPATH/oldcompiler
+
+set TMP = /tmp
+set TMPAGENTS = $TMP/agents"$$"
+set IFILE = $TMPAGENTS"install.c"
+
+set AKLARGS = ""
+set PAMS = ""
+set OBJECTS = ""
+set IFACE = ""
+set INSTALL = ""
+set OUTPUT = ""
+set OFILE = $EMUL/oagents.o
+set EXEC = $EMUL/oagents
+
+set BOOT = "-b $ENVI/boot.pam -b $COMP/comp.pam -b $AGENTSPATH/version.pam"
+
+if ($#argv == 0) then
+  $EXEC $BOOT
+  exit
+else
+  foreach FILE ($argv)
+    if ($OUTPUT == pending) then
+	set OUTPUT = $FILE
+    else
+      switch ($FILE)
+
+        case -t 
+		set EXEC = $EMUL/tagents
+		set OFILE = $EMUL/tagents.o
+		breaksw
+        case -e 
+		set EXEC = $EMUL/eagents
+		set OFILE = $EMUL/eagents.o
+		breaksw
+	case -o*
+		if ("$FILE" == "-o") then
+			set OUTPUT = pending
+		else
+			echo ERROR: No space after -o
+			break
+		breaksw
+
+	case *.fd
+		if ((-f $FILE) != 1) then
+			echo ERROR: File not found - $FILE
+			exit
+		endif
+
+		set NAME = $FILE:r
+		set NAME = $NAME:t
+		set INSTALL = "$INSTALL install_foreign_$NAME();"
+
+		set NEWER = `find $FILE.c -newer $FILE -print >&! /dev/null`
+
+		if ((-f $FILE.c) && $NEWER != "") then
+			echo WARNING: Not compiling $FILE - .fd.c file is newer
+		else
+			set IFACE = "$IFACE file('$FILE','$FILE.c',$NAME),"
+		endif
+
+		set OBJECTS = "$OBJECTS $FILE.c"
+		breaksw
+
+	case *.c
+		if ((-f $FILE) != 1) then
+			echo ERROR: File not found - $FILE
+			exit
+		endif
+
+		set NEWER = `find $FILE:r.o -newer $FILE -print >&! /dev/null`
+
+		if ((-f $FILE:r.o) && $NEWER != "") then
+			echo WARNING: Not compiling $FILE - .o file is newer
+			set OBJECTS = "$OBJECTS $FILE:r.o"
+		else
+			set OBJECTS = "$OBJECTS $FILE"
+		endif
+
+		breaksw
+
+	case *.o
+		if ((-f $FILE) != 1) then
+			echo ERROR: File not found - $FILE
+			exit
+		endif
+
+		set OBJECTS = "$OBJECTS $FILE"
+		breaksw
+
+	case -l*
+		set OBJECTS = "$OBJECTS $FILE"
+		breaksw
+
+	case *.akl
+		if ((-f $FILE) != 1) then
+			echo ERROR: File not found - $FILE
+			exit
+		endif
+
+		set NEWER =`find $FILE:r.pam -newer $FILE -print >&! /dev/null`
+
+		if ((-f $FILE:r.pam) && $NEWER != "") then
+			set AKLARGS = "$AKLARGS '$FILE:r',"
+		else
+			echo WARNING: Not compiling $FILE - .pam file is newer
+		endif
+
+		set PAMS = "$PAMS $FILE:r.pam"
+		breaksw
+
+	case *.pam
+		if ((-f $FILE) != 1) then
+			echo ERROR: File not found - $FILE
+			exit
+		endif
+
+		set PAMS = "$PAMS $FILE"
+		breaksw
+
+	default:
+		echo WARNING: $FILE not used
+		breaksw
+      endsw
+    endif
+  end
+endif
+
+
+## Missing output file?
+
+if ($OUTPUT == pending) then
+	echo ERROR: No output file given after -o
+	exit
+endif
+
+
+## Generate glue code from foreign declarations
+
+if ($IFACE != "") then
+    echo "foreign_interface([$IFACE []])." | \
+	$EMUL/oagents -b $ENVI/boot.pam -b $AGENTSPATH/version.pam >&! /dev/null
+    if ($status != 0) then
+	echo ERROR: Failed to parse foreign declarations from $IFACE
+	exit
+    endif
+endif
+
+
+## Compile all C sources and link
+
+if ($INSTALL != "") then
+  echo void install_foreign_predicates\(\) \{$INSTALL\} >! $IFILE
+
+  $CC $CFLAGS -I$EMUL $OBJECTS $IFILE $OFILE $LDFLAGS -o $TMPAGENTS
+  if ($status != 0) then
+	echo ERROR: Failed to compile - $CC $CFLAGS -I$EMUL $OBJECTS \
+		$IFILE $OFILE $LDFLAGS -o $TMPAGENTS
+	exit
+  else
+    set EXEC = $TMPAGENTS
+  endif
+  /bin/rm -f $IFILE
+endif
+
+
+## Compile AKL files to PAM files
+
+if ($AKLARGS != "") then
+	echo "compilef([$AKLARGS []])." | \
+		$EMUL/oagents -b $ENVI/boot.pam -b $COMP/comp.pam -b \
+		$AGENTSPATH/version.pam
+    if ($status != 0) then
+	echo ERROR: Failed to compile AKL files - $AKLARGS
+	exit
+    endif
+endif
+
+
+## Run directly or save output
+
+if ($OUTPUT != "") then
+	/bin/rm -f $OUTPUT.exe $OUTPUT.pam $OUTPUT
+	mv $TMPAGENTS $OUTPUT.exe
+        if ($PAMS != "") then
+	  cat $PAMS > $OUTPUT.pam
+	  echo `pwd`/$OUTPUT.exe -b `pwd`/$OUTPUT.pam > $OUTPUT
+	  chmod +x $OUTPUT
+        else
+	  echo `pwd`/$OUTPUT.exe $BOOT > $OUTPUT
+	  chmod +x $OUTPUT	  
+	endif
+else
+	if ($PAMS != "") then
+	  cat $PAMS > $TMPAGENTS.pam
+	  eval $EXEC -b $TMPAGENTS.pam
+	  /bin/rm -f $TMPAGENTS $TMPAGENTS.pam
+	else
+	  $EXEC $BOOT
+	endif
+endif
+
+
+
+
+

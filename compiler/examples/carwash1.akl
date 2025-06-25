@@ -1,0 +1,131 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+carwash(N, Frequency):-
+    ->  init_state(4,8,37,65,11,3,State), 
+	init_events(N, 42, 10, Events),
+	frequency(Final, Frequency),
+	event_head(Events, State, Final).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+event_head(Events, S0, S):-
+    ->	next_event(Next, Events, Rest),
+	event_loop(Next, Rest, S0, S).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+event_loop(Event, Rest, S0, S):-
+	Event = e(T,M)
+    ->	transform(Event, Rest, Updated, S0, S1),
+	event_head(Updated, S1, S).
+
+event_loop(nil, Rest, S0, S):-
+    ->  S0 = S.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+init_events(N, S0, Mod, Events):-
+    ->  Events = ev(N, e(0, arrive), gen(0, S0, Mod), []).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+next_event(Event, ev(N0, E0, G0, [E1|Extra]), Rest):-
+	int_greater(N0, 0),
+	later(E1, E0)
+    ->  eventg(E2, G0, G1),
+	dec(N0, N1),
+	Event = E0,
+	Rest = ev(N1, E2, G1, [E1|Extra]).
+next_event(Event, ev(N, E0, G, [E1|Extra]), Rest):-
+	int_greater(N, 0)
+    ->  Event = E1,
+	Rest = ev(N, E0, G, Extra).
+next_event(Event, ev(N0, E0, G0, []), Rest):-
+	int_greater(N0, 0)
+    ->  eventg(E2, G0, G1),
+	dec(N0, N1),
+	Event = E0,
+	Rest = ev(N1, E2, G1, []).
+next_event(Event, ev(0, E0, G0, [E1|Extra]), Rest):-
+    ->  Event = E1,
+	Rest = ev(0, E0, G0, Extra).
+
+next_event(Event, ev(0, E0, G0, []), Rest):-
+    ->  Event = nil,
+	Rest = ev(0, E0, G0, []).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+add_event(Event, ev(N, E, G, Extra), Rest):-
+    ->  Rest = ev(N, E, G, Added),
+	eventa(Extra, Event, Added).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+later(e(T1,_), e(T2,_)):-
+	int_greater(T1,T2)
+     -> true.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+eventg(Event, gen(T0, S0, Mod), Rest):-
+    ->  rnext(S0, Mod, R, S1),
+	add(T0, R, T1),
+	Event = e(T1,arrive),
+	Rest = gen(T1, S1, Mod).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+eventa([], E, Added):-
+    ->  Added = [E].
+eventa([E0|Events], E1, Added):-
+	later(E1, E0)
+    ->  Added = [E0|A],
+	eventa(Events, E1, A).
+eventa([E0|Events], E1, Added):-
+    ->  Added = [E1, E0|Events].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+transform(e(A,arrive), Events, Updated, state(Q, WA, WB, R), Transformed):-
+	empty_wash(WA)
+    ->  new_car(A, Car),
+	enter_wash(WA, A, Car, E, WA1),
+	add_event(e(E, exit(a)), Events, Updated),
+	Transformed = state(Q, WA1, WB, R).
+transform(e(A,arrive), Events, Updated, state(Q, WA, WB, R), Transformed):-
+	empty_wash(WB)
+    ->  new_car(A, Car),
+	enter_wash(WB, A, Car, E, WB1),
+	add_event(e(E, exit(b)), Events,  Updated),
+	Transformed = state(Q, WA, WB1, R).
+transform(e(A,arrive), Events, Updated, state(Q, WA, WB, R), Transformed):-
+    ->  new_car(A, Car),
+	add_to_queue(Q, Car, Q1),
+	Updated = Events,
+	Transformed = state(Q1, WA, WB, R).
+transform(e(E, exit(a)), Events, Updated, state(Q, WA, WB, R), Transformed):-
+    ->  exit_wash(WA, Car, WA1),
+        add_to_ready(R, Car, R1),
+        transform_exit(a, E, WA1, WA2, Q, Q1, Events, Updated),
+	Transformed = state(Q1, WA2, WB, R1).
+transform(e(E, exit(b)), Events, Updated, state(Q, WA, WB, R), Transformed):-
+    ->  exit_wash(WB, Car, WB1),
+        add_to_ready(R, Car, R1),
+        transform_exit(b, E, WB1, WB2, Q, Q1, Events, Updated),
+	Transformed = state(Q1, WA, WB2, R1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+transform_exit(N, E, W, W1, Q, Q2, Events, Updated):-
+        empty_queue(Q)
+    ->  W = W1,
+        Q = Q2,
+	Events = Updated.
+transform_exit(N, S, W, W1, Q, Q1, Events, Updated):-
+    ->  remove_from_queue(Q, Car, Q1),
+	enter_wash(W, S, Car, E, W1),
+	add_event( e(E, exit(N)), Events, Updated).
+

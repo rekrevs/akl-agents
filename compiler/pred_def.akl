@@ -1,0 +1,1164 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%   EXPORT:: Definition Collections
+%%%%
+%%%%       Initializing:
+%%%%           gen_definitions(Cl,Defs)
+%%%%       Accessing
+%%%%          defs_categorize_test(Test,Defs,Cats),
+%%%%          defs_possible_tests(Defs,Tests)
+%%%%       Manipulation
+%%%%          defs_test_performed(Test,Defs,NDefs)
+%%%%          defs_update(UpdateList,Defs,NDefs)
+%%%%       Split
+%%%%          extract_defs(ClNo,Defs,EDefs)
+%%%%
+%%%%    EXPORT:: Definitions
+%%%%
+%%%%       End
+%%%%           def_end(Def,Clause)
+%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%  Definition Collection   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%      Definition Collection Initialization
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% gen_definition
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+gen_definitions(Cl,Arity,Defs):- 
+   ->
+   gen_def(Cl,1,Arity,Defs).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+gen_def([],_Ct,_Arity,Defs):- -> Defs=[].
+gen_def([Clause|Clauses],Ct,Arity,Defs):-
+   ->
+   Defs=[D|Defs1],
+   gen_def_clause(Clause,Ct,Arity,D),
+   inc(Ct,Ct1),
+   gen_def(Clauses,Ct1,Arity,Defs1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%      Definition Collection Accessing
+%%%%
+%%%%            
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+defs_clno([],ClNo):- -> ClNo=[].
+defs_clno([D|Defs],ClNo):- 
+   -> 
+   ClNo=[C|ClNo1],
+   def_find_clno(D,C),
+   defs_clno(Defs,ClNo1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% defs_gen_t_tree
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+defs_gen_t_tree(Defs,Tree):-
+   Defs=[D|_]
+   ->
+   def_find_max(D,M),
+   defs_gen_t_tree1(Defs,Args),
+   defs_gen_t_tree2(1,M,Args,Args1),
+   main_gen_t_tree(Args1,Tree,Defs).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+defs_gen_t_tree2(Ct,Max,_Args,Out):-   Ct>Max   ->   Out=[].
+defs_gen_t_tree2(Ct,Max,Args,Out):-
+   Ct=<Max
+   ->
+   Out=[Out1|Out2],inc(Ct,Ct1),
+   defs_gen_t_tree3(Ct,Args,Out1),
+   defs_gen_t_tree2(Ct1,Max,Args,Out2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+defs_gen_t_tree3(_Ct,[],Out):- -> Out=[].
+defs_gen_t_tree3(Ct,[A|Args],Out):- 
+    -> 
+    arg(Ct,A,X),
+    Out=[X|Out1],
+    defs_gen_t_tree3(Ct,Args,Out1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+defs_gen_t_tree1([],Args):- -> Args=[].
+defs_gen_t_tree1([D|Defs],Args):- 
+    -> 
+    Args=[A|Args1],
+    def_find_args(D,A),
+    defs_gen_t_tree1(Defs,Args1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% defs_categorize_test      
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+defs_categorize_test(Defs,Test,Cat):- 
+    Test=int_compare(_,_) 
+    -> 
+    Cat=[Less,Equal,Greater],
+    defs_cat_int_comp(Defs,Test,Less,Equal,Greater).
+defs_categorize_test(Defs,Test,Cat):- 
+    -> 
+    Cat=[Yes,No,DontDo],
+    defs_cat_ynd(Defs,Test,Yes,No,DontDo).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+defs_cat_ynd([],_Test,Yes,No,DontDo):- -> Yes=[],No=[],DontDo=[].
+defs_cat_ynd([D|Defs],Test,Yes,No,DontDo):-
+    ->
+    def_categorize_test(Test,D,Flag),
+    def_find_clno(D,ClNo),
+    d_c_ynd(Flag,ClNo,Yes,Yes1,No,No1,DontDo,DontDo1),
+    defs_cat_ynd(Defs,Test,Yes1,No1,DontDo1).
+
+d_c_ynd(ynd(true),ClNo,[ClNo|Yes],Yes,No,No,DontDo,DontDo).
+d_c_ynd(ynd(false),ClNo,Yes,Yes,[ClNo|No],No,DontDo,DontDo).
+d_c_ynd(ynd(no_info),ClNo,Yes,Yes,No,No,[ClNo|DontDo],DontDo).
+
+defs_cat_int_comp([],_Test,L,E,G):- -> L=[],E=[],G=[].
+defs_cat_int_comp([D|Defs],Test,L,E,G):- ->
+    def_categorize_test(Test,D,Comp),
+    def_find_clno(D,ClNo),
+    d_c_int_comp(Comp,ClNo,L,L1,E,E1,G,G1),
+    defs_cat_int_comp(Defs,Test,L1,E1,G1).
+
+d_c_int_comp(int_compare(A,B,C),ClNo,L,L1,E,E1,G,G1):-   
+    -> 
+    cat_all_run_maybe_add(A,ClNo,L,L1),
+    cat_all_run_maybe_add(B,ClNo,E,E1),
+    cat_all_run_maybe_add(C,ClNo,G,G1).
+
+cat_all_run_maybe_add(false,_,S,S1):- -> S=S1.
+cat_all_run_maybe_add(_,ClNo,S,S1):- -> S=[ClNo|S1].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% defs_possible_tests
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+defs_possible_tests(Defs,Tests):-
+   ->
+   defs_possible_tests1(Defs,Tests1,[]),
+   edit_tests(Tests1,Tests).
+
+%%%%
+
+defs_possible_tests1([],TestsB,TestsE):- -> TestsB=TestsE.
+defs_possible_tests1([D|Defs],TestsB,TestsE):- 
+    -> 
+    def_find_ready_tests(D,R),
+    defs_possible_tests2(R,TestsB,TestsB1),
+    defs_possible_tests1(Defs,TestsB1,TestsE).
+
+%%%%
+
+defs_possible_tests2([],TestsB,TestsE):- -> TestsB=TestsE.
+defs_possible_tests2([test(_,_,R)|Rs],TestsB,TestsE):- 
+   -> 
+   TestsB=[R|TestsB1],
+   defs_possible_tests2(Rs,TestsB1,TestsE).
+
+%%%%
+
+edit_tests([],Tests):-  -> Tests=[].
+edit_tests([T|Ts],Tests):-  
+   gen_test_equivalence(T,Ts)
+   -> 
+   edit_tests(Ts,Tests).
+edit_tests([T|Ts],Tests):-  
+   ->
+   Tests=[T|Tests1],
+   edit_tests(Ts,Tests1).   
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%      Definition Collection Manipulation
+%%%%
+%%%%            
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% defs_test_performed
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+defs_test_performed(_Test,[],NDefs):- -> NDefs=[].
+defs_test_performed(Test,[D|Defs],NDefs):-
+   ->
+   NDefs=[ND|NDefs1],
+   def_test_performed(Test,D,ND),
+   defs_test_performed(Test,Defs,NDefs1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% defs_update
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+defs_update(ArgInfo,NArgInfo,Defs,NDefs):-
+   ->
+   defs_update1(ArgInfo,Defs,NDefs,ArgInfo,NArgInfo).
+
+defs_update1(_ArgInfo,[],NDefs,A,B):- -> NDefs=[],A=B.
+defs_update1(ArgInfo,[D|Defs],NDefs,A,B):-
+   ->
+   NDefs=[ND|NDefs1],
+   def_update(D,ND,ArgInfo,MakeLive),
+   arginfo_make_live(MakeLive,A,A1),
+   defs_update1(ArgInfo,Defs,NDefs1,A1,B).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% defs_end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+defs_end([],Cl):-  -> Cl=[].
+defs_end([D|Defs],Cl):- 
+   ->
+   Cl=[Cl1|Cl2],
+   def_end(D,Cl1),
+   defs_end(Defs,Cl2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%      Definition Collection Splitting
+%%%%
+%%%%            
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% extract_defs
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+extract_defs(_ClSet,[],NDefs):- -> NDefs=[].
+extract_defs(ClSet,[D|Defs],NDefs):-
+  ->
+  def_find_clno(D,ClNo),
+  extract_defs2(ClNo,ClSet,D,Defs,NDefs).
+
+extract_defs2(ClNo,ClSet,D,Defs,NDefs):- 
+  member(ClNo,ClSet)
+  -> 
+  NDefs=[D|NDefs1],
+  extract_defs(ClSet,Defs,NDefs1).
+extract_defs2(_ClNo,ClSet,_,Defs,NDefs):-
+  ->
+  extract_defs(ClSet,Defs,NDefs).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%         Definitions
+%%%%
+%%%%
+%%%%      def(ClNo,
+%%%%          ArgVector
+%%%%          ReadyTests,
+%%%%          OtherTests,
+%%%%          Clause = clause(_,G,B,Db)
+%%%%          )
+%%%%          
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%           Initializing definition
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% gen_def_clause
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+gen_def_clause(clause(I,G,B,Db),Ct,Arity,Def):-
+   I=index(Args,CUC,NU)
+   ->
+   mul(2,Arity,Size),
+   functor(Array,args,Size),
+   Rest=clause(_,G,B,Db),
+   init_arg_array(1,Args,Array,ExpVars),
+   prep_cuc(CUC,Array,Arity,ExpVars,RT,OT,OT1),
+   prep_nu(NU,ExpVars,OT1,[]),
+   Def=def(Ct,Arity,Array,RT,OT,Rest).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+init_arg_array(_Ct,[],_Array,ExpVars):- -> ExpVars=[].
+init_arg_array(Ct,[X|Xs],Array,ExpVars):-
+   flat_member(X,[var(Name),var_simple(Name,_)])
+   ->
+   ExpVars=[Name|ExpVars1],
+   arg(Ct,Array,X),
+   inc(Ct,Ct1),
+   init_arg_array(Ct1,Xs,Array,ExpVars1).
+init_arg_array(Ct,[X|Xs],Array,ExpVars):-
+   ->
+   arg(Ct,Array,X),
+   inc(Ct,Ct1),
+   init_arg_array(Ct1,Xs,Array,ExpVars).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%  prep_cuc
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+prep_cuc([],_,_,_,RB,OB,OE):- -> RB=[],OB=OE.
+prep_cuc([G|More],Array,Arity,ExpVars,RB,OB,OE):-
+   ->
+   extract_vars_from_eq_goal(G,Vars,[]),
+   remove_intersection(Vars,ExpVars,Inter),
+   prep_cuc1(Inter,G,More,Array,Arity,ExpVars,RB,OB,OE).
+
+%%%%
+
+prep_cuc1([],G,More,Array,Arity,ExpVars,RB,OB,OE):-
+   ->
+   init_cuc_ready_test(Array,Arity,G,R),
+   RB=[R|RB1],
+   prep_cuc(More,Array,Arity,ExpVars,RB1,OB,OE).
+prep_cuc1(List,G,More,Array,Arity,ExpVars,RB,OB,OE):-
+   ->
+   OB=[test(List,cuc,G)|OB1],
+   prep_cuc(More,Array,Arity,ExpVars,RB,OB1,OE).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%  prep_nu
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+prep_nu([],_ExpVars,OB,OE):- -> OB=OE.
+prep_nu([G|More],ExpVars,OB,OE):-
+   ->
+   builtin_input_output(G,Input,Output),
+   error_if_not_equal(Output,[],prep_nu),
+   strip_var(Input,Input1),
+   remove_intersection(Input1,ExpVars,Left),
+   OB=[test(Left,nu(T),G)|OB1],
+   builtin_types(G,T,[]),
+   prep_nu(More,ExpVars,OB1,OE).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%         End definition
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%  def_end 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+def_end(Def,Clause):-
+   ->
+   def_find_clause(Def,Clause),
+   Clause=clause(I,_,_,_),               
+   I=index(Args,[],[]),         
+   def_find_args(Def,ArgVector),
+   def_find_max(Def,Max),
+   make_args_from_vector(1,Max,ArgVector,Args),
+   def_find_ready_tests(Def,Ready),
+   error_if_not_equal(Ready,[],def_end),
+   def_find_non_ready_tests(Def,NonReady),
+   error_if_not_equal(NonReady,[],def_end).
+
+make_args_from_vector(N,Max,_ArgVector,Args):-   N>Max   ->   Args=[].
+make_args_from_vector(N,Max,ArgVector,Args):-   
+    ->   
+    inc(N,N1),Args=[Arg|Args1],
+    arg(N,ArgVector,Arg),
+    make_args_from_vector(N1,Max,ArgVector,Args1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%           Simple Def accessing/manipulation
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+def_find_clno(def(ClNo,_Max,_Args,_Ready,_Non,_Clause),ClNo).
+def_find_max(def(_ClNo,Max,_Args,_Ready,_Non,_Clause),Max).
+def_find_args(def(_ClNo,_Max,Args,_Ready,_Non,_Clause),Args).
+def_find_ready_tests(def(_ClNo,_Max,_Args,Ready,_Non,_Clause),Ready).
+def_find_non_ready_tests(def(_ClNo,_Max,_Args,_Ready,Non,_Clause),Non).
+def_find_clause(def(_ClNo,_Max,_Args,_Ready,_Non,Clause),Clause).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+def_set_args(def(ClNo,Max,_Args,Ready,Non,Clause),NArgs,Def):-
+   ->
+   Def=def(ClNo,Max,NArgs,Ready,Non,Clause).
+def_set_ready_tests(def(ClNo,Max,Args,_Ready,Non,Clause),NReady,Def):-
+   ->
+   Def=def(ClNo,Max,Args,NReady,Non,Clause).
+def_set_non_ready_tests(def(ClNo,Max,Args,Ready,_Non,Clause),NNon,Def):-
+   ->
+   Def=def(ClNo,Max,Args,Ready,NNon,Clause).
+def_set_max(def(ClNo,_Max,Args,Ready,Non,Clause),NMax,Def):-
+   ->
+   Def=def(ClNo,NMax,Args,Ready,Non,Clause).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%           Def accessing
+%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% def_find_arg
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+def_find_arg(ArgNo,Def,Arg):-
+   ->
+   def_find_args(Def,Args),
+   arg(ArgNo,Args,Arg).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% def_find_reg_for_name
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+def_find_reg_for_name(Def,Name,Reg):-
+   ->
+   def_find_args(Def,Args),
+   def_find_max(Def,Max),
+   find_reg_for_name(Max,Args,Name,Reg).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%   def_categorize_test         
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+def_categorize_test(Test,Def,Cat):-
+   Test=int_compare(A,B)
+   ->
+   Cat=int_compare(F1,F2,F3),
+   def_run_test(int_less(A,B),Def,F1),
+   def_run_test(int_equal(A,B),Def,F2),
+   def_run_test(int_less(B,A),Def,F3).
+def_categorize_test(Test,Def,Cat):-
+   Test=eq(_,_)
+   ->
+   Cat=ynd(Flag),
+   def_run_test(Test,Def,Flag).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%           Def manipulations  
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% def_set_arg
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+def_set_arg(Reg,unnamed,Def,NDef):-
+  ->
+  def_find_args(Def,Args),
+  arg(Reg,Args,Arg),
+  def_set_arg_unnamed(Arg,Reg,Args,Def,NDef).
+def_set_arg(Reg,ToBe,Def,NDef):-
+  ->
+  def_find_args(Def,Args),
+  my_set_arg(Reg,Args,ToBe,NArgs),
+  def_set_args(Def,NArgs,NDef).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+def_set_arg_unnamed(var_simple(Name,_),Reg,Args,Def,NDef):-
+  ->
+  my_set_arg(Reg,Args,var(Name),NArgs),
+  def_set_args(Def,NArgs,NDef).
+def_set_arg_unnamed(_,Reg,Args,Def,NDef):-
+  ->
+  my_set_arg(Reg,Args,unnamed,NArgs),
+  def_set_args(Def,NArgs,NDef).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% def_note_exposure
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+def_note_exposure(Name,Def,NDef):-
+   ->
+   def_find_non_ready_tests(Def,Non),
+   exp_check_non_ready(Def,Name,Non,NNon,NReady),
+   def_set_non_ready_tests(Def,NNon,Def1),
+   def_note_exposure2(Def1,NReady,NDef).
+
+%%%%
+
+def_note_exposure2(Def,[],NDef):- -> NDef=Def.
+def_note_exposure2(Def,NReady,NDef):- 
+   -> 
+   def_find_ready_tests(Def,Ready),
+   app(NReady,Ready,Ready1),
+   def_set_ready_tests(Def,Ready1,NDef).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+exp_check_non_ready(_Def,_Name,[],NNon,NReady):- -> NNon=[],NReady=[].
+exp_check_non_ready(Def,Name,[test([Name],cuc,Goal)|Non],NNon,NReady):-
+   ->
+   NReady=[R|NReady1],
+   def_init_cuc_ready_test(Def,Goal,R),
+   exp_check_non_ready(Def,Name,Non,NNon,NReady1).
+exp_check_non_ready(Def,Name,[test([Name],nu([]),Goal)|Non],NNon,NReady):-
+   ->
+   NReady=[R|NReady1],
+   def_init_nu_ready_test(Def,Goal,R),
+   exp_check_non_ready(Def,Name,Non,NNon,NReady1).
+exp_check_non_ready(Def,Name,[test([Name],nu(T),Goal)|Non],NNon,NReady):-
+   ->
+   NNon=[test([],nu(T),Goal)|NNon1],
+   exp_check_non_ready(Def,Name,Non,NNon1,NReady).
+exp_check_non_ready(Def,Name,[test(List,Kind,Goal)|Non],NNon,NReady):-
+   member_remove(Name,List,List1)
+   ->
+   NNon=[test(List1,Kind,Goal)|NNon1],
+   exp_check_non_ready(Def,Name,Non,NNon1,NReady).
+exp_check_non_ready(Def,Name,[N|Non],NNon,Ready):-
+   ->
+   NNon=[N|NNon1],
+   exp_check_non_ready(Def,Name,Non,NNon1,Ready).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%  def_init_cuc_ready_test & init_cuc_ready_test
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+def_init_cuc_ready_test(Def,Goal,Ready):-
+   ->
+   def_find_args(Def,Array),
+   def_find_max(Def,Max),
+   init_cuc_ready_test(Array,Max,Goal,Ready).
+
+init_cuc_ready_test(Array,Arity,Goal,Ready):-
+   Goal=eq(A,B)
+   ->
+   translate_name_to_reg(Array,Arity,[A,B],[A1,B1]),
+   Ready=test(Goal,eq(A1,B1),eq(A1,B1)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%  def_init_nu_ready_test
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+def_init_nu_ready_test(Def,Goal,Ready):-
+   ->
+   def_find_args(Def,Array),
+   def_find_max(Def,Max),
+   translate_name_to_reg(Array,Max,Goal,RegGoal),
+   make_test_of_builtin_goal(RegGoal,Test),
+   Ready=test(Goal,RegGoal,Test).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% def_note_type
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+def_note_type(var(Name),Type,Def,NDef):- 
+   ->
+   def_find_non_ready_tests(Def,Non),
+   type_check_non_ready(Def,Name,Type,Non,Non1,Ready),
+   def_set_non_ready_tests(Def,Non1,Def1),
+   def_note_type2(Def1,Ready,NDef).
+
+%%%%
+
+def_note_type2(Def,[],NDef):- -> NDef=Def.
+def_note_type2(Def,NewReady,NDef):- 
+    ->
+    def_find_ready_tests(Def,OldReady),
+    app(NewReady,OldReady,Ready),
+    def_set_ready_tests(Def,Ready,NDef).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+type_check_non_ready(_Def,_Name,_Type,[],NNon,Ready):-
+   ->
+   NNon=[],Ready=[].
+type_check_non_ready(Def,Name,Type,[X|Non],NNon,Ready):-
+   X=test(_,cuc,_)
+   ->
+   NNon=[X|NNon1],
+   type_check_non_ready(Def,Name,Type,Non,NNon1,Ready).
+type_check_non_ready(Def,Name,Type,[X|Non],NNon,Ready):-
+   X=test(_,nu(T),_)
+   ->
+   find_in_plist_with_rest(Name,T,Entry,NewT,R,R),
+   type_check_non_ready2(Def,Entry,NewT,Name,Type,X,Non,NNon,Ready).
+
+%%%%
+
+type_check_non_ready2(Def,no,_,Name,Type,X,Non,NNon,Ready):-
+   ->
+   NNon=[X|NNon1],
+   type_check_non_ready(Def,Name,Type,Non,NNon1,Ready).
+type_check_non_ready2(Def,Type1,[],Name,Type,test([],nu(_),G),Non,NNon,Ready):-
+   ->
+   error_if_not_equal(Type1,Type,type_check_non_ready2),
+   Ready=[R|Ready1],
+   def_init_nu_ready_test(Def,G,R),
+   type_check_non_ready(Def,Name,Type,Non,NNon,Ready1).
+type_check_non_ready2(Def,Type1,Rest,Name,Type,test(L,nu(_),G),Non,NNon,Ready):-
+   ->
+   error_if_not_equal(Type1,Type,type_check_non_ready2),
+   NNon=[test(L,nu(Rest),G)|NNon1],
+   type_check_non_ready(Def,Name,Type,Non,NNon1,Ready).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% def_maybe_expand
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+def_maybe_expand(Def,NewMax,Def1):-
+  ->
+  def_find_args(Def,Args),
+  def_find_max(Def,DefMax),
+  functor(Args,_,ArgSize),
+  def_maybe_expand2(ArgSize,Def,DefMax,NewMax,Def1).
+
+%%%%
+
+def_maybe_expand2(ArgSize,Def,DefMax,NewMax,NDef):-
+   NewMax>ArgSize
+   ->
+   mul(ArgSize,2,ArgSize1),
+   next_def_size(ArgSize1,NewMax,NewArgSize),
+   functor(NewArgs,args,NewArgSize),
+   def_find_args(Def,Args),
+   copy_array(1,DefMax,Args,NewArgs),
+   def_set_args(Def,NewArgs,NDef).
+def_maybe_expand2(_ArgSize,Def,_DefMax,_NewMax,NDef):-
+   ->
+   NDef=Def.
+
+%%%%
+
+next_def_size(Size,Limit,NSize):- Size>=Limit -> NSize=Size.
+next_def_size(Size,Limit,NSize):- Size<Limit  -> 
+   mul(Size,2,Size1),
+   next_def_size(Size1,Limit,NSize).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% def_update
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+def_update(Def,NDef,ArgInfo,MakeLive):-
+   ->
+   arginfo_get_current_max(ArgInfo,M),
+   def_maybe_expand(Def,M,Def1),
+   arginfo_get_history(ArgInfo,History),
+   reverse_list(History,History1),
+   def_find_args(Def1,Args),
+   def_update_args(History1,Args,Exp,Rest),
+   def_set_max(Def1,M,Def2),
+   def_note_exposures(Exp,Def2,Def3),
+   dead_and_types(Rest,MakeLive,Def3,NDef).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+def_note_exposures([],Def,NDef):- -> Def=NDef.
+def_note_exposures([Name|Names],Def,NDef):-
+   ->
+   def_note_exposure(Name,Def,Def1),
+   def_note_exposures(Names,Def1,NDef).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+   
+def_update_args([],_Args,Exp,Rest):- -> Exp=[],Rest=[].
+def_update_args([X|History],Args,Exp,Rest):-
+   flat_member(X,[type(_,_),dead(_)])
+   ->
+   Rest=[X|Rest1],
+   def_update_args(History,Args,Exp,Rest1).
+def_update_args([car(ArgNo,Reg)|History],Args,Exp,Rest):-
+   ->
+   arg(ArgNo,Args,Arg),
+   extract_car(Arg,Car),
+   maybe_exposed(Car,Exp,Exp1),
+   arg(Reg,Args,Car),
+   def_update_args(History,Args,Exp1,Rest).
+def_update_args([cdr(ArgNo,Reg)|History],Args,Exp,Rest):-
+   ->
+   arg(ArgNo,Args,Arg),
+   extract_cdr(Arg,Cdr),
+   maybe_exposed(Cdr,Exp,Exp1),
+   arg(Reg,Args,Cdr),
+   def_update_args(History,Args,Exp1,Rest).
+def_update_args([arg(ArgNo,Index,Reg)|History],Args,Exp,Rest):-
+   ->
+   arg(ArgNo,Args,Arg),
+   extract_struct_elem(Arg,Index,Elem),
+   maybe_exposed(Elem,Exp,Exp1),
+   arg(Reg,Args,Elem),
+   def_update_args(History,Args,Exp1,Rest).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dead_and_types([],MakeLive,Def,NDef):- -> MakeLive=[],Def=NDef.
+dead_and_types([X|Rest],MakeLive,Def,NDef):-
+    -> 
+    dead_and_types1(X,MakeLive,MakeLive1,Def,Def1),
+    dead_and_types(Rest,MakeLive1,Def1,NDef).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dead_and_types1(type(ArgNo,Type),MakeLive,MakeLive1,Def,NDef):-
+    ->
+    def_find_arg(ArgNo,Def,Arg),
+    def_adj_type(ArgNo,Type,Arg,MakeLive,MakeLive1,Def,NDef).
+dead_and_types1(dead(ArgNo),MakeLive,MakeLive1,Def,NDef):-
+    ->
+    MakeLive=MakeLive1,
+    def_find_arg(ArgNo,Def,Arg),
+    def_adj_dead(ArgNo,Arg,Def,NDef).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+def_adj_dead(_ArgNo,var(_),Def,NDef):- ->   Def=NDef.
+def_adj_dead(ArgNo,_,Def,NDef):-      ->   def_set_arg(ArgNo,unnamed,Def,NDef).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+def_adj_type(_ArgNo,Type,Arg,MakeLive,MakeLive1,Def,NDef):-
+    def_adj_type_dump(Type,Arg)
+    ->
+    MakeLive1=MakeLive,Def=NDef.
+def_adj_type(_ArgNo,Type,Var,MakeLive,MakeLive1,Def,NDef):-
+    flat_member(Type,[atom,integer]),Var=var(_)
+    ->
+    MakeLive1=MakeLive,
+    def_note_type(Var,Type,Def,NDef).
+def_adj_type(_ArgNo,struct,Var,MakeLive,MakeLive1,Def,NDef):-
+    Var=var(_)
+    ->
+    MakeLive1=MakeLive,
+    def_note_type(Var,struct,Def,NDef).
+def_adj_type(ArgNo,list,var_simple(Name,list(unnamed,unnamed)),MakeLive,MakeLive1,Def,NDef):-
+    ->
+    MakeLive=[ArgNo|MakeLive1],
+    def_set_arg(ArgNo,var(Name),Def,NDef).
+def_adj_type(ArgNo,struct(F,A),var_simple(Name,struct(F,A,Args)),MakeLive,MakeLive1,Def,NDef):-
+    all_unnamed_list(Args)
+    ->
+    MakeLive=[ArgNo|MakeLive1],
+    def_set_arg(ArgNo,var(Name),Def,NDef).
+
+def_adj_type_dump(atom,atom(_)):-                         -> true.
+def_adj_type_dump(integer,integer(_)):-                   -> true.
+def_adj_type_dump(struct,struct(_,_,_)):-                 -> true.
+def_adj_type_dump(struct(F,A),struct(F,A,_)):-            -> true.
+def_adj_type_dump(list,list(_,_)):-                       -> true.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% def_run_test
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+def_run_test(Test,Def,Flag):-
+   ->
+   test_extract_regs(Test,Regs,Test1,Pattern),
+   def_find_args(Def,Args),
+   prep_test(Args,Regs,Pattern),
+   def_find_ready_tests(Def,Ready),
+   def_run_test1(Test1,Ready,Flag).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+test_extract_regs(int_less(A,B),Regs,Test1,Pattern):-
+   ->
+   Test1=int_less(A1,B1),
+   Regs=[A,B],Pattern=[A1,B1].
+test_extract_regs(int_equal(A,B),Regs,Test1,Pattern):-
+   ->
+   Test1=int_equal(A1,B1),
+   Regs=[A,B],Pattern=[A1,B1].
+test_extract_regs(eq(A,B),Regs,Test1,Pattern):-
+   ->
+   Test1=eq(A1,B1),
+   Regs=[A,B],Pattern=[A1,B1].
+test_extract_regs(int_compare(A,B),Regs,Test1,Pattern):-
+   ->
+   Test1=int_compare(A1,B1),
+   Regs=[A,B],Pattern=[A1,B1].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+prep_test(_,[],[]):- -> true.
+prep_test(Args,[reg(Reg)|Xs],[P|Pattern]):-
+   ->
+   arg(Reg,Args,Arg),
+   prep_test1(Arg,Reg,P,Args,Xs,Pattern).
+prep_test(Args,[X|Xs],[P|Pattern]):-
+   flat_member(X,[integer(_),atom(_),nil])
+   ->
+   X=P,
+   prep_test(Args,Xs,Pattern).
+
+prep_test1(var(_),Reg,P,Args,Xs,Pattern):-
+   ->
+   P=reg(Reg),
+   prep_test(Args,Xs,Pattern).
+prep_test1(X,_Reg,P,Args,Xs,Pattern):-
+   flat_member(X,[integer(_),atom(_),nil])
+   ->
+   P=X,
+   prep_test(Args,Xs,Pattern).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+def_run_test1(Test,_Ready,Flag):-
+   evaluate_test(Test,Flag1)
+   ->
+   Flag1=Flag.
+def_run_test1(Test,Ready,Flag):-
+   ->
+   def_run_test2(Test,Ready,no_info,Flag).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+def_run_test2(_Test,[],F,Flag):- -> Flag=F.
+def_run_test2(_Test,_,false,Flag):- -> Flag=false.
+def_run_test2(Test,[test(_,RG,_)|Ready],no_info,Flag):-
+   ->
+   cons_run_test(Test,RG,F),
+   def_run_test2(Test,Ready,F,Flag).
+def_run_test2(Test,[test(_,RG,_)|Ready],true,Flag):-
+   ->
+   cons_run_test(Test,RG,F),
+   def_run_test3(F,Test,Ready,Flag).
+
+def_run_test3(false,_,_,Flag):- -> Flag=false.
+def_run_test3(no_info,Test,Ready,Flag):- -> def_run_test2(Test,Ready,true,Flag).
+def_run_test3(true,Test,Ready,Flag):-    -> def_run_test2(Test,Ready,true,Flag).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% def_type_constraint
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+def_type_constraint(Name,Def,Type):-
+   ->
+   def_find_non_ready_tests(Def,Non),
+   def_type_constraint1(Name,Non,Type).
+
+def_type_constraint1(Name,[test(_,nu(T),_)|_],Type):- 
+   typed_var(Name,T,NameT)
+   -> 
+   Type=NameT.
+def_type_constraint1(Name,[_|Non],Type):- 
+    ->
+    def_type_constraint1(Name,Non,Type).
+
+typed_var(Name,[p(Name,T)|_],Type):- -> T=Type.
+typed_var(Name,[_|T],Type):- -> typed_var(Name,T,Type).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% def_test_performed  
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+def_test_performed(Test,Def,NDef):-
+   ->
+   test_extract_regs(Test,Regs,Test1,Pattern),
+   def_find_args(Def,Args),
+   prep_test(Args,Regs,Pattern),
+   maybe_null(Regs,Pattern,Def,Def1),
+   def_test_performed0(Test1,Def1,NDef).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+maybe_null([R|Regs],[R|Pattern],Def,NDef):-
+   ->
+   maybe_null(Regs,Pattern,Def,NDef).
+maybe_null([],[],Def,NDef):-
+   ->
+   Def=NDef.
+maybe_null([reg(R)|Regs],[_|Pattern],Def,NDef):-
+   ->
+   def_set_arg(R,unnamed,Def,Def1),
+   maybe_null(Regs,Pattern,Def1,NDef).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+   
+def_test_performed0(Test1,Def,NDef):-
+   ->
+   def_find_ready_tests(Def,Ready),
+   def_test_performed1(Test1,Ready,Ready1),
+   def_set_ready_tests(Def,Ready1,NDef).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+def_test_performed1(Test,Ready,NReady):-
+   evaluate_test(Test,Ev)
+   ->
+   error_if_not_equal(Ev,true),
+   Ready=NReady.
+def_test_performed1(Test,Ready,NReady):-
+   ->
+   def_test_performed2(Test,Ready,NReady).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+def_test_performed2(_Test,[],NReady):- -> NReady=[].
+def_test_performed2(Test,[test(_,_,R)|Ready],NReady):- 
+   test_equivalence(Test,R)
+   -> 
+   def_test_performed2(Test,Ready,NReady).
+def_test_performed2(Test,[R|Ready],NReady):- 
+   -> 
+   NReady=[R|NReady1],
+   def_test_performed2(Test,Ready,NReady1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% BUILTIN INTENSIVE
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% gen_test_equivalence
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+gen_test_equivalence(Test,[T|_]):-
+   test_equivalence(Test,T)
+   ->
+   true.
+gen_test_equivalence(Test,[_|Tests]):-
+   ->
+   gen_test_equivalence(Test,Tests).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% test_equivalence
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+test_equivalence(eq(A,B),eq(A,B)):-                    -> true.
+test_equivalence(eq(B,A),eq(A,B)):-                    -> true.
+test_equivalence(int_compare(A,B),int_compare(A,B)):-  -> true.
+test_equivalence(int_compare(B,A),int_compare(A,B)):-  -> true.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% evaluate_test
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+evaluate_test(eq(X,X),Flag):-                                 -> Flag=true.
+evaluate_test(int_less(integer(I1),integer(I2)),Flag):- I1<I2 -> Flag=true.
+evaluate_test(int_less(integer(I1),integer(I2)),Flag):- I1>=I2-> Flag=false.
+evaluate_test(int_equal(integer(I1),integer(I1)),Flag):-      -> Flag=true.
+evaluate_test(int_equal(integer(_),integer(_)),Flag):-        -> Flag=false.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% cons_run_test
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+cons_run_test(eq(A,B),eq(A,B),Flag):- -> Flag=true.
+cons_run_test(eq(A,B),eq(B,A),Flag):- -> Flag=true.
+cons_run_test(eq(_,_),_,Flag):-       -> Flag=no_info.
+cons_run_test(int_less(Reg1,Reg2),G,Flag):-
+   ->
+   int_convert(G,F,A,B),
+   cons_int_less(Reg1,Reg2,F,A,B,Flag).
+cons_run_test(int_equal(Reg1,Reg2),G,Flag):-
+   ->
+   int_convert(G,F,A,B),
+   cons_int_equal(Reg1,Reg2,F,A,B,Flag).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+int_convert(struct(int_less,2,[A,B]),F,A1,B1):- -> F=int_less,A=A1,B=B1.
+int_convert(struct(int_not_less,2,[A,B]),F,A1,B1):- -> F=int_not_less,A=A1,B=B1.
+int_convert(struct(int_greater,2,[A,B]),F,A1,B1):- -> F=int_less,A1=B,B1=A.
+int_convert(struct(int_not_greater,2,[A,B]),F,A1,B1):- -> F=int_not_less,A1=B,B1=A.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% cons_int_less
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+cons_int_less(Reg,integer(I1),int_less,Reg,integer(I2),Flag):-     I1=<I2      -> Flag=true.
+cons_int_less(Reg,integer(I1),int_less,integer(I2),Reg,Flag):-     I1=<I2      -> Flag=false.
+cons_int_less(Reg,integer(I1),int_less,integer(I2),Reg,Flag):-     inc(I1,I2)  -> Flag=false.
+cons_int_less(Reg,integer(I1),int_not_less,Reg,integer(I2),Flag):- I1=<I2      -> Flag=false.
+cons_int_less(Reg,integer(I1),int_not_less,integer(I2),Reg,Flag):- I1=<I2      -> Flag=true.
+cons_int_less(Reg,integer(I1),int_not_less,integer(I2),Reg,Flag):- inc(I1,I2)  -> Flag=true.
+cons_int_less(_,integer(_),_,_,_,Flag):-                                       -> Flag=no_info.
+cons_int_less(integer(I1),Reg,int_less,integer(I2),Reg,Flag):-     I1=<I2     -> Flag=true.
+cons_int_less(integer(I1),Reg,int_less,Reg,integer(I2),Flag):-     I1=<I2     -> Flag=false.
+cons_int_less(integer(I1),Reg,int_less,Reg,integer(I2),Flag):-     inc(I1,I2) -> Flag=false.
+cons_int_less(integer(I1),Reg,int_not_less,integer(I2),Reg,Flag):- I1=<I2     -> Flag=false.
+cons_int_less(integer(I1),Reg,int_not_less,Reg,integer(I2),Flag):- I1=<I2     -> Flag=true.
+cons_int_less(integer(I1),Reg,int_not_less,Reg,integer(I2),Flag):- inc(I1,I2) -> Flag=true.
+cons_int_less(integer(_),_,_,_,_,Flag):-                                      -> Flag=no_info.
+cons_int_less(Reg,Reg1,int_less,Reg,Reg1,Flag):-                              -> Flag=true.
+cons_int_less(Reg,Reg1,int_less,Reg1,Reg,Flag):-                              -> Flag=false.
+cons_int_less(Reg,Reg1,int_not_less,Reg,Reg1,Flag):-                          -> Flag=false.
+cons_int_less(Reg,Reg1,int_not_less,Reg1,Reg,Flag):-                          -> Flag=true.
+cons_int_less(_,_,_,_,_,Flag):-                                               -> Flag=no_info.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% cons_int_equal
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+cons_int_equal(integer(_),integer(_),F,Reg1,Reg2,_Flag):- -> error(cons_int_equal(F,Reg1,Reg2)).
+
+cons_int_equal(Reg,integer(I1),int_less,Reg,integer(I2),Flag):-     I1<I2       -> Flag=true.
+cons_int_equal(Reg,integer(I1),int_less,integer(I2),Reg,Flag):-     I1=<I2      -> Flag=false.
+cons_int_equal(Reg,integer(I1),int_not_less,Reg,integer(I2),Flag):- I1<I2       -> Flag=false.
+cons_int_equal(Reg,integer(I1),int_not_less,integer(I2),Reg,Flag):- I1=<I2      -> Flag=true.
+cons_int_equal(_,integer(_),_,_,_,Flag):-                                       -> Flag=no_info.
+cons_int_equal(integer(I1),Reg,F,Reg2,Reg3,Flag):-
+   ->
+   cons_int_equal(Reg,integer(I1),F,Reg2,Reg3,Flag).
+cons_int_equal(Reg,Reg1,int_less,Reg,Reg1,Flag):-                              -> Flag=false.
+cons_int_equal(Reg,Reg1,int_less,Reg1,Reg,Flag):-                              -> Flag=false.
+cons_int_equal(Reg,Reg1,int_not_less,Reg,Reg1,Flag):-                          -> Flag=true.
+cons_int_equal(Reg,Reg1,int_not_less,Reg1,Reg,Flag):-                          -> Flag=true.
+cons_int_equal(_,_,_,_,_,Flag):-                                                -> Flag=no_info.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% UTILITY
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% all_unnamed_list
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+all_unnamed_list([]):- -> true.
+all_unnamed_list([unnamed|Xs]):- -> all_unnamed_list(Xs).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% extract_cdr
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+extract_cdr(list(_,Cdr),Out):-               -> Out=Cdr.
+extract_cdr(var_simple(_,list(_,Cdr)),Out):- -> Out=Cdr.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% extract_car
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+extract_car(list(Car,_),Out):-               -> Out=Car.
+extract_car(var_simple(_,list(Car,_)),Out):- -> Out=Car.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% extract_struct_elem
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+extract_struct_elem(struct(_,_,Args),Index,Out):-       
+    -> 
+    find_n_elem(Index,Args,Out).
+extract_struct_elem(var_simple(_,struct(_,_,Args)),Index,Out):-  
+    -> 
+    find_n_elem(Index,Args,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% maybe_exposed
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+maybe_exposed(var(Name),Exp,Exp1):-          -> Exp=[Name|Exp1].
+maybe_exposed(var_simple(Name,_),Exp,Exp1):- -> Exp=[Name|Exp1].
+maybe_exposed(_,Exp,Exp1):-                  -> Exp=Exp1.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% strip_var
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+strip_var([],Out):-             -> Out=[].
+strip_var([var(Name)|Xs],Out):- -> Out=[Name|Out1],strip_var(Xs,Out1).
+strip_var([X|Xs],Out):-         
+   flat_member(X,[integer(_),atom(_),nil])
+    ->
+    strip_var(Xs,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% extract_vars_from_eq_goal
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+extract_vars_from_eq_goal(eq(One,Two),B,E):-
+   ->
+   extract_vars_from_goal([One,Two],B,E).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% extract_vars_from_goal
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+extract_vars_from_goal(struct(_,_,Args),B,E):-
+   ->
+   extract_vars_from_goal(Args,B,E).
+extract_vars_from_goal(Xs,B,E):-
+   flat_member(Xs,[[X|Y],list(X,Y)])
+   ->
+   extract_vars_from_goal(X,B,B1),
+   extract_vars_from_goal(Y,B1,E).
+extract_vars_from_goal(var(Name),B,E):-
+   ->
+   B=[Name|E].
+extract_vars_from_goal(X,_B,_E):-
+   flat_member(X,[unnamed,var_simple(_,_)])
+   ->
+   error(extract_vars_from_goal(X)).
+extract_vars_from_goal(X,B,E):-
+   flat_member(X,[[],nil,atom(_),integer(_)])
+   ->
+   B=E.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% translate_name_to_reg
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+translate_name_to_reg(Array,Max,struct(F,A,Args),G):- 
+    -> 
+    G=struct(F,A,G1),
+    translate_name_to_reg(Array,Max,Args,G1).
+translate_name_to_reg(Array,Max,list(H,T),G):- 
+    -> 
+    G=list(H1,T1),
+    translate_name_to_reg(Array,Max,H,H1),
+    translate_name_to_reg(Array,Max,T,T1).
+translate_name_to_reg(Array,Max,[X|Xs],G):- 
+    -> 
+    G=[G1|Gs],
+    translate_name_to_reg(Array,Max,X,G1),
+    translate_name_to_reg(Array,Max,Xs,Gs).
+translate_name_to_reg(Array,Max,var(Name),G):- 
+    -> 
+    find_reg_for_name(Max,Array,Name,Reg),
+    G=reg(Reg).
+translate_name_to_reg(_Array,_Max,X,G):- 
+    flat_member(X,[atom(_),integer(_),nil,[]])
+    -> 
+    X=G.
+translate_name_to_reg(Array,Max,var_simple(Name,Other),_G):- 
+    ->
+    error(translate_name_to_reg(Array,Max,Name,Other)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% find_reg_for_name
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+find_reg_for_name(0,Args,Name,_):- -> error(find_reg_for_name(Args,Name)).
+find_reg_for_name(N,Args,Name,Reg):-
+    ->
+    arg(N,Args,Arg),
+    find_reg_for_name2(N,Arg,Args,Name,Reg).
+
+find_reg_for_name2(N,var(Name),_Args,Name,Reg):-
+    ->
+    Reg=N.
+find_reg_for_name2(_N,var_simple(Name,_),Args,Name,_Reg):-
+    ->
+    error(find_reg_for_name2(Name,Args)).
+find_reg_for_name2(N,_,Args,Name,Reg):-
+    ->
+    dec(N,N1),
+    find_reg_for_name(N1,Args,Name,Reg).

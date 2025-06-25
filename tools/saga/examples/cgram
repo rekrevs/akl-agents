@@ -1,0 +1,451 @@
+/* 
+ * 'Almost' ANSI C grammar in SAGA
+ * typedef_name need to be supported by a filter 
+ *
+ */
+
+define
+    digit:		[0-9];
+    letter:		[a-zA-Z_];
+    hex:		[a-fA-F0-9];
+    exp_part:		[Ee]['+-']?digit+;
+    fs:			[fFlL];
+    is:			[uUlL]*; /* [uU] | [lL] | [uU][lL] | [lL][uU] ?? */
+
+lexmode comment;
+
+token
+    begin_comment: 	"/*";
+    ws:			<comment>~['*']+;
+    ws:			<comment>"*"+;
+    end_comment:	<comment>"*"*"*/";
+
+    identifier_name:	letter(letter|digit)*;
+
+    constant	: '0'[xX]hex+is?
+		| '0'digit+is?
+		| digit+is?
+		| "'"('\'.|~["\'"])+"'"
+		| digit+exp_part fs?
+		| digit*"."digit+(exp_part)?fs?
+		| digit+"."digit*(exp_part)?fs?
+		;
+
+    string_literal:	'"'('\'.|~['\"'])*'"';
+
+    ws:	(' '|\t|\n)+;
+    
+token typedef_name; /* filter needed to convert some ids to typedef_names */
+
+filter 
+    skip: ws;
+    begin(comment)-Lex: begin_comment;
+    begin(start)-Lex:   end_comment;
+
+start file;
+
+rule
+    primary_expr
+	    : identifier
+	    | constant
+	    | string_literal
+	    | "(" expr ")"
+	    ;
+
+    postfix_expr
+	    : primary_expr
+	    | postfix_expr "[" expr "]"
+	    | postfix_expr "(" ")"
+	    | postfix_expr "(" argument_expr_list ")"
+	    | postfix_expr "." identifier
+	    | postfix_expr "->" identifier
+	    | postfix_expr "++"
+	    | postfix_expr "--"
+	    ;
+
+    argument_expr_list
+	    : assignment_expr
+	    | argument_expr_list "," assignment_expr
+	    ;
+
+    unary_expr
+	    : postfix_expr
+	    | "++" unary_expr
+	    | "--" unary_expr
+	    | unary_operator cast_expr
+	    | "sizeof" unary_expr
+	    | "sizeof" "(" type_name ")"
+	    ;
+
+    unary_operator
+	    : "&"
+	    | "*"
+	    | "+"
+	    | "-"
+	    | "~"
+	    | "!"
+	    ;
+
+    cast_expr
+	    : unary_expr
+	    | "(" type_name ")" cast_expr
+	    ;
+
+    multiplicative_expr
+	    : cast_expr
+	    | multiplicative_expr "*" cast_expr
+	    | multiplicative_expr "/" cast_expr
+	    | multiplicative_expr "%" cast_expr
+	    ;
+
+    additive_expr
+	    : multiplicative_expr
+	    | additive_expr "+" multiplicative_expr
+	    | additive_expr "-" multiplicative_expr
+	    ;
+
+    shift_expr
+	    : additive_expr
+	    | shift_expr "<<" additive_expr
+	    | shift_expr ">>" additive_expr
+	    ;
+
+    relational_expr
+	    : shift_expr
+	    | relational_expr "<" shift_expr
+	    | relational_expr ">" shift_expr
+	    | relational_expr "<=" shift_expr
+	    | relational_expr ">=" shift_expr
+	    ;
+
+    equality_expr
+	    : relational_expr
+	    | equality_expr "==" relational_expr
+	    | equality_expr "!=" relational_expr
+	    ;
+
+    and_expr
+	    : equality_expr
+	    | and_expr "&" equality_expr
+	    ;
+
+    exclusive_or_expr
+	    : and_expr
+	    | exclusive_or_expr "^" and_expr
+	    ;
+
+    inclusive_or_expr
+	    : exclusive_or_expr
+	    | inclusive_or_expr "|" exclusive_or_expr
+	    ;
+
+    logical_and_expr
+	    : inclusive_or_expr
+	    | logical_and_expr "&&" inclusive_or_expr
+	    ;
+
+    logical_or_expr
+	    : logical_and_expr
+	    | logical_or_expr "||" logical_and_expr
+	    ;
+
+    conditional_expr
+	    : logical_or_expr
+	    | logical_or_expr "?" logical_or_expr ":" conditional_expr
+	    ;
+
+    assignment_expr
+	    : conditional_expr
+	    | unary_expr assignment_operator assignment_expr
+	    ;
+
+    assignment_operator
+	    : "="
+	    | "*="
+	    | "/="
+	    | "%="
+	    | "+="
+	    | "-="
+	    | "<<="
+	    | ">>="
+	    | "&="
+	    | "^="
+	    | "|="
+	    ;
+
+    expr
+	    : assignment_expr
+	    | expr "," assignment_expr
+	    ;
+
+    constant_expr
+	    : conditional_expr
+	    ;
+
+    declaration
+	    : declaration_specifiers ";"
+	    | declaration_specifiers init_declarator_list ";"
+	    ;
+
+    declaration_specifiers
+	    : storage_class_specifier
+	    | storage_class_specifier declaration_specifiers
+	    | type_specifier
+	    | type_specifier declaration_specifiers
+	    ;
+
+    init_declarator_list
+	    : init_declarator
+	    | init_declarator_list "," init_declarator
+	    ;
+
+    init_declarator
+	    : declarator
+	    | declarator "=" initializer
+	    ;
+
+    storage_class_specifier
+	    : "typedef"
+	    | "extern"
+	    | "static"
+	    | "auto"
+	    | "register"
+	    ;
+
+    type_specifier
+	    : "char"
+	    | "short"
+	    | "int"
+	    | "long"
+	    | "signed"
+	    | "unsigned"
+	    | "float"
+	    | "double"
+	    | "const"
+	    | "volatile"
+	    | "void"
+	    | struct_or_union_specifier
+	    | enum_specifier
+	    | typedef_name
+	    ;
+
+    struct_or_union_specifier
+	    : struct_or_union identifier "{" struct_declaration_list "}"
+	    | struct_or_union "{" struct_declaration_list "}"
+	    | struct_or_union identifier
+	    ;
+
+    struct_or_union
+	    : "struct"
+	    | "union"
+	    ;
+
+    struct_declaration_list
+	    : struct_declaration
+	    | struct_declaration_list struct_declaration
+	    ;
+
+    struct_declaration
+	    : type_specifier_list struct_declarator_list ";"
+	    ;
+
+    struct_declarator_list
+	    : struct_declarator
+	    | struct_declarator_list "," struct_declarator
+	    ;
+
+    struct_declarator
+	    : declarator
+	    | ":" constant_expr
+	    | declarator ":" constant_expr
+	    ;
+
+    enum_specifier
+	    : "enum" "{" enumerator_list "}"
+	    | "enum" identifier "{" enumerator_list "}"
+	    | "enum" identifier
+	    ;
+
+    enumerator_list
+	    : enumerator
+	    | enumerator_list "," enumerator
+	    ;
+
+    enumerator
+	    : identifier
+	    | identifier "=" constant_expr
+	    ;
+
+    declarator
+	    : declarator2
+	    | pointer declarator2
+	    ;
+
+    declarator2
+	    : identifier
+	    | "(" declarator ")"
+	    | declarator2 "[" "]"
+	    | declarator2 "[" constant_expr "]"
+	    | declarator2 "(" ")"
+	    | declarator2 "(" parameter_type_list ")"
+	    | declarator2 "(" parameter_identifier_list ")"
+	    ;
+
+    pointer
+	    : "*"
+	    | "*" type_specifier_list
+	    | "*" pointer
+	    | "*" type_specifier_list pointer
+	    ;
+
+    type_specifier_list
+	    : type_specifier
+	    | type_specifier_list type_specifier
+	    ;
+
+    parameter_identifier_list
+	    : identifier_list
+	    | identifier_list "," "..."
+	    ;
+
+    identifier_list
+	    : identifier
+	    | identifier_list "," identifier
+	    ;
+
+    parameter_type_list
+	    : parameter_list
+	    | parameter_list "," "..."
+	    ;
+
+    parameter_list
+	    : parameter_declaration
+	    | parameter_list "," parameter_declaration
+	    ;
+
+    parameter_declaration
+	    : type_specifier_list declarator
+	    | type_name
+	    ;
+
+    type_name
+	    : type_specifier_list
+	    | type_specifier_list abstract_declarator
+	    ;
+
+    abstract_declarator
+	    : pointer
+	    | abstract_declarator2
+	    | pointer abstract_declarator2
+	    ;
+
+    abstract_declarator2
+	    : "(" abstract_declarator ")"
+	    | "[" "]"
+	    | "[" constant_expr "]"
+	    | abstract_declarator2 "[" "]"
+	    | abstract_declarator2 "[" constant_expr "]"
+	    | "(" ")"
+	    | "(" parameter_type_list ")"
+	    | abstract_declarator2 "(" ")"
+	    | abstract_declarator2 "(" parameter_type_list ")"
+	    ;
+
+    initializer
+	    : assignment_expr
+	    | "{" initializer_list "}"
+	    | "{" initializer_list "," "}"
+	    ;
+
+    initializer_list
+	    : initializer
+	    | initializer_list "," initializer
+	    ;
+
+    statement
+	    : labeled_statement
+	    | compound_statement
+	    | expression_statement
+	    | selection_statement
+	    | iteration_statement
+	    | jump_statement
+	    ;
+
+    labeled_statement
+	    : identifier ":" statement
+	    | "case" constant_expr ":" statement
+	    | "default" ":" statement
+	    ;
+
+    compound_statement
+	    : "{" "}"
+	    | "{" statement_list "}"
+	    | "{" declaration_list "}"
+	    | "{" declaration_list statement_list "}"
+	    ;
+
+    declaration_list
+	    : declaration
+	    | declaration_list declaration
+	    ;
+
+    statement_list
+	    : statement
+	    | statement_list statement
+	    ;
+
+    expression_statement
+	    : ";"
+	    | expr ";"
+	    ;
+
+    selection_statement
+	    : "if" "(" expr ")" statement
+	    | "if" "(" expr ")" statement "else" statement
+	    | "switch" "(" expr ")" statement
+	    ;
+
+    iteration_statement
+	    : "while" "(" expr ")" statement
+	    | "do" statement "while" "(" expr ")" ";"
+	    | "for" "(" ";" ";" ")" statement
+	    | "for" "(" ";" ";" expr ")" statement
+	    | "for" "(" ";" expr ";" ")" statement
+	    | "for" "(" ";" expr ";" expr ")" statement
+	    | "for" "(" expr ";" ";" ")" statement
+	    | "for" "(" expr ";" ";" expr ")" statement
+	    | "for" "(" expr ";" expr ";" ")" statement
+	    | "for" "(" expr ";" expr ";" expr ")" statement
+	    ;
+
+    jump_statement
+	    : "goto" identifier ";"
+	    | "continue" ";"
+	    | "break" ";"
+	    | "return" ";"
+	    | "return" expr ";"
+	    ;
+
+    file
+	    : external_definition
+	    | file external_definition
+	    ;
+
+    external_definition
+	    : function_definition
+	    | declaration
+	    ;
+
+    function_definition
+	    : declarator function_body
+	    | declaration_specifiers declarator function_body
+	    ;
+
+    function_body
+	    : compound_statement
+	    | declaration_list compound_statement
+	    ;
+
+    identifier
+	    : identifier_name
+	    ;

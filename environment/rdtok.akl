@@ -1,0 +1,683 @@
+% $Id: rdtok.akl,v 1.27 1993/10/22 12:59:19 sverker Exp $
+%
+%   File   : RDTOK.PL
+%   Author : R.A.O'Keefe
+%   Updated: 2 July 1984
+%   Purpose: Tokeniser in reasonably standard Prolog.
+
+/*  Modified by Sverker Janson and Johan Montelius for
+ *  the Andorra Kernel Language. 
+ */
+
+/*  This tokeniser is meant to complement the library READ routine.
+    It recognises Dec-10 Prolog with the following exceptions:
+
+	%( is not accepted as an alternative to {
+
+	%) is not accepted as an alternative to )
+
+	NOLC convention is not supported (akl_read_name could be made to do it)
+
+	,.. is not accepted as an alternative to | (hooray!)
+
+	large integers are not read in as xwd(Top18Bits,Bottom18Bits)
+
+	After a comma, "(" is read as ' (' rather than '('.  This does the
+	parser no harm at all, and the Dec-10 tokeniser's behaviour here
+	doesn't actually buy you anything.  This tokeniser guarantees never
+	to return '(' except immediately after an atom, yielding ' (' every
+	other where.
+
+    In particular, radix notation is EXACTLY as in Dec-10 Prolog version 3.53.
+    Some times might be of interest.  Applied to an earlier version of this 
+    file:
+	this code took			1.66 seconds
+	the Dec-10 tokeniser took	1.28 seconds
+	A Pascal version took		0.96 seconds
+    The Dec-10 tokeniser was called via the old RDTOK interface, with
+    which this file is compatible.  One reason for the difference in
+    speed is the way variables are looked up: this code uses a linear
+    list, while the Dec-10 tokeniser uses some sort of tree.  The Pascal
+    version is the program WLIST which lists "words" and their frequencies.
+    It uses a hash table.  Another difference is the way characters are
+    classified: the Dec-10 tokeniser and WLIST have a table which maps
+    ASCII codes to character classes, and don't do all this comparison
+    and and memberchking.  We could do that without leaving standard Prolog,
+    but what do you want from one evening's work?
+*/    
+
+%   akl_read_tokens(TokenList)
+%   returns a list of tokens.  It is needed to "prime" akl_read_tokens/2
+%   with the initial blank, and to check for end of file.
+%   The way end of file is handled is that everything else FAILS when it
+%   hits character "-1", sometimes printing a warning.	It might have been
+%   an idea to return the atom 'end_of_file' instead of the same token list
+%   that you'd have got from reading "end_of_file. ", but (1) this file is
+%   for compatibility, and (b) there are good practical reasons for wanting
+%   this behaviour.
+
+/*  93.01.25 The structure of the program has changed. akl_read_tokens will
+ *  not fail. This is done since the stream  can not be read within a guard
+ *  and subsequently not be part of the test in a conditional predicate.
+ */
+
+akl_read_tokens(TokenList, Flag)-S :-
+    ->	getc(Ch)@S,
+	akl_read_tokens(Ch, TokenList, Flag)-S.
+
+/*
+akl_read_tokens(_, Tokens, Flag)-S :-		%  if an error has occured 
+	S = exception(error,_)			
+    ->	Flag = error,
+	Tokens = [].
+*/
+
+
+akl_read_tokens(-1, Tokens, Flag)-_S :-	%  -1 is the end-of-file character
+    ->	Flag = end_of_file,
+	Tokens = [].
+
+akl_read_tokens(9, Tokens, Flag)-S :-
+    ->	getc(Nx)@S,
+	akl_read_tokens(Nx, Tokens, Flag)-S.	
+
+akl_read_tokens(10, Tokens, Flag)-S :-
+    ->	getc(Nx)@S,
+	akl_read_tokens(Nx, Tokens, Flag)-S.	
+
+akl_read_tokens(12, Tokens, Flag)-S :-
+    ->	getc(Nx)@S,
+	akl_read_tokens(Nx, Tokens, Flag)-S.	
+
+akl_read_tokens(13, Tokens, Flag)-S :-
+    ->	getc(Nx)@S,
+	akl_read_tokens(Nx, Tokens, Flag)-S.	
+
+akl_read_tokens(32, Tokens, Flag)-S :-
+    ->	getc(Nx)@S,
+	akl_read_tokens(Nx, Tokens, Flag)-S.	
+
+akl_read_tokens(0'%,Tokens,Flag)-S :-	%  %comment
+    ->	getc(Ch)@S,
+	akl_read_line_comment(Ch, Nx)-S,	%  skip characters to a line
+	akl_read_tokens(Nx, Tokens, Flag)-S.
+
+akl_read_tokens(0'/, Tokens, Flag)-S :-	%  /*comment?
+    ->	getc(Ch)@S,
+	akl_read_solidus(Ch, Tokens, Okens, Nx)-S,
+	akl_read_tokens(Nx, Okens, Flag)-S.
+
+akl_read_tokens(0'!, Tokens, Flag)-S :-	%  !
+    ->	Tokens = [atom(A)|Okens],
+	getc(Ch)@S,
+	akl_read_guardop(Ch, 0'!, Chars, Nx)-S,
+	chars_to_atom(Chars,A),
+	akl_read_tokens(Nx, Okens, Flag)-S.
+
+akl_read_tokens(0':, Tokens, Flag)-S :-	       %  :
+    ->	Tokens = [atom(A)|Okens],
+	getc(Ch)@S,
+	akl_read_guardop(Ch, 0':, Chars, Nx)-S,
+	chars_to_atom(Chars,A),
+	akl_read_tokens(Nx, Okens, Flag)-S.
+
+akl_read_tokens(0'|, Tokens, Flag)-S :-	       %  |
+    ->	Tokens = [atom(A)|Okens],
+	getc(Ch)@S,
+	akl_read_guardop(Ch, 0'|, Chars, Nx)-S,
+	chars_to_atom(Chars, A),
+	akl_read_tokens(Nx, Okens, Flag)-S.
+
+akl_read_tokens(0'(, Tokens, Flag)-S :-		%  ' ('	  NB!!!
+    ->	Tokens = [' ('|Okens],				
+	getc(Nx)@S,
+	akl_read_tokens(Nx, Okens, Flag)-S.
+
+akl_read_tokens(0'), Tokens, Flag)-S:-   
+    ->	Tokens =  [')'|Okens],
+	getc(Nx)@S,
+	akl_read_tokens(Nx, Okens, Flag)-S.
+
+akl_read_tokens(0', , Tokens, Flag)-S:-	
+    ->	Tokens = [','|Okens],
+	getc(Nx)@S,
+	akl_read_tokens(Nx, Okens, Flag)-S.
+
+akl_read_tokens(0'; , Tokens, Flag)-S:-	
+    ->	Tokens = [atom((;))|Okens],		%   ; is nearly a punctuation
+	getc(Nx)@S,				%   mark but not quite (e.g.
+	akl_read_tokens(Nx, Okens, Flag)-S.	%   you can :-op declare it).
+
+akl_read_tokens(0'[ , Tokens, Flag)-S:-	
+    ->	Tokens = ['['|Okens],
+	getc(Nx)@S,
+	akl_read_tokens(Nx, Okens, Flag)-S.
+
+akl_read_tokens(0'] , Tokens, Flag)-S:-	
+    ->	Tokens = [']'|Okens],
+	getc(NextCh)@S,
+	akl_read_tokens(NextCh, Okens, Flag)-S.
+
+akl_read_tokens(0'{, Tokens, Flag)-S:-   
+    ->	Tokens = ['{'|Okens],
+	getc(NextCh)@S,
+	akl_read_tokens(NextCh, Okens, Flag)-S.
+
+akl_read_tokens(0'|, Tokens, Flag)-S:-		% This clause is never used?
+    ->	Tokens = [atom(('|'))|Okens],
+	getc(NextCh)@S,
+	akl_read_tokens(NextCh, Okens, Flag)-S.
+
+akl_read_tokens(0'}, Tokens, Flag)-S:-   
+    ->	Tokens = ['}'|Okens],
+	getc(NextCh)@S,
+	akl_read_tokens(NextCh, Okens, Flag)-S.
+
+akl_read_tokens(0'., Tokens, Flag)-S :-	%  full stop or possibly a symbol 
+    ->	getc(NextCh)@S,				
+	akl_read_fullstop(NextCh, Tokens, Flag)-S.
+
+akl_read_tokens(0'", Tokens, Flag)-S:-	       %  "string"
+    ->	Tokens = [Token|Okens],
+	getc(Ch)@S,
+	akl_read_string(Ch, Token, NextCh)-S,
+	akl_read_tokens(NextCh, Okens, Flag)-S.
+
+akl_read_tokens(0'', Tokens, Flag)-S:-	       %  'Atom'
+    ->	Tokens = [Token|Okens],		       
+	getc(Ch)@S,	  
+	akl_read_quote(Ch,Token, NextCh)-S,
+	akl_read_after_atom(NextCh, Okens, Flag)-S.
+
+akl_read_tokens(0'_ , Tokens, Flag)-S:-		% _variable
+    ->	Tokens = [var(Name)|Okens],
+	akl_read_name(0'_, String, NextCh)-S,
+	chars_to_atom(String, Name),
+	akl_read_after_atom(NextCh, Okens, Flag)-S.
+
+akl_read_tokens(Ch, Tokens, Flag)-S:-		% A..Z	
+	Ch >= 65, 
+	Ch =< 90
+    ->	Tokens = [var(Name)|Okens],
+	akl_read_name(Ch, String, NextCh)-S,
+	chars_to_atom(String, Name),
+	akl_read_after_atom(NextCh, Okens, Flag)-S.
+
+akl_read_tokens(Ch, Tokens, Flag)-S:-	%  0..9
+	Ch >= 48,			% We have to make a non-recursive 
+	Ch =< 57			% call in order to handle floating
+    ->	akl_read_number(Ch, Tokens, Flag)-S.	% point notation.
+
+
+akl_read_tokens(Ch, Tokens, Flag)-S:-		%  a..z
+	Ch >= 97, 
+	Ch =< 122		
+    ->	Tokens  = [atom(A)|Okens],		%  no corresponding _ problem
+	akl_read_name(Ch, String, NextCh)-S,
+	chars_to_atom(String, A),
+	akl_read_after_atom(NextCh, Okens, Flag)-S.
+
+akl_read_tokens(Ch, Tokens, Flag)-S:-		% #\?.:- .... symbol
+	special_symbol_char(Ch)
+    ->	Tokens = [atom(A)| Okens],
+	akl_read_symbol(Ch, Chars, NextCh)-S,
+	chars_to_atom(Chars, A),
+	akl_read_after_atom(NextCh, Okens, Flag)-S.
+
+akl_read_tokens(Ch, Tokens, Flag)-S:-		% ^A^B^C ... invalid
+    ->	Tokens = [invalid_char(Ch)|Okens],
+	getc(NextCh)@S,
+	akl_read_tokens(NextCh, Okens, Flag)-S.
+
+
+
+/* akl_read_line_comment
+ * 
+ * Ignore characters until a line feed. Continue to read. If eof return.
+ */
+
+akl_read_line_comment(-1, Last)-_S :-                 % <EOF>
+    ->  Last = -1.
+akl_read_line_comment(10, Last)-S:-              % <LF>
+    ->  Last = Ch,
+	getc(Ch)@S.
+akl_read_line_comment(_, Last)-S:-
+    ->	getc(Ch)@S,
+	akl_read_line_comment(Ch, Last)-S.
+
+/* akl_read_guard_op
+ *
+ *
+ */
+
+akl_read_guardop(Ch, Ch, Chars, Last)-S :-	% !! :: ||
+    ->  getc(NextCh)@S,
+	akl_read_guardop_aux(NextCh, Ch, Chars, Last)-S.
+
+akl_read_guardop(0'., Ch, Chars, Last)-_S :-	% !. :. |.
+    ->  Chars = [Ch],                          
+        Last = 0'. .
+akl_read_guardop(Ch, 0'|, Chars, Last)-_S :-	% |foo  |#
+    ->  Chars = [0'|],
+	Last = Ch.
+
+akl_read_guardop(Ch2, Ch1, Chars, Last)-S :-      % !foo  !#$ :foo :#$
+    ->  Chars = [Ch1|R],
+	akl_read_symbol(Ch2, R, Last)-S.
+
+akl_read_guardop_aux(0'., Ch, Chars, Last)-_S :-   % !!. ::. ||.
+    ->  Chars = [Ch,Ch],
+        Last = 0'. .
+
+akl_read_guardop_aux(Ch2, Ch1, Chars, Last)-S :-   % !!foo !!#$  ||foo ||#$
+    ->  Chars = [Ch1, Ch1|R],
+	akl_read_symbol(Ch2, R, Last)-S.
+
+
+
+%   The only difference between akl_read_after_atom(Ch, Dict, Tokens) and
+%   akl_read_tokens/3 is what they do when Ch is "(".  akl_read_after_atom
+%   finds the token to be '(', while akl_read_tokens finds the token to be
+%   ' ('.  This is how the parser can tell whether <atom> <paren> must
+%   be an operator application or an ordinary function symbol application.
+%   See the library file READ.PL for details.
+
+akl_read_after_atom(0'(, Tokens, Flag)-S :-   
+    ->	Tokens = ['('|Okens],
+	getc(NextCh)@S,
+	akl_read_tokens(NextCh, Okens, Flag)-S.
+akl_read_after_atom(Ch, Tokens, Flag)-S :-   
+    ->	akl_read_tokens(Ch, Tokens, Flag)-S.
+
+
+
+
+%   akl_read_string(Chars, Quote, NextCh)
+%   reads the body of a string delimited by Quote characters.
+%   The result is a list of ASCII codes.  There are two complications.
+%   If we hit the end of the file inside the string this predicate FAILS.
+%   It does not return any special structure.  That is the only reason
+%   it can ever fail.  The other complication is that when we find a Quote
+%   we have to look ahead one character in case it is doubled.  Note that
+%   if we find an end-of-file after the quote we *don't* fail, we return
+%   a normal string and the end of file character is returned as NextCh.
+%   If we were going to accept C-like escape characters, as I think we
+%   should, this would need changing (as would the code for 0'x).  But
+%   the purpose of this module is not to present my ideal syntax but to
+%   present something which will read present-day Prolog programs.
+
+akl_read_string(Ch, Token, Last)-S :- 
+    ->	akl_read_string(Ch, R-R, Token, Last)-S.
+
+akl_read_string(-1, Chars-R, Token, Last)-_S :- 
+    ->  R = [],
+	Token = invalid_string(Chars),
+	Last = -1.
+
+akl_read_string(0'", Chars-R, Token, Last)-S :-	% closing or doubled quote
+    ->	getc(Ch)@S,				
+	more_string(Ch, Chars-R, Token, Last)-S.
+
+akl_read_string(Char, Chars-R , Token, Last)-S :-      % ordinary character
+    ->  R = [Char|R1],
+	getc(Ch)@S,
+	akl_read_string(Ch, Chars-R1, Token, Last)-S.	
+
+more_string(0'", Chars-R, Token, Last)-S :- 	     % doubled quote
+    ->	R = [0'"|R1],
+	getc(Ch)@S,
+	akl_read_string(Ch, Chars-R1, Token, Last)-S.
+more_string(Char, Chars-R, Token, Last)-_S:- 	     % end
+    ->	R = [],
+	Token = string(Chars),
+	Last = Char.
+
+akl_read_quote(Ch, Token, Last)-S :- 
+    ->	akl_read_quote(Ch, R-R, Token, Last)-S.
+
+akl_read_quote(-1, Chars-R, Token, Last)-_S :- 
+    ->	R = [],
+	Token = invalid_quote(Chars),
+	Last = -1.
+
+akl_read_quote(0'', Chars-R, Token, Last)-S :-	% closing or doubled quote
+    ->	getc(Ch)@S,				
+	more_quote(Ch, Chars-R, Token, Last)-S.
+
+akl_read_quote(Char, Chars-R , Token, Last)-S :- % ordinary character
+    ->  R = [Char|R1],
+	getc(Ch)@S,
+	akl_read_quote(Ch, Chars-R1, Token, Last)-S.	
+
+more_quote(0'', Chars-R, Token, Last)-S :- 	         % doubled quote
+    ->	R = [0''|R1],
+	getc(Ch)@S,
+	akl_read_quote(Ch, Chars-R1, Token, Last)-S.
+more_quote(Char, Chars-R, Token, Last)-_S:- 	         % end
+    ->	R = [],
+	Token = atom(Atom),
+	chars_to_atom(Chars, Atom),
+	Last = Char.
+
+
+%   akl_read_solidus(Ch, Dict, Tokens)
+%   checks to see whether /Ch is a /* comment or a symbol.  If the
+%   former, it skips the comment.  If the latter it just calls akl_read_symbol.
+%   We have to take great care with /* comments to handle end of file
+%   inside a comment, which is why akl_read_solidus/2 passes back an end of
+%   file character or a (forged) blank that we can give to akl_read_tokens.
+
+
+akl_read_solidus(0'*, Tokens, Okens, Last)-S :-          % /* 
+    ->  Tokens = Okens,
+	getc(Ch)@S,
+	akl_read_solidus_skip(Ch, Last)-S.
+
+akl_read_solidus(Ch, Tokens, Okens, Last)-S:- 		% /foo
+    ->	Tokens = [atom(A)|Okens],
+	akl_read_symbol(Ch, Chars, Last)-S,	        % might read 0 chars
+	chars_to_atom([0'/|Chars],A).
+
+akl_read_solidus_skip(-1, LastCh)-_S :-                   %<EOF>
+    ->  LastCh = -1.
+
+akl_read_solidus_skip(0'*, LastCh)-S :-                % ...*
+    ->	getc(NextCh)@S,
+	akl_read_solidus_end(NextCh,LastCh)-S.
+
+akl_read_solidus_skip(_, LastCh)-S :-                  % ...
+    ->  getc(NextCh)@S,
+	akl_read_solidus_skip(NextCh, LastCh)-S.
+
+akl_read_solidus_end(0'/, LastCh)-S :-     		% */
+    ->  getc(LastCh)@S.
+
+akl_read_solidus_end(NextCh, LastCh)-S :- 		% *foo
+    ->  akl_read_solidus_skip(NextCh, LastCh)-S.
+
+
+%   akl_read_name(Char, String, LastCh)
+%   reads a sequence of letters, digits, and underscores, and returns
+%   them as String.  The first character which cannot join this sequence
+%   is returned as LastCh.
+
+akl_read_name(Char, Hars, LastCh)-S :-       % a..z
+	Char >= 97, 
+	Char =< 122 	
+    ->	Hars = [Char|Chars],
+	getc(NextCh)@S,
+	akl_read_name(NextCh, Chars, LastCh)-S.
+
+akl_read_name(Char, Hars, LastCh)-S :-        % A..Z
+	Char >= 65, 
+	Char =< 90
+    ->  Hars = [Char|Chars],
+	getc(NextCh)@S,
+	akl_read_name(NextCh, Chars, LastCh)-S.
+
+akl_read_name(Char, Hars, LastCh)-S :-
+	Char >= 48, 
+	Char =< 57
+    ->	Hars = [Char|Chars],
+	getc(NextCh)@S,
+	akl_read_name(NextCh, Chars, LastCh)-S.
+
+akl_read_name(0'_, Hars, LastCh)-S :-
+    ->	Hars = [0'_|Chars],
+	getc(NextCh)@S,
+	akl_read_name(NextCh, Chars, LastCh)-S.
+
+akl_read_name(Ch, Hars , LastCh)-_S:- 
+    ->	Hars = [],
+	LastCh = Ch.
+
+
+%   akl_read_symbol(Ch, String, Last)-S
+%   reads the other kind of atom which needs no quoting: one which is
+%   a string of "symbol" characters.  Note that it may accept 0
+%   characters, this happens when called from akl_read_fullstop.
+
+akl_read_symbol(Char, String, Last)-S :-
+	special_symbol_char(Char)
+    ->	String = [Char|Rest],
+	getc(NextCh)@S,
+	akl_read_symbol(NextCh, Rest, Last)-S.
+akl_read_symbol(Char, String, Last)-_S:-
+    ->  String = [],
+        Last = Char.
+	
+special_symbol_char(0'#) :-
+    ->	true.
+special_symbol_char(0'$) :-
+    ->	true.
+special_symbol_char(0'&) :-
+    ->	true.
+special_symbol_char(0'*) :-
+    ->	true.
+special_symbol_char(0'+) :-
+    ->	true.
+special_symbol_char(0'-) :-
+    ->	true.
+special_symbol_char(0'.) :-
+    ->	true.
+special_symbol_char(0'/) :-
+    ->	true.
+special_symbol_char(0':) :-
+    ->	true.
+special_symbol_char(0'<) :-
+    ->	true.
+special_symbol_char(0'=) :-
+    ->	true.
+special_symbol_char(0'>) :-
+    ->	true.
+special_symbol_char(0'?) :-
+    ->	true.
+special_symbol_char(0'@) :-
+    ->	true.
+special_symbol_char(0'\) :-
+    ->	true.
+special_symbol_char(0'^) :-
+    ->	true.
+special_symbol_char(0'`) :-
+    ->	true.
+special_symbol_char(0'~) :-
+    ->	true.
+
+%   akl_read_fullstop(Char
+%   looks at the next character after a full stop.  There are
+%   three cases:
+%	(a) the next character is an end of file.  We treat this
+%	    as an unexpected end of file.  The reason for this is
+%	    that we HAVE to handle end of file characters in this
+%	    module or they are gone forever; if we failed to check
+%	    for end of file here and just accepted .<EOF> like .<NL>
+%	    the caller would have no way of detecting an end of file
+%	    and the next call would abort.
+%	(b) the next character is a layout character.  This is a
+%	    clause terminator.
+%	(c) the next character is anything else.  This is just an
+%	    ordinary symbol and we call akl_read_symbol to process it.
+
+akl_read_fullstop(-1, Tokens, Flag)-_S :-      % .<EOF>
+    ->  Tokens = [],
+	Flag = end_of_file.
+
+akl_read_fullstop(Ch, Tokens, Flag)-_S :-	% .<LF> .<CR> .<SPACE>  This is the full stop
+	Ch =< 32
+    ->	Tokens = [],
+	Flag = stop.
+
+akl_read_fullstop(Ch, Tokens, Flag)-S:-     % .#$ 
+    ->  Tokens = [atom(A)| Okens],
+	Chars = [0'.|Rest],
+	akl_read_symbol(Ch, Rest, NextCh)-S,
+	chars_to_atom(Chars, A),
+	akl_read_after_atom(NextCh, Okens, Flag)-S.
+
+
+
+
+
+
+%   akl_read_integer is complicated by having to understand radix notation.
+%   There are three forms of integer:
+%	0 ' <any character>	- the ASCII code for that character
+%	<b-digits> ' <digits>	- the digits in base b-digits.
+%	<digits>		- the digits in base 10.
+%   The X != -1 tests are to make sure we don't miss an end of file
+%   character.  The tokeniser really should be in C, not least to
+%   make handling end of file characters bearable.  If we hit an end
+%   of file inside an integer, akl_read_integer will fail.
+
+/* New number tokenizer, by AC and MC. Modified for AKL by KB */
+
+akl_read_number(Ch, Tokens, Flag)-S :- 
+    ->	akl_read_int(Ch, String-String, Chars, NextCh)-S,
+	akl_read_after_int(NextCh, Chars, Tokens, Flag)-S.
+
+akl_read_after_int(0'', Chars-CS, Tokens, Flag)-S :- % 999'<rest>
+    ->	CS = [],
+	Tokens = [integer(Integer)| Okens],
+	chars_to_integer(Chars, Base),
+	akl_read_based_int(Base, Integer, NextCh)-S,
+	akl_read_tokens(NextCh, Okens, Flag)-S.
+
+akl_read_after_int(0'., Chars, Tokens, Flag)-S :- % 999.<rest>
+    ->	getc(Ch1)@S,
+	akl_read_after_int_period(Ch1, Chars, Tokens, Flag)-S.
+
+akl_read_after_int(Ch, L, Tokens, Flag)-S :-	% 999
+    ->	L = Chars-R,
+	R = [],
+	Tokens =  [integer(Integer)|Okens],
+	chars_to_integer(Chars, Integer),
+	akl_read_tokens(Ch, Okens, Flag)-S.
+
+akl_read_after_int_period(Ch, Chars-R, Tokens, Flag)-S :-
+	Ch >= 48, 
+	Ch =< 57
+    ->	Tokens = [float(Float)|Okens],
+	R = [0'.|R1],
+	akl_read_int(Ch, Chars-R1, Chars1, NextCh1)-S,
+	akl_read_after_fraction(NextCh1, Chars1, Float, NextCh)-S,
+	akl_read_tokens(NextCh, Okens, Flag)-S.
+
+akl_read_after_int_period(Ch, Chars-R, Tokens, Flag)-S :- % integer followed by period.
+    ->	R = [],
+	Tokens = [integer(Integer)|Okens],
+	chars_to_integer(Chars, Integer),
+	akl_read_fullstop(Ch, Okens, Flag)-S.
+
+akl_read_after_fraction(0'E, Chars-R, Value, NextCh)-S :-
+    ->	R = [0'E|R1],
+	getc(Ch1)@S,
+	akl_read_after_fraction1(Ch1, Chars-R1, Value, NextCh)-S.
+akl_read_after_fraction(0'e, Chars-R, Value, NextCh)-S :-
+    ->	R = [0'e|R1],
+	getc(Ch1)@S,
+	akl_read_after_fraction1(Ch1, Chars-R1, Value, NextCh)-S.
+akl_read_after_fraction(Ch0, Chars-R, Value, Ch)-_S :-
+    ->	Ch0 = Ch,
+	R = [],
+	chars_to_float(Chars, Value).
+akl_read_after_fraction1(0'-, Chars-R, Value, NextCh)-S :-
+    ->	R = [0'-|R1],
+	getc(Ch1)@S, 
+	akl_read_after_fraction2(Ch1, Chars-R1, Value, NextCh)-S.
+akl_read_after_fraction1(0'+, Chars-R, Value, NextCh)-S :-
+    ->	R = [0'+|R1],
+	getc(Ch1)@S,
+	akl_read_after_fraction2(Ch1, Chars-R1, Value, NextCh)-S.
+akl_read_after_fraction1(Ch, Chars, Value, NextCh)-S :-
+    ->	akl_read_after_fraction2(Ch, Chars, Value, NextCh)-S.
+
+
+akl_read_after_fraction2(Ch, Chars, Value, NextCh)-S :-
+	Ch >= 48, 
+	Ch =< 57
+    ->	akl_read_int(Ch, Chars, Chars1-[], NextCh)-S,
+	chars_to_float(Chars1, Value).
+
+akl_read_based_int(0, Value, NextCh)-S :-
+    ->	getc(Value)@S,
+	getc(NextCh)@S.
+akl_read_based_int(Base, Value, NextCh)-S :-
+	Base >= 2,
+	Base =< 36
+    ->	getc(Ch)@S,
+	akl_read_name(Ch, Chars, NextCh)-S,
+	based_to_integer(Chars, Base, Value).
+akl_read_based_int(Value0, Value, 0'')-_S :-
+    ->	Value0 = Value.
+
+akl_read_int(Digit, Int-R, Chars, NextCh)-S :-
+	Digit >= 48, 
+	Digit =< 57
+    ->	R = [Digit|R1],
+	getc(Ch)@S,
+	akl_read_int(Ch, Int-R1, Chars, NextCh)-S.
+akl_read_int(LastCh0, Value0, Value, LastCh)-_S :-
+    ->	LastCh0 = LastCh,
+	Value0 = Value.
+
+based_to_integer([Ch|R], Base, Value) :-
+	based_to_integer(Ch, R, Base, 0, Value).
+
+based_to_integer(Ch, R, Base, Value, Res) :-
+	based_character_value(Ch, V),
+	V < Base,
+	Value1 is Base*Value+V,
+	based_to_integer_rest(R, Base, Value1, Res).
+
+based_to_integer_rest([], _, Value, Res) :-
+    ->	Res = Value.
+based_to_integer_rest([Ch|R], Base, Value, Res) :-
+    ->	based_to_integer(Ch, R, Base, Value, Res).
+
+/* ASCII */
+
+based_character_value(Ch, V) :-
+	Ch >= 0'0,
+	0'9 >= Ch
+    ->	V is Ch - 0'0.
+based_character_value(Ch, V) :-
+	Ch >= 0'a,
+	0'z >= Ch
+    ->	V is Ch - 0'a + 10.
+based_character_value(Ch, V) :-
+	Ch >= 0'A,
+	0'Z >= Ch
+    ->	V is Ch - 0'A + 10.
+
+
+write_tokens([])-_S :-
+    ->	true.
+write_tokens([Token])-S :-
+    ->	write_token(Token)-S.
+write_tokens([Token|Tokens])-S :-
+    ->	write_token(Token)-S,
+	write_atom(' ')-S,
+	write_tokens(Tokens)-S.
+
+write_token(atom(X))-S :-
+    ->	write_atom(X)-S.
+write_token(integer(X))-S :-
+    ->	write_integer(X)-S.
+write_token(float(X))-S :-
+    ->	write_float(X)-S.
+write_token(var(X))-S :-
+    ->	write_atom(X)-S.
+write_token(string(X))-S :-
+    ->	putc(0'")@S,
+	put_string(X, 0'")-S,
+	putc(0'")@S.
+write_token(invalid_char(Char))-S :-
+    ->	putc(Char)@S.
+write_token(invalid_string(Chars))-S :-
+    ->	putc(0'")@S,
+	put_string(Chars, 0'")-S.
+write_token(invalid_quote(Chars))-S :-
+    ->	putc(0'')@S,
+	put_string(Chars, 0'')-S.
+write_token(Other)-S :-
+    ->	write_atom(Other)-S.

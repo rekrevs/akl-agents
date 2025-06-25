@@ -1,0 +1,134 @@
+@node Ordsets, Prolog, Lists, Top
+@comment  node-name,  next,  previous,  up
+@chapter Ordered set manipulation
+@cindex sets
+@cindex ordered sets
+
+This package defines operations on ordered sets.  Ordered sets are sets
+represented as lists with the elements ordered in a standard order.
+The ordering is defined by the @code{@@<} family of term comparison
+predicates and it is the ordering produced by the built-in predicate
+@code{sort/2}. @refill
+
+To load the package, enter the query
+
+@example
+| ?- load(library(ordsets)).
+@end example
+
+@table @code
+@item is_ordset(@var{+Set})
+@findex is_ordset/1
+is true when @var{Set} is an ordered set.
+@item list_to_ord_set(@var{+List}, @var{?Set})
+@findex list_to_ord_set/2
+is true when @var{Set} is the ordered representation of the set denoted 
+by the unordered representation @var{List}.    Example:
+@example
+| ?- list_to_ord_set([p,r,o,l,o,g], P).
+
+P = [g,l,o,p,r] ? 
+
+yes
+
+@end example
+@item ord_add_element(@var{+Set1}, @var{+Element}, @var{?Set2})
+@findex ord_add_element/3
+is true when @var{Set2} is @var{Set1} with @var{Element} inserted in it, 
+preserving the order.  Example:
+@example
+| ?- ord_add_element([a,c,d,e,f], b, N).
+
+N = [a,b,c,d,e,f] ? 
+
+yes
+@end example
+@item ord_del_element(@var{+Set1}, @var{+Element}, @var{?Set2})
+@findex ord_del_element/3
+is true when @var{Set2} is like @var{Set1} but with @var{Element} removed.
+@item ord_disjoint(@var{+Set1}, @var{+Set2})
+@findex ord_disjoint/2
+is true when the two ordered sets have no elements in common.  
+
+@item ord_intersect(@var{+Set1}, @var{+Set2})
+@findex ord_intersect/2
+is true when the two ordered sets have at least one element in common.
+@item ord_intersection(@var{+Set1}, @var{+Set2}, @var{?Intersect})
+@findex ord_intersection/3
+is true when @var{Intersect} is the ordered set representation of the 
+intersection between @var{Set1} and @var{Set2}.
+@item ord_intersection(@var{+Sets}, @var{?Intersection})
+@findex ord_intersection/2
+is true when @var{Intersection} is the ordered set representation of the
+intersection of all the sets in @var{Sets}.  Example:
+@example
+| ?- ord_intersection([[1,2,3],[2,3,4],[3,4,5]], I).
+
+I = [3] ? 
+
+yes
+
+@end example
+@item ord_seteq(@var{+Set1}, @var{+Set2})
+@findex ord_seteq/2
+is true when the two arguments represent the same set.  Since they
+are assumed to be ordered representations, they must be identical.
+@item ord_setproduct(@var{+Set1}, @var{+Set2}, @var{?SetProduct})
+@findex ord_setproduct/3
+is true when @var{SetProduct} is the Cartesian Product of the two Sets.  The
+product is represented as pairs: Elem1-Elem2 where Elem1 is an element
+from @var{Set1} and Elem2 is an element from @var{Set2}.  Example
+@example
+| ?- ord_setproduct([1,2,3], [4,5,6], P).
+
+P = [1-4,1-5,1-6,2-4,2-5,2-6,3-4,3-5,3-6] ? 
+
+yes
+@end example
+@item ord_subset(@var{+Set1}, @var{+Set2})
+@findex ord_subset/2
+is true when every element of the ordered set @var{Set1} appears in the
+ordered set @var{Set2}.
+@item ord_subtract(@var{+Set1}, @var{+Set2}, @var{?Difference})
+@findex ord_subtract/3
+is true when @var{Difference} contains all and only the elements of @var{Set1}
+which are not also in @var{Set2}.  Example:
+@example
+| ?- ord_subtract([1,2,3,4], [3,4,5,6], S).
+
+S = [1,2] ? 
+
+yes 
+@end example
+@item ord_symdiff(@var{+Set1}, @var{+Set2}, @var{?Difference})
+@findex ord_symdiff/3
+is true when @var{Difference} is the symmetric difference of @var{Set1} and 
+@var{Set2}.  Example:
+@example
+| ?- ord_symdiff([1,2,3,4], [3,4,5,6], D).
+
+D = [1,2,5,6] ? 
+
+yes
+@end example
+@item ord_union(@var{+Set1}, @var{+Set2}, @var{?Union})
+@findex ord_union/3
+is true when @var{Union} is the union of @var{Set1} and @var{Set2}.  
+@item ord_union(@var{+Sets}, @var{?Union})
+@findex ord_union/2
+is true when @var{Union} is the union of all the sets in @var{Sets}.   Example: 
+@example
+| ?- ord_union([[1,2,3],[2,3,4],[3,4,5]], U).
+
+U = [1,2,3,4,5] ? 
+
+yes
+
+@end example
+@item ord_union(@var{+Set1}, @var{+Set2}, @var{?Union}, @var{?New})
+@findex ord_union/4
+is true when @var{Union} is the union of @var{Set1} and @var{Set2}, and
+@var{New} is the difference between @var{Set2} and @var{Set1}.  This is
+useful if you are accumulating members of a set and you want to process
+new elements as they are added to the set.
+@end table

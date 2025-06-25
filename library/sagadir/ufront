@@ -1,0 +1,364 @@
+define
+
+upper:	 	[A-Z_];
+lower: 		[a-z];
+letter: 	upper | lower;
+digit: 		[0-9];
+alphanum: 	letter | digit;
+octal_digit: 	[0-7];		
+
+lexmode 
+
+maction; 
+comment;
+dquote;
+quote;
+condition;
+charset;
+aklterm;
+
+
+token
+
+ws: 			(" "|\t)+;
+ws_nl: 			(" "|\t)*\n 
+		      | "%"~[\n]*\n;
+
+begin_comment: 		"/*";
+ws:			<comment>~['*'\n]+;
+ws_nl:			<comment>~['*'\n]*\n;
+ws:			<comment>"*"+;
+end_comment:		<comment>"*"*"*/";
+
+id: 			lower alphanum*;
+var: 			upper alphanum*;
+num: 			digit+;
+octal: 			"\" octal_digit{3};
+
+begin_charset:		"[";
+end_charset:		<charset>"]";
+alphanumchar: 		<charset>alphanum;
+dash:			<charset>"-";
+quoted_char: 		<charset>"'"~["'"]"'";
+quoted_char:		<charset>'"'~['"']'"';
+octal: 			<charset>"\" octal_digit{3};
+tab_symbol: 		<charset>"\t";
+nl_symbol: 		<charset>"\n";
+begin_charsetquote:	<charset>"'";
+begin_charsetdquote:	<charset>'"';
+end_charsetquote:	<charsetquote>"'";
+end_charsetdquote:	<charsetdquote>'"';
+string:			<charsetquote>~["'"]+;
+string:			<charsetdquote>~['"']+;
+
+lpar:			<aklterm>"(";
+rpar:			<aklterm>")";
+neutral:		<aklterm>~["()"]+;
+
+begin_quote:		"'";
+end_quote:		<quote>"'";
+string:			<quote>~["'"]+;
+
+begin_dquote:		'"';
+end_dquote:		<dquote>'"';
+string:			<dquote>~['"']+;
+
+begin_condition:	"<";
+lexmode_qual:		<condition>letter alphanum*;
+end_condition:		<condition>">";
+
+begin_action:		"<<";
+action:			<maction>~[">"]*(">"~[">"]+)*;
+end_action:		<maction>">>";
+
+
+filter
+
+skip:				ws;
+count_skip-LineNo:		ws_nl;
+begin_skip(comment)-Lex:	begin_comment;
+
+begin(charset)-Lex:		begin_charset;
+begin_skip(charset)-Lex:	end_charsetquote | end_charsetdquote;
+begin_skip(charsetquote)-Lex:	begin_charsetquote;
+begin_skip(charsetdquote)-Lex:	begin_charsetdquote;
+
+begin_skip(quote)-Lex:		begin_quote;
+begin_skip(dquote)-Lex:		begin_dquote;
+begin_skip(condition)-Lex:	begin_condition;
+begin_skip(maction)-Lex:	begin_action;
+
+begin_skip(start)-Lex: 		end_comment | end_quote | end_dquote 
+			      | end_condition | end_action;
+begin(start)-Lex:		end_charset;
+
+
+global SymbolTable Expect External CurrPrec LineNo;
+
+
+rule
+
+s(L, P, F)	: section(L1,P1,F1) s(L2,P2,F2)	<< fappend(L1, L2, L),
+						   fappend(P1, P2, P), 
+						   fappend(F1, F2, F) >>;
+s([], [], [])	: /* empty */
+		;
+
+section([],[],[]): "define" definitions 
+		 | "expect" number(N) ";" 	<< new_expect(N)-Expect >>  
+		 | "global" globals(V) ";" 	<< flipappend(V)-External >>
+	 	 | "start" id(Id) ";" << set_start_symbol(Id)-SymbolTable>>
+		 | "left" prec_ops(CurrPrec, Right) ";"  	
+			<< dec(CurrPrec, Right), add(10)-CurrPrec >>
+		 | "right" prec_ops(CurrPrec, Right) ";"	
+			<< inc(CurrPrec, Right), add(10)-CurrPrec >>
+		 | "nonassoc" prec_ops(CurrPrec, CurrPrec) ";" 
+			<< add(10)-CurrPrec >>;
+section(L,[],[]) : "lexmode" lexmode_declarations(L) 
+		 | "token" token_declarations(L);
+section([],P,[]) : "rule" rules(P)
+		 | "code" action(L)		<< P = [code(L)] >>;
+section([],[],F) : "filter" filters(F)
+		 ;
+
+prec_ops(L, R)	: id(Id) prec_ops(L, R) 
+				<< set_precedence(Id, L, R)-SymbolTable >>
+		| string(S) prec_ops(L, R)
+				<< set_precedence(lit(S), L, R)-SymbolTable >>
+		| id(Id)	<< set_precedence(Id, L, R)-SymbolTable >>
+		| string(S)	<< set_precedence(lit(S), L, R)-SymbolTable >>
+		;
+
+definitions: definitions definition | definition;
+
+definition: id(Id) ":" regular(R) ";" 
+			<< def_macro(Id, R)-SymbolTable >>
+		;
+
+filters([F|Fs]) : filter_clause(F) filters(Fs);
+filters([F])	: filter_clause(F)
+		;
+
+filter_clause(F): id(Id) parameter_list(PL) ac_parameter_list(APL) ":" 
+		  token_names(TN) ";" 	<< chars_to_atom(Id, Name),
+					   F = filter(Name, PL, APL, TN) >>
+		;
+
+token_names([X])	: id(Id) 	<< get_symbol(Id, X)-SymbolTable >>;
+token_names([X|Xs])	: id(Id) "|" token_names(Xs)
+					<< get_symbol(Id, X)-SymbolTable >>
+			;
+
+parameter_list([])	:  /* empty */ ;
+parameter_list(Xs)	:  "(" custom_parms(Xs) ")"
+			;
+
+ac_parameter_list([])		: /* empty */ ;
+ac_parameter_list([X|Xs])	: "-" var(V) ac_parameter_list(Xs) 
+					<< chars_to_atom(V, X) >>
+				;
+
+custom_parms([X])	: var(V)	<< chars_to_atom(V, X) >>
+	 		| id(Id)	<< chars_to_atom(Id, X) >>
+			| "start" 	<< X = start >>;
+custom_parms([X|Xs]): var(V)  "," custom_parms(Xs)  << chars_to_atom(V, X) >>
+    		    | id(Id)  "," custom_parms(Xs)  << chars_to_atom(Id, X) >>
+		    | "start" "," custom_parms(Xs)  << X = start >>
+		    ;
+
+globals([X])	: var(V)		<< chars_to_atom(V, X) >>;
+globals([X|Xs]) : var(V) globals(Xs)	<< chars_to_atom(V, X) >>
+		;
+
+lexmode_declarations([X|Xs]): lexmode_declaration(X) lexmode_declarations(Xs);
+lexmode_declarations([X])   : lexmode_declaration(X)
+			    ;
+
+lexmode_declaration(M)	: id(Id) ";" 	<< chars_to_atom(Id, A),
+				 	   M = startcond(A, []) >>
+			| id(Id) ":" ids(Inherit) ";"
+					<< chars_to_atom(Id, A),
+				  	   M = startcond(A, Inherit) >>
+			;
+
+ids([X])	: id(Id)		<<  chars_to_atom(Id, X) >>;
+ids([X|Xs])	: id(Id) ids(Xs)	<<  chars_to_atom(Id, X) >>
+		;
+
+rules(RL)	: rule_clause(RL1) rules(RL2) << fappend(RL1, RL2, RL) >>
+		| rule_clause(RL)
+		;
+
+rule_clause(RL): head(Head) ":" prods(RL, Head) ";"
+	;
+
+head(Sym)	: id(Id) 	<< def_rule(Id, Sym)-SymbolTable >>;
+head(Sym-Term)	: id(Id) begin_akl_term_marker 
+		  "(" akl_term(T) end_akl_term_marker rpar
+		  	<< def_rule(Id, Sym)-SymbolTable,
+		 	   chars_to_atom(T, Term) >>
+		; 
+
+prods([R|Rs],H) : prod(R,H) "|" prods(Rs,H);
+prods([R],H)    : prod(R,H)
+                ;
+
+prod(R,H)       : syms(S, no_prec, P) prec_mod(P, P1) action(L)   
+			<< chars_to_atom(L, A),
+               	           R = rule(H, S, P1-A) >>
+                | syms(S, no_prec, P) prec_mod(P,P1) 
+			<< R = rule(H, S, P1-true) >>
+                ;
+
+prec_mod(P, P)	: /* empty */;
+prec_mod(P1, P)	: "prec" id(Id)      << get_precedence(Id, L, _)-SymbolTable,
+				   	pick_precedence(L, P1, P) >>
+		| "prec" string(S)   << get_precedence(lit(S),L,_)-SymbolTable,
+				   	pick_precedence(L, P1, P) >>  
+		;
+
+syms([Head|Xs], P, P2) 	: symbol_with_args(Head, P, P1) syms(Xs, P1, P2);
+syms([], P, P)    	: /* empty */
+                	;
+
+symbol_with_args(Sym, P, P1): id(Id)  << get_symbol(Id, Sym)-SymbolTable,
+					 get_precedence(Id, L, _)-SymbolTable,
+					 pick_precedence(L, P, P1) >>; 
+symbol_with_args(Sym, P, P1): string(S) 
+	<< get_literal(S, Sym)-SymbolTable,
+	   get_precedence(lit(S), L, _)-SymbolTable,
+	   pick_precedence(L, P, P1) >>;
+symbol_with_args(Sym-Term, P, P1) : id(Id) begin_akl_term_marker 
+			            "(" akl_term(T) end_akl_term_marker rpar
+				<< get_symbol(Id, Sym)-SymbolTable,
+				   chars_to_atom(T, Term),
+				   get_precedence(Id, L, _)-SymbolTable,
+				   pick_precedence(L, P, P1) >>
+			; 
+
+begin_akl_term_marker	: /* empty */	<< begin(aklterm)@Lex >>;
+end_akl_term_marker	: /* empty */	<< begin(start)@Lex >>
+			;
+
+akl_term(L)	: neutral(L1)	<< fappend([0'(|L1],")",L) >>  
+		| opt_neutral(L1) lpar akl_term(L2) rpar opt_neutral(L3)
+			<< fappend(L3, ")", L3p),
+			   fappend(L2, L3p, L23p),
+			   fappend([0'(|L1], L23p, L) >>
+		;
+
+opt_neutral([])	: /* empty */;
+opt_neutral(L)	: neutral(L)
+		;
+
+token_declarations([]): token_definition;
+token_declarations(Xs): token_definition token_declarations(Xs);
+token_declarations([X]): token_declaration(X);
+token_declarations([X|Xs]): token_declaration(X) token_declarations(Xs)
+	;
+
+token_declaration(Rule): id(Id) ":" regular_expression(R) ";"
+	<< def_token(Id, t(Ref))-SymbolTable, 
+	   Rule = rule(R, (token(Ref, 'Token')@'Lex')) >>
+	;
+token_definition: id(Id) ";"
+	<< def_token(Id, _)-SymbolTable >> 
+	;
+
+regular_expression(cond(CondAtom,R)): lexmode_qual(Cond) context_regular(R) 
+					<< chars_to_atom(Cond, CondAtom) >>;
+regular_expression(R)	: context_regular(R)
+			;
+
+context_regular(at_bol(A))	: "^" trailing_context_regular(A);
+context_regular(A)		: trailing_context_regular(A)
+				;	
+
+trailing_context_regular(ahead(A,B)) : regular(A) "/" regular(B);
+trailing_context_regular(at_eol(A))  : regular(A) "$";
+trailing_context_regular(A)	     : regular(A)
+				     ;
+
+regular(or(A, B))	: concat_expr(A) "|" regular(B);
+regular(A)		: concat_expr(A)
+			;
+concat_expr((A & B))	: concat_expr(A) expr(B);
+concat_expr(A)		: expr(A)
+			;
+expr(plus(R))		: expr(R) "+"; 
+expr(star(R))		: expr(R) "*"; 
+expr(opt(R))	        : expr(R) "?"; 
+expr(rep(R, N, N))	: expr(R) "{" number(N) "}"; 
+expr(rep(R, N))		: expr(R) "{" number(N) "," "}";
+expr(rep(R, N, M))	: expr(R) "{" number(N) "," number(M) "}"; 
+expr(R)		
+	: "(" regular(R) ")"
+	| string(R)
+	| begin_charset charset(R) end_charset
+	| "~" begin_charset charset(I) end_charset << invert_char_set(I, R) >>
+	| id(Id)		 	<< get_macro(Id, R)-SymbolTable >>;
+expr(any)	: ".";
+expr([NL])	: "\n"		<< newline_char(NL) >>;
+expr([9])	: "\t";
+expr(X)		: single_char(X)
+		;
+
+charset(or(A, B))	: charset(A) simple_char_item(B)
+			| charset(A) range(B);
+charset(A)		: range(A) 
+			| simple_char_item(A) 
+			;
+
+range(range(A, B)): single_char([A]) dash single_char([B])
+		;
+
+single_char([C])	: quoted_char([_,C,_]) 
+			| alphanumchar([C]) 
+			| octal([_,D1,D2,D3]) 	<< chars_to_integer([D1], N1),
+						   chars_to_integer([D2], N2),
+						   chars_to_integer([D3], N3),
+						   C is 64*N1+8*N2+N3 >>
+			;
+
+simple_char_item(R)	: single_char(R) 
+    			| string(S)	<< R = in(S) >> 
+			| nl_symbol	<< R = [NL], newline_char(NL) >> 
+			| tab_symbol	<< R = [9] >>
+			;
+
+number(N)	: num(Raw)		<< chars_to_integer(Raw, N) >>
+		;
+
+code
+<<
+count_skip(_, _, [], [])-LineNo :- inc-LineNo.
+
+pick_precedence(no_prec, Def, P) :-
+    ->  P = Def.
+pick_precedence(P1, _, P) :-
+    ->  P = P1. 	 
+
+new_expect(A, -1, N) :-
+    -> 	N = A.
+new_expect(A, _, N) :-
+    ->  format('Warning. Multiple "expect" declarations. Set to ~w~n',[A]),
+	N = A.
+
+flipappend(Y,X,XY) :- fappend(X,Y,XY).
+
+% Needed to flatten out ranges and stuff 
+invert_char_set(Expr, Result) :-
+	collect_char_set(Expr, [], Coll),
+	ord_union(Coll, Union),
+	Result = not_in(Union).
+collect_char_set(in(Set), Chars, Result) :-
+    -> 	Result = [Set|Chars].	
+collect_char_set(range(A,B), Chars, Result) :-
+    ->	construct_range(A, B, Set),
+	Result = [Set|Chars].
+collect_char_set(or(A, B))-Chars :-
+    ->  collect_char_set(A)-Chars,
+   	collect_char_set(B)-Chars.
+collect_char_set(A, Chars, Result) :-
+    ->	Result = [A|Chars].
+>>	

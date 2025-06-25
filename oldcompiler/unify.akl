@@ -1,0 +1,79 @@
+% $Id: unify.akl,v 1.7 1994/03/28 12:53:45 jm Exp $
+
+% :- export inline_unify.
+% :- import get_arg from head.
+% :- import put_arg from body.
+
+% This code could be improved if
+% temp- or perm-occurrences were known in advance.
+
+% Maybe issue warning if _F = fail?
+
+% inline_unify(
+%   UnifyArg1,
+%   UnifyArg2,
+%   ChunkNo,
+%   TempNo0,
+%   TempNo,
+%   CodeStream0,
+%   CodeStream,
+%   VarInfo0,
+%   VarInfo
+% )
+
+inline_unify(A1, A2, C, T0, T, S0, S, V0, V, P0, P) :-
+	inline_unify(A1, A2, C, T0, T, S0, S, V0, V, _F, P0, P).
+
+inline_unify(struct(F,N,As1), struct(F,N,As2), C, T0, T, S0, S, V0, V, R, P0,P) :-
+    ->	inline_unify_pairs(As1, As2, C, T0, T, S0, S, V0, V, R, P0, P).
+inline_unify(struct(_,_,_), struct(_,_,_), _C, T0, T, S0, S, V0, V, F, P0, P) :-
+    ->	T = T0,
+	S0 = [call(fail,0)|S],
+	V = V0,
+	F = fail,
+	P = P0.
+inline_unify(A1, A2, C, T0, T, S0, S, V0, V, F, P0, P) :-
+    ->	R = tmp(T0),
+	T1 is T0+1,
+	maybe_swap_args(A1, A2, X1, X2),
+	put_arg(X1, R, C, T1, T2, S0, S1, V0, V1,P0, P1),
+	get_arg(X2, R, C, T2, T, S1, S, V1, V, P1, P),
+	F = ok.
+
+maybe_swap_args(A1, A2, X1, X2) :-
+	A1 = var(_)
+    ->	X1 = A1,
+	X2 = A2.
+maybe_swap_args(A1, A2, X1, X2) :-
+    ->	X1 = A2,
+	X2 = A1.
+
+inline_unify_pairs([], [], _C, T0, T, S0, S, V0, V, F, P0, P) :-
+    ->	T = T0,
+	S = S0,
+	V = V0,
+	F = ok,
+	P = P0.
+inline_unify_pairs([A|As], [B|Bs], C, T0, T, S0, S, V0, V, F, P0, P) :-
+	inline_unify(A, B, C, T0, T1, TmpS0, S1, TmpV0, V1, ok, P0, P1)
+    ->	S0 = TmpS0,
+	V0 = TmpV0,
+	inline_unify_pairs(As, Bs, C, T1, T, S1, S, V1, V, F, P1, P).
+inline_unify_pairs(_, _, _C, T0, T, S0, S, V0, V, F, P0, P) :-
+    ->	T = T0,
+	S = S0,
+	V = V0,
+	F = fail,
+	P = P0.
+
+
+
+
+
+
+
+
+
+
+
+

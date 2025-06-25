@@ -1,0 +1,155 @@
+% The game of life by Johan Montelius
+%
+% life(G, X, Y, N) 
+%	G is the number of generation, 
+% 	X and Y the size of a toroid
+%       N is the final number of living cells
+%
+% An interesting benchmark since it generates a lot
+% of suspending processes.
+
+life(G, X, Y, N):-
+	not_less(G, 0),
+	greater(X, 0),
+	greater(Y, 0)
+    ->  init_torus(X, Y, G, 1234, Last),
+	count_last(Last, 0, N).
+
+
+count_last([], C, N):- 
+    ->   N = C.
+count_last([1|R], C, N):- 
+    ->  inc(C, C1),
+	count_last(R, C1, N).
+count_last([0|R], C, N):- 
+    ->  count_last(R, C, N).
+
+
+%%%%%%%%%%%
+% cell(Gen,State,Last,This,NW,N,NE,W,E,SW,S,SE) : 
+%	A node process cell/12, Gen is the remaining generations,
+%	State is the current state, Last is the last state, This is 
+%	the list of states in all generations, NW to SE are the neighbours.
+					
+
+cell(0, State, Last, This, _, _, _, _, _, _, _, _):-
+    ->  Last = State,
+	This = [].
+cell(G, State, Last, This, [Nw|Nwi], [N|Ni], [Ne|Nei], [W|Wi], [E|Ei], [Sw|Swi], [S|Si], [Se|Sei]) :- 
+    ->	This = [New|Rest],
+	dec(G,G1),
+	T is Nw + N + Ne + W + E + Sw  + S + Se,
+	change(State, T, New), 
+	cell(G1, New, Last, Rest, Nwi, Ni, Nei, Wi, Ei, Swi, Si, Sei).
+
+
+%%%%%%%%%%%
+% change(X,T,Y) : The state transition function.
+%	Y <- f(X,T)
+
+change(0,N,Y):- -> change0(N,Y).
+change(1,N,Y):- -> change1(N,Y).
+
+change0(0,Y) :- -> Y = 0.
+change0(1,Y) :- -> Y = 0.
+change0(2,Y) :- -> Y = 0.
+change0(3,Y) :- -> Y = 1.
+change0(_,Y) :- -> Y = 0.
+
+change1(0,Y) :- -> Y = 0.
+change1(1,Y) :- -> Y = 0.
+change1(2,Y) :- -> Y = 1.
+change1(3,Y) :- -> Y = 1.
+change1(_,Y) :- -> Y = 0.
+
+
+%%%%%%%%%%%
+% init_torus(X, Y, G, Seed, Last) :
+%	Will set up each cell in a X*Y torus network.
+%       G is the number of generations, Seed is used
+%       in the random generator and Last is a list
+%	of all the states in the last generation.
+%       Each cell is created with cell/12.
+
+init_torus(X, Y, G, Seed, Last):-
+    ->  torus(X, Y, Torus),
+	spawn_torus(Torus, G, Seed, Last).
+
+spawn_torus([_,_], _, _, Last):- 
+    -> Last = [].
+spawn_torus([North | Rest], G, Seed0, Last0):-
+	Rest = [This, South |_]
+    ->  spawn_ring(North, This, South, G, Seed0, Seed1, Last0, Last1),
+	spawn_torus(Rest, G, Seed1, Last1).
+
+spawn_ring([_,_], _, _, _, Seed1, Seed, Last0, Last):-
+    ->  Last0 = Last,
+	Seed1 = Seed.
+spawn_ring([NW | RestN], [W | RestW], [SW | RestS], G, Seed0, Seed, Last0, Last):-
+	RestN = [N, NE | _], RestW = [This, E | _], RestS = [S, SE | _ ]
+    ->  Last0 = [L|Last1],
+        This = [First|Rest],
+        draw(First, 0.4, Seed0, Seed1),        
+	cell(G, First, L, Rest, NW, N, NE, W, E, SW, S, SE),
+	spawn_ring(RestN, RestW, RestS, G, Seed1, Seed, Last1, Last).
+
+torus(X, Y, Torus):-
+	greater(X,0),
+	greater(Y,0)
+    ->  Torus = [Last | Rest],
+	Rest = [First | _],
+	ring(Y, Last),
+	ring(Y, First),
+	torus_rest(X, Y, First, Last, Rest).
+
+torus_rest(1, _, First, Last, Torus):-
+    ->	Torus = [Last, First].
+torus_rest(X, Y, First, Last, Torus):-
+    ->  Torus = [Ring|Rest],
+	ring(Y, Ring),
+	dec(X,X1),
+	torus_rest(X1, Y, First, Last, Rest).
+
+ring(N, Ring):- 
+	greater(N,0) 
+    ->  Ring = [Last | Rest],
+	Rest = [First | _],
+        ring_rest(N, First, Last, Rest).
+
+ring_rest(1, First, Last, Ring):-
+    ->	Ring = [Last, First].
+ring_rest(N, First, Last, Ring):-
+    ->  Ring = [_|Rest],
+	dec(N,N1),
+	ring_rest(N1, First,Last , Rest).
+
+
+/* random number generator */
+
+draw(Draw, P, Seed0, Seed):-
+	random(R, Seed0, Seed),
+	(R < P -> Draw = 1 ; Draw = 0).
+
+random(Random, Seed0, Seed):-
+    ->	A = 16807,
+	M = 16'1ffffff,
+	Q = 127773,		/* M DIV A */
+	R = 2836,		/* M MOD A */
+	Hi is Seed0 // Q,
+	Lo is Seed0 mod Q,
+	Test is A * Lo - R * Hi,
+	(Test > 0 -> Seed = Test ; Seed is M + Test),
+	Random is Seed / M.
+
+
+
+
+
+
+
+
+
+
+
+
+

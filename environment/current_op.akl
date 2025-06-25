@@ -1,0 +1,84 @@
+% $Id: current_op.akl,v 1.14 1994/04/18 14:57:58 bjornc Exp $
+
+current_op(X, Y, Z) :-
+	internal_current_op(Z, X, Y).
+
+% SICStus Prolog
+
+internal_current_op((^),200,xfy).
+internal_current_op((mod),300,xfx).
+internal_current_op((//),400,yfx).
+internal_current_op((*),400,yfx).
+internal_current_op((/),400,yfx).
+internal_current_op((<<),400,yfx).
+internal_current_op((>>),400,yfx).
+internal_current_op((+),500,yfx).
+internal_current_op((+),500,fx).
+internal_current_op((-),500,yfx).
+internal_current_op((-),500,fx).
+internal_current_op((/\),500,yfx).
+internal_current_op((\/),500,yfx).
+internal_current_op((#),500,fx).
+internal_current_op((#),500,yfx).
+internal_current_op((=),700,xfx).
+internal_current_op((=:=),700,xfx).
+internal_current_op((=\=),700,xfx).
+internal_current_op((<),700,xfx).
+internal_current_op((>),700,xfx).
+internal_current_op((=<),700,xfx).
+internal_current_op((>=),700,xfx).
+internal_current_op((==),700,xfx).
+internal_current_op((\==),700,xfx).
+internal_current_op((@<),700,xfx).
+internal_current_op((@>),700,xfx).
+internal_current_op((@=<),700,xfx).
+internal_current_op((@>=),700,xfx).
+internal_current_op((=..),700,xfx).
+internal_current_op((is),700,xfx).
+internal_current_op((\+),900,fy).
+internal_current_op((nospy),900,fy).
+internal_current_op((spy),900,fy).
+internal_current_op((','),1000,xfy).
+internal_current_op((':'),1070,xfy).
+internal_current_op((;),1100,xfy).
+internal_current_op((:-),1200,xfx).
+internal_current_op((:-),1200,fx).
+internal_current_op((?-),1200,fx).
+internal_current_op((-->),1200,xfx).
+internal_current_op((:=),1200,xfx).
+
+% Lambda
+
+internal_current_op((\),500,xfx).
+internal_current_op((\\),500,xfx).
+
+% AKL
+
+internal_current_op((@),900,xfx).	% accumulator syntax
+
+internal_current_op(($),100,yfx).	% annotations
+internal_current_op((&),1025,xfy).
+
+internal_current_op(('|'),1050,xfx).
+internal_current_op(('|'),1050,fx).
+internal_current_op((->),1050,xfx).
+internal_current_op((->),1050,fx).
+internal_current_op((?),1050,xfx).
+internal_current_op((?),1050,fx).
+internal_current_op((??),1050,xfx).
+internal_current_op((??),1050,fx).
+internal_current_op((!),1050,xfx).
+internal_current_op((!),1050,fx).
+
+internal_current_op((public),1150,fx).
+
+% FD
+internal_current_op((in),700,xfx).
+internal_current_op((\=),700,xfx).
+internal_current_op((=>),400,yfx).
+internal_current_op('..',600,xfx).
+internal_current_op('...',600,xf).
+
+internal_current_op((class),1150,fx).
+internal_current_op((supers),1150,fx).
+

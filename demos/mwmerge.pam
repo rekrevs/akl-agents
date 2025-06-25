@@ -1,0 +1,200 @@
+predicate(0/3/2
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(3)
+	get3_y_variable(2,2,1,1,0,0)
+    guard_cond
+	put_list(1)
+	unify_y_value(2)
+	unify_y_value(1)
+	put_y_value(0,0)
+	dealloc_execute('generator'/2)
+)
+
+
+predicate('merger'/2
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(4)
+	get2_y_variable(3,1,1,0)
+    guard_wait
+	put_structure('s'/1,3)
+	unify_constant(0)
+	put_y_variable(0,0)
+	put_y_variable(2,1)
+	put_y_value(3,2)
+	call('server'/4)
+	put_abstraction(0,0)
+	unify_y_value(2)
+	unify_y_value(1)
+	put_y_value(0,1)
+	dealloc_execute('unordered_bagof'/2)
+)
+
+
+predicate('generator'/2
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(3)
+	get_y_variable(2,0)
+	get_list(1)
+	unify_y_variable(1)
+	unify_y_variable(0)
+    guard_commit
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('generator'/3)
+)
+
+
+predicate('generator'/3
+label(5)
+	switch_on_term(7,7,7,7,7,7,7)
+label(7)
+	try(0)
+	trust(1)
+label(0)
+	allocate(2)
+	get2_y_variable(1,1,0,0)
+    guard_wait
+	put_y_value(0,3)
+	get_y_value(1,3)
+	put_y_value(0,0)
+	dealloc_execute('is_stream'/1)
+label(1)
+	allocate(2)
+	get2_y_variable(0,2,1,0)
+    guard_wait
+	put2_y_value(1,0,0,1)
+	dealloc_execute('generator'/2)
+)
+
+
+predicate('is_stream'/1
+label(7)
+	switch_on_term(13,10,9,9,9,14,11)
+label(10)
+	switch_on_constant(1,[('[]',12)],9)
+label(11)
+	switch_on_structure(1,[('split'/2,15)],9)
+label(9)
+	fail
+label(12)
+	try_single(0)
+label(13)
+	try(0)
+	retry(1)
+	trust(2)
+label(14)
+	try_single(1)
+label(15)
+	try_single(2)
+label(0)
+	allocate(0)
+	get_nil_x0
+    guard_cond
+	dealloc_proceed
+label(1)
+	allocate(0)
+	get_list_x0
+	unify_void
+	unify_void
+    guard_cond
+	dealloc_proceed
+label(2)
+	allocate(0)
+	get_structure_x0('split'/2)
+	unify_void
+	unify_void
+    guard_cond
+	dealloc_proceed
+)
+
+
+predicate('server'/4
+label(9)
+	switch_on_term(11,12,12,12,12,11,12)
+label(11)
+	try(0)
+	retry(1)
+	retry(2)
+	trust(3)
+label(12)
+	try_single(3)
+label(0)
+	allocate(6)
+	get3_y_variable(0,3,5,2,3,1)
+	get_list_x0
+	unify_x_variable(4)
+	unify_y_variable(1)
+	get_list(4)
+	unify_y_variable(4)
+	unify_y_variable(2)
+    guard_commit
+	put_y_value(5,4)
+	get_list(4)
+	unify_y_value(4)
+	unify_x_variable(4)
+	put_y_value(3,5)
+	get_list(5)
+	unify_y_value(2)
+	unify_x_variable(5)
+	put_y_value(1,0)
+	put_x_value(5,1)
+	put_x_value(4,2)
+	put_y_value(0,3)
+	dealloc_execute('server'/4)
+label(1)
+	allocate(6)
+	get3_y_variable(2,3,0,2,5,1)
+	get_list_x0
+	unify_x_variable(4)
+	unify_y_variable(1)
+	get_structure('split'/2,4)
+	unify_y_variable(4)
+	unify_y_variable(3)
+    guard_commit
+	put_y_value(5,4)
+	get_list(4)
+	unify_y_value(4)
+	unify_list
+	unify_y_value(3)
+	unify_x_variable(4)
+	put_structure('s'/1,3)
+	unify_y_value(2)
+	put_y_value(1,0)
+	put_x_value(4,1)
+	put_y_value(0,2)
+	dealloc_execute('server'/4)
+label(2)
+	allocate(4)
+	get2_y_variable(1,2,2,1)
+	get_list_x0
+	unify_nil
+	unify_y_variable(3)
+	get_structure('s'/1,3)
+	unify_y_variable(0)
+    guard_commit
+	put4_y_value(3,0,2,1,1,2,0,3)
+	dealloc_execute('server'/4)
+label(3)
+	allocate(2)
+	get2_y_variable(0,2,1,1)
+	get_constant(0,3)
+    guard_commit
+	put_y_value(1,4)
+	get_nil(4)
+	put_y_value(0,4)
+	get_nil(4)
+	dealloc_proceed
+)
+
+

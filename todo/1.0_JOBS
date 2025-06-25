@@ -1,0 +1,161 @@
+1.0_JOBS
+
+This file is a catalog of jobs proposed for AGENTS 1.0.  Each entry
+has the form
+
+WHAT: <title>  WHO: <name(s)>  WHEN: <date(s)>
+
+optionally followed by further information about the job.  <name(s)>
+is who has accepted responsibility for the job so far.  <date(s)> is
+their estimate of by when the job might be finished.
+
+*******************************************************************************
+
+WHAT: Implement Modules  WHO: boortz  WHEN: 25 Apr
+
+NOTE: This job probably includes implementing the include directive.
+
+*******************************************************************************
+
+WHAT: Edit Manuals  WHO: rch  WHEN: 1 May
+
+Anyone who works on a user-visible feature has the responsibility to
+write about it for the manuals.  E.g., whoever implements modules
+should write about modules for the user manual.  When you do this,
+please include @cindex and @findex entries.
+
+Besides this, however, there are editorial issues.  E.g., there has
+been interest in having a PARLOG-style division of built-in agent
+descriptions into "synchronization" and "behavior" sections; this
+requires that somebody do some editing.
+
+*******************************************************************************
+
+WHAT: Systematize Exceptions  WHO: rch  WHEN: 11 Apr
+
+Exceptions are ad hoc at present.  They should be systematic, in the
+sense that built-in agents raise exceptions in agreed-upon classes,
+and exception handling is subject to program control.  The SICStus
+scheme (cf. the SICStus Prolog User's Manual, Section 4.5) is a good
+example.
+
+Ultimately, perhaps, exception handling should be dealt with using
+multiple interacting engines.  However, there should be an interim
+system.  At the least, built-in agents should raise exceptions in a
+more systematic way.  This is necessary regardless of how exceptions
+are handled.
+
+Again, perhaps a group of two or three could collaborate to spell out
+a design.  There are plenty of precedents like SICStus, so it should
+not be a lot of work.  The task of implementing the design throughout
+the system will break down into a lot of subtasks, e.g., making sure
+exception raising in format/[1..4] is appropriate.
+
+NOTE: This job includes rethinking C-c handling.
+
+*******************************************************************************
+
+WHAT: Eliminate oagents  WHO: perbrand  WHEN: 1 Apr
+
+Install flag in the emulator to suppress last call optimization within
+and under spied agents.
+
+*******************************************************************************
+
+WHAT: Debug Debugger  WHO: perbrand  WHEN: 1 Apr
+
+Per said (email 15 Dec 93) the debugger has a number of small bugs.
+
+Thomas found (email 14, 15 Jan 94) some not-so-small ones.
+
+*******************************************************************************
+
+WHAT: Polish Debugger Documentation  WHO: perbrand  WHEN: 1 Apr
+
+This job consists of polishing the user manual chapter on the debugger
+(e.g., at present, it ends abruptly, never presenting the promised two
+examples of port filtering).
+
+*******************************************************************************
+
+WHAT: Implement Statement Syntax  WHO: khaled bd  WHEN: ???
+
+The compiler should be able to parse the statement syntax.  It would
+be nice to support it in akl.el (soon to be agents.el).
+
+Sverker: "I suggest that Khaled completes the preprocessor code for
+this that he wrote some time ago.  One complication is that the
+accumulator syntax preprocessor must be rewritten to work on the
+statement syntax.  This should probably be done by BD.  Another
+complication is the interface to meta-level tools, such as analysers
+and partial evaluators."
+
+*******************************************************************************
+
+WHAT: Document Accumulator Syntax  WHO: bd  WHEN: ???
+
+*******************************************************************************
+
+WHAT: Finish Foreign Interface  WHO: boortz sverker  WHEN: ???
+
+aklscript (soon to be agentsscript) supports a foreign interface.
+This interface is not ideal, but it is useful.  It may need to be
+polished a bit, and it needs to be documented.  Demos would be nice.
+
+Sverker: "I suggest that Kent and I complete the design of a foreign
+interface that uses generic objects to represent foreign objects, and
+that Kent implements it.  I would like to see it in 1.0."
+
+*******************************************************************************
+
+WHAT: Integrate FD Constraints  WHO: bjornc  WHEN: ???
+
+Sverker: "Seif and BC would like to see FD constraints in 1.0.  If
+they are stable when the time for a release comes, I see no problems
+with this.  They are more or less orthogonal to the rest of the
+system."
+
+*******************************************************************************
+
+WHAT: Polish Installation  WHO: rch  WHEN: 25 Apr
+
+E.g., at present, the user manual claims demos are installed in
+/usr/local/lib/agents0.9/demos, which is false.
+
+ISSUE: Should we adopt Cygnus or GNU configure software?  These tools
+are well-developed and handle many platforms.  But they are somewhat
+complex.  Somebody would have to study them thoroughly, in which case
+this would be a two-star (**) job.
+
+*******************************************************************************
+
+WHAT: Polish Demos  WHO: rch  WHEN: ???
+
+Each demo should at least say how to run it.  Moreover, there may be
+too many of some kinds of demo and not enough of others.  Obviously,
+there is no limit to how much work this could absorb; we must be
+moderate.  But for many users, good demos are as important as good
+documents, especially at first.
+
+NOTE: This is a good job for people who do not want to get involved
+with C code.  Almost all the demos are pure AKL.
+
+*******************************************************************************
+
+WHAT: Create Prolog Library  WHO: rch  WHEN: 15 Apr
+
+*******************************************************************************
+
+WHAT: Implement Graphics via Tcl/Tk  WHO: boortz  WHEN: ???
+
+Sverker: "This is clearly Kent's task, but I don't think it is vital
+for AGENTS 1.0.  If there is time left when Kent has completed other
+more urgent tasks, yes, otherwise no."
+
+*******************************************************************************
+
+WHAT: Polish Constraint Writing  WHO: ???  WHEN: ???
+
+We should write constraints nicely, in particular those associated
+with port objects.  Björn D. had ideas about this.
+

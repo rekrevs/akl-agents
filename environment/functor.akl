@@ -1,0 +1,82 @@
+%$Id: functor.akl,v 1.2 1994/05/06 11:25:15 secher Exp $	
+
+
+%% This file provides some backward compatibility with the old type of functors
+%% and also som new useful predicates.
+
+%% Tree to functor/3 returns the size of T. (Even if there are features in T)
+tree_to_functor(T,N,A):-
+	atomic(T)
+     -> N = T,
+	A = 0.
+tree_to_functor(T,N,A):-
+    ->	tree_to_functor(T,F),
+    	functor_name(F,N),
+	functor_size(F,A).
+
+functor_to_tree(N,A,T):-
+	A == 0
+    ->	T = N.
+functor_to_tree(N,A,T):-
+	A > 0
+    ->	name_arity_to_functor(N,A,F),
+	functor_to_tree(F,T).
+
+%% Backwards compatibility
+
+term_to_functor(T,N,A):-
+    -> tree_to_functor(T,N,A).
+
+functor_to_term(N,A,T):-
+    -> functor_to_tree(N,A,T).
+
+
+tree_to_list(T,L):-
+	atomic(T)
+    ->  L = [T].
+tree_to_list(T,L):-
+    	tree_to_functor(T,F),
+	functor_features(F,0)
+    ->	functor_size(F,A),
+	functor_name(F,N),
+	build_tree_list(1,A,T,Args),
+	L = [N|Args].
+
+
+list_to_tree([N|L],T):-
+	list_to_length(L,0)
+    ->	T = N.
+list_to_tree([N|L],T):-
+    ->	list_to_length(L,Le),
+	functor_to_tree(N,Le,T),
+	fill_in_values(L,1,T).
+
+%% Backwards compatibility
+
+term_to_list(T,L) :-
+    -> tree_to_list(T,L).
+
+list_to_term(L,T):-
+    -> list_to_tree(L,T).
+
+
+
+
+build_tree_list(A,A,T,L) :-
+    ->	arg(A,T,V),
+	L = [V].
+build_tree_list(N,A,T,L):-
+    ->	L = [V|R],
+	arg(N,T,V),
+	N1 is N +1,
+	build_tree_list(N1,A,T,R).
+
+
+fill_in_values([],_,_) :-
+    -> true.
+fill_in_values([V|R],N,T):-
+    ->	arg(N,T,V),
+	N1 is N +1,
+	fill_in_values(R,N1,T).
+
+

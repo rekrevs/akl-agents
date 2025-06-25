@@ -1,0 +1,153 @@
+/**************************************************************************
+			COMMUNICATE WITH GM
+ *************************************************************************/
+
+
+gmio_open(DB, IO, ProcID, Socket) :-
+    ->	fopen(Socket, w, W),		% Open socket for writing
+	fopen(Socket, r, R),		% Open socket for reading
+%	write(data(Socket,ProcID,R,W)),nl,
+	open_port(IO, Req),
+	gmio_send(Req, streams(R,W), DB, ProcID, Socket).
+
+
+gmio_send([], _, _, ProcID, Socket) :-
+    ->	gm_endsocket(ProcID, Socket).
+gmio_send([L|R], S, DB, ProcID, Socket) :-
+	data(S), data(DB)
+    ->	gmio_send_one(L)-S-DB,
+	gmio_send(R, S, DB, ProcID, Socket).
+
+gmio_send_one(sync(Flag))-S-DB :-
+	data(S),
+	data(DB)				% IS THIS OK??
+    ->	Flag = [].
+%    ->	sync(Flag)@DB.
+gmio_send_one([])-_S-_DB :-
+    ->	true.
+gmio_send_one([H|T])-S-DB :- 
+	data(S), data(DB)
+    ->	gmio_send_one(H)-S-DB,
+	gmio_send_one(T)-S-DB.
+gmio_send_one(I)-S-_DB :-
+	integer(I)
+    ->	gmwrite(I)-S.
+gmio_send_one(str(Str))-S-_DB :-
+    ->	sendstring(Str)-S.
+gmio_send_one(getint(I))-S-_DB :-
+	data(S)
+    ->	gmflush-S,
+	gmread(I)-S.
+gmio_send_one(getstr(Str))-S-_DB :-
+	data(S)
+    ->	gmflush-S,
+	gmread(Str)-S.
+gmio_send_one(getev(E))-S-DB :-
+	data(S)
+    ->	gmflush-S,
+	gmread(Type)-S,
+	gmread(Window)-S,
+	gmread(Object)-S,
+	gmread(X)-S,
+	gmread(Y)-S,
+	dispatch_event(Type, Window, Object, X, Y, E)-DB.
+gmio_send_one(insert(K,V))-_S-DB :-
+    ->	set(K,V)@DB.
+gmio_send_one(lookup(K,V))-_S-DB :-
+    ->	get(K,V)@DB.
+%gmio_send_one(delete(K,V,Y))-_S-DB :-
+%    ->	delete(K,V)@DB.
+gmio_send_one(expr(E))-S-_DB :-
+	Expr is E
+    ->	gmwrite(Expr)-S.
+
+
+%%% Support
+
+sendstring([], S1, S) :-
+	S1 = streams(R,W)
+    ->	putc(0)@W,
+%	write('WR: ""'),nl,
+	S = streams(R,W).
+sendstring([H|T])-S :-
+    ->	gmformat('~s', [[H|T]])-S.
+sendstring(format(FString,ArgList))-S :-
+    ->	gmformat(FString, ArgList)-S.
+sendstring(Term)-S :-
+    ->	gmwrite(Term)-S.
+
+
+gmwrite(T, S1, S) :-
+	S1 = streams(R,W)
+    ->	write(T)-W,
+	putc(0)@W,
+%	write('WR: '),write(T),nl,
+	S = streams(R,W).
+
+gmformat(F, A, S1, S) :-
+	S1 = streams(R,W)
+    ->	format(F, A)-W,
+	putc(0)@W,
+%	write('WR: '),format(F, A),nl,
+	S = streams(R,W).
+
+	
+gmflush(S1, S) :-
+	S1 = streams(R,W)
+    ->	fflush@W,
+%	write('FLUSH'),nl
+	S = streams(R,W).
+
+gmread(T, S1, S) :-
+	S1 = streams(R,W)
+    ->
+%	write('RD: '),write(T),nl,
+	read(T, true, R, R1),
+	S = streams(R1,W).
+
+
+
+/**************************************************************************
+			NEXTEVENT, WAITEVENT
+ *************************************************************************/
+
+
+gmnextevent(E)-S :-
+    ->	[9,0,getev(E)]@S.
+gmwaitevent(E)-S :-
+    ->	[10,0,getev(E)]@S.
+
+
+dispatch_event(0, Window, Button, _X, _Y, E)-DB :-
+    ->	E = button(Window,Message),
+	get(button(Button),Message)@DB.
+
+dispatch_event(1, Window, Menu, Item, _Y, E)-DB :-
+    ->	E = menu(Window,Message),
+	get(menu(Menu),Messages)@DB,
+	menu_message(0, Item, Messages ,Message).
+
+dispatch_event(2, Window, Obj, Line, _Y, E)-_DB :-
+    ->	E = return(Window,Obj,Line).
+
+dispatch_event(3, Window, Obj, X, Y, E)-_DB :-
+    ->	E = down(Window,Obj,X,Y).
+
+dispatch_event(4, Window, Slider, F, _Y, E)-_DB :-
+    ->	E = slider(Window,Slider,F).
+
+dispatch_event(5, Window, Obj, X, Y, E)-_DB :-
+    ->	E = down(Window,Obj,X,Y).
+
+dispatch_event(7, Window, Obj, _X, _Y, E)-_DB :-
+    ->	E = return(Window,Obj).
+
+dispatch_event(_Any, _Window, _Obj, _X, _Y, E)-_DB :-
+    ->	E = noevent.
+
+
+menu_message(Item, Item, [Message0|_] ,Message) :-
+    ->	Message = Message0.
+menu_message(N, Item, [_|Messages] ,Message) :-
+    ->	NN is N + 1,
+	menu_message(NN, Item, Messages ,Message).

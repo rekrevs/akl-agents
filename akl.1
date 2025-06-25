@@ -1,0 +1,50 @@
+.TH AKL 1 "19 Oct 1993"
+.SH NAME
+akl \- SICS Andorra Kernel Language System
+.SH SYNOPSIS
+.B akl
+.RI "[\|" files " .\|.\|.\|]"
+.RB "[\|" \-l\fIlibrary\fR "\|]"
+.RB "[\|" \-o
+.IR file "\|]"
+.RI "[\|" arg " .\|.\|.\|]"
+.SH DESCRIPTION
+.LP
+.B akl
+is an implementation of the Andorra Kernel Language.
+.SH OPTIONS
+.TP
+.RI "[\|" files " .\|.\|.\|]"
+Process files as indicated by their extension and add these
+before starting/creating an AKL system. The extensions are \fI.fd\fR (C 
+interface descriptions), \fI.c\fR (C files), \fI.o\fR (object 
+files), \fI.akl\fR (AKL files) and \fI.pam\fR (AKL object files).
+.TP
+.BI \-o " file"
+Create new akl system with the additions specified and save into the 
+startup script \fIfile\fR, the binary file \fIfile\fR.exe and the AKL 
+object file \fIfile\fR.pam.
+.TP
+C library files as specified to the \fIld\fR or \fIcc\fR command.
+.TP
+.IR arg " .\|.\|.\|"
+Arguments not catched above are passed to AKL, accessible by the
+.B unix/1
+primitive.
+.SH "SEE ALSO"
+\fIProgramming Paradigms of the Andorra Kernel Language\fR (by Sverker
+Janson and Seif Haridi, SICS Research Report R91:08, also in Logic
+Programming: Proceedings of the 1991 International Symposium, MIT
+Press).
+.SH BUGS
+.LP
+Send bug reports to akl-bug@sics.se.
+.LP
+Note that this system is under development. Bugs and features may be 
+removed, added or changed without notice.
+.SH COPYRIGHT
+Copyright (C) 1990-1993, Swedish Institute of Computer Science.
+.SH AUTHOR
+Concurrent Constraint Programming Group
+.br
+Swedish Institute of Computer Science

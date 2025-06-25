@@ -1,0 +1,16 @@
+/Makefile.am/1.1.1.1/Wed Aug 14 12:22:03 2002//
+/Makefile.in/1.1.1.1/Wed Aug 14 12:22:03 2002//
+/README/1.1.1.1/Wed Aug 14 12:22:03 2002//
+/alpha.asm/1.1.1.1/Wed Aug 14 12:22:03 2002//
+/common.c/1.1.1.1/Wed Aug 14 12:22:04 2002//
+/hppa.asm/1.1.1.1/Wed Aug 14 12:22:04 2002//
+/hppa2.asm/1.1.1.1/Wed Aug 14 12:22:04 2002//
+/noop.c/1.1.1.1/Wed Aug 14 12:22:04 2002//
+/pentium.asm/1.1.1.1/Wed Aug 14 12:22:04 2002//
+/sparcv9.asm/1.1.1.1/Wed Aug 14 12:22:04 2002//
+/speed-ext.c/1.1.1.1/Wed Aug 14 12:22:04 2002//
+/speed.c/1.1.1.1/Wed Aug 14 12:22:04 2002//
+/speed.h/1.1.1.1/Wed Aug 14 12:22:04 2002//
+/time.c/1.1.1.1/Wed Aug 14 12:22:04 2002//
+/tuneup.c/1.1.1.1/Wed Aug 14 12:22:04 2002//
+D

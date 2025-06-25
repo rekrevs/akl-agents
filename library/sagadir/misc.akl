@@ -1,0 +1,187 @@
+% File: 	misc.akl
+% Author: 	Anders Andersson
+% Purpose:	Some resonably general agents that work on assoclists,
+%               arrays, assocs and lists
+
+% key_sort_set(+AssocList, -SortedAssocSetList)  takes a list of pairs (X-Y)
+% and makes a sorted list of Key-Set pairs where all the items with a common
+% key are grouped into a ordset.
+key_sort_set(AssocList, SortedAssocSetList) :-
+    ->  key_sort_custom((X,Y)\list_to_ord_set(X,Y), AssocList, 
+			SortedAssocSetList).
+
+% key_sort_union(+AssocList, -SortedAssocSetList)  takes a list of pairs (X-Y)
+% where Y is a set, and makes a sorted list of Key-Set pairs where all the 
+% items with a common key  into a ordset.
+key_sort_union(AssocList, SortedAssocSetList) :-
+    ->   key_sort_custom((X,Y)\ord_union(X,Y), AssocList, SortedAssocSetList).
+
+% key_sort_custom(:CustomPred, +AssocList, -SortedAssocSetList)  takes a list 
+% of pairs (X-Y) and makes a sorted list of Key-Result pairs where all the 
+% items with a common key are passed as a list to CustomPred/2 and Result is
+% the result of that computation
+key_sort_custom(_, [], ResultList) :-
+    ->	ResultList = [].	
+key_sort_custom(Custom, AssocList, ResultList) :-
+    ->  keysort(AssocList, SortedAssocList),
+	SortedAssocList = [Key-Value|Rest],
+	merge_common(Rest, Key, [Value], Custom, ResultList).
+
+merge_common([Key-Val|Xs], Key, ValList, Pred, SortedAssocSetList) :-
+    ->	merge_common(Xs, Key, [Val | ValList], Pred, SortedAssocSetList).
+merge_common([Key-Val|Xs], OldKey, ValList, Pred, SortedAssocSetList) :-
+    ->	Pred(ValList, ValSet),
+	SortedAssocSetList = [OldKey-ValSet|SASL1],
+	merge_common(Xs, Key, [Val], Pred, SASL1).
+merge_common([], Key, ValList, Pred, SortedAssocSetList) :-
+    ->	Pred(ValList, ValSet),
+	SortedAssocSetList = [Key-ValSet].
+
+% extract_keys(+AssocList, ?KeyList) is true if KeyList contains the
+% leftmost sub-componets of all '-'/2 pairs of AssocList, in the same
+% order and with all elements that are not '-'/2 pairs removed
+extract_keys([Key-_|Pairs], KeyList) :-
+    ->  KeyList = [Key|KeyList1],
+	extract_keys(Pairs, KeyList1).
+extract_keys([_|Pairs], KeyList) :-
+    ->  extract_keys(Pairs, KeyList).
+extract_keys([], KeyList) :-
+    ->	KeyList = [].
+
+% extract_values(+AssocList, ?ValueList) is true if ValueList contains the
+% rightmost sub-componets of all '-'/2 pairs of AssocList, in the same
+% order and with all elements that are not '-'/2 pairs removed
+extract_values([_-Val|Pairs], ValList) :-
+    ->  ValList = [Val|ValList1],
+	extract_values(Pairs, ValList1).
+extract_values([_|Pairs], ValList) :-
+    ->  extract_values(Pairs, ValList).
+extract_values([], ValList) :-
+    ->	ValList = [].
+
+% Flips the keys and values in an assoclist
+invert_assoclist([Key-Value|Xs], L) :-
+    ->	[Value-Key]-L,
+	invert_assoclist(Xs, L).
+invert_assoclist([], L) :-
+    ->	L = [].
+
+% max_value(+AssocList, -KeyOfMax, -MaxValue)
+% extracts the largest value and its key from the nonempty AssocList 
+max_value([AcKey-AcValue|Xs], ResKey, ResValue) :-
+    ->	max_value(Xs, AcKey, AcValue, ResKey, ResValue).
+
+% max_value(+AssocList, +DefKey, +DefValue, -KeyOfMax, -MaxValue)
+% extracts the largest value and the associated key. DefKey and DefValue
+% are defaults and treated as part of the list
+max_value([_-Value|Xs], AcKey, AcValue, ResKey, ResValue) :-
+	Value @< AcValue
+    ->  max_value(Xs, AcKey, AcValue, ResKey, ResValue).
+max_value([Key-Value|Xs], _, _, ResKey, ResValue) :-
+    ->  max_value(Xs, Key, Value, ResKey, ResValue).
+max_value([], AcKey, AcValue, ResKey, ResValue) :-
+    ->  ResKey = AcKey,
+	ResValue = AcValue.
+
+% Takes a list of keys and builds an assoclist where each key get associated
+% to the given value
+list_to_assoclist([X|Xs], Value, Out) :-
+    ->	[X-Value]-Out,
+	list_to_assoclist(Xs, Value, Out).
+list_to_assoclist([], _, Out) :-
+    ->	Out = [].
+
+% Roughly like list_to_assoclist and "append" on a tail variable
+append_expanded([X|Xs], Value)-Result :-
+    ->	[X-Value]-Result,
+	append_expanded(Xs, Value)-Result.
+append_expanded([], _)-_Res :-
+    ->	true.
+
+% Initialize an array of a given size with a given value
+initialize_array(0, _)-_A :-
+    ->	true.
+initialize_array(N, Val)-Arr :-
+    ->	dec(N, N1),
+	set(N1, _, Val)@Arr,
+	initialize_array(N1, Val)-Arr.
+
+% Converts a assoclist to an array and return the array and its size
+assoclist_to_array(List, Size, Arr) :-
+    ->	length(List, Size),
+	new_array(Size, A),
+	alist_to_array(List)-A,
+	Arr = A.
+
+alist_to_array([Key-Val|Xs])-Arr :-
+    ->	set(Key, _, Val)@Arr,
+	alist_to_array(Xs)-Arr.
+alist_to_array([])-_A :-
+    ->	true.
+
+% Given a set of indeces and a value, set all the those entries
+map_set([X|Xs], Val)-Arr :-
+    ->	set(X, _, Val)@Arr,
+	map_set(Xs, Val)-Arr.
+map_set([], _)-_Arr :-
+    ->	true.
+
+% Given a set of indeces and a value, cons the value to all those entries
+map_set_cons([X|Xs], Val)-Arr :-
+    ->	set(X, Old, New)@Arr,
+	New = [Val | Old],
+	map_set_cons(Xs, Val)-Arr.
+map_set_cons([], _)-_Arr :-
+    ->	true.
+
+% Implements a counting assoc. If there is no entry, insert one associated with
+% integer zero. Then increment the current value
+inc_assoc(Key)-Assoc :- 
+        get_assoc(Key, Old)-Assoc
+    ->	inc(Old, New),
+        set_assoc(Key, _, New)-Assoc.
+inc_assoc(Key)-Assoc :-
+    ->	put_assoc(Key, 1)-Assoc. 
+
+% Converts a list to an assoclist where the values are consecutive integers
+numbering([X|Xs], Counter, Numbering) :-
+    ->  Numbering = [X-Counter|Numbering1],
+	inc(Counter, Counter1),
+	numbering(Xs, Counter1, Numbering1).
+numbering([], _, Numbering) :-
+    ->	Numbering = [].
+
+% Make a set of the integers from A to B, inclusive
+construct_range(A, B, Set) :-
+	not_greater(A, B)
+    ->	inc(A, A1),
+	Set = [A | Set1],
+	construct_range(A1, B, Set1).
+construct_range(_, _, Set) :- 
+    ->	Set = [].
+
+% *** Maybe into the ordsets library?
+lists_to_ord_set(Lists, Ordset) :-
+    ->	map_sort-Lists,
+	ord_union(Lists, Ordset).
+
+map_sort([X|Xs], Out) :-
+    ->	sort-X,
+	[X]-Out,
+	map_sort(Xs, Out).
+map_sort([], Out) :-
+    ->	Out = []. 
+
+map([X|Xs], Pred, Out) :-
+    ->	Pred(X, Y),
+	[Y]-Out,
+	map(Xs, Pred, Out).
+map([], _, Out) :-
+    ->	Out = [].
+
+map([X|Xs], Pred, Out)-Data :-
+    ->	Pred(X, Y)-Data,
+	[Y]-Out,
+	map(Xs, Pred, Out)-Data.
+map([], _, Out)-_Data :-
+    ->	Out = [].

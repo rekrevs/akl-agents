@@ -1,0 +1,143 @@
+load_lib agents_test.exp
+
+agents_test_initialize
+
+agents_test format1 \
+"format('Hello, world!',\[\]).\n" \
+"^Hello, world!\n"
+
+agents_test format2 \
+"format('~~',\[42\]).\n" \
+"^~\n"
+
+agents_test format3 \
+"format('~d',\[42\]).\n" \
+"^42\n"
+
+agents_test format4 \
+"format('~a',\[42\]).\n" \
+"DOMAIN ERROR"
+
+agents_test format5 \
+"format('~a',\[foo\]).\n" \
+"^foo\n"
+
+agents_test format6 \
+"format('~c',\[0'a\]).\n" \
+"^a\n"
+
+agents_test format7 \
+"format('~7c',\[0'a\]).\n" \
+"^aaaaaaa\n"
+
+agents_test format8 \
+"format('~*c',\[3,0'a\]).\n" \
+"^aaa\n"
+
+agents_test format9 \
+"format('~*c',\[-3,0'a\]).\n" \
+"DOMAIN ERROR"
+
+agents_test format10 \
+"format('~*n',\[3,0'a\]).\n" \
+"^\n\n\n\nyes \n"
+
+agents_test format11 \
+"format('~*s',\[3,\"string\"\]).\n" \
+"^str\n"
+
+agents_test format12 \
+"format('~s',\[\"string\"\]).\n" \
+"^string\n"
+
+agents_test format13 \
+"format('~8s',\[\"string\"\]).\n" \
+"^string  \n"
+
+agents_test format14 \
+"format('~16r',\[15\]).\n" \
+"^f\n"
+
+agents_test format15 \
+"format('~16R',\[15\]).\n" \
+"^F\n"
+
+agents_test format16 \
+"format('~r',\[15\]).\n" \
+"^17\n"
+
+agents_test format17 \
+"format('~R',\[15\]).\n" \
+"^17\n"
+
+agents_test format18 \
+"format('~d',\[12345\]).\n" \
+"^12345\n"
+
+agents_test format19 \
+"format('~D',\[12345\]).\n" \
+"^12,345\n"
+
+agents_test format20 \
+"format('~1d',\[12345\]).\n" \
+"^1234.5\n"
+
+agents_test format21 \
+"format('~1D',\[12345\]).\n" \
+"^1,234.5\n"
+
+agents_test format22 \
+"format('~e',\[3.1415927\]).\n" \
+"^3.141593e\+00\n"
+
+agents_test format23 \
+"format('~E',\[3.1415927\]).\n" \
+"^3.141593E\+00\n"
+
+agents_test format24 \
+"format('~f',\[3.1415927\]).\n" \
+"^3.141593\n"
+
+agents_test format25 \
+"format('~g',\[3.1415927\]).\n" \
+"^3.14159\n"
+
+agents_test format26 \
+"format('~G',\[3.1415927\]).\n" \
+"^3.14159\n"
+
+agents_test format27 \
+"format('~e',\[3141592.7\]).\n" \
+"^3.141593e\+06\n"
+
+agents_test format28 \
+"format('~E',\[3141592.7\]).\n" \
+"^3.141593E\+06\n"
+
+agents_test format29 \
+"format('~f',\[3141592.7\]).\n" \
+"^3141592.700000\n"
+
+agents_test format30 \
+"format('~g',\[3141592.7\]).\n" \
+"^3.14159e\+06\n"
+
+agents_test format31 \
+"format('~G',\[3141592.7\]).\n" \
+"^3.14159E\+06\n"
+
+agents_test format32 \
+"format('~*e',\[15,3141592.7\]).\n" \
+"^3.141592700000000e\+06\n"
+
+agents_test format33 \
+"format('~*E',\[15,3141592.7\]).\n" \
+"^3.141592700000000E\+06\n"
+
+agents_test format34 \
+"format('~*g',\[15,3141592.7\]).\n" \
+"^3141592.7\n"
+
+agents_test format35 \
+"format('~*G',\[15,3141592.7\]).\n" \
+"^3141592.7\n"

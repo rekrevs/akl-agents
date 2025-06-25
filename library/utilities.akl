@@ -1,0 +1,142 @@
+% utilities.akl, 
+% Thomas Sjöland and Dan Sahlin
+
+:- public write_ground/3, write0/3, writenl/3,
+	ground/1, ground_list/1,
+	constructStore/1, access/3, insert/3,
+	is_intlist/1,
+	gen_var/3,
+	number_chars1/2,
+	chars_to_number/2, number_to_chars/2,
+	flatten/2.
+	
+% write utilities %%%%%%%%%%%%%%%%%%
+
+write_ground(X,S0,S1) :-
+	ground(X) -> write(X,S0,S1).
+
+write0(T,S0,S1) :-
+%	data(T)
+	ground(T)
+    ->  write(T,S0,S1).
+
+writenl(T,S0,S2) :- 
+    ->  write0(T,S0,S1),
+	nl(S1,S2).
+
+% groundness test %%%%%%%%%%%%%%%%%%
+
+ground(X) :-
+	functor(X,F,A)
+    ->	ground0(X,A).
+ground0(X,0) :- 
+	data(X)
+    -> 	true.
+ground0(X,A) :- 
+	A>0
+    ->	arg(A,X,Arg), 
+	ground(Arg),
+	dec(A,A1),
+	ground0(X,A1).
+
+/*
+ground(X) :-
+	atomic(X)
+    ->  true.
+ground(X) :-
+	compound(X)
+    ->  term_to_list(X,[_|ArgList]),
+	ground_list(ArgList).
+*/
+
+ground_list([]) :-
+    ->  true.
+ground_list([X|Xs]) :-
+    ->  ground(X),
+	ground_list(Xs).
+
+
+% two data storage/retrieval primitives
+% access(X,T,R) removes X from T and returns the remaining R
+% insert(X,T,R) inserts X into T and returns the resulting R
+% T is now a heap stack
+% could be replaced by better data structure if necessary
+
+
+/*
+constructStore([]).
+
+access(X,T,R) :-
+    	select(X,T,R).
+
+insert(X,T,R) :-
+    ->	R=[X|T].
+*/
+
+constructStore(S) :- 
+    ->	empty_assoc(S).
+
+access((Key-Val),S0,S1) :- 
+    ->	get_assoc(Key, Val, S0, S1).
+
+insert((Key-Val),S0,S1) :- 
+    ->	put_assoc(Key, Val, S0, S1).
+
+
+% construct a variable from a single letter constant A and an integer I 
+% or inversely split a variable into a single letter constant A and  
+% an integer I
+
+gen_var(A,I,U) :- 
+	atom(A)
+   ->	atom_to_chars(A,[C]), 
+	number_chars1(I,N), 
+	chars_to_atom([C|N],T), 
+	U=var(T).
+	
+%---------------------------------------------------------------
+
+% sundry %%%%%%%%%%%%%%%%%%
+
+is_intlist([]).
+is_intlist([I|T]) :- integer(I), is_intlist(T).
+
+
+number_chars1(_,[]) :- | fail.
+number_chars1(N,L) :- number_to_chars(N,L1) | L = L1.
+number_chars1(N,L) :- number_chars0(N1,L, R) | R = ok, N = N1.
+
+number_chars0(N,L,Flag) :-
+        check_elements(L)
+    ->  Flag = ok,
+        chars_to_number(L, N).
+
+number_chars0(_N,_L,Flag) :-
+    ->  Flag = no.
+
+check_elements([H|T]) :- 
+    ->  '$memberchk'(H,"0123456789"),
+        check_elements(T).
+check_elements([]) :-
+    ->  true.
+
+
+chars_to_number(L,N):- chars_to_integer(L,N1) | N = N1.
+chars_to_number(L,N):- chars_to_float(L,N1) | N = N1.
+
+number_to_chars(N,L):- integer_to_chars(N,L1) | L = L1.
+number_to_chars(N,L):- float_to_chars(N,L1) | L = L1.
+
+
+flatten([],L) :-
+    -> L=[].
+flatten([[]|T],L) :-
+    -> flatten(T,L).
+flatten([[H1|T1]|T],L) :-
+    -> flatten([H1,T1|T],L).
+flatten([H|T],L) :-
+    -> L=[H|R],
+	flatten(T,R).
+flatten(X,L) :-
+    ->	L=[X].
+

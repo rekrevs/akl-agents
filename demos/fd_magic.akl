@@ -1,0 +1,27 @@
+% magic series through cardinality.
+magic(Lab) :-
+	magic(Lab, 13, _).
+
+magic(Lab, N, S) :-
+	N1 is N+1,
+	get_domains(N1, N, S),
+	constrain_occ(S),
+	lab(Lab, S).
+
+get_domains(0, _, L) :- 
+    ->	L=[].
+get_domains(M, N, L) :- 
+    ->	L = [D|L0],
+	fd(D in 0..N),
+	M1 is M-1,
+	get_domains(M1, N, L0).
+
+constrain_occ(S) :-
+	c_o(S, 0, S).
+
+c_o([], _, _) :-
+    ->	true.
+c_o([SI|R], I, S) :-
+    ->	fd_count(SI, S, I),
+	I1 is I+1,
+	c_o(R, I1, S).

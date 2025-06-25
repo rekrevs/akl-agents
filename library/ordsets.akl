@@ -1,0 +1,494 @@
+/* Copyright(C) 1988, Swedish Institute of Computer Science */
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%   File   : ORDSETS.PL							      %
+%   Author : Lena Flood (adapted for AKL by Sverker Janson)		      %
+%   Updated: 9 September 1988						      %
+%   Purpose: Ordered set manipulation utilities				      %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+/*
+:- module(ordsets, [
+	is_ordset/1,
+	list_to_ord_set/2,
+	ord_add_element/3,
+	ord_del_element/3,
+	ord_disjoint/2,
+	ord_intersect/2,
+	ord_intersection/3,
+	ord_intersection/2,
+	ord_seteq/2,
+	ord_setproduct/3,
+	ord_subset/2,
+	ord_subtract/3,
+	ord_symdiff/3,
+	ord_union/3,
+	ord_union/2,
+	ord_union/4
+		   ]).
+
+%   Adapted from shared code written by Richard A O'Keefe. 
+
+%   In this package, sets are represented by ordered lists with no
+%   duplicates.	 Thus {c,r,a,f,t} would be [a,c,f,r,t].	 The ordering
+%   is defined by the @< family of term comparison predicates, which
+%   is the ordering used by sort/2 and setof/3.
+
+%   The benefit of the ordered representation is that the elementary
+%   set operations can be done in time proportional to the Sum of the
+%   argument sizes rather than their Product.  
+
+:- mode
+	is_ordset(+),
+	    is_ordset(+, ?),
+	list_to_ord_set(+, ?),
+	ord_add_element(+, +, ?),
+	    ord_add_element(+, +, +, +, ?),
+	ord_del_element(+, +, ?),
+	    ord_del_element(+, +, +, +, ?),
+	ord_disjoint(+, +),
+	    ord_disjoint(+, +, +, +, +),
+	ord_intersect(+, +),
+	    ord_intersect(+, +, +, +, +),
+	ord_intersection(+, +, ?),
+	    ord_intersection(+, +, +, +, +, ?),
+	ord_intersection(+, ?),
+	    ord_intersection(+, +, +, +, ?),
+	ord_seteq(+, +),
+	ord_setproduct(+, +, ?),
+	    ord_setproduct(+, +, ?, -),
+	ord_subset(+, +),
+	    ord_subset(+, +, +, +),
+	ord_subtract(+, +, ?),
+	    ord_subtract(+, +, +, +, +, ?),
+	ord_symdiff(+, +, ?),
+	    ord_symdiff(+, +, +, +, +, ?),
+	ord_union(+, +, ?),
+	    ord_union(+, +, +, +, +, ?),
+	ord_union(+, ?),
+	    ord_union_all(+, +, +, ?),
+	ord_union(+, +, ?, ?),
+	    ord_union(+, +, +, +, +, ?, ?).
+
+*/
+
+%i @node Ordsets, Prolog, Lists, Top
+%i @comment  node-name,  next,  previous,  up
+%i @chapter Ordered set manipulation
+%i @cindex sets
+%i @cindex ordered sets
+%i 
+%i This package defines operations on ordered sets.  Ordered sets are sets
+%i represented as lists with the elements ordered in a standard order.
+%i The ordering is defined by the @code{@@<} family of term comparison
+%i predicates and it is the ordering produced by the built-in predicate
+%i @code{sort/2}. @refill
+%i 
+%i To load the package, enter the query
+%i 
+%i @example
+%i | ?- load(library(ordsets)).
+%i @end example
+%i 
+%i @table @code
+
+%i @item is_ordset(@var{+Set})
+%i @findex is_ordset/1
+%i is true when @var{Set} is an ordered set.
+
+is_ordset([]) :-
+    ->	true.
+is_ordset([Head|Tail]) :-
+    ->	is_ordset(Tail, Head).
+
+is_ordset([], _) :-
+    ->	true.
+is_ordset([Head|Tail], Left) :-
+	Left @< Head
+    ->	is_ordset(Tail, Head).
+
+
+%i @item list_to_ord_set(@var{+List}, @var{?Set})
+%i @findex list_to_ord_set/2
+%i is true when @var{Set} is the ordered representation of the set denoted 
+%i by the unordered representation @var{List}.    Example:
+%i @example
+%i | ?- list_to_ord_set([p,r,o,l,o,g], P).
+%i 
+%i P = [g,l,o,p,r] ? 
+%i 
+%i yes
+%i 
+%i @end example
+
+list_to_ord_set(List, Set) :-
+	sort(List, Set).
+
+%i @item ord_add_element(@var{+Set1}, @var{+Element}, @var{?Set2})
+%i @findex ord_add_element/3
+%i is true when @var{Set2} is @var{Set1} with @var{Element} inserted in it, 
+%i preserving the order.  Example:
+%i @example
+%i | ?- ord_add_element([a,c,d,e,f], b, N).
+%i 
+%i N = [a,b,c,d,e,f] ? 
+%i 
+%i yes
+%i @end example
+
+ord_add_element([], Element, Set) :-
+    ->	Set = [Element].
+ord_add_element([Head|Tail], Element, Set) :-
+    ->	compare(Order, Head, Element),
+	ord_add_element(Order, Head, Tail, Element, Set).
+
+ord_add_element(<, Head, Tail, Element, Set2) :-
+    ->	Set2 = [Head|Set],
+	ord_add_element(Tail, Element, Set).
+ord_add_element(=, Head, Tail, _, Set2) :-
+    ->	Set2 = [Head|Tail].
+ord_add_element(>, Head, Tail, Element, Set2) :-
+    ->	Set2 = [Element,Head|Tail].
+
+%i @item ord_del_element(@var{+Set1}, @var{+Element}, @var{?Set2})
+%i @findex ord_del_element/3
+%i is true when @var{Set2} is like @var{Set1} but with @var{Element} removed.
+
+ord_del_element([], _, Set) :-
+    ->	Set = [].
+ord_del_element([Head|Tail], Element, Set) :-
+    ->	compare(Order, Head, Element),
+	ord_del_element(Order, Head, Tail, Element, Set).
+
+ord_del_element(<, Head, Tail, Element, Set2) :-
+    ->	Set2 = [Head|Set],
+	ord_del_element(Tail, Element, Set).
+ord_del_element(=, _, Tail, _, Set2) :-
+    ->	Set2 = Tail.
+ord_del_element(>, Head, Tail, _, Set2) :-
+    ->	Set2 = [Head|Tail].
+
+%i @item ord_disjoint(@var{+Set1}, @var{+Set2})
+%i @findex ord_disjoint/2
+%i is true when the two ordered sets have no elements in common.  
+%i 
+
+
+ord_disjoint([], _) :-
+    ->	true.
+ord_disjoint(_, []) :-
+    ->	true.
+ord_disjoint([Head1|Tail1], [Head2|Tail2]) :-
+    ->	compare(Order, Head1, Head2),
+	ord_disjoint(Order, Head1, Tail1, Head2, Tail2).
+
+ord_disjoint(<, _, [], _, _) :-
+    ->	true.
+ord_disjoint(<, _, [Head1|Tail1], Head2, Tail2) :-
+    ->	compare(Order, Head1, Head2),
+	ord_disjoint(Order, Head1, Tail1, Head2, Tail2).
+ord_disjoint(>, _, _, _, []) :-
+    ->	true.
+ord_disjoint(>, Head1, Tail1, _, [Head2|Tail2]) :-
+    ->	compare(Order, Head1, Head2),
+	ord_disjoint(Order, Head1, Tail1, Head2, Tail2).
+
+
+%i @item ord_intersect(@var{+Set1}, @var{+Set2})
+%i @findex ord_intersect/2
+%i is true when the two ordered sets have at least one element in common.
+
+ord_intersect([Head1|Tail1], [Head2|Tail2]) :-
+	compare(Order, Head1, Head2),
+	ord_intersect(Order, Head1, Tail1, Head2, Tail2).
+
+ord_intersect(<, _, [Head1|Tail1], Head2, Tail2) :-
+    ->	compare(Order, Head1, Head2),
+	ord_intersect(Order, Head1, Tail1, Head2, Tail2).
+ord_intersect(=, _, _, _, _) :-
+    ->	true.
+ord_intersect(>, Head1, Tail1, _, [Head2|Tail2]) :-
+    ->	compare(Order, Head1, Head2),
+	ord_intersect(Order, Head1, Tail1, Head2, Tail2).
+
+%i @item ord_intersection(@var{+Set1}, @var{+Set2}, @var{?Intersect})
+%i @findex ord_intersection/3
+%i is true when @var{Intersect} is the ordered set representation of the 
+%i intersection between @var{Set1} and @var{Set2}.
+
+ord_intersection([], _, Intersection) :-
+    ->	Intersection = [].
+ord_intersection(_, [], Intersection) :-
+    ->	Intersection = [].
+ord_intersection([Head1|Tail1], [Head2|Tail2], Intersection) :-
+    ->	compare(Order, Head1, Head2),
+	ord_intersection(Order, Head1, Tail1, Head2, Tail2, Intersection).
+
+ord_intersection(<, _, [], _, _, Intersection) :-
+    ->	Intersection = [].
+ord_intersection(<, _, [Head1|Tail1], Head2, Tail2, Intersection) :-
+    ->	compare(Order, Head1, Head2),
+	ord_intersection(Order, Head1, Tail1, Head2, Tail2, Intersection).
+ord_intersection(=, Head, Tail1, _, Tail2, Intersection0) :-
+    ->	Intersection0 = [Head|Intersection],
+	ord_intersection(Tail1, Tail2, Intersection).
+ord_intersection(>, _, _, _, [], Intersection) :-
+    ->	Intersection = [].
+ord_intersection(>, Head1, Tail1, _, [Head2|Tail2], Intersection) :-
+    ->	compare(Order, Head1, Head2),
+	ord_intersection(Order, Head1, Tail1, Head2, Tail2, Intersection).
+
+
+%i @item ord_intersection(@var{+Sets}, @var{?Intersection})
+%i @findex ord_intersection/2
+%i is true when @var{Intersection} is the ordered set representation of the
+%i intersection of all the sets in @var{Sets}.  Example:
+%i @example
+%i | ?- ord_intersection([[1,2,3],[2,3,4],[3,4,5]], I).
+%i 
+%i I = [3] ? 
+%i 
+%i yes
+%i 
+%i @end example
+
+ord_intersection([], Intersection) :-
+    ->	Intersection = [].
+ord_intersection(Sets, Intersection) :- 
+    ->	length(Sets, NumberOfSets),
+	ord_intersection(NumberOfSets, Sets, Intersection, []).
+
+ord_intersection(1, [Set|Sets], Intersection, Sets) :-
+    ->	Intersection = Set.
+ord_intersection(2, [Set,Set2|Sets], Intersection, Sets) :-
+    ->	ord_intersection(Set, Set2, Intersection).
+ord_intersection(N, Sets0, Intersection, Sets) :-
+    ->	A is N>>1,
+	Z is N-A,
+	ord_intersection(A, Sets0, X, Sets1),
+	ord_intersection(Z, Sets1, Y, Sets),
+	ord_intersection(X, Y, Intersection).
+
+
+%i @item ord_seteq(@var{+Set1}, @var{+Set2})
+%i @findex ord_seteq/2
+%i is true when the two arguments represent the same set.  Since they
+%i are assumed to be ordered representations, they must be identical.
+
+ord_seteq(Set1, Set2) :-
+	Set1 = Set2.
+
+
+%i @item ord_setproduct(@var{+Set1}, @var{+Set2}, @var{?SetProduct})
+%i @findex ord_setproduct/3
+%i is true when @var{SetProduct} is the Cartesian Product of the two Sets.  The
+%i product is represented as pairs: Elem1-Elem2 where Elem1 is an element
+%i from @var{Set1} and Elem2 is an element from @var{Set2}.  Example
+%i @example
+%i | ?- ord_setproduct([1,2,3], [4,5,6], P).
+%i 
+%i P = [1-4,1-5,1-6,2-4,2-5,2-6,3-4,3-5,3-6] ? 
+%i 
+%i yes
+%i @end example
+
+ord_setproduct([], _, SetProduct) :-
+    ->	SetProduct = [].
+ord_setproduct([Head|Tail], Set, SetProduct)  :-
+    ->	ord_setproduct(Set, Head, SetProduct, Rest),
+	ord_setproduct(Tail, Set, Rest).
+
+ord_setproduct([], _, Set, Tl) :-
+    ->	Tl = Set.
+ord_setproduct([Head|Tail], X, TailX0, Tl) :-
+    ->	TailX0 = [X-Head|TailX],
+	ord_setproduct(Tail, X, TailX, Tl).
+
+%i @item ord_subset(@var{+Set1}, @var{+Set2})
+%i @findex ord_subset/2
+%i is true when every element of the ordered set @var{Set1} appears in the
+%i ordered set @var{Set2}.
+
+ord_subset([], _) :-
+    ->	true.
+ord_subset([Head1|Tail1], [Head2|Tail2]) :-
+    ->	compare(Order, Head1, Head2),
+	ord_subset(Order, Head1, Tail1, Tail2).
+
+ord_subset(=, _, Tail1, Tail2) :-
+    ->	ord_subset(Tail1, Tail2).
+ord_subset(>, Head1, Tail1, [Head2|Tail2]) :-
+    ->	compare(Order, Head1, Head2),
+	ord_subset(Order, Head1, Tail1, Tail2).
+
+%i @item ord_subtract(@var{+Set1}, @var{+Set2}, @var{?Difference})
+%i @findex ord_subtract/3
+%i is true when @var{Difference} contains all and only the elements of @var{Set1}
+%i which are not also in @var{Set2}.  Example:
+%i @example
+%i | ?- ord_subtract([1,2,3,4], [3,4,5,6], S).
+%i 
+%i S = [1,2] ? 
+%i 
+%i yes 
+%i @end example
+
+
+ord_subtract([], _, Difference) :-
+    ->	Difference = [].
+ord_subtract(Set1, [], Difference) :-
+    ->	Difference = Set1.
+ord_subtract([Head1|Tail1], [Head2|Tail2], Difference) :-
+    ->	compare(Order, Head1, Head2),
+	ord_subtract(Order, Head1, Tail1, Head2, Tail2, Difference).
+
+ord_subtract(<, Head1, [], _, _, Difference) :-
+    ->	Difference = [Head1].
+ord_subtract(<, Head0, [Head1|Tail1], Head2, Tail2, Difference0) :-
+    ->	Difference0 = [Head0|Difference],
+	compare(Order, Head1, Head2),
+	ord_subtract(Order, Head1, Tail1, Head2, Tail2, Difference).
+ord_subtract(=, _, Tail1, _, Tail2, Difference) :-
+    ->	ord_subtract(Tail1, Tail2, Difference).
+ord_subtract(>, Head1, Tail1, _, [], Difference) :-
+    ->	Difference = [Head1|Tail1].
+ord_subtract(>, Head1, Tail1, _, [Head2|Tail2], Difference) :-
+    ->	compare(Order, Head1, Head2),
+	ord_subtract(Order, Head1, Tail1, Head2, Tail2, Difference).
+
+%i @item ord_symdiff(@var{+Set1}, @var{+Set2}, @var{?Difference})
+%i @findex ord_symdiff/3
+%i is true when @var{Difference} is the symmetric difference of @var{Set1} and 
+%i @var{Set2}.  Example:
+%i @example
+%i | ?- ord_symdiff([1,2,3,4], [3,4,5,6], D).
+%i 
+%i D = [1,2,5,6] ? 
+%i 
+%i yes
+%i @end example
+
+ord_symdiff([], Set2, Difference) :-
+    ->	Difference = Set2.
+ord_symdiff(Set1, [], Difference) :-
+    ->	Difference = Set1.
+ord_symdiff([Head1|Tail1], [Head2|Tail2], Difference) :-
+    ->	compare(Order, Head1, Head2),
+	ord_symdiff(Order, Head1, Tail1, Head2, Tail2, Difference).
+
+ord_symdiff(<, Head0, [], Head2, Tail2, Difference) :-
+    ->	Difference = [Head0,Head2|Tail2].
+ord_symdiff(<, Head0, [Head1|Tail1], Head2, Tail2, Difference0) :-
+    ->	Difference0 = [Head0|Difference],
+	compare(Order, Head1, Head2),
+	ord_symdiff(Order, Head1, Tail1, Head2, Tail2, Difference).
+ord_symdiff(=, _,     Tail1, _,	    Tail2, Difference) :-
+    ->	ord_symdiff(Tail1, Tail2, Difference).
+ord_symdiff(>, Head1, Tail1, Head0, [], Difference) :-
+    ->	Difference = [Head0,Head1|Tail1].
+ord_symdiff(>, Head1, Tail1, Head0, [Head2|Tail2], Difference0) :-
+    ->	Difference0 = [Head0|Difference],
+	compare(Order, Head1, Head2),
+	ord_symdiff(Order, Head1, Tail1, Head2, Tail2, Difference).
+
+
+
+%i @item ord_union(@var{+Set1}, @var{+Set2}, @var{?Union})
+%i @findex ord_union/3
+%i is true when @var{Union} is the union of @var{Set1} and @var{Set2}.  
+
+ord_union([], Set2, Union) :-
+    ->	Union = Set2.
+ord_union(Set1, [], Union) :-
+    ->	Union = Set1.
+ord_union([Head1|Tail1], [Head2|Tail2], Union) :-
+    ->	compare(Order, Head1, Head2),
+	ord_union(Order, Head1, Tail1, Head2, Tail2, Union).
+
+ord_union(<, Head0, [], Head2, Tail2, Union) :-
+    ->	Union = [Head0,Head2|Tail2].
+ord_union(<, Head0, [Head1|Tail1], Head2, Tail2, Union0) :-
+    ->	Union0 = [Head0|Union],
+	compare(Order, Head1, Head2),
+	ord_union(Order, Head1, Tail1, Head2, Tail2, Union).
+ord_union(=, Head,  Tail1, _,	  Tail2, Union0) :-
+    ->	Union0 = [Head|Union],
+	ord_union(Tail1, Tail2, Union).
+ord_union(>, Head1, Tail1, Head0, [], Union) :-
+    ->	Union = [Head0,Head1|Tail1].
+ord_union(>, Head1, Tail1, Head0, [Head2|Tail2], Union0) :-
+    ->	Union0 = [Head0|Union],
+	compare(Order, Head1, Head2),
+	ord_union(Order, Head1, Tail1, Head2, Tail2, Union).
+
+
+%i @item ord_union(@var{+Sets}, @var{?Union})
+%i @findex ord_union/2
+%i is true when @var{Union} is the union of all the sets in @var{Sets}.   Example: 
+%i @example
+%i | ?- ord_union([[1,2,3],[2,3,4],[3,4,5]], U).
+%i 
+%i U = [1,2,3,4,5] ? 
+%i 
+%i yes
+%i 
+%i @end example
+
+ord_union([], Union) :-
+    ->	Union = [].
+ord_union(Sets, Union) :-
+    ->	length(Sets, NumberOfSets),
+	ord_union_all(NumberOfSets, Sets, Union, []).
+
+ord_union_all(1, [Set|Sets], Union, Sets1) :-
+    ->	Union = Set,
+	Sets1 = Sets.
+ord_union_all(2, [Set,Set2|Sets], Union, Sets1) :-
+    ->	Sets1 = Sets,
+	ord_union(Set, Set2, Union).
+ord_union_all(N, Sets0, Union, Sets) :-
+    ->	A is N>>1,
+	Z is N-A,
+	ord_union_all(A, Sets0, X, Sets1),
+	ord_union_all(Z, Sets1, Y, Sets),
+	ord_union(X, Y, Union).
+
+
+%i @item ord_union(@var{+Set1}, @var{+Set2}, @var{?Union}, @var{?New})
+%i @findex ord_union/4
+%i is true when @var{Union} is the union of @var{Set1} and @var{Set2}, and
+%i @var{New} is the difference between @var{Set2} and @var{Set1}.  This is
+%i useful if you are accumulating members of a set and you want to process
+%i new elements as they are added to the set.
+
+ord_union([], Set, Union, New) :-
+    ->	Union = Set,
+	New = Set.
+ord_union(Set, [], Union, New) :-
+    ->	Union = Set,
+	New = [].
+ord_union([O|Os], [N|Ns], Set, New) :-
+    ->	compare(C, O, N), 
+	ord_union(C, O, Os, N, Ns, Set, New).
+	
+ord_union(<, O, [], N, Ns, Set, New) :-
+    ->	Set = [O,N|Ns],
+	New = [N|Ns].
+ord_union(<, O1, [O|Os], N, Ns, Set0, New) :-
+    ->	Set0 = [O1|Set],
+	compare(C, O, N), 
+	ord_union(C, O, Os, N, Ns, Set, New).
+ord_union(=, _, Os, N, Ns, Set0, New) :-
+    ->	Set0 = [N|Set],
+	ord_union(Os, Ns, Set, New).
+ord_union(>, O, Os, N, [], Set, New) :-
+    ->	Set = [N,O|Os],
+	New = [N].
+ord_union(>, O, Os, N1, [N|Ns], Set0, New0) :-
+    ->	Set0 = [N1|Set],
+	New0 = [N1|New],
+	compare(C, O, N), 
+	ord_union(C, O, Os, N, Ns, Set, New).
+
+% must be list in texinfo-file
+%i @end table

@@ -1,0 +1,73 @@
+/.gdbinit/1.1.1.1/Wed Aug 14 12:21:17 2002//
+/AUTHORS/1.1.1.1/Wed Aug 14 12:21:17 2002//
+/COPYING/1.1.1.1/Wed Aug 14 12:21:17 2002//
+/COPYING.LIB/1.1.1.1/Wed Aug 14 12:21:17 2002//
+/ChangeLog/1.1.1.1/Wed Aug 14 12:21:17 2002//
+/INSTALL/1.1.1.1/Wed Aug 14 12:21:17 2002//
+/Makefile.am/1.1.1.1/Wed Aug 14 12:21:17 2002//
+/Makefile.in/1.1.1.1/Wed Aug 14 12:21:17 2002//
+/NEWS/1.1.1.1/Wed Aug 14 12:21:17 2002//
+/README/1.1.1.1/Wed Aug 14 12:21:17 2002//
+/acconfig.h/1.1.1.1/Wed Aug 14 12:21:17 2002//
+/acinclude.m4/1.1.1.1/Wed Aug 14 12:21:17 2002//
+/aclocal.m4/1.1.1.1/Wed Aug 14 12:21:17 2002//
+/ansi2knr.1/1.1.1.1/Wed Aug 14 12:21:17 2002//
+/ansi2knr.c/1.1.1.1/Wed Aug 14 12:21:17 2002//
+/assert.c/1.1.1.1/Wed Aug 14 12:21:17 2002//
+/compat.c/1.1.1.1/Wed Aug 14 12:21:17 2002//
+/config.guess/1.1.1.1/Wed Aug 14 12:21:18 2002//
+/config.in/1.1.1.1/Wed Aug 14 12:21:18 2002//
+/config.sub/1.1.1.1/Wed Aug 14 12:21:18 2002//
+/configure/1.1.1.1/Wed Aug 14 12:21:18 2002//
+/configure.in/1.1.1.1/Wed Aug 14 12:21:18 2002//
+/depcomp/1.1.1.1/Wed Aug 14 12:21:18 2002//
+/errno.c/1.1.1.1/Wed Aug 14 12:21:18 2002//
+/extract-dbl.c/1.1.1.1/Wed Aug 14 12:21:18 2002//
+/gmp-impl.h/1.1.1.1/Wed Aug 14 12:21:19 2002//
+/gmp.h/1.1.1.1/Wed Aug 14 12:21:19 2002//
+/gmp.info/1.1.1.1/Wed Aug 14 12:21:19 2002//
+/gmp.info-1/1.1.1.1/Wed Aug 14 12:21:19 2002//
+/gmp.info-2/1.1.1.1/Wed Aug 14 12:21:19 2002//
+/gmp.info-3/1.1.1.1/Wed Aug 14 12:21:19 2002//
+/gmp.info-4/1.1.1.1/Wed Aug 14 12:21:19 2002//
+/gmp.texi/1.1.1.1/Wed Aug 14 12:21:19 2002//
+/insert-dbl.c/1.1.1.1/Wed Aug 14 12:21:19 2002//
+/install-sh/1.1.1.1/Wed Aug 14 12:21:19 2002//
+/longlong.h/1.1.1.1/Wed Aug 14 12:21:19 2002//
+/ltconfig/1.1.1.1/Wed Aug 14 12:21:20 2002//
+/ltmain.sh/1.1.1.1/Wed Aug 14 12:21:20 2002//
+/mdate-sh/1.1.1.1/Wed Aug 14 12:21:20 2002//
+/memory.c/1.1.1.1/Wed Aug 14 12:21:20 2002//
+/missing/1.1.1.1/Wed Aug 14 12:21:20 2002//
+/mkinstalldirs/1.1.1.1/Wed Aug 14 12:21:20 2002//
+/mp.h/1.1.1.1/Wed Aug 14 12:21:20 2002//
+/mp_bpl.c/1.1.1.1/Wed Aug 14 12:21:20 2002//
+/mp_clz_tab.c/1.1.1.1/Wed Aug 14 12:21:20 2002//
+/mp_minv_tab.c/1.1.1.1/Wed Aug 14 12:21:20 2002//
+/mp_set_fns.c/1.1.1.1/Wed Aug 14 12:21:20 2002//
+/rand.c/1.1.1.1/Wed Aug 14 12:21:20 2002//
+/randclr.c/1.1.1.1/Wed Aug 14 12:21:20 2002//
+/randlc.c/1.1.1.1/Wed Aug 14 12:21:20 2002//
+/randlc2x.c/1.1.1.1/Wed Aug 14 12:21:20 2002//
+/randraw.c/1.1.1.1/Wed Aug 14 12:21:20 2002//
+/randsd.c/1.1.1.1/Wed Aug 14 12:21:20 2002//
+/randsdui.c/1.1.1.1/Wed Aug 14 12:21:20 2002//
+/stack-alloc.c/1.1.1.1/Wed Aug 14 12:21:20 2002//
+/stack-alloc.h/1.1.1.1/Wed Aug 14 12:21:20 2002//
+/stamp-h.in/1.1.1.1/Wed Aug 14 12:21:20 2002//
+/stamp-vti/1.1.1.1/Wed Aug 14 12:21:20 2002//
+/texinfo.tex/1.1.1.1/Wed Aug 14 12:21:21 2002//
+/urandom.h/1.1.1.1/Wed Aug 14 12:21:21 2002//
+/version.c/1.1.1.1/Wed Aug 14 12:21:21 2002//
+/version.texi/1.1.1.1/Wed Aug 14 12:21:21 2002//
+D/demos////
+D/doc////
+D/macos////
+D/mpbsd////
+D/mpf////
+D/mpfr////
+D/mpn////
+D/mpq////
+D/mpz////
+D/tests////
+D/tune////

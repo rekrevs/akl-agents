@@ -1,0 +1,61 @@
+% $Id: translate.akl,v 1.3 1993/02/10 08:59:38 jm Exp $
+
+prolog_print_instruction(X, S0, S) :-
+	fnl(S0, S1),
+	print_pam_code(X, S1, S).
+
+print_pam_code(predicate(Name/Arity,Instr), S0, S) :- 
+	write_atom('predicate(',S0, S1),
+	writeq_atom(Name,S1, S2),
+	write_atom('/', S2, S3),
+	write_integer(Arity,S3, S4),
+	fnl(S4,S5),
+	print_instr(Instr, S5, S).
+
+print_instr([], S0, S) :-
+    ->	write_atom(')',S0, S1),
+	fnl(S1, S).
+print_instr([H|T], S0, S) :-
+    ->	write_atom('	',S0, S1),
+	print_inst(H, S1, S2),
+	fnl(S2, S3),
+	print_instr(T, S3, S).
+
+print_inst(Inst, S0, S) :-
+	atom(Inst)
+    ->	write_atom(Inst,S0, S).
+print_inst(Inst, S0, S) :-
+    ->	functor(Inst, F, N),
+	write_atom(F,S0, S1),
+	write_atom('(',S1, S2),
+	print_inst_args(N, Inst, S2, S3),
+	write_atom(')',S3, S).
+
+print_inst_args(N, Inst, S0, S) :-
+    ->	arg(1, Inst, A),
+	print_inst_arg(A, S0, S1),
+	print_inst_args(1, N, Inst, S1, S).
+
+print_inst_args(N, N, Inst, S0, S) :-
+    ->	S = S0.
+print_inst_args(M, N, Inst, S0, S) :-
+    ->	add(M, 1, M1),
+	arg(M1, Inst, A),
+	write_atom(',', S0, S1),
+	print_inst_arg(A, S1, S2),
+	print_inst_args(M1, N, Inst, S2, S).
+
+print_inst_arg(A, S0, S) :-
+	atom(A)
+    ->	writeq_atom(A,S0, S).
+print_inst_arg(A, S0, S) :-
+	integer(A)
+    ->	write_integer(A,S0, S).
+print_inst_arg(A, S0, S) :-
+	float(A)
+    ->	write_float(A,S0, S).
+print_inst_arg(F/N, S0, S) :-
+    ->	writeq_atom(F,S0, S1),
+	write_atom('/',S1, S2),
+	write_integer(N,S2, S).
+

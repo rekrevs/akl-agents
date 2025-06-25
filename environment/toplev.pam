@@ -1,0 +1,76 @@
+% $Id: toplev.pam,v 1.5 1991/09/11 09:13:47 sverker Exp $
+%
+% Warning:  This, and the rest of the top-level, are *kludges* relying
+% heavily on the execution order given by this implementation.
+%
+
+% start :- start2,halt.
+
+predicate(start/0
+	allocate0(0)
+	call(akl_header/0)
+	call(start2/0)
+	halt)
+
+% start2 :- start3 garbage_collect ! write('yes').
+% start2 :- true ! write('no').
+% start2 :- true | write('suspend').
+
+predicate(start2/0
+
+	% The first clause will catch control if the query succeeds.
+	% This should not happen, as qatop/0 loops.
+
+	try_me_else(next)
+		allocate(0)
+		call(start3/0)
+		noop
+	 	guard_cut
+		put_constant('{Warning: "yes", back to command level!}',0)
+		builtin('$display'/1)
+		builtin(nl/0)
+		halt
+
+	% If the first clause failed, this clause will succeed.
+	% So far no abuse of control principles.
+
+	label(next)
+	retry_me_else(last)
+		allocate(0)
+		guard_cut
+		put_constant('{Warning: "no", back to command level!}',0)
+		builtin('$display'/1)
+		builtin(nl/0)
+		halt
+
+	% We rely on this clause for detecting suspension.
+	% If no nondeterministic move could save the situation in
+	% the first clause, it is suspended.  The second clause
+	% will then not be available.  This clause uses commit,
+	% however, and will therefore be chosen.  Note, that in
+	% a parallel implementation, no assumption about the
+	% execution of the previous clauses can be made.
+
+	label(last)
+	trust_me
+		allocate(0)
+		put_constant('{ERROR: Configuration suspended!',0)
+		builtin('$display'/1)
+		builtin(nl/0)
+		builtin(display_configuration/0)
+		put_constant('}',0)
+		builtin('$display'/1)
+		builtin(nl/0)
+		guard_commit
+		execute(start2/0))
+
+	
+% start3 :- goal : true.
+% So that noop will have something to copy...due to nondeterministic promotion
+
+predicate(start3/0
+	try_me
+		allocate(0)
+		call(qatop/0)
+		guard_commit
+		proceed)

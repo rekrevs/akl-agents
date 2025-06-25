@@ -1,0 +1,125 @@
+% $Id: head.akl,v 1.11 1994/05/06 13:50:10 secher Exp $
+
+% head_code(
+%   ParsedHead,
+%   TempCounter,
+%   CodeStream0,
+%   CodeStream,
+%   VarInfo0,
+%   VarInfo
+% )
+
+head_code(struct(_,_,Args), T, S0, S, V0, V)-P :-
+    	reorder_head_args(Args, PrepArgs),
+	C = 0,
+	T0 = 0,
+	get_args(PrepArgs, C, T0, T, S0, S, V0, V)-P.
+	
+% Compile variable arguments first, right to left,
+% a'la Carlsson.
+
+reorder_head_args(Args, PrepArgs) :-
+	reorder_head_args(Args, 0, P, P, PrepArgs).
+
+reorder_head_args([], _, P0, V0, V) :-
+    ->	P0 = [],
+	V = V0.
+reorder_head_args([var(U)|As], N, P0, V0, V) :-
+    ->	V1 = [arg(N)-var(U)|V0],
+	N1 is N+1,
+	reorder_head_args(As, N1, P0, V1, V).
+reorder_head_args([A|As], N, P0, V0, V) :-
+    ->	P0 = [arg(N)-A|P1],
+	N1 is N+1,
+	reorder_head_args(As, N1, P1, V0, V).
+
+get_args([], _C, T0, T, S0, S, V0, V, P0, P) :-
+    ->	T = T0,
+	S = S0,
+	V = V0,
+	P = P0.
+get_args([Arg|As], C, T0, T, S0, S, V0, V, P0, P) :-
+    ->  Arg = N-A,
+	get_arg(A, N, C, T0, T1, S0, S1, V0, V1, P0, P1),
+	get_args(As, C, T1, T, S1, S, V1, V, P1, P).
+
+get_arg(var(U), R, C, T0, T, S0, S, V0, V, P0, P) :-
+    ->	T = T0,
+	occurrence(R, UI2, C, V0, V1),
+	occurrence(U, UI1, C, V1, V),
+	S0 = [get_v(UI1,UI2)|S],
+	P0 = P.
+get_arg(struct('\',2,[SN,SA]), R, C, T0, T, S0, S, V0, V, P0, P) :-
+	SA = struct(Arity,0,_),
+	integer(Arity),
+	Arity >= 0,
+	SN = struct(Name,0,_),
+	atom(Name)
+    ->	occurrence(R, UI, C, V0, V),
+	S0 = [get_a(Name/Arity,UI)|S],
+	T = T0,
+	P = P0.
+get_arg(struct('\',2, [Form, Body]), R, C, T0, T, S0, S, V0, V, P0, P) :-
+    ->	occurrence(R, UI, C, V0, V1),
+	conj_to_list(Form, As),
+        extract(Body, As, Es),
+	S0 = [get_a(N,UI)|S1],
+	P0 = [abs(As,[],Es,Body,N)|P1],
+	unify_get_args(Es, C, T0, T1, S1, S2, V1, V2, SS, []),
+	get_args(SS, C, T1, T, S2, S, V2, V, P1, P).
+get_arg(struct(F,[Ar|L],As), R, C, T0, T, S0, S, V0, V, P0, P) :-
+    ->	occurrence(R, UI, C, V0, V1),
+	true_features(L,1,Fe),
+	record_or_structure(Fe,get_s(F,Ar,UI),get_rec(F,Ar,Fe,UI),Inst),
+	S0 = [Inst|S1],
+	unify_get_args(As, C, T0, T1, S1, S2, V1, V2, SS, []),
+	get_args(SS, C, T1, T, S2, S, V2, V, P0, P).
+get_arg(struct(F,Ar,As), R, C, T0, T, S0, S, V0, V, P0, P) :-
+    ->	occurrence(R, UI, C, V0, V1),
+	S0 = [get_s(F,Ar,UI)|S1],
+	unify_get_args(As, C, T0, T1, S1, S2, V1, V2, SS, []),
+	get_args(SS, C, T1, T, S2, S, V2, V, P0, P).
+
+
+
+% unify_get_args(
+%   GetArgs,
+%   ChunkNo,
+%   TempNo0,
+%   TempNo,
+%   CodeStream0,
+%   CodeStream,
+%   VarInfo0,
+%   VarInfo,
+%   SubCodeStream0,
+%   SubCodeStream
+% )
+
+unify_get_args([], _C, T0, T, S0, S, V0, V, SS0, SS) :-
+    ->	T = T0,
+	S = S0,
+	V = V0,
+	SS = SS0.
+unify_get_args([A|As], C, T0, T, S0, S, V0, V, SS0, SS) :-
+    ->	unify_get_arg(A, C, T0, T1, S0, S1, V0, V1, SS0, SS1),
+	unify_get_args(As, C, T1, T, S1, S, V1, V, SS1, SS).
+
+unify_get_arg(var(U), C, T0, T, S0, S, V0, V, SS0, SS) :-
+    ->	T = T0,
+	occurrence(U, UI, C, V0, V),
+	S0 = [unify_v(UI)|S],
+	SS = SS0.
+unify_get_arg(struct(Atm, 0, _), _C, T0, T, S0, S, V0, V, SS0, SS) :-
+    ->	T = T0,
+	S0 = [unify_c(Atm)|S],
+	V = V0,
+	SS = SS0.
+unify_get_arg(Struct, C, T0, T, S0, S, V0, V, SS0, SS) :-
+
+    ->	U = tmp(T0),
+	T is T0+1,
+	occurrence(tmp(T0), UI, C, V0, V),
+	S0 = [unify_v(UI)|S],
+	SS0 = [U-Struct|SS].
+
+

@@ -1,0 +1,138 @@
+/*-----------------------------------------------------------------------------
+Program:  Instant Insanity (layered-streams, nil-check)
+Author:   E. Tick
+Date:     June 25 1989
+
+Notes:
+1. To run:
+    ?- go(N,A).
+where output A is the list of solutions and N=48, the number of solutions
+(for 7-cubes).
+-----------------------------------------------------------------------------*/
+
+go(N,A) :- 
+	cubes(Q),
+	spawn(Q,begin,A),
+	count(A,N).
+
+spawn([],In,Out) :-
+    ->	fromLStoL(In,Out). 
+spawn([Q|Qs],In,Out) :-
+    ->	column(Q,In,T),
+	spawn(Qs,T,Out).
+
+column(Q,In,Out) :- 
+	myinit(Q,L),
+%    endf(L,M), % this version does no filtering of duplicates
+	make(L,In,Out).
+
+myinit(q(P1,P2,P3),S0) :-
+	exchange(P1,P2,S0,S1),
+	exchange(P2,P1,S1,S2),
+	exchange(P1,P3,S2,S3),
+	exchange(P3,P1,S3,S4),
+	exchange(P2,P3,S4,S5),
+	exchange(P3,P2,S5,[]).
+
+exchange(p(C1,C2),p(C3,C4),S0,S1) :-
+	S0=[q(C1,C2,C3,C4),q(C1,C2,C4,C3),q(C2,C1,C3,C4),q(C2,C1,C4,C3)|S1].
+
+make([],_,S) :-
+    ->	S=[].
+make([Q|Qs],In,S0) :-
+    ->	S0 = [[Q|Out]|S1],
+	filter(In,Q,Out),
+	make(Qs,In,S1).
+
+filter([],   _,Out) :-
+    ->	Out=[].
+filter(begin,_,Out) :-
+    ->	Out=begin.
+filter([[Q|Ts]|Is],C,Out) :-
+	q(A1,B1,C1,D1) = Q,
+	q(A2,B2,C2,D2) = C,
+	A1 =\= A2,
+	B1 =\= B2,
+	C1 =\= C2,
+	D1 =\= D2
+    ->	filter(Ts,C,O1),
+	filter(Is,C,Os),
+	mysend(O1,Q,Out,Os).
+filter([_|Is],C,Out) :-
+    ->	filter(Is,C,Out).
+
+mysend([],_,S0,S1) :-
+    ->	S0=S1.
+mysend(Out,Q,S0,S1) :-
+    ->	S0=[[Q|Out]|S1].
+
+
+/*
+cubes(Q) :- 
+    Q=[q(p(0,1),p(2,0),p(1,3)),
+       q(p(3,3),p(2,0),p(1,2)),
+       q(p(0,3),p(3,1),p(1,2)),
+       q(p(0,0),p(3,0),p(1,2))].
+
+cubes(Q) :- 
+    Q=[q(p(0,5),p(1,5),p(3,1)),
+       q(p(2,1),p(3,4),p(4,0)),
+       q(p(3,0),p(4,5),p(2,4)),
+       q(p(1,3),p(5,1),p(0,1)),
+       q(p(0,2),p(0,2),p(5,2)),
+       q(p(4,4),p(2,3),p(4,5))].
+*/
+
+cubes(Q) :- 
+    Q=[q(p(5,1),p(0,5),p(3,1)),
+       q(p(2,3),p(1,4),p(4,0)),
+       q(p(3,6),p(0,0),p(2,4)),
+       q(p(6,4),p(6,1),p(0,1)),
+       q(p(1,5),p(3,2),p(5,2)),
+       q(p(5,0),p(2,3),p(4,5)),
+       q(p(4,2),p(2,6),p(0,3))].
+
+fromLStoL(LayeredStream,List) :- 
+	fromLStoList1(LayeredStream,[],List,[]).
+
+fromLStoList1(begin,Stack,L0,L1) :-
+    ->	L0=[Stack|L1].
+fromLStoList1([],_,L0,L1) :-
+    ->	L0=L1.
+fromLStoList1([[A|LS1]|Rest],Stack,L0,L2) :-
+    ->	fromLStoList1(LS1,[A|Stack], L0,L1),
+	fromLStoList1(Rest,Stack,    L1,L2).
+
+count(L,N) :-
+	count(L,0,N).
+
+count([],M,N) :-
+    ->	M = N.
+count([_|Xs],M,N) :-
+    ->	M1 is M+1,
+	count(Xs,M1,N).
+
+
+/*
+f([],_,S) :-  S=[].
+f([C|Cs],C,S) :-  f(Cs,C,S) ;
+f([C|Cs],X,S0) :-  S0=[C|S1],f(Cs,X,S1).
+
+endf([],S) :-  S=[].
+endf([C|Cs],S0) :-  
+    S0=[C|S1],
+    f(Cs,C,T),
+    endf(T,S1).
+*/
+
+/* this filter works, but is very, very slow...
+f([C|Cs],Out) :-  Out=[C|Os], f(Cs,C,Os).
+
+f([],_,S) :-  S=[].
+f([C|Cs],C,S) :-  f(Cs,C,S) ;
+f([C|Cs],X,S0) :- 
+    S0 = [C|S1],
+    f(Cs,X,T),
+    f(T,C,S1).
+*/
+

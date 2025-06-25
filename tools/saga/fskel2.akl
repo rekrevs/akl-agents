@@ -1,0 +1,101 @@
+% File: 	fskel2.akl
+% Author: 	Anders Andersson
+% Purpose:      Driver program for parser with filtering
+% Modified:	September 1, 1993
+
+% Standard user interface to the runtime code - see the manual
+saga_parse(Lexer-Parser, ValueList, Stream, Result) :-
+    ->	new_lex(Lexer, none, Stream, Lex),
+	saga_create_compound(external, none, ValueList, Ext),
+	lalr_parse(Parser, Lex, Ext, IResult),
+	saga_adjust_result(IResult, Result).
+
+saga_create_compound(_, A, [], Str) :-
+    ->	Str = A.
+saga_create_compound(F, _, List, Str) :-
+    ->	length(List, L),
+	compound_construct(F, L, List, Str).
+
+saga_adjust_result(error(Token, User), Result) :-
+    ->	compound_extract(User, _, _, UserList),
+	Result = error(Token, UserList).
+saga_adjust_result(accept(Attr, User), Result) :-
+    ->	compound_extract(User, _, _, UserList),
+	Result = accept(Attr, UserList).
+
+% lalr_parse(+Parser, +Lex, +UserData, -Result) parses the tokens from the Lex 
+% object as obtained by get(Token, SemanticValue)@Lex with the parser Parser 
+% and the given user data. Result is a accept(TopOfStack, UserData) if 
+% the input is parsed successfully, where TopOfStack is the value produced 
+% by user actions at the top of the parser stack and UserData is the
+% updated version of the user data structure. If an error occured, error/5
+% is currently returned (subject to change when error recovery is
+% implemented).
+lalr_parse(parser(FilterT, BaseT, CheckT, NextT, GotoT), Lex, U, Result) :-
+    ->	lparse([], [], 1, [], Lex, U, 
+	       FilterT, BaseT, CheckT, NextT, GotoT, Result).
+
+lparse([LA|LAs], [Semantic|Semantics], State, Stack, Lex, U,
+	FilterT, BaseT, CheckT, NextT, GotoT, Result) :-
+    ->	arg(State, BaseT, RowOffset),
+	add(RowOffset, LA, Offset),
+	arg(Offset, CheckT, Check),
+	arg(Offset, NextT, Next),
+	parse(RowOffset, Check, Next, State, LA, Semantic, LAs, Semantics,
+	      Stack, Lex, U, FilterT, BaseT, CheckT, NextT, GotoT, Result).
+lparse([], [], State, Stack, Lex, U, 
+	FilterT, BaseT, CheckT, NextT, GotoT, Result) :-
+    ->	get(LA, Semantic)@Lex,
+	add(LA, 2, LA1),
+	arg(LA1, FilterT, Action),
+	Action(LA, Semantic, LAs, Semantics, U, U1, Lex, Lex1), 
+	lparse(LAs, Semantics, State, Stack, Lex1, U1,
+	       FilterT, BaseT, CheckT, NextT, GotoT, Result).
+
+parse(RowOffset, RowOffset, NewState, State, _, Semantic, LAs, Semantics,
+	Stack, Lex, U, FilterT, BaseT, CheckT, NextT, GotoT, Result) :-
+    ->	lparse(LAs, Semantics, NewState, [Semantic,State|Stack], Lex, U,
+	       FilterT, BaseT, CheckT, NextT, GotoT, Result).    
+
+parse(RowOffset, NegRowOffset, Action, State, LA, Semantic, LAs, Semantics,
+	Stack, Lex, U, FilterT, BaseT, CheckT, NextT, GotoT, Result) :-
+	neg(RowOffset, NegRowOffset)
+    ->	parse1(Action, Result, State, LA, Semantic, LAs, Semantics, Stack, 
+	       Lex, U, FilterT, BaseT, CheckT, NextT, GotoT).
+parse(_, _, _, _, LA, Semantic, _,_, _, Lex, U, 
+	_, _, _, _, _, Result) :-
+    ->	finish_file(LA)-Lex,
+	Result = error(Semantic, U).
+
+finish_file(-1)-_Lex :-
+    ->  true.
+finish_file(_)-Lex :-
+    ->  get(LA,_)@Lex,
+	finish_file(LA)-Lex.
+
+parse1(accept, Result, _, _, _, _, _, [Semantic|_], _, U, _, _, _, _, _) :-
+    ->  Result = accept(Semantic, U).
+parse1(Action, Result, State, LA, Semantic, LAs, Semantics, Stack, Lex, U, 
+	FilterT, BaseT, CheckT, NextT, GotoT) :-
+    ->	Action(State, GotoRowOffset, Stack, Stack1, U, U1, Lex, Lex1),
+	Stack1 = [_,OldState|_],
+	add(GotoRowOffset, OldState, GOffset),
+	arg(GOffset, GotoT, State1),
+	arg(State1, BaseT, RowOffset),
+	add(RowOffset, LA, Offset),
+	arg(Offset, CheckT, Check),
+	arg(Offset, NextT, Next),
+	parse(RowOffset, Check, Next, State1, LA, Semantic, LAs, Semantics,
+	      Stack1, Lex1, U1, FilterT, BaseT, CheckT, NextT, GotoT, Result).
+
+the_SAGA_default_filter(X, Y, [X], [Y])-_U-_L.	
+skip(_, _, [], []).
+begin_skip(_, _, [], [], C)-Lex :- begin(C)@Lex.
+begin(X, Y, [X], [Y], C)-Lex :-	begin(C)@Lex. 
+
+
+
+
+
+
+

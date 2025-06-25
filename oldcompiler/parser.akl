@@ -1,0 +1,59 @@
+% $Id: parser.akl,v 1.10 1994/03/30 10:52:38 sverker Exp $
+
+
+parse_clause(Clause, ParsedClause) :-
+	normalise_clause(Clause, NormalClause),
+	parse_normal_clause(NormalClause, ParsedClause).
+
+
+normalise_clause(struct((:-),2,[Head,Body]), NormalClause) :-
+    ->  normalise_body(Body, NormalBody),
+	NormalClause = clause(Head,NormalBody).
+normalise_clause(Head, NormalClause) :-
+    ->  normalise_body(struct(true,0,[]), NormalBody),
+	NormalClause = clause(Head,NormalBody).
+
+normalise_body(struct('UNORDER',5,[Guard,A,A1,A2,Body]), NormalBody) :-
+    ->	Op = aggregate(unorder(A, A1, A2)),
+	NormalBody = body(Guard,Op,Body).
+normalise_body(struct('ORDER',5,[Guard,A,A1,A2,Body]), NormalBody) :-
+    ->	Op = aggregate(order(A, A1, A2)),
+	NormalBody = body(Guard,Op,Body).
+normalise_body(struct('UNIT',4,[Guard,A,A1,Body]), NormalBody) :-
+    ->	Op = aggregate(unit(A, A1)),
+	NormalBody = body(Guard,Op,Body).
+normalise_body(struct(F,2,[Guard,Body]), NormalBody) :-
+	parse_guard_operator(F, Op)
+    ->  NormalBody = body(Guard,Op,Body).
+normalise_body(struct(F,1,[Body]), NormalBody) :-
+	parse_guard_operator(F, Op)
+    ->  NormalBody = body(struct(true,0,[]),Op,Body).
+normalise_body(Body, NormalBody) :-
+    ->  NormalBody = body(struct(true,0,[]),wait,Body).
+
+parse_guard_operator((->), Op) :-	-> Op = cond.
+parse_guard_operator((|), Op) :-	-> Op = commit.
+parse_guard_operator((?), Op) :-	-> Op = wait.
+parse_guard_operator((!), Op) :-	-> Op = cut.
+
+
+parse_normal_clause(clause(Head,body(Guard,Op,Body)), ParsedClause) :-
+	parse_goal(Guard, ParsedGuard),
+	parse_goal(Body, ParsedBody),
+	clause_head(ParsedClause, Head),
+	clause_guard(ParsedClause, ParsedGuard),
+	clause_op(ParsedClause, Op),
+	clause_body(ParsedClause, ParsedBody).
+
+parse_goal(Goal, S) :-
+	parse_goal(Goal, S, []).
+
+parse_goal(var(V), S0, S) :-
+    ->	S0 = [struct(call,1,[var(V)])|S].
+parse_goal(struct(true,0,[]), S0, S) :-
+    ->	S = S0.
+parse_goal(struct(',',2,[P,Q]), S0, S) :-
+    ->	parse_goal(P, S0, S1),
+	parse_goal(Q, S1, S).
+parse_goal(X, S0, S) :-
+    ->	S0 = [X|S].

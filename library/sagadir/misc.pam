@@ -1,0 +1,942 @@
+predicate(0/2/0
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(2)
+	get2_y_variable(0,1,1,0)
+    guard_cond
+	put2_y_value(1,0,0,1)
+	dealloc_execute('list_to_ord_set'/2)
+)
+
+
+predicate('key_sort_set'/2
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(2)
+	get2_y_variable(0,1,1,0)
+    guard_cond
+	put_abstraction(0,0)
+	put2_y_value(1,1,0,2)
+	dealloc_execute('key_sort_custom'/3)
+)
+
+
+predicate(0/2/0
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(2)
+	get2_y_variable(0,1,1,0)
+    guard_cond
+	put2_y_value(1,0,0,1)
+	dealloc_execute('ord_union'/2)
+)
+
+
+predicate('key_sort_union'/2
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(2)
+	get2_y_variable(0,1,1,0)
+    guard_cond
+	put_abstraction(0,0)
+	put2_y_value(1,1,0,2)
+	dealloc_execute('key_sort_custom'/3)
+)
+
+
+predicate('key_sort_custom'/3
+label(5)
+	switch_on_term(7,7,7,7,7,7,7)
+label(7)
+	try(0)
+	trust(1)
+label(0)
+	allocate(1)
+	get_y_variable(0,2)
+	get_nil(1)
+    guard_cond
+	put_y_value(0,3)
+	get_nil(3)
+	dealloc_proceed
+label(1)
+	allocate(3)
+	get3_y_variable(0,2,2,1,1,0)
+    guard_cond
+	put_y_value(2,0)
+	put_y_variable(2,1)
+	call('keysort'/2)
+	put_y_value(2,5)
+	get_list(5)
+	unify_x_variable(5)
+	unify_x_variable(6)
+	get_structure('-'/2,5)
+	unify_x_variable(5)
+	unify_x_variable(7)
+	put_list(2)
+	unify_x_value(7)
+	unify_nil
+	put_x_value(6,0)
+	put_x_value(5,1)
+	put2_y_value(1,3,0,4)
+	dealloc_execute('merge_common'/5)
+)
+
+
+predicate('merge_common'/5
+label(7)
+	switch_on_term(12,10,9,9,9,11,9)
+label(10)
+	switch_on_constant(1,[('[]',13)],9)
+label(9)
+	fail
+label(11)
+	try(0)
+	trust(1)
+label(12)
+	try(0)
+	retry(1)
+	trust(2)
+label(13)
+	try_single(2)
+label(0)
+	allocate(6)
+	get4_y_variable(0,4,1,3,4,2,2,1)
+	get_list_x0
+	unify_x_variable(5)
+	unify_y_variable(3)
+	get_structure('-'/2,5)
+	unify_y_value(2)
+	unify_y_variable(5)
+    guard_cond
+	put_list(2)
+	unify_y_value(5)
+	unify_y_value(4)
+	put4_y_value(3,0,2,1,1,3,0,4)
+	dealloc_execute('merge_common'/5)
+label(1)
+	allocate(7)
+	get4_y_variable(6,4,0,3,4,2,5,1)
+	get_list_x0
+	unify_x_variable(5)
+	unify_y_variable(2)
+	get_structure('-'/2,5)
+	unify_y_variable(1)
+	unify_y_variable(3)
+    guard_cond
+	put_y_value(4,0)
+	put_y_variable(4,1)
+	put_y_value(0,5)
+	call_apply(5,2)
+	put_y_value(6,5)
+	get_list(5)
+	unify_x_variable(5)
+	unify_x_variable(6)
+	get_structure('-'/2,5)
+	unify_y_value(5)
+	unify_y_value(4)
+	put_list(2)
+	unify_y_value(3)
+	unify_nil
+	put3_y_value(2,0,1,1,0,3)
+	put_x_value(6,4)
+	dealloc_execute('merge_common'/5)
+label(2)
+	allocate(4)
+	get4_y_variable(2,4,3,3,0,2,1,1)
+	get_nil_x0
+    guard_cond
+	put_y_value(0,0)
+	put_y_variable(0,1)
+	put_y_value(3,5)
+	call_apply(5,2)
+	put_y_value(2,5)
+	get_list(5)
+	unify_x_variable(5)
+	unify_nil
+	get_structure('-'/2,5)
+	unify_y_value(1)
+	unify_y_value(0)
+	dealloc_proceed
+)
+
+
+predicate('extract_keys'/2
+label(7)
+	switch_on_term(12,10,9,9,9,11,9)
+label(10)
+	switch_on_constant(1,[('[]',13)],9)
+label(9)
+	fail
+label(11)
+	try(0)
+	trust(1)
+label(12)
+	try(0)
+	retry(1)
+	trust(2)
+label(13)
+	try_single(2)
+label(0)
+	allocate(3)
+	get_y_variable(2,1)
+	get_list_x0
+	unify_x_variable(2)
+	unify_y_variable(0)
+	get_structure('-'/2,2)
+	unify_y_variable(1)
+	unify_void
+    guard_cond
+	put_y_value(2,2)
+	get_list(2)
+	unify_y_value(1)
+	unify_x_variable(2)
+	put_y_value(0,0)
+	put_x_value(2,1)
+	dealloc_execute('extract_keys'/2)
+label(1)
+	allocate(2)
+	get_y_variable(0,1)
+	get_list_x0
+	unify_void
+	unify_y_variable(1)
+    guard_cond
+	put2_y_value(1,0,0,1)
+	dealloc_execute('extract_keys'/2)
+label(2)
+	allocate(1)
+	get_y_variable(0,1)
+	get_nil_x0
+    guard_cond
+	put_y_value(0,2)
+	get_nil(2)
+	dealloc_proceed
+)
+
+
+predicate('extract_values'/2
+label(7)
+	switch_on_term(12,10,9,9,9,11,9)
+label(10)
+	switch_on_constant(1,[('[]',13)],9)
+label(9)
+	fail
+label(11)
+	try(0)
+	trust(1)
+label(12)
+	try(0)
+	retry(1)
+	trust(2)
+label(13)
+	try_single(2)
+label(0)
+	allocate(3)
+	get_y_variable(2,1)
+	get_list_x0
+	unify_x_variable(2)
+	unify_y_variable(0)
+	get_structure('-'/2,2)
+	unify_void
+	unify_y_variable(1)
+    guard_cond
+	put_y_value(2,2)
+	get_list(2)
+	unify_y_value(1)
+	unify_x_variable(2)
+	put_y_value(0,0)
+	put_x_value(2,1)
+	dealloc_execute('extract_values'/2)
+label(1)
+	allocate(2)
+	get_y_variable(0,1)
+	get_list_x0
+	unify_void
+	unify_y_variable(1)
+    guard_cond
+	put2_y_value(1,0,0,1)
+	dealloc_execute('extract_values'/2)
+label(2)
+	allocate(1)
+	get_y_variable(0,1)
+	get_nil_x0
+    guard_cond
+	put_y_value(0,2)
+	get_nil(2)
+	dealloc_proceed
+)
+
+
+predicate('invert_assoclist'/2
+label(5)
+	switch_on_term(10,8,7,7,7,9,7)
+label(8)
+	switch_on_constant(1,[('[]',11)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(4)
+	get_y_variable(3,1)
+	get_list_x0
+	unify_x_variable(2)
+	unify_y_variable(0)
+	get_structure('-'/2,2)
+	unify_y_variable(1)
+	unify_y_variable(2)
+    guard_cond
+	put_y_value(3,2)
+	get_list(2)
+	unify_x_variable(2)
+	unify_x_variable(3)
+	get_structure('-'/2,2)
+	unify_y_value(2)
+	unify_y_value(1)
+	put_y_value(0,0)
+	put_x_value(3,1)
+	dealloc_execute('invert_assoclist'/2)
+label(1)
+	allocate(1)
+	get_y_variable(0,1)
+	get_nil_x0
+    guard_cond
+	put_y_value(0,2)
+	get_nil(2)
+	dealloc_proceed
+)
+
+
+predicate('max_value'/3
+label(3)
+	switch_on_term(6,5,5,5,5,6,5)
+label(5)
+	fail
+label(6)
+	try_single(0)
+label(0)
+	allocate(5)
+	get2_y_variable(0,2,1,1)
+	get_list_x0
+	unify_x_variable(5)
+	unify_y_variable(4)
+	get_structure('-'/2,5)
+	unify_y_variable(3)
+	unify_y_variable(2)
+    guard_cond
+	put5_y_value(4,0,3,1,2,2,1,3,0,4)
+	dealloc_execute('max_value'/5)
+)
+
+
+predicate('max_value'/5
+label(7)
+	switch_on_term(12,10,9,9,9,11,9)
+label(10)
+	switch_on_constant(1,[('[]',13)],9)
+label(9)
+	fail
+label(11)
+	try(0)
+	trust(1)
+label(12)
+	try(0)
+	retry(1)
+	trust(2)
+label(13)
+	try_single(2)
+label(0)
+	allocate(5)
+	get4_y_variable(0,4,1,3,2,2,3,1)
+	get_list_x0
+	unify_x_variable(5)
+	unify_y_variable(4)
+	get_structure('-'/2,5)
+	unify_void
+	unify_x_variable(5)
+	put_x_value(5,0)
+	put_y_value(2,1)
+	call('@<'/2)
+    guard_cond
+	put5_y_value(4,0,3,1,2,2,1,3,0,4)
+	dealloc_execute('max_value'/5)
+label(1)
+	allocate(5)
+	get2_y_variable(0,4,1,3)
+	get_list_x0
+	unify_x_variable(5)
+	unify_y_variable(4)
+	get_structure('-'/2,5)
+	unify_y_variable(3)
+	unify_y_variable(2)
+    guard_cond
+	put5_y_value(4,0,3,1,2,2,1,3,0,4)
+	dealloc_execute('max_value'/5)
+label(2)
+	allocate(4)
+	get4_y_variable(1,4,3,3,0,2,2,1)
+	get_nil_x0
+    guard_cond
+	put_y_value(3,5)
+	get_y_value(2,5)
+	put_y_value(1,5)
+	get_y_value(0,5)
+	dealloc_proceed
+)
+
+
+predicate('list_to_assoclist'/3
+label(5)
+	switch_on_term(10,8,7,7,7,9,7)
+label(8)
+	switch_on_constant(1,[('[]',11)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(4)
+	get2_y_variable(3,2,0,1)
+	get_list_x0
+	unify_y_variable(2)
+	unify_y_variable(1)
+    guard_cond
+	put_y_value(3,3)
+	get_list(3)
+	unify_x_variable(3)
+	unify_x_variable(4)
+	get_structure('-'/2,3)
+	unify_y_value(2)
+	unify_y_value(0)
+	put2_y_value(1,0,0,1)
+	put_x_value(4,2)
+	dealloc_execute('list_to_assoclist'/3)
+label(1)
+	allocate(1)
+	get_y_variable(0,2)
+	get_nil_x0
+    guard_cond
+	put_y_value(0,3)
+	get_nil(3)
+	dealloc_proceed
+)
+
+
+predicate('append_expanded'/4
+label(5)
+	switch_on_term(10,8,7,7,7,9,7)
+label(8)
+	switch_on_constant(1,[('[]',11)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(5)
+	get3_y_variable(0,3,4,2,1,1)
+	get_list_x0
+	unify_y_variable(3)
+	unify_y_variable(2)
+    guard_cond
+	put_y_value(4,4)
+	get_list(4)
+	unify_x_variable(4)
+	unify_x_variable(5)
+	get_structure('-'/2,4)
+	unify_y_value(3)
+	unify_y_value(1)
+	put2_y_value(2,0,1,1)
+	put_x_value(5,2)
+	put_y_value(0,3)
+	dealloc_execute('append_expanded'/4)
+label(1)
+	allocate(2)
+	get2_y_variable(1,3,0,2)
+	get_nil_x0
+    guard_cond
+	put_y_value(1,4)
+	get_y_value(0,4)
+	dealloc_proceed
+)
+
+
+predicate('initialize_array'/4
+label(5)
+	switch_on_term(8,9,7,9,9,9,9)
+label(7)
+	switch_on_constant(1,[(0,8)],9)
+label(8)
+	try(0)
+	trust(1)
+label(9)
+	try_single(1)
+label(0)
+	allocate(2)
+	get2_y_variable(1,3,0,2)
+	get_constant(0,0)
+    guard_cond
+	put_y_value(1,4)
+	get_y_value(0,4)
+	dealloc_proceed
+label(1)
+	allocate(4)
+	get4_y_variable(0,3,1,2,2,1,3,0)
+    guard_cond
+	put_y_value(3,0)
+	put_y_variable(3,1)
+	call('dec'/2)
+	put_structure('set'/3,0)
+	unify_y_value(3)
+	unify_void
+	unify_y_value(2)
+	put_y_value(1,1)
+	put_y_variable(1,2)
+	send3
+	put4_y_value(3,0,2,1,1,2,0,3)
+	dealloc_execute('initialize_array'/4)
+)
+
+
+predicate('assoclist_to_array'/3
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(3)
+	get3_y_variable(1,2,0,1,2,0)
+    guard_cond
+	put2_y_value(2,0,0,1)
+	call('length'/2)
+	put_y_value(0,0)
+	put_y_variable(0,1)
+	call('new_array'/2)
+	put2_y_value(2,0,0,1)
+	put_y_variable(0,2)
+	call('alist_to_array'/3)
+	put_y_value(1,3)
+	get_y_value(0,3)
+	dealloc_proceed
+)
+
+
+predicate('alist_to_array'/3
+label(5)
+	switch_on_term(10,8,7,7,7,9,7)
+label(8)
+	switch_on_constant(1,[('[]',11)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(5)
+	get2_y_variable(0,2,1,1)
+	get_list_x0
+	unify_x_variable(3)
+	unify_y_variable(2)
+	get_structure('-'/2,3)
+	unify_y_variable(4)
+	unify_y_variable(3)
+    guard_cond
+	put_structure('set'/3,0)
+	unify_y_value(4)
+	unify_void
+	unify_y_value(3)
+	put_y_value(1,1)
+	put_y_variable(1,2)
+	send3
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('alist_to_array'/3)
+label(1)
+	allocate(2)
+	get2_y_variable(1,2,0,1)
+	get_nil_x0
+    guard_cond
+	put_y_value(1,3)
+	get_y_value(0,3)
+	dealloc_proceed
+)
+
+
+predicate('map_set'/4
+label(5)
+	switch_on_term(10,8,7,7,7,9,7)
+label(8)
+	switch_on_constant(1,[('[]',11)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(5)
+	get3_y_variable(0,3,1,2,2,1)
+	get_list_x0
+	unify_y_variable(4)
+	unify_y_variable(3)
+    guard_cond
+	put_structure('set'/3,0)
+	unify_y_value(4)
+	unify_void
+	unify_y_value(2)
+	put_y_value(1,1)
+	put_y_variable(1,2)
+	send3
+	put4_y_value(3,0,2,1,1,2,0,3)
+	dealloc_execute('map_set'/4)
+label(1)
+	allocate(2)
+	get2_y_variable(1,3,0,2)
+	get_nil_x0
+    guard_cond
+	put_y_value(1,4)
+	get_y_value(0,4)
+	dealloc_proceed
+)
+
+
+predicate('map_set_cons'/4
+label(5)
+	switch_on_term(10,8,7,7,7,9,7)
+label(8)
+	switch_on_constant(1,[('[]',11)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(6)
+	get3_y_variable(0,3,1,2,2,1)
+	get_list_x0
+	unify_y_variable(4)
+	unify_y_variable(3)
+    guard_cond
+	put_structure('set'/3,0)
+	unify_y_value(4)
+	unify_y_variable(4)
+	unify_y_variable(5)
+	put_y_value(1,1)
+	put_y_variable(1,2)
+	send3
+	put_y_value(5,4)
+	get_list(4)
+	unify_y_value(2)
+	unify_y_value(4)
+	put4_y_value(3,0,2,1,1,2,0,3)
+	dealloc_execute('map_set_cons'/4)
+label(1)
+	allocate(2)
+	get2_y_variable(1,3,0,2)
+	get_nil_x0
+    guard_cond
+	put_y_value(1,4)
+	get_y_value(0,4)
+	dealloc_proceed
+)
+
+
+predicate('inc_assoc'/3
+label(5)
+	switch_on_term(7,7,7,7,7,7,7)
+label(7)
+	try(0)
+	trust(1)
+label(0)
+	allocate(4)
+	get_y_variable(0,2)
+	get_x_variable(5,1)
+	get_y_variable(2,0)
+	put_y_value(2,0)
+	put_y_variable(3,1)
+	put_x_value(5,2)
+	put_y_variable(1,3)
+	call('get_assoc'/4)
+    guard_cond
+	put_y_value(3,0)
+	put_x_variable(5,1)
+	call('inc'/2)
+	put_y_value(2,0)
+	put_x_void(1)
+	put_x_value(5,2)
+	put2_y_value(1,3,0,4)
+	dealloc_execute('set_assoc'/5)
+label(1)
+	allocate(3)
+	get3_y_variable(0,2,1,1,2,0)
+    guard_cond
+	put_constant(1,1)
+	put3_y_value(2,0,1,2,0,3)
+	dealloc_execute('put_assoc'/4)
+)
+
+
+predicate('numbering'/3
+label(5)
+	switch_on_term(10,8,7,7,7,9,7)
+label(8)
+	switch_on_constant(1,[('[]',11)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(4)
+	get2_y_variable(3,2,1,1)
+	get_list_x0
+	unify_y_variable(2)
+	unify_y_variable(0)
+    guard_cond
+	put_y_value(3,3)
+	get_list(3)
+	unify_x_variable(3)
+	unify_x_variable(4)
+	get_structure('-'/2,3)
+	unify_y_value(2)
+	unify_y_value(1)
+	put_y_value(1,0)
+	put_x_variable(3,1)
+	call('inc'/2)
+	put_y_value(0,0)
+	put_x_value(3,1)
+	put_x_value(4,2)
+	dealloc_execute('numbering'/3)
+label(1)
+	allocate(1)
+	get_y_variable(0,2)
+	get_nil_x0
+    guard_cond
+	put_y_value(0,3)
+	get_nil(3)
+	dealloc_proceed
+)
+
+
+predicate('construct_range'/3
+label(5)
+	switch_on_term(7,7,7,7,7,7,7)
+label(7)
+	try(0)
+	trust(1)
+label(0)
+	allocate(3)
+	get3_y_variable(2,2,0,1,1,0)
+	put2_y_value(1,0,0,1)
+	call('not_greater'/2)
+    guard_cond
+	put_y_value(1,0)
+	put_x_variable(3,1)
+	call('inc'/2)
+	put_y_value(2,4)
+	get_list(4)
+	unify_y_value(1)
+	unify_x_variable(4)
+	put_x_value(3,0)
+	put_y_value(0,1)
+	put_x_value(4,2)
+	dealloc_execute('construct_range'/3)
+label(1)
+	allocate(1)
+	get_y_variable(0,2)
+    guard_cond
+	put_y_value(0,3)
+	get_nil(3)
+	dealloc_proceed
+)
+
+
+predicate('lists_to_ord_set'/2
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(2)
+	get2_y_variable(0,1,1,0)
+    guard_cond
+	put_y_value(1,0)
+	put_y_variable(1,1)
+	call('map_sort'/2)
+	put2_y_value(1,0,0,1)
+	dealloc_execute('ord_union'/2)
+)
+
+
+predicate('map_sort'/2
+label(5)
+	switch_on_term(10,8,7,7,7,9,7)
+label(8)
+	switch_on_constant(1,[('[]',11)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(3)
+	get_y_variable(2,1)
+	get_list_x0
+	unify_y_variable(1)
+	unify_y_variable(0)
+    guard_cond
+	put_y_value(1,0)
+	put_y_variable(1,1)
+	call('sort'/2)
+	put_y_value(2,2)
+	get_list(2)
+	unify_y_value(1)
+	unify_x_variable(2)
+	put_y_value(0,0)
+	put_x_value(2,1)
+	dealloc_execute('map_sort'/2)
+label(1)
+	allocate(1)
+	get_y_variable(0,1)
+	get_nil_x0
+    guard_cond
+	put_y_value(0,2)
+	get_nil(2)
+	dealloc_proceed
+)
+
+
+predicate('map'/3
+label(5)
+	switch_on_term(10,8,7,7,7,9,7)
+label(8)
+	switch_on_constant(1,[('[]',11)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(4)
+	get2_y_variable(3,2,0,1)
+	get_list_x0
+	unify_y_variable(2)
+	unify_y_variable(1)
+    guard_cond
+	put_y_value(2,0)
+	put_y_variable(2,1)
+	put_y_value(0,3)
+	call_apply(3,2)
+	put_y_value(3,3)
+	get_list(3)
+	unify_y_value(2)
+	unify_x_variable(3)
+	put2_y_value(1,0,0,1)
+	put_x_value(3,2)
+	dealloc_execute('map'/3)
+label(1)
+	allocate(1)
+	get_y_variable(0,2)
+	get_nil_x0
+    guard_cond
+	put_y_value(0,3)
+	get_nil(3)
+	dealloc_proceed
+)
+
+
+predicate('map'/5
+label(5)
+	switch_on_term(10,8,7,7,7,9,7)
+label(8)
+	switch_on_constant(1,[('[]',11)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(6)
+	get4_y_variable(0,4,1,3,5,2,2,1)
+	get_list_x0
+	unify_y_variable(4)
+	unify_y_variable(3)
+    guard_cond
+	put_y_value(4,0)
+	put_y_variable(4,1)
+	put_y_value(1,2)
+	put_y_variable(1,3)
+	put_y_value(2,5)
+	call_apply(5,4)
+	put_y_value(5,5)
+	get_list(5)
+	unify_y_value(4)
+	unify_x_variable(5)
+	put2_y_value(3,0,2,1)
+	put_x_value(5,2)
+	put2_y_value(1,3,0,4)
+	dealloc_execute('map'/5)
+label(1)
+	allocate(3)
+	get3_y_variable(2,4,1,3,0,2)
+	get_nil_x0
+    guard_cond
+	put_y_value(2,5)
+	get_y_value(1,5)
+	put_y_value(0,5)
+	get_nil(5)
+	dealloc_proceed
+)
+
+

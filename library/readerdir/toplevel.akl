@@ -1,0 +1,80 @@
+% ----------------------------------------------------------------------------
+% toplevel.akl
+% Thomas Sjöland, SICS
+% uses: utilities.akl map.akl syntax.akl 
+% rwrDTERM0.akl convDTERM0toDTERM1.akl convDPROGRAMtoDPROGRAM.akl 
+% annotPROGRAM.akl 
+% ----------------------------------------------------------------------------
+normalize_program(N) :-
+	read_program(N,P0),
+	construct_annotation_template(P0,P1),
+	atom_to_chars(N,L),
+	fappend(L,".norm",L0),
+	chars_to_atom(L0,N0),
+	write_program(N0,P1).
+
+normalize_program0(N) :-
+	read_program(N,P0),
+%	filter_public(P0,P1), unnecessary if publics are defined
+	P0=P1,
+	unnest_metacalls(P1,P2),
+	unnest_aliases(P2,P3),
+	unnest_terms(P3,P4),	
+	balance_program(P4,P5),
+	unique_program_vars(P5,P6),
+	unique_short_program_vars(P6,P7),
+	construct_annotation_template(P7,P8),
+	atom_to_chars(N,L),
+	fappend(L,".norm",L0),
+	chars_to_atom(L0,N0),
+	write_program(N0,P8).
+
+normalize_program1(N) :-
+	read_program(N,P0),
+%	filter_public(P0,P1),	should not be applied if publics are there
+	P0=P1,
+	atom_to_chars(N,L),
+	fappend(L,".norm",L0),
+	chars_to_atom(L0,N0),
+	write_program(N0,P1).	
+
+normalize_program2(N) :-
+	read_program(N,P0),
+%	filter_public(P0,P1),	should not be applied if publics are there
+	stdout(S),
+	write_program(P0)-S,
+	writenl('unnest multiple variable occurrences in literals')-S,
+	unnest_multiple_variable_occurrences(P0,P1),	
+	write_program(P1)-S,
+	writenl('unnest metacalls')-S,
+	unnest_metacalls(P1,P2),
+	write_program(P2)-S,
+	writenl('unnest aliases (perhaps redundant)')-S,
+	unnest_aliases(P2,P3),
+	write_program(P3)-S,
+	writenl('unnest terms to create simple equalities')-S,
+	unnest_terms(P3,P4),	
+	write_program(P4)-S,
+	P4=P5,
+	writenl('balance '','' in the program')-S,
+	balance_program(P5,P6),
+	write_program(P6)-S,
+	writenl('introduce unique program variables')-S,
+	unique_program_vars(P6,P7),
+	write_program(P7)-S,
+	writenl('change program variables to numeric form')-S,
+	unique_numeric_program_vars(P7,P8),
+	write_program(P8)-S,
+	writenl('construct herbrand equality atoms')-S,
+	construct_herbrand_equal_atoms(P8,P9),
+	write_program(P9)-S,
+	writenl('construct annotation templates for analysis result')-S,
+	construct_annotation_template(P9,P10),
+	atom_to_chars(N,L),
+	fappend(L,".norm",L0),
+	chars_to_atom(L0,N0),
+	write_program(N0,P10).
+
+
+
+

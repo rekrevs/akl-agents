@@ -1,0 +1,332 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%
+%%%         STAGE 1 
+%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+initial_guard_operator(question,GOp):- -> GOp=noisy_wait.
+initial_guard_operator(G1,G2):-        -> G1=G2.
+
+cont_guard_operator(question,_):-   -> true.
+cont_guard_operator(GOp,GOp):-       ->true.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%         flattening
+%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+flatten_clause(struct((:-),2,[struct(F,A,Args),Rest]),Out,Id):-
+   ->
+   divide_main(Rest,GuardOp,Guard,Body),
+   term_convert_list(Args,Args1),
+   Out=clause(Args1,Unify_Guard,Flat_Guard,Deep_Guard,Unify_Body,
+         Flat_Body,Deep_Body),
+   Id=(F,A,GuardOp),
+   divide_goals(Guard,1,Unify_Guard,Flat_Guard,Deep_Guard),
+   divide_goals(Body,1,Unify_Body,Flat_Body,Deep_Body).
+flatten_clause(struct((:-),1,[D]),Out,Id):-
+    -> 
+   error(flatten_clause),
+   Id=directive(D,Out).
+flatten_clause(struct(F,A,Args),Out,Id):-
+    -> 
+   term_convert_list(Args,Args1),
+   Out=clause(Args1,[],[],[],[],[],[]),
+   Id=(F,A,question).
+flatten_clause(A,_Out,_Id):-
+   -> 
+   error(flatten_clause(A)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+term_convert(struct([],0,[]),Out):-            -> Out=nil.
+term_convert(struct(I,0,[]),Out):-  integer(I) -> Out=integer(I).
+term_convert(struct(F,0,[]),Out):-             -> Out=atom(F).
+term_convert(struct('.',2,[A,B]),Out):-         
+   -> 
+   Out=list(A1,B1),
+   term_convert(A,A1),
+   term_convert(B,B1).
+term_convert(struct(F,A,Args),Out):-       
+   ->
+   Out=struct(F,A,Args1),
+   term_convert_list(Args,Args1).
+term_convert(var('_'),Out):-                   -> Out=unnamed.
+term_convert(X,Out):- X=var(_)                 -> Out=X.
+
+term_convert_list([],Out):- -> Out=[].
+term_convert_list([X|Xs],Out):- 
+   ->
+   Out=[Y|Ys],
+   term_convert(X,Y),
+   term_convert_list(Xs,Ys).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+divide_main(struct(GOp,2,[G,B]),GuardOp,Guard,Body):-
+   translate_gop(GOp,Trans)
+    -> 
+   GuardOp=Trans,	
+   flatten_rest(G,Guard),
+   flatten_rest(B,Body).
+divide_main(struct(GOp,1,[B]),GuardOp,Guard,Body):-
+   translate_gop(GOp,Trans)
+    -> 
+   GuardOp=Trans,	
+   Guard=[],
+   flatten_rest(B,Body).
+divide_main(struct(',',2,[G,B]),GuardOp,Guard,Body):-
+   ->
+   GuardOp=question,
+   Guard=[],
+   flatten_rest([G,B],Body).
+divide_main(X,GuardOp,Guard,Body):-
+   ->
+   GuardOp=question,
+   Guard=[],
+   Body=[X].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+flatten_rest(struct(',',2,[First,Rest]),Out):-
+    -> 
+   term_convert(First,First1),
+   Out=[First1|Fs],
+   flatten_rest(Rest,Fs).
+flatten_rest(Non_Conjunction,Out):-
+    -> 
+   term_convert(Non_Conjunction,Non_Conjunction1),
+   Out=[Non_Conjunction1].
+
+%%%%
+
+translate_gop(('->'),quiet_cut).
+translate_gop(('|'),quiet_commit).
+translate_gop(('??'),quiet_wait).
+translate_gop(('?'),noisy_wait).
+translate_gop(('||'),noisy_commit).
+translate_gop(('!'),noisy_cut).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+divide_goals([],_,G1,G2,G3):-
+    -> G1=[],G2=[],G3=[].
+divide_goals([Goal|Goals],Ct,G1,G2,G3):-
+   Goal=struct('=',2,[_,_])
+   -> 
+   G1=[g(Ct,Goal)|RestG1],
+   inc(Ct,Ct1),
+   divide_goals(Goals,Ct1,RestG1,G2,G3).
+divide_goals([Goal|Goals],Ct,G1,G2,G3):-
+   classify_builtin_goal(Goal,indexing(_))
+   -> 
+   G2=[g(Ct,Goal)|RestG2],
+   inc(Ct,Ct1),
+   divide_goals(Goals,Ct1,G1,RestG2,G3).
+divide_goals([Goal|Goals],Ct,G1,G2,G3):-
+    -> 
+   G3=[g(Ct,Goal)|RestG3],
+   inc(Ct,Ct1),
+   divide_goals(Goals,Ct1,G1,G2,RestG3).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%
+%%%         STAGE 2
+%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%   trans_clause
+%%%       where Clause=clause(Arguments,Flat_Unification,Flat_Non_
+%%%                    Unification,Deep_Guard,Flat_Body,Deep_Body,
+%%%      1) Preliminary variables occurrences are assigned
+%%%      2) Singletons and underscored begin vars are extracted and examined
+%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+trans_clause(Clause,NewClause,Warn):-
+   Clause=clause(Args,FUG,FG,DG,FUB,FB,RB)
+    -> 
+   Clause1=clause(Args1,FUG1,FG1,DG1,FUB1,FB1,RB1),
+   create_var_handler(DbP),
+   send_list(Db,DbP,_),
+   Db=[par([Db1,Db2,Db3,Db4,Db5,Db6,Db7]),
+       all_single_occurrences(Singletons),all_begin_with_underscore(Under),Db8|Db9],
+   variable_extraction_goal(-1,Args,Args1,Db1),
+   variable_extraction(-1,FUG,FUG1,Db2),
+   variable_extraction(-1,FG,FG1,Db3),
+   variable_extraction(-1,DG,DG1,Db4),
+   variable_extraction(0,FUB,FUB1,Db5),
+   variable_extraction(0,FB,FB1,Db6),
+   variable_extraction(0,RB,RB1,Db7),
+   handle_singletons(Singletons,Under,Clause1,Clause2,Warn,Db8),
+   trans_clause2(Clause2,NewClause,Warn,Db9).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%  trans_clause2  -- Weird constraints
+%%%                       Flags={remove_goal(X),replace_goal(X,New),fail}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+t_c_junk(ok,N):- -> N=[].
+
+trans_clause2(_Clause,NewClause,_Warn,Db):-
+   singleton_dump
+   ->
+   Db=[response(X)],t_c_junk(X,NewClause).
+trans_clause2(Clause,NewClause,Warn,Db):-
+   Clause=clause(_Args,FUG,FG,_RG,FUB,FB,_RB)
+   -> 
+   weird_equality_constraints(FUG,Warn,Flag1),
+   weird_non_unify_constraints(FG,Warn,Flag2),
+   weird_equality_constraints(FUB,Warn,Flag3),
+   weird_non_unify_constraints(FB,Warn,Flag4),
+   trans_clause3(Flag1,Flag2,Flag3,Flag4,Clause,NewClause,Warn,Db).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%  trans_clause3   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+trans_clause3(ok,ok,ok,ok,C,NC,Warn,Db):-
+   C=clause(_Args,FUG,_FG,_RG,FUB,_FB,_RB)
+   ->
+   Db=[Db1,Db2|Db3],
+   useless_equality_constraints(FUG,guard,Warn,F1,Db1),
+   useless_equality_constraints(FUB,body,Warn,F2,Db2),
+   trans_clause4(F1,F2,C,NC,Warn,Db3).
+trans_clause3(F1,F2,F3,F4,C,_NC,Warn,_Db):-
+   ->
+   not_implemented(trans_clause3(Warn,F1,F2,F3,F4,C)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%  trans_clause4   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+trans_clause4(ok,ok,C,NC,Warn,Db):-
+   C=clause(Args,FUG,FG,RG,FUB,FB,RB)
+   ->
+   first_goal_ct(RG,First),
+   Db=[Db1,Db2,Db3|Db4],
+   deal_with_head_occs(Args,NArgs,Db1,CUC1),
+   extract_head_constraints(FUG,SUC,RestU,First,Warn,cuc(CUC,CUC1),Db2),
+   amalgamate_simple(SUC,NArgs,Args1),
+   head_non_unify_constraints(FG,First,NU,Rest,Warn,Db3),
+   NC=clause(Index,Guard,_,_),
+   Index=index(Args1,CUC,NU),
+   Work=work(FUB,FB,RB,NC),
+   trans_clause5(RestU,Rest,RG,Guard,Work,Warn,Db4).
+trans_clause4(F1,F2,C,_NC,Warn,_Db):-
+   ->
+   not_implemented(trans_clause4(Warn,F1,F2,C)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%  trans_clause5
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+trans_clause5([],[],[],Guard,Work,Warn,Db):-
+   ->
+   Guard=[],
+   trans_clause7(5,Work,Warn,Db).
+trans_clause5(U,NU,[],_Guard,Work,Warn,_Db):-
+   ->
+   not_implemented(trans_clause5(Warn,U,NU,Work)).
+trans_clause5(U,NU,RG,Guard,Work,Warn,Db):-
+   ->
+   trans_clause6(4,U,NU,RG,Guard,Work,Warn,Db).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%   trans_clause6
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+trans_clause6(Ct,[],[],[],Guard,Work,Warn,Db):-
+   ->
+   Guard=[],
+   trans_clause7(Ct,Work,Warn,Db).
+trans_clause6(_Ct,U,NU,[],_Guard,Work,Warn,_Db):-
+   ->
+   not_implemented(trans_clause6(Warn,U,NU,Work)).
+trans_clause6(Ct,U,NU,[Main|RG],Guard,Work,Warn,Db):-
+   ->
+   Guard=[G|Guard1],
+   add(5,Ct,Ct5),
+   Db=[Db1|Db2],   
+   first_goal_ct(RG,First),
+   trans_block(-1,Ct,First,U,NU,Main,RestU,RestNU,G,Warn,Db1),
+   trans_clause6(Ct5,RestU,RestNU,RG,Guard1,Work,Warn,Db2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%   trans_block
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+trans_block(IsCt,OccToBe,NextCt,U,NU,g(Ct,Goal),RestU,RestNU,Block,Warn,Db):-
+   ->
+   Db=[Db1,Db2,Db3,Db4|Db5],
+   make_block(IsCt,Block,PreU,PreNU,Goal,PostU,PostNU),
+   inc(OccToBe,Ct1),inc(Ct1,Ct2),inc(Ct2,Ct3),inc(Ct3,Ct4),
+   occ_shift(IsCt,Ct2,Goal,Db1),
+   extract_goals_before(Ct,U,Ux,U1),
+   pre_unify(OccToBe,IsCt,Ux,PreU,Warn,Db2),
+   extract_goals_before(Ct,NU,NUx,NU1),
+   pre_non_unify(Ct1,IsCt,NUx,PreNU,Warn,Db3),
+   extract_goals_before(NextCt,U1,AfterU,RemU),
+   maybe_post_unify(Ct3,IsCt,AfterU,PostU,OtherU,Db4),
+   app(OtherU,RemU,RestU),
+   extract_goals_before(NextCt,NU1,AfterNU,RemNU),
+   maybe_post_non_unify(Ct4,IsCt,AfterNU,PostNU,OtherNU,Db5),
+   app(OtherNU,RemNU,RestNU).
+
+%%%%
+
+make_block(-1,Block,U1,U2,G,U3,U4):- -> Block=g(U1,U2,G,U3,U4).
+make_block(0,Block,U1,U2,G,U3,U4):-  -> Block=b(U1,U2,G,U3,U4).
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%   trans_clause7
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+trans_clause7(Ct,work(FUB,FB,RB,NewClause),Warn,Db):-
+   NewClause=clause(_,_,Body,DbOut)
+   ->
+   Db=[Db1,Db2|Db3],
+   inc(Ct,Ct1),inc(Ct1,Ct2),
+   Body=[out(VS,VV,VC,OutNU)|Body1],
+   first_goal_ct(RB,First),
+   extract_output_unify(Ct,First,FUB,VS,VV,VC,RestU,Db1),
+   extract_output_non_unify(Ct1,First,FB,OutNU,RestNU,Db2),
+   trans_clause8(Ct2,RestU,RestNU,RB,Body1,Warn,Db3,DbOut).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+%%%   trans_clause8
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+
+trans_clause8(_Ct,[],[],[],Body,_Warn,Db,DbOut):-
+   ->
+   Body=[],Db=[port(DbOut)].
+trans_clause8(_Ct,U,NU,[],_Body,Warn,_Db,_DbOut):-
+   ->
+   not_implemented(trans_clause8(Warn,U,NU)).
+trans_clause8(Ct,U,NU,[Main|RB],Body,Warn,Db,DbOut):-
+   ->
+   Body=[B|Body1],
+   add(5,Ct,Ct5),
+   Db=[Db1|Db2],   
+   first_goal_ct(RB,First),
+   trans_block(0,Ct,First,U,NU,Main,RestU,RestNU,B,Warn,Db1),
+   trans_clause8(Ct5,RestU,RestNU,RB,Body1,Warn,Db2,DbOut).
+
+
+
+
+
+
+
+
+

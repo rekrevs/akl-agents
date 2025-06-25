@@ -1,0 +1,817 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% reg_opt
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dec_opt_reg([],_Dec,C-Cx):-  -> C=Cx.
+dec_opt_reg([N|Labels],Dec,C-Cx):- 
+   -> 
+   arg(N,Dec,Port),
+   send(get_block(Block),Port,_),
+   reg_opt_block(Block,Port,C-C1),
+   dec_opt_reg(Labels,Dec,C1-Cx).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+reg_opt_block(dummy,_,C-Cx):- -> C=Cx.
+reg_opt_block(t(_,Class,_),_Port,C-Cx):-
+   flat_member(Class,[block,try(_,_),suspend(_),alias,dummy,choice(_)])
+   -> 
+   C=Cx.
+reg_opt_block(t(Code,Class,End),Port,Cir):-
+   ->
+   send(set_block(Cir,t(Code1,Class,End)),Port,_),
+   reg_opt_block1(Code,Code1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% reg_opt_block1
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+reg_opt_block1(Code,Code1):-
+   ->
+   divide_into_mini_blocks(Code,Mini),
+   reg_opt_block2(Mini,Code1,[]).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% reg_opt_block2
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+reg_opt_block2([],B,E):- -> B=E.
+reg_opt_block2([single(X)|Mini],B,E):-
+   ->
+   B=[X|B1],
+   reg_opt_block2(Mini,B1,E).
+reg_opt_block2([Code|Mini],B,E):-
+   ->
+   reg_opt_block3(Code,B,B1),
+   reg_opt_block2(Mini,B1,E).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% reg_opt_block3
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+reg_opt_block3(Code,B,E):-
+   ->
+   reverse_list(Code,RevCode),
+   instr_depend(RevCode,DepPs,[]),
+   dep_init(DepPs,Code,Deps),
+/*   write_deps(Deps),*/
+   do_reg_opt(Deps,B,E).
+
+
+
+write_deps([]):- -> true.
+write_deps([p(Ct,f(p(_,Inst),From,To,Col))|Deps]):-
+   ->
+   write(Ct),write(':'),write(Inst),nl,
+   write('     From: '),write(From),nl,
+   write('     To  : '),write(To),nl,
+   write('     Coll: '),write(Col),nl,
+   write_deps(Deps).
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% divide_into_mini_blocks
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+divide_into_mini_blocks([X|Xs],Mini):-
+   ->
+   classify_instr(X,Class),
+   mini_blocks_beg(X,Class,Xs,Mini).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+mini_blocks_beg(X,Class,[Y|Ys],Mini):-
+   flat_member(Class,[guard(_),branch(_,_,_),spec(call),write_exit(_),jump,choice(_),try(deep,_)])
+   ->
+   Mini=[single(X)|Mini1],
+   classify_instr(Y,Class1),
+   mini_blocks_beg(Y,Class1,Ys,Mini1).
+mini_blocks_beg(X,_Class,[],Mini):-
+    ->
+    Mini=[single(X)].
+mini_blocks_beg(X,Class,[Y|Ys],Mini):-
+    flat_member(Class,[ord(_),read(_),push(_),h_match(_),spec(_),jump_match(_,_)])
+    ->
+    Mini=[[p(1,p(Class,X))|Cur]|Mini1],
+    classify_instr(Y,Class1),
+    mini_blocks(2,Y,Class1,Ys,Cur,Mini1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+mini_blocks(_Ct,X,Class,Rest,Cur,Mini):-
+   flat_member(Class,[try(deep,_),choice(_),end(_),spec(call),jump_match(_,_),
+	branch(_,_,_),write_exit(_),jump,guard(_)])
+   ->
+   Cur=[],
+   mini_blocks_beg(X,Class,Rest,Mini).
+mini_blocks(Ct,X,Class,[Y|Ys],Cur,Mini):-
+    flat_member(Class,[push(_),h_match(_),read(_),ord(_),spec(_)])
+    ->
+    Cur=[p(Ct,p(Class,X))|Cur1],
+    inc(Ct,Ct1),
+    classify_instr(Y,Class1),
+    mini_blocks(Ct1,Y,Class1,Ys,Cur1,Mini).
+mini_blocks(Ct,X,Class,[],Cur,Mini):-
+    flat_member(Class,[push(_),h_match(_),read(_),ord(_),spec(_)])
+    ->
+    Cur=[p(Ct,p(Class,X))],
+    Mini=[].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% DOING REGISTER OPT
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% do_reg_opt
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+do_reg_opt([],B,E):- -> B=E.
+do_reg_opt(Deps,B,E):-
+   ->
+   dep_non_collapsable_roots(Deps,Roots,Rest),
+   do_reg_opt1(Roots,Rest,B,E).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+do_reg_opt1([],Deps,B,E):-
+    ->
+    dep_collapsable_roots(Deps,Roots,Rest),
+    do_reg_opt_coll(Roots,Rest,B,E).
+do_reg_opt1(Roots,Rest,B,E):-
+    ->
+    do_reg_opt2(Roots,[],Rest,B,E).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+do_reg_opt2([],Acc,Rest,B,E):-
+    ->
+    deps_edit(Rest,Acc,Rest1),
+    do_reg_opt(Rest1,B,E).
+do_reg_opt2([p(Ct,f(p(_,I),_,_,_))|Roots],Acc,Rest,B,E):-
+    ->
+    B=[I|B1],
+    do_reg_opt2(Roots,[Ct|Acc],Rest,B1,E).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+do_reg_opt_coll([],[p(Ct,f(p(_,Instr),_,_,_))|Rest],B,E):- 
+    -> 
+    maybe_tell_no_collapse,
+    B=[Instr|B1],
+    deps_edit(Rest,[Ct],Rest1),
+    do_reg_opt(Rest1,B1,E).
+do_reg_opt_coll(Roots,Rest,B,E):- 
+    ->
+    do_reg_opt_coll1(Roots,[],Rest,B,E).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+maybe_tell_collapse:-
+    tell_collapse_flag(yes)
+    ->
+    write('Collapsed instruction '),nl.
+maybe_tell_collapse:-
+    tell_collapse_flag(no)
+    ->
+    true.
+
+maybe_tell_no_collapse:-
+    tell_collapse_flag(yes)
+    ->
+    write('Collapse could not be performed '),nl.
+maybe_tell_no_collapse:-
+    tell_collapse_flag(no)
+    ->
+    true.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+do_reg_opt_coll1([col(Ct1,Ct2,I1,I2)|Roots],Acc,Rest,B,E):-
+    ->
+    maybe_tell_collapse,
+    collapse_instr(I1,I2,I),
+    B=[I|B1],
+    do_reg_opt_coll1(Roots,[Ct1,Ct2|Acc],Rest,B1,E).
+do_reg_opt_coll1([],Acc,Rest,B,E):-
+    ->
+    deps_edit(Rest,Acc,Rest1),
+    do_reg_opt(Rest1,B,E).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% INSTR DEPEND
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% instr_depend
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+instr_depend([],DepB,DepE):-
+   ->
+   DepB=DepE.
+instr_depend([p(N,p(push(data),_))|Instr],DepB,DepE):-
+   ->
+   instr_depend_push(N,Instr,DepB,DepB1),
+   instr_depend(Instr,DepB1,DepE).
+instr_depend([p(N,p(Class,I))|Instr],DepB,DepE):-
+   flat_member(Class,[push(XY),h_match(XY)])
+   ->
+   instr_depend_push(N,Instr,DepB,DepB1),
+   instr_depend2(N,XY,I,Instr,DepB1,DepB2),
+   instr_depend(Instr,DepB2,DepE).
+instr_depend([p(N,p(Class,I))|Instr],DepB,DepE):-
+   flat_member(Class,[read(XY),ord(XY),jump_match(XY,_)])
+   ->
+   instr_depend2(N,XY,I,Instr,DepB,DepB1),
+   instr_depend(Instr,DepB1,DepE).
+instr_depend([p(_,p(Class,_))|Instr],DepB,DepE):-
+   flat_member(Class,[spec(cont),spec(guard)])
+   ->
+   instr_depend(Instr,DepB,DepE).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+instr_depend2(_N,[],_I,_Code,DepB,DepE):- -> DepB=DepE.
+instr_depend2(N,[X|Xs],I,Code,DepB,DepE):-
+   ->
+   instr_depend2(N,X,I,Code,DepB,DepB1),
+   instr_depend2(N,Xs,I,Code,DepB1,DepE).
+instr_depend2(N,init(x),I,Code,DepB,DepE):-
+   ->
+   find_x_init(I,Reg),
+   instr_depend_init_x(Reg,N,Code,DepB,DepE).
+instr_depend2(N,init(xy),I,Code,DepB,DepE):-
+   ->
+   find_x_init(I,Reg),
+   find_y_init(I,YReg),
+   instr_depend_init_x(Reg,N,Code,DepB,DepB1),
+   instr_depend_init_y(YReg,N,Code,DepB1,DepE).
+instr_depend2(N,init(y),I,Code,DepB,DepE):-
+   ->
+   find_y_init(I,Reg),
+   instr_depend_init_y(Reg,N,Code,DepB,DepE).
+instr_depend2(N,use(x),I,Code,DepB,DepE):-
+   ->
+   find_x_use(I,Reg),
+   instr_depend_use_x(Reg,N,Code,DepB,DepE).
+instr_depend2(N,match(x),I,Code,DepB,DepE):-
+   ->
+   find_x_match(I,Reg),
+   instr_depend_match_x(Reg,N,Code,DepB,DepE).
+instr_depend2(N,match(xx),I,Code,DepB,DepE):-
+   ->
+   find_xx_match(I,Reg1,Reg2),
+   instr_depend_match_x(Reg1,N,Code,DepB,DepB1),
+   instr_depend_match_x(Reg2,N,Code,DepB1,DepE).
+instr_depend2(N,match(yy),I,Code,DepB,DepE):-
+   ->
+   find_yy_match(I,Reg1,Reg2),
+   instr_depend_match_y(Reg1,N,Code,DepB,DepB1),
+   instr_depend_match_y(Reg2,N,Code,DepB1,DepE).
+instr_depend2(N,match(xy),I,Code,DepB,DepE):-
+   ->
+   find_x_match(I,Reg1),
+   find_y_match(I,Reg2),
+   instr_depend_match_x(Reg1,N,Code,DepB,DepB1),
+   instr_depend_match_y(Reg2,N,Code,DepB1,DepE).
+instr_depend2(N,use(y),I,Code,DepB,DepE):-
+   ->
+   find_y_use(I,Reg),
+   instr_depend_use_y(Reg,N,Code,DepB,DepE).
+instr_depend2(N,match(y),I,Code,DepB,DepE):-
+   ->
+   find_y_match(I,Reg),
+   instr_depend_match_y(Reg,N,Code,DepB,DepE).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% instr_depend_push
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+instr_depend_push(_N,[],DepB,DepE):- -> DepB=DepE.
+instr_depend_push(N,[p(N1,p(Class,_))|_],DepB,DepE):- 
+    flat_member(Class,[push(_),h_match(_)])
+    -> 
+    DepB=[p(N1,N)|DepE].
+instr_depend_push(N,[p(_,p(Class,_))|Xs],DepB,DepE):- 
+    flat_member(Class,[read(_),ord(_),jump_match(_,_),spec(cont),spec(guard)])
+    ->
+    instr_depend_push(N,Xs,DepB,DepE).    
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% instr_depend_init_x
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+instr_depend_init_x(_Reg,_N,[],DepB,DepE):- -> DepB=DepE.
+instr_depend_init_x(Reg,N,[p(_,p(Class,_))|Xs],DepB,DepE):- 
+    flat_member(Class,[spec(cont),spec(guard),push(data)])
+    ->
+    instr_depend_init_x(Reg,N,Xs,DepB,DepE).    
+instr_depend_init_x(Reg,N,[p(N1,p(Class,I))|Xs],DepB,DepE):- 
+    flat_member(Class,[h_match(XY),read(XY),ord(XY),push(XY),jump_match(XY,_)])
+    -> 
+    instr_depend_init_x_2(Reg,N,N1,XY,I,Xs,DepB,DepE).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+instr_depend_init_x_2(Reg,_N,_N1,[init(x)|_],I,_Is,DepB,DepE):-
+    find_x_init(I,Reg)
+    ->
+    DepB=DepE.
+instr_depend_init_x_2(Reg,N,N1,[use(x)|_],I,Is,DepB,DepE):-
+    find_x_use(I,Reg)
+    ->
+    DepB=[p(N1,N)|DepB1],
+    instr_depend_init_x(Reg,N,Is,DepB1,DepE).
+instr_depend_init_x_2(Reg,N,N1,[XY|_],I,Is,DepB,DepE):-
+    flat_member(XY,[match(x),match(xy)]),
+    find_x_match(I,Reg)
+    ->
+    DepB=[p(N1,N)|DepB1],
+    instr_depend_init_x(Reg,N,Is,DepB1,DepE).
+instr_depend_init_x_2(Reg,N,_N1,[],_I,Is,DepB,DepE):-
+    ->
+    instr_depend_init_x(Reg,N,Is,DepB,DepE).
+instr_depend_init_x_2(Reg,N,N1,[_|XYs],I,Is,DepB,DepE):-
+    ->
+    instr_depend_init_x_2(Reg,N,N1,XYs,I,Is,DepB,DepE).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% instr_depend_init_y
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+instr_depend_init_y(_Reg,_N,[],DepB,DepE):- -> DepB=DepE.
+instr_depend_init_y(Reg,N,[p(N1,p(Class,_))|Xs],DepB,DepE):- 
+    flat_member(Class,[spec(cont),spec(guard)])
+    ->
+    DepB=[p(N1,N)|DepB1],
+    instr_depend_init_y(Reg,N,Xs,DepB1,DepE).    
+instr_depend_init_y(Reg,N,[p(_,p(Class,_))|Xs],DepB,DepE):- 
+    flat_member(Class,[push(data)])
+    ->
+    instr_depend_init_y(Reg,N,Xs,DepB,DepE).    
+instr_depend_init_y(Reg,N,[p(N1,p(Class,I))|Xs],DepB,DepE):- 
+    flat_member(Class,[h_match(XY),read(XY),ord(XY),push(XY),jump_match(XY,_)])
+    -> 
+    instr_depend_init_y_2(Reg,N,N1,XY,I,Xs,DepB,DepE).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+instr_depend_init_y_2(Reg,_N,_N1,[init(y)|_],I,_Is,DepB,DepE):-
+    find_y_init(I,Reg)
+    ->
+    DepB=DepE.
+instr_depend_init_y_2(Reg,N,N1,[use(y)|_],I,Is,DepB,DepE):-
+    find_y_use(I,Reg)
+    ->
+    DepB=[p(N1,N)|DepB1],
+    instr_depend_init_y(Reg,N,Is,DepB1,DepE).
+instr_depend_init_y_2(Reg,N,N1,[XY|_],I,Is,DepB,DepE):-
+    flat_member(XY,[match(y),match(xy)]),
+    find_y_match(I,Reg)
+    ->
+    DepB=[p(N1,N)|DepB1],
+    instr_depend_init_y(Reg,N,Is,DepB1,DepE).
+instr_depend_init_y_2(Reg,N,N1,[match(yy)|_],I,Is,DepB,DepE):-
+    find_yy_match(I,Reg1,Reg2),
+    (Reg1=Reg;Reg2=Reg)
+    ->
+    DepB=[p(N1,N)|DepB1],
+    instr_depend_init_y(Reg,N,Is,DepB1,DepE).
+instr_depend_init_y_2(Reg,N,_N1,[],_I,Is,DepB,DepE):-
+    ->
+    instr_depend_init_y(Reg,N,Is,DepB,DepE).
+instr_depend_init_y_2(Reg,N,N1,[_|XYs],I,Is,DepB,DepE):-
+    ->
+    instr_depend_init_y_2(Reg,N,N1,XYs,I,Is,DepB,DepE).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% instr_depend_use_x
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+instr_depend_use_x(_Reg,_N,[],DepB,DepE):- -> DepB=DepE.
+instr_depend_use_x(Reg,N,[p(_,p(Class,_))|Xs],DepB,DepE):- 
+    flat_member(Class,[spec(cont),spec(guard),push(data)])
+    ->
+    instr_depend_use_x(Reg,N,Xs,DepB,DepE).    
+instr_depend_use_x(Reg,N,[p(N1,p(Class,I))|Xs],DepB,DepE):- 
+    flat_member(Class,[h_match(XY),read(XY),ord(XY),push(XY),jump_match(XY,_)])
+    -> 
+    instr_depend_use_x_2(Reg,N,N1,XY,I,Xs,DepB,DepE).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+instr_depend_use_x_2(Reg,N,N1,[init(x)|_],I,_Is,DepB,DepE):-
+    find_x_init(I,Reg)
+    ->
+    DepB=[p(N1,N)|DepE].
+instr_depend_use_x_2(Reg,N,N1,[match(x)|_],I,_Is,DepB,DepE):-
+    find_x_match(I,Reg)
+    ->
+    DepB=[p(N1,N)|DepE].
+instr_depend_use_x_2(Reg,N,N1,[match(xx)|_],I,_Is,DepB,DepE):-
+    find_xx_match(I,Reg1,Reg2),
+    (Reg1=Reg;Reg2=Reg)
+    ->
+    DepB=[p(N1,N)|DepE].
+instr_depend_use_x_2(Reg,N,_N1,[],_I,Is,DepB,DepE):-
+    ->
+    instr_depend_use_x(Reg,N,Is,DepB,DepE).
+instr_depend_use_x_2(Reg,N,N1,[_|XYs],I,Is,DepB,DepE):-
+    ->
+    instr_depend_use_x_2(Reg,N,N1,XYs,I,Is,DepB,DepE).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% instr_depend_use_y
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+instr_depend_use_y(_Reg,_N,[],DepB,DepE):- -> DepB=DepE.
+instr_depend_use_y(Reg,N,[p(_,p(Class,_))|Xs],DepB,DepE):- 
+    flat_member(Class,[push(data)])
+    ->
+    instr_depend_use_y(Reg,N,Xs,DepB,DepE).
+instr_depend_use_y(Reg,N,[p(N1,p(Class,I))|Xs],DepB,DepE):- 
+    flat_member(Class,[h_match(XY),read(XY),ord(XY),push(XY),jump_match(XY,_)])
+    -> 
+    instr_depend_use_y_2(Reg,N,N1,XY,I,Xs,DepB,DepE).
+instr_depend_use_y(_,N,[p(N1,p(Class,_))|Xs],DepB,DepE):- 
+    flat_member(Class,[spec(cont),spec(guard)])
+    ->
+    DepB=[p(N1,N)|DepB1],
+    instr_depend_use_y(N,Xs,DepB1,DepE).    
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+instr_depend_use_y_2(Reg,N,N1,[init(y)|_],I,_Is,DepB,DepE):-
+    find_y_init(I,Reg)
+    ->
+    DepB=[p(N1,N)|DepE].
+instr_depend_use_y_2(Reg,N,N1,[XY|_],I,_Is,DepB,DepE):-
+    flat_member(XY,[match(y),match(xy)]),
+    find_y_match(I,Reg)
+    ->
+    DepB=[p(N1,N)|DepE].
+instr_depend_use_y_2(Reg,N,N1,[match(yy)|_],I,_Is,DepB,DepE):-
+    find_yy_match(I,Reg1,Reg2),
+    (Reg1=Reg;Reg2=Reg)
+    ->
+    DepB=[p(N1,N)|DepE].
+instr_depend_use_y_2(Reg,N,_N1,[],_I,Is,DepB,DepE):-
+    ->
+    instr_depend_use_y(Reg,N,Is,DepB,DepE).
+instr_depend_use_y_2(Reg,N,N1,[_|XYs],I,Is,DepB,DepE):-
+    ->
+    instr_depend_use_y_2(Reg,N,N1,XYs,I,Is,DepB,DepE).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% instr_depend_match_y
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+instr_depend_match_y(_Reg,_N,[],DepB,DepE):- -> DepB=DepE.
+instr_depend_match_y(Reg,N,[p(_,p(Class,_))|Xs],DepB,DepE):- 
+    flat_member(Class,[push(data)])
+    ->
+    instr_depend_match_y(Reg,N,Xs,DepB,DepE).
+instr_depend_match_y(Reg,N,[p(N1,p(Class,I))|Xs],DepB,DepE):- 
+    flat_member(Class,[h_match(XY),read(XY),ord(XY),push(XY),jump_match(XY,_)])
+    -> 
+    instr_depend_match_y_2(Reg,N,N1,XY,I,Xs,DepB,DepE).
+instr_depend_match_y(_,N,[p(N1,p(Class,_))|Xs],DepB,DepE):- 
+    flat_member(Class,[spec(cont),spec(guard)])
+    ->
+    DepB=[p(N1,N)|DepB1],
+    instr_depend_match_y(N,Xs,DepB1,DepE).    
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+instr_depend_match_y_2(Reg,N,N1,[init(y)|_],I,_Is,DepB,DepE):-
+    find_y_init(I,Reg)
+    ->
+    DepB=[p(N1,N)|DepE].
+instr_depend_match_y_2(Reg,N,N1,[XY|_],I,_Is,DepB,DepE):-
+    flat_member(XY,[match(y),match(xy)]),
+    find_y_match(I,Reg)
+    ->
+    DepB=[p(N1,N)|DepE].
+instr_depend_match_y_2(Reg,N,N1,[match(yy)|_],I,_Is,DepB,DepE):-
+    find_yy_match(I,Reg1,Reg2),
+    (Reg1=Reg;Reg2=Reg)
+    ->
+    DepB=[p(N1,N)|DepE].
+instr_depend_match_y_2(Reg,N,N1,[use(y)|_],I,Is,DepB,DepE):-
+    find_y_use(I,Reg)
+    ->
+    DepB=[p(N1,N)|DepB1],
+    instr_depend_match_y(Reg,N,Is,DepB1,DepE).
+instr_depend_match_y_2(Reg,N,_N1,[],_I,Is,DepB,DepE):-
+    ->
+    instr_depend_match_y(Reg,N,Is,DepB,DepE).
+instr_depend_match_y_2(Reg,N,N1,[_|XYs],I,Is,DepB,DepE):-
+    ->
+    instr_depend_match_y_2(Reg,N,N1,XYs,I,Is,DepB,DepE).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% instr_depend_match_x
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+instr_depend_match_x(_Reg,_N,[],DepB,DepE):- -> DepB=DepE.
+instr_depend_match_x(Reg,N,[p(_,p(Class,_))|Xs],DepB,DepE):- 
+    flat_member(Class,[push(data),spec(cont),spec(guard)])
+    ->
+    instr_depend_match_x(Reg,N,Xs,DepB,DepE).
+instr_depend_match_x(Reg,N,[p(N1,p(Class,I))|Xs],DepB,DepE):- 
+    flat_member(Class,[h_match(XY),read(XY),ord(XY),push(XY),jump_match(XY,_)])
+    -> 
+    instr_depend_match_x_2(Reg,N,N1,XY,I,Xs,DepB,DepE).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+instr_depend_match_x_2(Reg,N,N1,[init(x)|_],I,_Is,DepB,DepE):-
+    find_x_init(I,Reg)
+    ->
+    DepB=[p(N1,N)|DepE].
+instr_depend_match_x_2(Reg,N,N1,[XY|_],I,_Is,DepB,DepE):-
+    flat_member(XY,[match(x),match(xy)]),
+    find_x_match(I,Reg)
+    ->
+    DepB=[p(N1,N)|DepE].
+instr_depend_match_x_2(Reg,N,N1,[match(xx)|_],I,_Is,DepB,DepE):-
+    find_xx_match(I,Reg1,Reg2),
+    (Reg1=Reg;Reg2=Reg)
+    ->
+    DepB=[p(N1,N)|DepE].
+instr_depend_match_x_2(Reg,N,N1,[use(x)|_],I,Is,DepB,DepE):-
+    find_x_use(I,Reg)
+    ->
+    DepB=[p(N1,N)|DepB1],
+    instr_depend_match_x(Reg,N,Is,DepB1,DepE).
+instr_depend_match_x_2(Reg,N,_N1,[],_I,Is,DepB,DepE):-
+    ->
+    instr_depend_match_x(Reg,N,Is,DepB,DepE).
+instr_depend_match_x_2(Reg,N,N1,[_|XYs],I,Is,DepB,DepE):-
+    ->
+    instr_depend_match_x_2(Reg,N,N1,XYs,I,Is,DepB,DepE).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% INSTR finds
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% find_x_match
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+find_x_match(match_reg_H_list(Reg,_),Out):-                   -> Out=Reg.
+find_x_match(match_reg_H_struct(Reg,_),Out):-                 -> Out=Reg.
+find_x_match(match_reg_nil(Reg),Out):-                        -> Out=Reg.
+find_x_match(match_reg_atom(Reg,_),Out):-                     -> Out=Reg.
+find_x_match(match_reg_integer(Reg,_),Out):-                  -> Out=Reg.
+find_x_match(match_reg_list_car(Reg,_,_),Out):-               -> Out=Reg.
+find_x_match(match_reg_list_cdr(Reg,_,_),Out):-               -> Out=Reg.
+find_x_match(match_reg_yvar(Reg,_),Out):-                     -> Out=Reg.
+find_x_match(X,_Out):-                                        -> error(find_x_match(X)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% find_x_use
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+find_x_use(push_reg(Reg),Out):-                             -> Out=Reg.
+find_x_use(read_car(Reg1,_),Out):-                          -> Out=Reg1.
+find_x_use(read_cdr(Reg1,_),Out):-                          -> Out=Reg1.
+find_x_use(read_arg(Reg1,_,_),Out):-                        -> Out=Reg1.
+find_x_use(match_yvar_reg_off(_,Reg,_),Out):-               -> Out=Reg.
+find_x_use(set_reg_reg(Reg1,_),Out):-                       -> Out=Reg1.
+find_x_use(set_yvar_reg(Reg,_),Out):-                       -> Out=Reg.
+find_x_use(match_reg_off_nil(Reg,_),Out):-                  -> Out=Reg.
+find_x_use(match_reg_off_atom(Reg,_,_),Out):-               -> Out=Reg.
+find_x_use(match_reg_off_integer(Reg,_,_),Out):-            -> Out=Reg.
+find_x_use(X,_Out):-                                        -> error(find_x_use(X)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% find_y_match
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+find_y_match(match_yvar_H_list(YReg,_),Out):-                 -> Out=YReg.
+find_y_match(match_yvar_H_struct(YReg,_),Out):-               -> Out=YReg.
+find_y_match(match_yvar_reg_off(YReg,_,_),Out):-              -> Out=YReg.
+find_y_match(match_yvar_list_cdr(YReg,_,_),Out):-             -> Out=YReg.
+find_y_match(match_yvar_list_car(YReg,_,_),Out):-             -> Out=YReg.
+find_y_match(match_yvar_reg_off(YReg,_,_),Out):-              -> Out=YReg.
+find_y_match(match_reg_yvar(_,YReg),Out):-                    -> Out=YReg.
+find_y_match(X,_Out):-                                        -> error(find_y_match(X)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% find_y_use
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+find_y_use(push_yvar(YReg),Out):-                           -> Out=YReg.
+find_y_use(set_reg_yvar(YReg,_),Out):-                     -> Out=YReg.
+find_y_use(match_yvar_list_cdr(YReg,_,_),Out):-            -> Out=YReg.
+find_y_use(X,_Out):-                                       -> error(find_y_use(X)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% find_x_init
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+find_x_init(set_reg_H(Reg),Out):-                           -> Out=Reg.
+find_x_init(set_reg_H_and_push_void(Reg),Out):-             -> Out=Reg.
+find_x_init(set_reg_and_yvar_H_and_push_void(Reg,_),Out):-  -> Out=Reg.
+find_x_init(read_car(_,Reg2),Out):-                         -> Out=Reg2.
+find_x_init(read_cdr(_,Reg2),Out):-                         -> Out=Reg2.
+find_x_init(read_arg(_,_,Reg2),Out):-                       -> Out=Reg2.
+find_x_init(load_nil(Reg),Out):-                            -> Out=Reg.
+find_x_init(load_atom(Reg,_),Out):-                         -> Out=Reg.
+find_x_init(load_integer(Reg,_),Out):-                      -> Out=Reg.
+find_x_init(match_yvar_reg_off(_,Reg,_),Out):-              -> Out=Reg.
+find_x_init(match_yvar_reg_off(_,Reg,_),Out):-              -> Out=Reg.
+find_x_init(match_yvar_list_cdr(_,_,Reg),Out):-             -> Out=Reg.
+find_x_init(match_yvar_list_car(_,_,Reg),Out):-             -> Out=Reg.
+find_x_init(match_yvar_list_cdr(_,_,Reg),Out):-             -> Out=Reg.
+find_x_init(match_yvar_list_car(_,_,Reg),Out):-             -> Out=Reg.
+find_x_init(set_reg_reg(_,Reg2),Out):-                     -> Out=Reg2.
+find_x_init(set_reg_yvar(_,Reg),Out):-                     -> Out=Reg.
+find_x_init(X,_Out):-                                       -> error(find_x_init(X)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% find_y_init
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+find_y_init(set_yvar_H_and_push_void(YReg),Out):-           -> Out=YReg.
+find_y_init(set_yvar_H(YReg),Out):-                         -> Out=YReg.
+find_y_init(set_reg_and_yvar_H_and_push_void(_,YReg),Out):- -> Out=YReg.
+find_y_init(set_yvar_reg(_,YReg),Out):-                    -> Out=YReg.
+find_y_init(X,_Out):-                                       -> error(find_y_init(X)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% find_xx_match
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+find_xx_match(match_reg_reg(Reg1,Reg2),Out1,Out2):-           -> Out1=Reg1,Out2=Reg2.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% find_yy_match
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+find_yy_match(match_yvar_yvar(Reg1,Reg2),Out1,Out2):-           -> Out1=Reg1,Out2=Reg2.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% COLLAPSING
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% can_collapse
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+can_collapse(I1,p(_,I2)):-  -> collapse(I1,I2,_).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% collapse_instr
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+collapse_instr(I1,I2,I):- collapse(I1,I2,I3) -> I=I3.
+collapse_instr(I1,I2,_I):-  -> error(collapse_instr(I1,I2)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% collapse
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+collapse(read_car(Reg1,Reg2),set_reg_reg(Reg2,Reg3),Out):- 
+    -> Out=read_car(Reg1,Reg3).
+collapse(read_cdr(Reg1,Reg2),set_reg_reg(Reg2,Reg3),Out):- 
+    -> Out=read_cdr(Reg1,Reg3).
+collapse(set_reg_reg(Reg1,Reg2),set_reg_reg(Reg2,Reg3),Out):- 
+    -> Out=set_reg_reg(Reg1,Reg3).
+collapse(set_reg_reg(Reg1,Reg2),set_yvar_reg(Reg2,YReg),Out):- 
+    -> Out=set_yvar_reg(Reg1,YReg).
+collapse(read_arg(Reg1,Index,Reg2),set_reg_reg(Reg2,Reg3),Out):-
+    -> Out=read_arg(Reg1,Index,Reg3).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% DEP
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% dep_init            PList =[p(FromN,ToN),....]
+%%%                     Is=[p(Ct,p(Class,Inst)),...]
+%%%                     Dep =[p(Ct,f(p(Class,Inst),F,T,Col)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dep_init(PList,Is,Dep):-
+    ->
+    dep_init0(Is,PList,Is,Dep).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dep_init0([],_,_,Dep):- -> Dep=[].
+dep_init0([p(Ct,Rest)|Is],PList,All,Dep):-
+   Rest=p(_,I)
+   ->
+   Dep=[p(Ct,f(Rest,F1,T1,Col1))|Dep1],
+   dep_extract_from(Ct,PList,F),
+   qsort_rem_dupl(F,F1),
+   dep_extract_to(Ct,PList,T),
+   qsort_rem_dupl(T,T1),
+   maybe_collapse(I,T,All,Col),
+   qsort_rem_dupl(Col,Col1),
+   dep_init0(Is,PList,All,Dep1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+maybe_collapse(_I,[],_,Col):- -> Col=[].
+maybe_collapse(I,[X|Xs],All,Col):- 
+    find_in_plist(X,All,Entry),
+    can_collapse(I,Entry)
+    -> 
+    Col=[X|Col1],
+    maybe_collapse(I,Xs,All,Col1).
+maybe_collapse(I,[_|Xs],All,Col):- 
+    -> 
+    maybe_collapse(I,Xs,All,Col).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dep_extract_from(_Ct,[],From):-                ->   From=[].
+dep_extract_from(Ct,[p(X,Ct)|PList],From):-   
+     ->   
+     From=[X|From1],
+     dep_extract_from(Ct,PList,From1).
+dep_extract_from(Ct,[_|PList],From):-   
+     ->   
+     dep_extract_from(Ct,PList,From).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dep_extract_to(_Ct,[],To):-                ->   To=[].
+dep_extract_to(Ct,[p(Ct,X)|PList],To):-   
+     ->   
+     To=[X|To1],
+     dep_extract_to(Ct,PList,To1).
+dep_extract_to(Ct,[_|PList],To):-   
+     ->   
+     dep_extract_to(Ct,PList,To).
+
+     
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% dep_collapsable_roots
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dep_collapsable_roots([],Roots,Rest):- -> Roots=[],Rest=[].
+dep_collapsable_roots([E|Deps],Roots,Rest):- 
+   E=p(Ct,f(p(_,I),[],_,[FC|Xs])),
+   find_in_plist(FC,Deps,Entry),
+   Entry=f(p(_,I1),[Ct],_,_)
+   ->
+   error_if_not_equal(Xs,[],dep_collapsable_roots),
+   Roots=[col(Ct,FC,I,I1)|Roots1],
+   dep_collapsable_roots(Deps,Roots1,Rest).
+dep_collapsable_roots([E|Deps],Roots,Rest):- 
+   ->
+   Rest=[E|Rest1],
+   dep_collapsable_roots(Deps,Roots,Rest1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% dep_non_collapsable_roots
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dep_non_collapsable_roots([],Roots,Rest):- -> Roots=[],Rest=[].
+dep_non_collapsable_roots([E|Deps],Roots,Rest):- 
+   E=p(_,f(_,[],_,[]))
+   ->
+   Roots=[E|Roots1],
+   dep_non_collapsable_roots(Deps,Roots1,Rest).
+dep_non_collapsable_roots([E|Deps],Roots,Rest):- 
+   ->
+   Rest=[E|Rest1],
+   dep_non_collapsable_roots(Deps,Roots,Rest1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% deps_edit
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+deps_edit([],_,Out):- -> Out=[].
+deps_edit([p(Ct,_)|Xs],Done,Out):-
+   member(Ct,Done)
+   ->
+   deps_edit(Xs,Done,Out).
+deps_edit([p(Ct,f(X,FC,F,T))|Xs],Done,Out):-
+   ->
+   Out=[p(Ct,f(X,FC1,F1,T1))|Out1],
+   remove_intersection(F,Done,F1),
+   remove_intersection(FC,Done,FC1),
+   remove_intersection(T,Done,T1),
+   deps_edit(Xs,Done,Out1).
+
+
+
+
+

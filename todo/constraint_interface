@@ -1,0 +1,5 @@
+$Id: constraint_interface,v 1.2 1993/06/07 11:02:33 sverker Exp $
+
+The constraint interface should probably be redesigned to
+take maximum advantage of the new tagged pointer
+representation.

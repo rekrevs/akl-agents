@@ -1,0 +1,399 @@
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%        Sending SEQ and PAR
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+send_list([],P,POut):-
+   ->
+   P=POut.
+send_list([M|Msgs],P,POut):-
+   -> 
+   send_list(M,P,P1),
+   send_list(Msgs,P1,POut).
+send_list(par(M),P,POut):-
+   -> 
+   send_list_par_begin(M,P,P1),
+   P1=POut.
+send_list(port(M),P,POut):-
+   -> M=P.
+send_list(M,P,POut):-
+   data(M)
+   -> 
+   send(M,P,POut).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+send_list_par_begin(Msg,P,POut):-
+   send_list_par(Msg,P,Flag),
+   send_list_par_end(Flag,P,POut).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+send_list_par_end(ok,P1,POut):-
+   ??
+   POut=P1.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+send_list_par([],P,Flag):-
+   -> 
+   Flag=ok.
+send_list_par([M|Msgs],P,Flag):-
+   -> 
+   send_list_par(M,P,Flag1),
+   send_list_par(Msgs,P,Flag2),
+   short_circuit(Flag1,Flag2,Flag).
+send_list_par(par(M),P,Flag):-
+   -> 
+   send_list_par(M,P,Flag).
+send_list_par(M,P,Flag):-
+   data(M)
+   -> 
+   send_par(P,M,Flag).
+
+send_par(P,M,Flag):-
+   send(M,P,P1),
+   check_port(P1,Flag).
+
+short_circuit(ok,ok,Flag):-
+   ??
+   Flag=ok.
+
+check_port(P1,Flag):- data(P1) -> Flag=ok.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%        create_var_handler
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%     new_artificial_entry(+Occ,-Name)   new entry: aritificial variable 
+%%%     new_entry(+Key,+Occ)               new entry: error if Key is not new
+%%%     find_entry(+Key,-Occs)             Occs=no if no entry exists
+%%%     find_existing_entry(+Key,-Occs)    error if Key does not exist
+%%%     add_occurrence(+Key,+Occ)          error if Key does not exist
+%%%     delete_occurrence(+Key,+Occ)       error if Key does not exist or occ does not exist
+%%%     occurrences(+Key,-Occs)            error if Key does not exist
+%%%     remove(+Key)                       error if Key does not exist
+%%%     all_single_occurrences(-Singletons)
+%%%                                        collects all Key where Occs=[_] in list
+%%%     occurrences_between(+Key,+One,+Two,-Occs)
+%%%                                        collects all occurrences >=One and <=Two 
+%%%                                        error if Key does not exist
+%%%     occurrences_at(+Key,+One,-Number)  error if Key does not exist (number of occurrences)
+%%%     occurrences_after(+Key,+One,-Occs) collects all occurences > One
+%%%     occurrences_from(+Key,+One,-Occs)  collects all occurences >= One
+%%%     first_occurrence(+Key,-Occ)
+%%%     last_occurrence(+Key,-Occ)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+create_var_handler(Database):-
+   ->
+   open_port(Database,S),
+   var_handler(S,void,1).
+
+var_handler([],Tree,ArtCt):- -> true.
+var_handler([Msg|Msgs],Tree,ArtCt):-
+   data(Msg)
+   -> 
+   var_handle_msg(Msg,Tree,NewTree,ArtCt,NewArtCt),
+   var_handler(Msgs,NewTree,NewArtCt).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+var_handle_msg(response(X),Tree,NewTree,A,A1):- -> A=A1,Tree=NewTree,X=ok.
+var_handle_msg(ref_check(X),Tree,NewTree,A,A1):-
+   -> 
+   A=A1,
+   NewTree=Tree,
+   vh_ref_check(X).
+var_handle_msg(new_artificial_entry(Occ,Art),Tree,NewTree,A,A1):-
+   -> 
+   number_chars(A,X),
+   atom_chars(Art,[97,114,116,95|X]),
+   vh_find(Art,Tree,NewTree,OldNode,NewNode),
+   vh_new_entry(Art,OldNode,NewNode,Occ),
+   inc(A,A1).
+var_handle_msg(new_entry(Key,Occ),Tree,NewTree,A,A1):-
+   -> 
+   A=A1,
+   vh_find(Key,Tree,NewTree,OldNode,NewNode),
+   vh_new_entry(Key,OldNode,NewNode,Occ).
+var_handle_msg(add_occurrence(Key,Occ),Tree,NewTree,A,A1):-
+   -> 
+   A=A1,
+   vh_find(Key,Tree,NewTree,OldNode,NewNode),
+   vh_add_occ(OldNode,NewNode,Occ).
+var_handle_msg(add_occurrence_or_new(Key,Occ),Tree,NewTree,A,A1):-
+   -> 
+   A=A1,
+   vh_find(Key,Tree,NewTree,OldNode,NewNode),
+   vh_add_occ_or_new(OldNode,Key,NewNode,Occ).
+var_handle_msg(delete_occurrence(Key,Occ),Tree,NewTree,A,A1):-
+   -> 
+   A=A1,
+   vh_find(Key,Tree,NewTree,OldNode,NewNode),
+   vh_del_occ(OldNode,NewNode,Occ).
+var_handle_msg(occurrences(Key,Occs),Tree,NewTree,A,A1):-
+   -> 
+   A=A1,
+   vh_find_occs(Key,Tree,Occs),
+   Tree=NewTree.
+var_handle_msg(remove(Key),Tree,NewTree,A,A1):-
+   -> 
+   A=A1,
+   vh_find(Key,Tree,NewTree,OldNode,NewNode),
+   vh_remove(Key,OldNode,NewNode,Tree).
+var_handle_msg(all_single_occurrences(Singletons),Tree,NewTree,A,A1):-
+   -> 
+   A=A1,
+   vh_collect_single_occ(Tree,Singletons),
+   Tree=NewTree.
+var_handle_msg(all_begin_with_underscore(Singletons),Tree,NewTree,A,A1):-
+   -> 
+   A=A1,
+   vh_collect_under(Tree,Singletons),
+   Tree=NewTree.
+var_handle_msg(occurrences_between(Key,One,Two,Occs),Tree,NewTree,A,A1):-
+   -> 
+   A=A1,
+   vh_find_occs(Key,Tree,Occs1),
+   vh_occ_between(Occs1,One,Two,Occs),
+   Tree=NewTree.
+var_handle_msg(occurrences_at(Key,One,Ct),Tree,NewTree,A,A1):-
+   -> 
+   A=A1,
+   vh_find_occs(Key,Tree,Occs),
+   vh_occ_between(Occs,One,One,List),
+   length_list(List,Ct),
+   Tree=NewTree.
+var_handle_msg(occurrences_after(Key,One,Occs),Tree,NewTree,A,A1):-
+   -> 
+   A=A1,
+   vh_find_occs(Key,Tree,Occs1),
+   inc(One,One1),
+   vh_skip_until(Occs1,One1,Occs),
+   NewTree=Tree.
+var_handle_msg(first_occurrence(Key,Occ),Tree,NewTree,A,A1):-
+   -> 
+   A=A1,
+   vh_find_occs(Key,Tree,Occs),
+   vh_first_occ(Occs,Occ),
+   Tree=NewTree.
+var_handle_msg(last_occurrence(Key,Occ),Tree,NewTree,A,A1):-
+   -> 
+   A=A1,
+   vh_find_occs(Key,Tree,Occs),
+   vh_last_occ(Occs,Occ),
+   Tree=NewTree.
+var_handle_msg(occurrences_from(Key,One,Occs),Tree,NewTree,A,A1):-
+   -> 
+   A=A1,
+   vh_find_occs(Key,Tree,Occs1),
+   vh_occ_from(Occs1,One,Occs),
+   Tree=NewTree.
+var_handle_msg(write_out,Tree,NewTree,A,A1):-
+   -> 
+   NewTree=Tree,
+   A=A1,
+   vh_write_out(Tree).
+var_handle_msg(Other,Tree,NewTree,A,A1):-
+   -> 
+   error(var_handle_msg(no_such_message,Other)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+vh_ref_check(X):-  -> write(var_handler(X)),nl.
+
+%%%%%
+
+vh_new_entry(Key,void,NewNode,Occ):-  -> NewNode=tree(Key,Occ,void,void).
+vh_new_entry(Key,_,NewNode,Occ):-     -> error(vh_new_entry(Key)).
+
+%%%%
+
+vh_add_occ(void,NewNode,Occ):-              -> error(vh_add_occ).
+vh_add_occ(OldNode,NewNode,Occ):-
+   OldNode=tree(Key,OldOcc,L,R)
+   -> 
+   NewNode=tree(Key,NewOcc,L,R),
+   insert_in_ordered_list(Occ,OldOcc,NewOcc).
+
+%%%%
+
+vh_add_occ_or_new(void,Key,NewNode,Occ):-              -> NewNode=tree(Key,[Occ],void,void).
+vh_add_occ_or_new(OldNode,Key,NewNode,Occ):-
+   OldNode=tree(Key,OldOcc,L,R)
+   -> 
+   NewNode=tree(Key,NewOcc,L,R),
+   insert_in_ordered_list(Occ,OldOcc,NewOcc).
+
+%%%%
+
+vh_del_occ(void,NewNode,Occ):-              ->  error(vh_del_occ).
+vh_del_occ(OldNode,NewNode,Occ):-
+   OldNode=tree(Key,OldOccs,L,R),
+   member(Occ,OldOccs)
+   -> 
+   NewNode=tree(Key,NewOccs,L,R),
+   delete_in_ordered_list(Occ,OldOccs,NewOccs).
+vh_del_occ(OldNode,NewNode,Occ):-           -> error(vh_del_occ2).
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+vh_remove(Key,void,NewTree,OldTree):-                  -> error(vh_remove(Key,OldTree)).
+vh_remove(Key,Tree,NewTree,_):-                        -> 
+  remove_root(Tree,NewTree).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+vh_collect_single_occ(Tree,List):-
+   vh_collect_single_occ(Tree,List,[]).
+
+vh_collect_single_occ(void,Occ,OccEnd):-  ->  OccEnd=Occ.
+vh_collect_single_occ(tree(K,[_],L,R),Occ,OccEnd):-
+   -> 
+   Occ=[K|Occ1],
+   vh_collect_single_occ(L,Occ1,Occ2),
+   vh_collect_single_occ(R,Occ2,OccEnd).
+vh_collect_single_occ(tree(K,_,L,R),Occ,OccEnd):-
+   -> 
+   vh_collect_single_occ(L,Occ,Occ2),
+   vh_collect_single_occ(R,Occ2,OccEnd).
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+vh_collect_under(Tree,List):-
+   ->
+   vh_collect_under(Tree,List,[]).
+
+vh_collect_under(void,Occ,OccEnd):-  ->  OccEnd=Occ.
+vh_collect_under(tree(K,_,L,R),Occ,OccEnd):-
+   atom_chars(K,[95|_])   
+   -> 
+   Occ=[K|Occ1],
+   vh_collect_under(L,Occ1,Occ2),
+   vh_collect_under(R,Occ2,OccEnd).
+vh_collect_under(tree(K,_,L,R),Occ,OccEnd):-
+   -> 
+   vh_collect_under(L,Occ,Occ1),
+   vh_collect_under(R,Occ1,OccEnd).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+vh_occ_between(InOccs,One,Two,Occs):-
+   -> 
+   vh_skip_until(InOccs,One,Rest),
+   vh_skip_after(Rest,Two,Occs).
+
+%%%%
+
+vh_occ_from(InOccs,One,Occs):-
+   -> 
+   vh_skip_until(InOccs,One,Occs).
+
+%%%%
+
+vh_first_occ([],_,Occ):-      -> Occ=[].
+vh_first_occ([Occ|_],Occ1):-   -> Occ=Occ1.
+
+%%%%
+
+vh_last_occ([],Occ):-         -> Occ=[].
+vh_last_occ(Occs,Occ):-       -> find_end_list(Occs,Occ).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%   help
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+vh_skip_until([],X,Rest):-              ->    Rest=[].
+vh_skip_until([X|Xs],Y,Rest):-   X >= Y ->    Rest=[X|Xs].
+vh_skip_until([X|Xs],Y,Rest):-   X<Y    ->    vh_skip_until(Xs,Y,Rest).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+vh_skip_after([X|Xs],Y,Rest):-   
+   X=<Y  
+   ->
+   Rest=[X|NewRest],
+   vh_skip_after(Xs,Y,NewRest).
+vh_skip_after(List,X,Rest):-      ->  Rest=[].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+vh_find(Key,void,NewTree,OldNode,NewNode):-
+   -> 
+   OldNode=void,
+   NewNode=NewTree.
+vh_find(Key,Tree,NewTree,OldNode,NewNode):-   
+   Tree=tree(Key,_,_,_)
+   -> 
+   OldNode=Tree,
+   NewNode=NewTree.
+vh_find(Key,tree(K,E,L,R),NewTree,OldNode,NewNode):-   
+   Key @< K
+   -> 
+   NewTree=tree(K,E,NL,R),
+   vh_find(Key,L,NL,OldNode,NewNode).
+vh_find(Key,tree(K,E,L,R),NewTree,OldNode,NewNode):-   
+   Key @> K
+   -> 
+   NewTree=tree(K,E,L,NR),
+   vh_find(Key,R,NR,OldNode,NewNode).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+vh_find_occs(Key,void,_):- -> error(vh_find_occs).
+vh_find_occs(Key,tree(Key,Occs,_,_),Occs1):-   -> Occs1=Occs.
+vh_find_occs(Key,tree(K,E,L,R),Occs):-     
+   Key @< K
+   -> 
+   vh_find_occs(Key,L,Occs).
+vh_find_occs(Key,tree(K,E,L,R),Occs):-
+   Key @> K
+   -> 
+   vh_find_occs(Key,R,Occs).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+remove_root(tree(_,_,void,R),NewTree):- -> NewTree=R.
+remove_root(tree(_,_,L,void),NewTree):- -> NewTree=L.
+remove_root(tree(_,_,L,R),NewTree):-    -> 
+   remove_rightmost(L,NL,tree(K,E,_,_)),
+   NewTree=tree(K,E,NL,R).
+
+remove_rightmost(Tree,NewTree,RightMost):-
+   Tree=tree(Key,E,void,void)
+   -> 
+   RightMost=Tree,NewTree=void.
+remove_rightmost(Tree,NewTree,RightMost):-
+   Tree=tree(_Key,_E,_Left,void)
+   -> 
+   remove_root(Tree,NewTree),
+   RightMost=Tree.
+remove_rightmost(Tree,NewTree,RightMost):-
+   Tree=tree(Key,E,Left,Right)
+   -> 
+   NewTree=tree(Key,E,Left,NewRight),
+   remove_rightmost(Right,NewRight,RightMost).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+   
+vh_write_out(void):- -> true.
+vh_write_out(tree(Key,Entry,L,R)):-
+   -> 
+   vh_write_out(L),
+   write(Key),write(':'),write(Entry),nl,
+   vh_write_out(R).
+vh_write_out(Whatever):-  -> error(vh_write_out).
+
+
+
+
+
+
+
+
+

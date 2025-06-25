@@ -1,0 +1,93 @@
+% $Id: modes.akl,v 1.2 1994/04/14 11:27:06 rch Exp $
+
+translate_modelist(Mode, Modes) :-
+	atom(Mode),
+	dif(Mode, [])
+    ->	translate_modelist([Mode], Modes).
+translate_modelist(ModeList, Modes) :-
+    ->	translate_modelist_1(ModeList, NrList),
+	keysort(NrList, SortedNrList),
+	translate_modelist_2(SortedNrList, FlagList),
+	Modes =.. [modes|FlagList].
+
+translate_modelist_1([Mode|ModeList], NrList) :-
+	modenr(Mode, Nr)
+    ->	NrList = [Nr|NrList1],
+	translate_modelist_1(ModeList, NrList1).
+translate_modelist_1([Mode|ModeList], NrList) :-
+    ->	format('{Warning: unknown mode ~q}~n', [Mode]),
+	translate_modelist_1(ModeList, NrList).
+translate_modelist_1([], NrList) :-
+    ->	NrList = [].
+	
+translate_modelist_2(NrList, FlagList) :-
+	max_modenr(Max),
+	check_for_mode_conflicts(NrList, NL),
+	translate_modelist_2(1, Max, NL, FlagList).
+
+translate_modelist_2(Nr, Max, _NrList, FlagList) :-
+	Nr > Max
+    ->	FlagList = [].
+translate_modelist_2(Nr, Max, NrList, FlagList) :-
+	NrList = [Nr-YN|NrList1]
+    ->	Nr1 is Nr+1,
+	FlagList = [YN|FlagList1],
+	translate_modelist_2(Nr1, Max, NrList1, FlagList1).
+translate_modelist_2(Nr, Max, NrList, FlagList) :-
+    ->	Nr1 is Nr+1,
+	FlagList = [no|FlagList1],
+	translate_modelist_2(Nr1, Max, NrList, FlagList1).
+
+check_for_mode_conflicts(NrList, NL) :-
+	check_for_mode_conflicts(NrList, NL, Conflicts),
+	maybe_report_mode_conflicts(Conflicts).
+
+check_for_mode_conflicts([], NL, Conflicts) :-
+    ->	Conflicts = [],
+	NL = [].
+check_for_mode_conflicts([Nr-YN*Mode|NrList], NL, Conflicts) :-
+    ->	check_for_mode_conflicts(NrList, NL, Nr, YN, Mode, Conflicts).
+
+check_for_mode_conflicts([_-YN1*Mode|NrList], NL, _Nr, YN2, Mode, Conflicts) :-
+	dif(YN1, YN2)
+    ->	Conflicts = [Mode|Conflicts1],
+	conflicting_mode_found(NrList, NL, Mode, Conflicts1).
+check_for_mode_conflicts([_-YN*Mode|NrList], NL, Nr, YN, Mode, Conflicts) :-
+    ->	check_for_mode_conflicts(NrList, NL, Nr, YN, Mode, Conflicts).
+check_for_mode_conflicts(NrList, NL, Nr, YN, _Mode, Conflicts) :-
+    ->  NL = [Nr-YN|NL1],
+	check_for_mode_conflicts(NrList, NL1, Conflicts).
+
+conflicting_mode_found([], NL, _Mode, Conflicts) :-
+    ->	Conflicts = [],
+	NL = [].
+conflicting_mode_found([_-_*Mode|NrList], NL, Mode, Conflicts) :-
+    ->	conflicting_mode_found(NrList, NL, Mode, Conflicts).
+conflicting_mode_found(NrList, NL, _Mode, Conflicts) :-
+    ->	check_for_mode_conflicts(NrList, NL, Conflicts).
+
+maybe_report_mode_conflicts([]) :-
+    ->	true.
+maybe_report_mode_conflicts(Conflicts) :-
+    ->	format('{Warning: conflicting modes for ~q}~n', [Conflicts]).
+
+modenr(flat, Nr) :- -> Nr = 1-yes*flat.
+modenr(noflat, Nr) :- -> Nr = 1-no*flat.
+modenr(debug, Nr) :- -> Nr = 2-yes*debug.
+modenr(nodebug, Nr) :- -> Nr = 2-no*debug.
+modenr(optimise, Nr) :- -> Nr = 3-yes*optimise.
+modenr(nooptimise, Nr) :- -> Nr = 3-no*optimise.
+modenr(f, Nr) :- -> Nr = 1-yes*flat.
+modenr(nf, Nr) :- -> Nr = 1-no*flat.
+modenr(d, Nr) :- -> Nr = 2-yes*debug.
+modenr(nd, Nr) :- -> Nr = 2-no*debug.
+modenr(o, Nr) :- -> Nr = 3-yes*optimise.
+modenr(no, Nr) :- -> Nr = 3-no*optimise.
+
+max_modenr(3).
+
+flat_mode( modes(yes,_,_)).
+
+debug_mode(modes(_,yes,_)).
+
+opt_mode(  modes(_,_,yes)).

@@ -1,0 +1,3 @@
+p(a(X,X),Y,U) :- q(Y), Z=t(Y), q(Y) ! q(X), r(V)=U, q(X), U=a(W).
+q(b(X)) :- b(X).
+

@@ -1,0 +1,158 @@
+@node UGraphs, Index of Built-ins, SAGA, Top
+@chapter Unweighted Graphs
+@cindex unweighted graphs
+@cindex graphs, unweighted
+@cindex ugraph
+
+Directed and undirected graphs are fundamental data structures
+representing arbitrary relationships between data objects.  This package
+provides an Agents implementation of directed graphs, undirected graphs
+being a special case of directed graphs.
+
+An unweighted directed graph (ugraph) is represented as a list of
+(vertex-neighbors) pairs, where the pairs are in standard order (as
+produced by @code{keysort} with unique keys) and the neighbors of each
+vertex are also in standard order (as produced by @code{sort}), and
+every neighbor appears as a vertex even if it has no neighbors itself.
+
+An undirected graph is represented as a directed graph where for
+each edge @var{(U,V)} there is a symmetric edge @var{(V,U)}.
+
+An edge @var{(U,V)} is represented as the term @var{U-V}.
+@var{U} and @var{V} must be distinct.
+
+A vertex can be any term.  Two vertices are distinct iff they are
+not identical.
+
+A path from @var{u} to @var{v} is represented as a list of vertices,
+beginning with @var{u} and ending with @var{v}.  A vertex cannot appear
+twice in a path.  A path is maximal in a graph if it cannot be extended.
+
+A tree is a tree-shaped directed graph (all vertices have a single
+predecessor, except the root node, which has none).
+
+A strongly connected component of a graph is a maximal set of vertices
+where each vertex has a path in the graph to every other vertex.
+
+Sets are represented as ordered lists (@pxref{Ordsets}).
+
+To load the package, enter the query
+
+@example
+| ?- load(library(ugraphs)).
+@end example
+
+The following predicates are defined for directed graphs.
+@table @code
+@findex vertices_edges_to_ugraph/3
+@item vertices_edges_to_ugraph(@var{+Vertices}, @var{+Edges}, @var{-Graph})
+is true if @var{Vertices} is a list of vertices, @var{Edges} is a list
+of edges, and @var{Graph} is a graph built from @var{Vertices} and
+@var{Edges}.  @var{Vertices} and @var{Edges} may be in any order.  The
+vertices mentioned in @var{Edges} do not have to occur explicitly in
+@var{Vertices}.  @var{Vertices} may be used to specify vertices that are
+not connected by any edges.
+@findex vertices/2
+@item vertices(@var{+Graph}, @var{-Vertices})
+unifies @var{Vertices} with the vertices in @var{Graph}.
+@findex edges/2
+@item edges(@var{+Graph}, @var{-Edges})
+unifies @var{Edges} with the edges in @var{Graph}.
+@findex add_vertices/3
+@item add_vertices(@var{+Graph1}, @var{+Vertices}, @var{-Graph2})
+is true if @var{Graph2} is @var{Graph1} with @var{Vertices} added to it.
+@findex del_vertices/3
+@item del_vertices(@var{+Graph1}, @var{+Vertices}, @var{-Graph2})
+is true if @var{Graph2} is @var{Graph1} with @var{Vertices} and all edges
+to and from them removed from it.
+@findex add_edges/3
+@item add_edges(@var{+Graph1}, @var{+Edges}, @var{-Graph2}) 
+is true if @var{Graph2} is @var{Graph1} with @var{Edges} and their ``to'' and
+``from'' vertices added to it.
+@findex del_edges/3
+@item del_edges(@var{+Graph1}, @var{+Edges}, @var{-Graph2})
+is true if @var{Graph2} is @var{Graph1} with @var{Edges} removed from it.
+@findex transpose/2
+@item transpose(@var{+Graph}, @var{-Transpose})
+is true if @var{Transpose} is the graph computed by replacing each edge
+@var{(u,v)} in @var{Graph} by its symmetric edge @var{(v,u)}.  It can
+only be used one way around.  Takes O(N log N) time.
+@findex neighbors/3
+@findex neighbours/3
+@item neighbors(@var{+Vertex}, @var{+Graph}, @var{-Neighbors})
+@itemx neighbours(@var{+Vertex}, @var{+Graph}, @var{-Neighbors})
+is true if @var{Vertex} is a vertex in @var{Graph} and @var{Neighbors}
+are its neighbors.
+@findex complement/2
+@item complement(@var{+Graph}, @var{-Complement})
+@var{Complement} is the complement graph of @var{Graph}, i.e.@ the graph
+that has the same vertices as @var{Graph} but only the edges that are
+not in @var{Graph}.
+@findex compose/3
+@item compose(+G1, +G2, @var{-Composition})
+computes @var{Composition} as the composition of two graphs, which need
+not have the same set of vertices.
+@findex transitive_closure/2
+@item transitive_closure(@var{+Graph}, @var{-Closure}) 
+computes @var{Closure} as the transitive closure of @var{Graph} in
+O(N^3) time.
+@findex symmetric_closure/2
+@item symmetric_closure(@var{+Graph}, @var{-Closure}) 
+computes @var{Closure} as the symmetric closure of @var{Graph}, i.e.
+for each edge @var{(u,v)} in @var{Graph}, add its symmetric edge
+@var{(v,u)}.  Takes O(N^2) time.  This is useful for making a directed
+graph undirected.
+@findex top_sort/2
+@item top_sort(@var{+Graph}, @var{-Sorted})
+finds a topological ordering of a @var{Graph} and returns the ordering
+as a list of @var{Sorted} vertices.  Fails iff no ordering exists, i.e.
+iff the graph contains cycles.  Takes O(N^2) time.
+@findex max_path/5
+@item max_path(@var{+V1}, @var{+V2}, @var{+Graph}, @var{-Path}, @var{-Cost})
+is true if @var{Path} is a longest path of cost @var{Cost} from
+@var{V1} to @var{V2} in @var{Graph}, there being no cyclic paths from
+@var{V1} to @var{V2}.  Takes O(N^2) time.
+@findex min_path/5
+@item min_path(@var{+V1}, @var{+V2}, @var{+Graph}, @var{-Path}, @var{-Cost})
+is true if @var{Path} is a shortest path of cost @var{Cost} from
+@var{V1} to @var{V2} in @var{Graph}.  Takes O(N^2) time.
+@findex min_paths/3
+@item min_paths(@var{+Vertex}, @var{+Graph}, @var{-Tree})
+is true if @var{Tree} is a tree of all the shortest paths from
+@var{Vertex} to every other vertex in @var{Graph}.  This is the
+single-source shortest paths problem.
+@findex path/3
+@item path(@var{+Vertex}, @var{+Graph}, @var{-Path})
+is given a @var{Graph} and a @var{Vertex} of that @var{Graph}, and
+returns a maximal @var{Path} rooted at @var{Vertex}, enumerating more
+paths on backtracking.
+@findex reduce/2
+@item reduce(@var{+Graph}, @var{-Reduced})
+is true if @var{Reduced} is the reduced graph for @var{Graph}.  The
+vertices of the reduced graph are the strongly connected components of
+@var{Graph}.  There is an edge in @var{Reduced} from @var{u} to @var{v}
+iff there is an edge in @var{Graph} from one of the vertices in @var{u}
+to one of the vertices in @var{v}. 
+A strongly connected component is a maximal set of vertices where
+each vertex has a path to every other vertex.
+Approximately linear in the maximum of arcs and nodes (O(N log N)).
+@findex group_vertices/3
+@item group_vertices(@var{+Graph}, @var{+Groups}, @var{-Outgraph})
+@var{Outgraph} will contain the @var{Graph} but with nodes grouped as
+indicated @var{Groups}, which is a list of list of nodes which groups
+several nodes into one.  Each node in the @var{Outgraph} will become such
+a list of nodes.
+@findex reachable/3
+@item reachable(@var{+Vertex}, @var{+Graph}, @var{-Reachable})
+is given a @var{Graph} and a @var{Vertex} of that @var{Graph}, and
+returns the set of vertices that are @var{Reachable} from that
+@var{Vertex}.  Takes O(N^2) time.
+@findex random_ugraph/3
+@item random_ugraph(@var{+P}, @var{+N}, @var{-Graph})
+where @var{P} is a probability, unifies @var{Graph} with a random graph
+of vertices @var{1..N} where each possible edge is included with
+probability @var{P}.
+@findex seed_random_ugraph/5
+@item seed_random_ugraph(@var{+P}, @var{+N}, @var{-Graph}, @var{InSeed}, @var{OutSeed})
+as @code{random_ugraph/3} but with the random seed (@pxref{Random}) explicitly given.
+@end table

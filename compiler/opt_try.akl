@@ -1,0 +1,331 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% MAIN
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% dec_opt_try
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+dec_opt_try(States,Mode,MyJump,MyDec,MyReach):-
+    opt_mode_guard_op(Mode,quiet_cut),
+    MyJump=t([Try|_],Class,_)
+    ->
+    arg(1,Class,TryType),
+    quiet_cut_last_var(States,Report),
+    opt_mode_arity(Mode,Arity),
+    try_block_quiet_cut(Report,Try,TryType,Arity,MyJump,MyDec,MyReach).
+dec_opt_try(States,Mode,MyJump,MyDec,MyReach):-
+    opt_mode_guard_op(Mode,quiet_commit),
+    MyJump=t([Try|_],Class,_)
+    ->
+    arg(1,Class,TryType),
+    quiet_commit_last_var(States,Report),
+    opt_mode_arity(Mode,Arity),
+    try_block_noisy_wait(Report,Try,TryType,Arity,MyJump,MyDec,MyReach).
+dec_opt_try(States,Mode,MyJump,MyDec,MyReach):-
+    opt_mode_guard_op(Mode,noisy_wait),
+    MyJump=t([Try|_],Class,_)
+    ->
+    arg(1,Class,TryType),
+    noisy_wait_last_var(States,Report),
+    opt_mode_arity(Mode,Arity),
+    try_block_noisy_wait(Report,Try,TryType,Arity,MyJump,MyDec,MyReach).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% TRY BLOCK QUIET CUT
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% quiet_cut_last_var
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+quiet_cut_last_var(S,Report):- 
+    ->
+    state_split(S,Ups,Rest),
+    quiet_cut_last_var1(Ups,Rest,Report).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+quiet_cut_last_var1(Ups,Rest,Report):-
+     quiet_cut_last_var_up(Ups)
+     ->
+     Report=last_var(R),
+     quiet_cut_last_var2(Rest,R).
+quiet_cut_last_var1(_Ups,_Rest,Report):-
+     ->
+     Report=not_last_var.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+quiet_cut_last_var2([static([])],R):-
+     ->
+     R=empty.
+quiet_cut_last_var2(_State,R):-
+     ->
+     R=nonempty.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+quiet_cut_last_var_up([]):- -> true.
+quiet_cut_last_var_up([up(Up)|Ups]):-
+    quiet_cut_last_var_up1(Up)
+    ->
+    quiet_cut_last_var_up(Ups).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+quiet_cut_last_var_up1([X]):-              -> quiet_cut_last_var_up1(X).
+quiet_cut_last_var_up1([X|_]):-            -> quiet_cut_last_var_up1(X).
+quiet_cut_last_var_up1(try(X)):-           -> quiet_cut_last_var_up1(X).
+quiet_cut_last_var_up1(flat_guard):-       -> true.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% try_block_quiet_cut
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+try_block_quiet_cut(last_var(empty),Try,ord,Arity,_MyJump,MyDec,MyReach):-
+    ->
+    try_get_reg(Try,Reg),
+    MyReach=p([1],stop),
+    MyDec=t([suspend_lone_var(Reg,l(1),Arity)],suspend(uncond),stop).
+try_block_quiet_cut(last_var(nonempty),Try,ord,Arity,_MyJump,MyDec,MyReach):-
+    ->
+    try_get_reg(Try,Reg),
+    try_get_binding(Try,Bind),
+    MyReach=p([1],stop),
+    MyDec=t([alias_check,alias_check(Reg,Bind),suspend(Reg,l(1),Arity)],alias,stop).
+try_block_quiet_cut(last_var(nonempty),_Try,test,Arity,_MyJump,MyDec,MyReach):-
+    ->
+    MyReach=p([1],stop),
+    MyDec=t([alias_check,suspend_without_reg(l(1),Arity)],alias,stop).
+try_block_quiet_cut(last_var(nonempty),_Try,simp,Arity,_MyJump,MyDec,MyReach):-
+    ->
+    MyReach=p([1],stop),
+    MyDec=t([alias_check,suspend_without_reg(l(1),Arity)],alias,stop).
+try_block_quiet_cut(last_var(empty),Try,simp,_Arity,MyJump,_MyDec,_MyReach):-
+    ->
+    error(try_block_quiet_cut(Try,MyJump)).
+try_block_quiet_cut(not_last_var,_,_,_,MyJump,MyDec,MyReach):-
+    ->
+    try_convert_and_get_reach(MyJump,MyDec,MyReach).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% TRY BLOCK QUIET COMMIT
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% try_block_quiet_commit       ATTENTION
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% TRY BLOCK NOISY WAIT
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% try_block_noisy_wait          ATTENTION
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% UTILITY
+%%%%              
+%%%%              state_split(Raw,-Ups,-States)
+%%%%              
+%%%%              bindings_stack(States,-BindStack)
+%%%%              
+%%%%              check_aliases_first(Binding,BindStack,JumpVector,-Flag)
+%%%%                         Flag={dont_know,true,false"
+%%%%              check_aliases_back(BindStack,JumpVecotr,-Flag)
+%%%%                         Flag={alias_check,no_alias_check}
+%%%%              try_convert_and_get_reach(Jump,-Dec,-Reach)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% state_split
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+state_split([],Ups,Rest):-
+    ->
+    Ups=[],Rest=[].
+state_split([up(U)|States],Ups,Rest):- 
+    ->
+    Ups=[up(U)|Ups1],
+    state_split(States,Ups1,Rest).
+state_split([state(S)|States],Ups,Rest):-
+    ->
+    Rest=[R|Rest1],
+    state_split1(S,static,R1,SD),
+    s_s1(R1,SD,R),
+    state_split(States,Ups,Rest1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+s_s1(R1,static,Out):- -> Out=static(R1).
+s_s1(R1,dyn,Out):-    -> Out=dyn(R1).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+state_split1([],Flag,Rest,SD):- -> Rest=[],SD=Flag.
+state_split1([dyn|Xs],_,Rest,SD):-
+    ->
+    state_split1(Xs,dyn,Rest,SD).
+state_split1([X|Xs],Flag,Rest,SD):-
+    ->
+    Rest=[X|Rest1],
+    state_split1(Xs,Flag,Rest1,SD).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% bindings_stack
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+bindings_stack([],Out):- -> Out=[].
+bindings_stack([static(S)|States],Out):-
+    ->
+    Out=[S1|Out1],
+    bindings_one_stack(S,S1),
+    bindings_stack(States,Out1).
+
+bindings_one_stack([],Out):- -> Out=[].
+bindings_one_stack([dyn|Tries],Out):-
+    ->
+    Out=[dyn|Out1],
+    bindings_one_stack(Tries,Out1).
+bindings_one_stack([Try|Tries],Out):-
+    classify_try_instr(Try,ord)
+    ->
+    try_get_binding(Try,Bind),
+    Out=[Bind|Out1],
+    bindings_one_stack(Tries,Out1).
+bindings_one_stack([Try|Tries],Out):-
+    classify_try_instr(Try,Class),
+    flat_member(Class,[test,simp,back])
+    ->
+    bindings_one_stack(Tries,Out).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% check_aliases_first
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+check_aliases_first(Binding,BStack,Jump,Flag):-
+    ->
+    check_aliases_first(Binding,BStack,beg,Jump,Flag).
+
+check_aliases_first(_Binding,_Stack,dont_know,_Jump,Flag):-  -> Flag=dont_know.
+check_aliases_first(_Binding,[],SoFar,_Jump,Flag):-          -> Flag=SoFar.
+check_aliases_first(Binding,[S|Ss],SoFar,Jump,Flag):- 
+    ->
+    check_aliases_first2(Binding,S,SoFar,Jump,F1),
+    check_aliases_first(Binding,Ss,F1,Jump,Flag).
+
+check_aliases_first2(_Binding,[],SoFar,_Jump,Flag):-   -> Flag=SoFar.
+check_aliases_first2(Binding,[T|Stack],SoFar,Jump,Flag):- 
+    ->
+    check_aliases_first3(Binding,T,SoFar,Jump,SoFar1),
+    check_aliases_first2(Binding,Stack,SoFar1,Jump,Flag).
+
+check_aliases_first3(_Binding,simp,_T,SoFar,_Jump,SoFar1):- -> SoFar1=SoFar.
+check_aliases_first3(_Binding,test,_T,SoFar,_Jump,SoFar1):- -> SoFar1=SoFar.
+check_aliases_first3(Binding,ord,T,SoFar,Jump,SoFar1):- 
+     -> 
+     try_get_binding(T,Bind),
+     pseudo_unify(Bind,Binding,Jump,F),
+     check_aliases_first4(F,SoFar,SoFar1).
+
+check_aliases_first4(true,beg,Out):-    -> Out=true.
+check_aliases_first4(true,false,Out):-  -> Out=dont_know.
+check_aliases_first4(dont_know,_,Out):- -> Out=dont_know.
+check_aliases_first4(false,beg,Out):-   -> Out=false.
+check_aliases_first4(false,false,Out):- -> Out=false.
+check_aliases_first4(false,true,Out):-  -> Out=dont_know.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% check_aliases_back
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+check_aliases_back([],_Jump,Flag):- -> Flag=no_alias_check.
+check_aliases_back([S|Ss],Jump,Flag):- 
+    check_aliases_back1(S,Jump)
+    ->
+    check_aliases_back(Ss,Jump,Flag).
+check_aliases_back(_States,_Jump,Flag):-
+    ->
+    Flag=alias_check.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+check_aliases_back1([],_Jump):-  -> true.
+check_aliases_back1([_],_Jump):- -> true.
+check_aliases_back1([Try|Tries],Jump):-
+    ->
+    check_aliases_back2(Try,Tries,Jump),
+    check_aliases_back1(Tries,Jump).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+check_aliases_back2(_,[],_Jump):- -> true.
+check_aliases_back2(Try,[X|Xs],Jump):-
+    -> 
+    pseudo_unify(Try,X,Jump,true),
+    check_aliases_back2(Try,Xs,Jump).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% try_convert_and_get_reach
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+try_convert_and_get_reach(t(Code,Fc,stop),Dec,Reach):-    
+    -> 
+    Dec=t(Code1,Fc,stop),
+    Reach=p(R,stop),
+    try_get_reach1(Code,Code1,R).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+try_get_reach1([try(l(L),Reg,_,A)|Xs],Code,Reach):-    
+     ->      
+     Reach=[L|Reach1],Code=[btry(l(L),Reg,A)|Code1],
+     maybe_block_reach(A,Reach1,Reach2),
+     try_get_reach1(Xs,Code1,Reach2).
+try_get_reach1([trust(l(L),Reg,_,A)],Code,Reach):-    
+     ->    
+     Code=[btrust(l(L),Reg,A)],Reach=[L|Reach1],
+     maybe_block_reach(A,Reach1,[]).
+try_get_reach1([s_try(l(L),_)|Xs],Code,Reach):-    
+     ->      
+     Reach=[L|Reach1],
+     Code=[s_try(l(L))|Code1],
+     try_get_reach1(Xs,Code1,Reach1).
+try_get_reach1([s_trust(l(L),_)],Code,Reach):-    
+     ->      
+     Code=[s_trust(l(L))],Reach=[L].
+try_get_reach1([test_trust(l(L),_Regs,_,l(L1))],Code,Reach):-    
+     ->      
+     Code=[test_trust(l(L),l(L1))],Reach=[L,L1].
+try_get_reach1([test_try(l(L),_Regs,_,l(L1))|Xs],Code,Reach):-    
+     ->      
+     Code=[test_try(l(L),l(L1))|Code1],
+     Reach=[L,L1|Reach1],
+     try_get_reach1(Xs,Code1,Reach1).
+try_get_reach1(Back,Code,Reach):-
+     Back=[back(l(L))]
+     ->
+     Code=Back,Reach=[L].
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+maybe_block_reach(struct(l(L)),Reach1,Reach2):- -> Reach1=[L|Reach2].
+maybe_block_reach(list(l(L)),Reach1,Reach2):-   -> Reach1=[L|Reach2].
+maybe_block_reach(X,Reach1,Reach2):-   
+    flat_member(X,[constant(_),typed(_)])
+    -> 
+    Reach1=Reach2.
+
+

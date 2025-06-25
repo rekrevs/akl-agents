@@ -1,0 +1,12 @@
+#!/bin/sh
+
+# invokes emacs and updates all the info node links:
+# M-> M-<       mark the whole buffer
+# C-u M-x texinfo-insert-node-lines
+# C-u C-c C-u C-n       updates the "pointers"
+# C-u C-c C-u C-m       updates the menus
+
+emacs -batch $1 <<!
+><xtexinfo-insert-node-lines
+
+!

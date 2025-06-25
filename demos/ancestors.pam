@@ -1,0 +1,142 @@
+predicate('ancestor'/2
+label(5)
+	switch_on_term(7,7,7,7,7,7,7)
+label(7)
+	try(0)
+	trust(1)
+label(0)
+	allocate(2)
+	get2_y_variable(0,1,1,0)
+    guard_wait
+	put2_y_value(1,0,0,1)
+	dealloc_execute('parent'/2)
+label(1)
+	allocate(2)
+	get2_y_variable(0,1,1,0)
+    guard_wait
+	put_y_value(1,0)
+	put_y_variable(1,1)
+	call('parent'/2)
+	put2_y_value(1,0,0,1)
+	dealloc_execute('ancestor'/2)
+)
+
+
+predicate('parent'/2
+label(13)
+	switch_on_term(18,16,15,15,15,15,15)
+label(16)
+	switch_on_constant(4,[('a',17),('b',19),('fa',20),('mb',21)],15)
+label(15)
+	fail
+label(17)
+	try(0)
+	trust(1)
+label(18)
+	try(0)
+	retry(1)
+	retry(2)
+	retry(3)
+	retry(4)
+	trust(5)
+label(19)
+	try(2)
+	trust(3)
+label(20)
+	try_single(4)
+label(21)
+	try_single(5)
+label(0)
+	allocate(0)
+	get_constant('a',0)
+	get_constant('ma',1)
+    guard_wait
+	dealloc_proceed
+label(1)
+	allocate(0)
+	get_constant('a',0)
+	get_constant('fa',1)
+    guard_wait
+	dealloc_proceed
+label(2)
+	allocate(0)
+	get_constant('b',0)
+	get_constant('mb',1)
+    guard_wait
+	dealloc_proceed
+label(3)
+	allocate(0)
+	get_constant('b',0)
+	get_constant('fb',1)
+    guard_wait
+	dealloc_proceed
+label(4)
+	allocate(0)
+	get_constant('fa',0)
+	get_constant('c',1)
+    guard_wait
+	dealloc_proceed
+label(5)
+	allocate(0)
+	get_constant('mb',0)
+	get_constant('c',1)
+    guard_wait
+	dealloc_proceed
+)
+
+
+predicate('test1'/1
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(1)
+	get_y_variable(0,0)
+    guard_wait
+	put_constant('a',0)
+	put_y_value(0,1)
+	call('ancestor'/2)
+	put_constant('b',0)
+	put_y_value(0,1)
+	dealloc_execute('ancestor'/2)
+)
+
+
+predicate('anc'/2
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(2)
+	get_y_variable(1,1)
+	get_x_variable(2,0)
+	put_x_value(2,0)
+	put_y_variable(0,1)
+	call('ancestor'/2)
+    guard_wait
+	put_y_value(1,2)
+	get_y_value(0,2)
+	dealloc_proceed
+)
+
+
+predicate('test2'/1
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(1)
+	get_y_variable(0,0)
+    guard_wait
+	put_constant('a',0)
+	put_y_value(0,1)
+	call('anc'/2)
+	put_constant('b',0)
+	put_y_value(0,1)
+	dealloc_execute('anc'/2)
+)
+
+

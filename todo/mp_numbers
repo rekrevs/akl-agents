@@ -1,0 +1,5 @@
+$Id: mp_numbers,v 1.2 1993/06/07 11:02:50 sverker Exp $
+
+All multiple precision operations should also take, and
+possibly also produce, integers as arguments, since this
+would simplify their use.

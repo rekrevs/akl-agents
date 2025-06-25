@@ -1,0 +1,1677 @@
+predicate('go'/1
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(3)
+	get_y_variable(0,0)
+    guard_commit
+	put_y_variable(2,0)
+	call('kernel'/1)
+	put_list(1)
+	unify_constant('end')
+	unify_y_variable(1)
+	put_y_value(2,0)
+	put_y_variable(2,2)
+	call('append'/3)
+	put2_y_value(2,0,1,1)
+	put_y_variable(1,2)
+	call('initTree'/3)
+	put2_y_value(1,0,0,1)
+	dealloc_execute('count'/2)
+)
+
+
+predicate('initTree'/3
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(3)
+	get3_y_variable(1,2,2,1,0,0)
+    guard_commit
+	put_constant('sawelement',2)
+	put_y_value(0,0)
+	put_y_variable(0,1)
+	put2_y_value(2,3,1,4)
+	call('prefilter'/5)
+	put_constant(0,1)
+	put_nil(2)
+	put_y_value(0,0)
+	dealloc_execute('tree'/3)
+)
+
+
+predicate('prefilter'/5
+label(7)
+	switch_on_term(10,9,9,9,9,10,9)
+label(9)
+	fail
+label(10)
+	try(0)
+	retry(1)
+	trust(2)
+label(0)
+	allocate(4)
+	get3_y_variable(0,4,2,3,3,1)
+	get_list_x0
+	unify_constant('end')
+	unify_y_variable(1)
+	get_constant('sawelement',2)
+    guard_commit
+	put_y_value(3,5)
+	get_list(5)
+	unify_x_variable(5)
+	unify_x_variable(6)
+	get_structure('end'/2,5)
+	unify_y_value(2)
+	unify_x_variable(5)
+	put_constant('sawend',2)
+	put_y_value(1,0)
+	put_x_value(6,1)
+	put_x_value(5,3)
+	put_y_value(0,4)
+	dealloc_execute('prefilter'/5)
+label(1)
+	allocate(2)
+	get2_y_variable(0,4,1,1)
+	get_list_x0
+	unify_constant('end')
+	unify_void
+	get_constant('sawend',2)
+    guard_commit
+	put_y_value(1,5)
+	get_list(5)
+	unify_x_variable(5)
+	unify_nil
+	get_structure('out'/2,5)
+	unify_y_value(0)
+	unify_nil
+	dealloc_proceed
+label(2)
+	allocate(6)
+	get3_y_variable(0,4,2,3,5,1)
+	get_list_x0
+	unify_x_variable(5)
+	unify_y_variable(1)
+	get_structure('-'/2,5)
+	unify_y_variable(4)
+	unify_y_variable(3)
+    guard_commit
+	put_y_value(5,5)
+	get_list(5)
+	unify_x_variable(5)
+	unify_x_variable(6)
+	get_structure('m'/3,5)
+	unify_y_value(4)
+	unify_y_value(3)
+	unify_x_variable(5)
+	get_structure('-'/2,5)
+	unify_y_value(2)
+	unify_x_variable(5)
+	put_constant('sawelement',2)
+	put_y_value(1,0)
+	put_x_value(6,1)
+	put_x_value(5,3)
+	put_y_value(0,4)
+	dealloc_execute('prefilter'/5)
+)
+
+
+predicate('gen'/2
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(4)
+	get_y_variable(2,0)
+	get_structure('-'/2,1)
+	unify_y_variable(1)
+	unify_y_variable(0)
+    guard_commit
+	put_y_variable(3,0)
+	call('kernel'/1)
+	put4_y_value(3,0,2,1,1,2,0,3)
+	dealloc_execute('g'/4)
+)
+
+
+predicate('g'/4
+label(5)
+	switch_on_term(10,8,7,7,7,11,7)
+label(8)
+	switch_on_constant(1,[('[]',9)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(2)
+	get2_y_variable(0,3,1,2)
+	get_nil_x0
+    guard_commit
+	put_y_value(1,4)
+	get_y_value(0,4)
+	dealloc_proceed
+label(1)
+	allocate(5)
+	get3_y_variable(3,3,0,2,1,1)
+	get_list_x0
+	unify_y_variable(2)
+	unify_y_variable(4)
+    guard_commit
+	put_y_value(0,4)
+	get_list(4)
+	unify_y_variable(0)
+	unify_x_variable(4)
+	put2_y_value(4,0,1,1)
+	put_x_value(4,2)
+	put_y_value(3,3)
+	call('g'/4)
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('mult'/3)
+)
+
+
+predicate('tree'/3
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(3)
+	get3_y_variable(0,2,1,1,2,0)
+    guard_commit
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('t'/3)
+)
+
+
+predicate('t'/3
+label(13)
+	switch_on_term(18,16,15,15,15,19,15)
+label(16)
+	switch_on_constant(1,[('[]',17)],15)
+label(15)
+	fail
+label(17)
+	try_single(0)
+label(18)
+	try(0)
+	retry(1)
+	retry(2)
+	retry(3)
+	retry(4)
+	trust(5)
+label(19)
+	try(1)
+	retry(2)
+	retry(3)
+	retry(4)
+	trust(5)
+label(0)
+	allocate(0)
+	get_nil_x0
+    guard_commit
+	dealloc_proceed
+label(1)
+	allocate(5)
+	get2_y_variable(0,2,1,1)
+	get_list_x0
+	unify_x_variable(6)
+	unify_y_variable(2)
+	get_structure('m'/3,6)
+	unify_x_variable(6)
+	unify_y_variable(4)
+	unify_y_variable(3)
+	put_y_value(1,7)
+	get_x_value(6,7)
+    guard_commit
+	put3_y_value(0,0,0,1,4,2)
+	put_y_variable(0,3)
+	put2_y_value(4,4,3,5)
+	call('insertBucket'/6)
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('t'/3)
+label(2)
+	allocate(6)
+	get2_y_variable(1,2,3,1)
+	get_list_x0
+	unify_x_variable(4)
+	unify_y_variable(4)
+	get_structure('m'/3,4)
+	unify_y_variable(0)
+	unify_y_variable(2)
+	unify_y_variable(5)
+	put2_y_value(3,0,0,1)
+	call('<'/2)
+    guard_commit
+	put2_y_value(2,0,5,1)
+	call('gen'/2)
+	put3_y_value(4,0,3,1,1,2)
+	put_y_variable(1,3)
+	call('tr'/4)
+	put_list(2)
+	unify_y_value(2)
+	unify_nil
+	put2_y_value(1,0,0,1)
+	dealloc_execute('t'/3)
+label(3)
+	allocate(6)
+	get2_y_variable(1,2,2,1)
+	get_list_x0
+	unify_x_variable(4)
+	unify_y_variable(3)
+	get_structure('m'/3,4)
+	unify_y_variable(4)
+	unify_y_variable(0)
+	unify_y_variable(5)
+	put2_y_value(4,0,2,1)
+	call('<'/2)
+    guard_commit
+	put2_y_value(0,0,5,1)
+	call('gen'/2)
+	put_list(2)
+	unify_y_value(0)
+	unify_nil
+	put_y_variable(0,0)
+	put_y_value(4,1)
+	call('t'/3)
+	put4_y_value(3,0,2,1,1,2,0,3)
+	dealloc_execute('tl'/4)
+label(4)
+	allocate(5)
+	get2_y_variable(0,2,1,1)
+	get_list_x0
+	unify_x_variable(3)
+	unify_y_variable(2)
+	get_structure('out'/2,3)
+	unify_y_variable(4)
+	unify_y_variable(3)
+    guard_commit
+	put3_y_value(0,0,4,1,3,2)
+	call('xsend'/3)
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('t'/3)
+label(5)
+	allocate(5)
+	get2_y_variable(0,2,1,1)
+	get_list_x0
+	unify_x_variable(3)
+	unify_y_variable(2)
+	get_structure('end'/2,3)
+	unify_y_variable(4)
+	unify_y_variable(3)
+    guard_commit
+	put_y_value(4,3)
+	get_list(3)
+	unify_constant('end')
+	unify_y_value(3)
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('t'/3)
+)
+
+
+predicate('tr'/4
+label(13)
+	switch_on_term(18,16,15,15,15,19,15)
+label(16)
+	switch_on_constant(1,[('[]',17)],15)
+label(15)
+	fail
+label(17)
+	try_single(0)
+label(18)
+	try(0)
+	retry(1)
+	retry(2)
+	retry(3)
+	retry(4)
+	trust(5)
+label(19)
+	try(1)
+	retry(2)
+	retry(3)
+	retry(4)
+	trust(5)
+label(0)
+	allocate(1)
+	get_y_variable(0,3)
+	get_nil_x0
+    guard_commit
+	put_y_value(0,4)
+	get_nil(4)
+	dealloc_proceed
+label(1)
+	allocate(6)
+	get3_y_variable(0,3,1,2,2,1)
+	get_list_x0
+	unify_x_variable(6)
+	unify_y_variable(3)
+	get_structure('m'/3,6)
+	unify_x_variable(6)
+	unify_y_variable(5)
+	unify_y_variable(4)
+	put_y_value(2,7)
+	get_x_value(6,7)
+    guard_commit
+	put3_y_value(1,0,1,1,5,2)
+	put_y_variable(1,3)
+	put2_y_value(5,4,4,5)
+	call('insertBucket'/6)
+	put4_y_value(3,0,2,1,1,2,0,3)
+	dealloc_execute('tr'/4)
+label(2)
+	allocate(7)
+	get3_y_variable(6,3,0,2,1,1)
+	get_list_x0
+	unify_x_variable(4)
+	unify_y_variable(2)
+	get_structure('m'/3,4)
+	unify_y_variable(5)
+	unify_y_variable(4)
+	unify_y_variable(3)
+	put2_y_value(1,0,5,1)
+	call('<'/2)
+    guard_commit
+	put_y_value(6,4)
+	get_list(4)
+	unify_x_variable(4)
+	unify_x_variable(5)
+	get_structure('m'/3,4)
+	unify_y_value(5)
+	unify_y_value(4)
+	unify_y_value(3)
+	put3_y_value(2,0,1,1,0,2)
+	put_x_value(5,3)
+	dealloc_execute('tr'/4)
+label(3)
+	allocate(7)
+	get3_y_variable(0,3,2,2,3,1)
+	get_list_x0
+	unify_x_variable(5)
+	unify_y_variable(4)
+	get_structure('m'/3,5)
+	unify_y_variable(5)
+	unify_y_variable(1)
+	unify_y_variable(6)
+	put2_y_value(5,0,3,1)
+	call('<'/2)
+    guard_commit
+	put2_y_value(1,0,6,1)
+	call('gen'/2)
+	put_list(2)
+	unify_y_value(1)
+	unify_nil
+	put_y_variable(1,0)
+	put_y_value(5,1)
+	call('t'/3)
+	put5_y_value(4,0,3,1,2,2,1,3,0,4)
+	dealloc_execute('tlr'/5)
+label(4)
+	allocate(6)
+	get3_y_variable(0,3,1,2,2,1)
+	get_list_x0
+	unify_x_variable(4)
+	unify_y_variable(3)
+	get_structure('out'/2,4)
+	unify_y_variable(4)
+	unify_y_variable(5)
+    guard_commit
+	put_y_value(0,4)
+	get_list(4)
+	unify_x_variable(4)
+	unify_y_variable(0)
+	get_structure('out'/2,4)
+	unify_x_variable(4)
+	unify_y_value(5)
+	put2_y_value(1,0,4,1)
+	put_x_value(4,2)
+	call('xsend'/3)
+	put4_y_value(3,0,2,1,1,2,0,3)
+	dealloc_execute('tr'/4)
+label(5)
+	allocate(6)
+	get3_y_variable(0,3,1,2,2,1)
+	get_list_x0
+	unify_x_variable(4)
+	unify_y_variable(3)
+	get_structure('end'/2,4)
+	unify_y_variable(5)
+	unify_y_variable(4)
+    guard_commit
+	put_y_value(5,4)
+	get_list(4)
+	unify_constant('end')
+	unify_y_value(4)
+	put4_y_value(3,0,2,1,1,2,0,3)
+	dealloc_execute('tr'/4)
+)
+
+
+predicate('tl'/4
+label(13)
+	switch_on_term(18,16,15,15,15,19,15)
+label(16)
+	switch_on_constant(1,[('[]',17)],15)
+label(15)
+	fail
+label(17)
+	try_single(0)
+label(18)
+	try(0)
+	retry(1)
+	retry(2)
+	retry(3)
+	retry(4)
+	trust(5)
+label(19)
+	try(1)
+	retry(2)
+	retry(3)
+	retry(4)
+	trust(5)
+label(0)
+	allocate(1)
+	get_y_variable(0,3)
+	get_nil_x0
+    guard_commit
+	put_y_value(0,4)
+	get_nil(4)
+	dealloc_proceed
+label(1)
+	allocate(6)
+	get3_y_variable(0,3,1,2,2,1)
+	get_list_x0
+	unify_x_variable(6)
+	unify_y_variable(3)
+	get_structure('m'/3,6)
+	unify_x_variable(6)
+	unify_y_variable(5)
+	unify_y_variable(4)
+	put_y_value(2,7)
+	get_x_value(6,7)
+    guard_commit
+	put3_y_value(1,0,1,1,5,2)
+	put_y_variable(1,3)
+	put2_y_value(5,4,4,5)
+	call('insertBucket'/6)
+	put4_y_value(3,0,2,1,1,2,0,3)
+	dealloc_execute('tl'/4)
+label(2)
+	allocate(7)
+	get3_y_variable(1,3,3,2,4,1)
+	get_list_x0
+	unify_x_variable(5)
+	unify_y_variable(5)
+	get_structure('m'/3,5)
+	unify_y_variable(0)
+	unify_y_variable(2)
+	unify_y_variable(6)
+	put2_y_value(4,0,0,1)
+	call('<'/2)
+    guard_commit
+	put2_y_value(2,0,6,1)
+	call('gen'/2)
+	put4_y_value(5,0,4,1,3,2,1,3)
+	put_y_variable(1,4)
+	call('tlr'/5)
+	put_list(2)
+	unify_y_value(2)
+	unify_nil
+	put2_y_value(1,0,0,1)
+	dealloc_execute('t'/3)
+label(3)
+	allocate(7)
+	get3_y_variable(6,3,0,2,1,1)
+	get_list_x0
+	unify_x_variable(4)
+	unify_y_variable(2)
+	get_structure('m'/3,4)
+	unify_y_variable(5)
+	unify_y_variable(4)
+	unify_y_variable(3)
+	put2_y_value(5,0,1,1)
+	call('<'/2)
+    guard_commit
+	put_y_value(6,4)
+	get_list(4)
+	unify_x_variable(4)
+	unify_x_variable(5)
+	get_structure('m'/3,4)
+	unify_y_value(5)
+	unify_y_value(4)
+	unify_y_value(3)
+	put3_y_value(2,0,1,1,0,2)
+	put_x_value(5,3)
+	dealloc_execute('tl'/4)
+label(4)
+	allocate(6)
+	get3_y_variable(5,3,2,2,3,1)
+	get_list_x0
+	unify_x_variable(4)
+	unify_y_variable(4)
+	get_structure('out'/2,4)
+	unify_y_variable(1)
+	unify_y_variable(0)
+    guard_commit
+	put_y_value(5,4)
+	get_list(4)
+	unify_x_variable(4)
+	unify_x_variable(5)
+	get_structure('out'/2,4)
+	unify_y_value(1)
+	unify_y_variable(1)
+	put3_y_value(4,0,3,1,2,2)
+	put_x_value(5,3)
+	call('tl'/4)
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('xsend'/3)
+label(5)
+	allocate(6)
+	get3_y_variable(0,3,1,2,2,1)
+	get_list_x0
+	unify_x_variable(4)
+	unify_y_variable(3)
+	get_structure('end'/2,4)
+	unify_y_variable(5)
+	unify_y_variable(4)
+    guard_commit
+	put_y_value(5,4)
+	get_list(4)
+	unify_constant('end')
+	unify_y_value(4)
+	put4_y_value(3,0,2,1,1,2,0,3)
+	dealloc_execute('tl'/4)
+)
+
+
+predicate('tlr'/5
+label(13)
+	switch_on_term(18,16,15,15,15,19,15)
+label(16)
+	switch_on_constant(1,[('[]',17)],15)
+label(15)
+	fail
+label(17)
+	try_single(0)
+label(18)
+	try(0)
+	retry(1)
+	retry(2)
+	retry(3)
+	retry(4)
+	trust(5)
+label(19)
+	try(1)
+	retry(2)
+	retry(3)
+	retry(4)
+	trust(5)
+label(0)
+	allocate(2)
+	get2_y_variable(0,4,1,3)
+	get_nil_x0
+    guard_commit
+	put_y_value(1,5)
+	get_nil(5)
+	put_y_value(0,5)
+	get_nil(5)
+	dealloc_proceed
+label(1)
+	allocate(7)
+	get4_y_variable(0,4,1,3,2,2,3,1)
+	get_list_x0
+	unify_x_variable(6)
+	unify_y_variable(4)
+	get_structure('m'/3,6)
+	unify_x_variable(6)
+	unify_y_variable(6)
+	unify_y_variable(5)
+	put_y_value(3,7)
+	get_x_value(6,7)
+    guard_commit
+	put3_y_value(2,0,2,1,6,2)
+	put_y_variable(2,3)
+	put2_y_value(6,4,5,5)
+	call('insertBucket'/6)
+	put5_y_value(4,0,3,1,2,2,1,3,0,4)
+	dealloc_execute('tlr'/5)
+label(2)
+	allocate(8)
+	get4_y_variable(7,4,0,3,1,2,2,1)
+	get_list_x0
+	unify_x_variable(5)
+	unify_y_variable(3)
+	get_structure('m'/3,5)
+	unify_y_variable(6)
+	unify_y_variable(5)
+	unify_y_variable(4)
+	put2_y_value(2,0,6,1)
+	call('<'/2)
+    guard_commit
+	put_y_value(7,5)
+	get_list(5)
+	unify_x_variable(5)
+	unify_x_variable(6)
+	get_structure('m'/3,5)
+	unify_y_value(6)
+	unify_y_value(5)
+	unify_y_value(4)
+	put4_y_value(3,0,2,1,1,2,0,3)
+	put_x_value(6,4)
+	dealloc_execute('tlr'/5)
+label(3)
+	allocate(8)
+	get4_y_variable(0,4,7,3,1,2,2,1)
+	get_list_x0
+	unify_x_variable(5)
+	unify_y_variable(3)
+	get_structure('m'/3,5)
+	unify_y_variable(6)
+	unify_y_variable(5)
+	unify_y_variable(4)
+	put2_y_value(6,0,2,1)
+	call('<'/2)
+    guard_commit
+	put_y_value(7,5)
+	get_list(5)
+	unify_x_variable(5)
+	unify_x_variable(6)
+	get_structure('m'/3,5)
+	unify_y_value(6)
+	unify_y_value(5)
+	unify_y_value(4)
+	put3_y_value(3,0,2,1,1,2)
+	put_x_value(6,3)
+	put_y_value(0,4)
+	dealloc_execute('tlr'/5)
+label(4)
+	allocate(7)
+	get4_y_variable(3,4,6,3,4,2,2,1)
+	get_list_x0
+	unify_x_variable(5)
+	unify_y_variable(5)
+	get_structure('out'/2,5)
+	unify_y_variable(1)
+	unify_y_variable(0)
+    guard_commit
+	put_y_value(6,5)
+	get_list(5)
+	unify_x_variable(5)
+	unify_x_variable(6)
+	get_structure('out'/2,5)
+	unify_y_value(1)
+	unify_y_variable(1)
+	put3_y_value(5,0,2,1,4,2)
+	put_x_value(6,3)
+	put_y_variable(2,4)
+	call('tlr'/5)
+	put2_y_value(4,0,1,1)
+	put_y_variable(1,2)
+	call('xsend'/3)
+	put_y_value(3,6)
+	get_list(6)
+	unify_x_variable(6)
+	unify_y_value(2)
+	get_structure('out'/2,6)
+	unify_y_value(1)
+	unify_y_value(0)
+	dealloc_proceed
+label(5)
+	allocate(7)
+	get4_y_variable(0,4,1,3,2,2,3,1)
+	get_list_x0
+	unify_x_variable(5)
+	unify_y_variable(4)
+	get_structure('end'/2,5)
+	unify_y_variable(6)
+	unify_y_variable(5)
+    guard_commit
+	put_y_value(6,5)
+	get_list(5)
+	unify_constant('end')
+	unify_y_value(5)
+	put5_y_value(4,0,3,1,2,2,1,3,0,4)
+	dealloc_execute('tlr'/5)
+)
+
+
+predicate('insertBucket'/6
+label(7)
+	switch_on_term(12,10,9,9,9,13,9)
+label(10)
+	switch_on_constant(1,[('[]',11)],9)
+label(9)
+	fail
+label(11)
+	try_single(0)
+label(12)
+	try(0)
+	retry(1)
+	trust(2)
+label(13)
+	try(1)
+	trust(2)
+label(0)
+	allocate(5)
+	get5_y_variable(0,5,1,4,4,3,3,2,2,1)
+	get_nil_x0
+    guard_cond
+	put_y_value(4,6)
+	get_list(6)
+	unify_y_value(3)
+	unify_y_value(2)
+	put2_y_value(1,0,0,1)
+	dealloc_execute('gen'/2)
+label(1)
+	allocate(4)
+	get_y_variable(3,3)
+	get_x_variable(6,2)
+	get_y_variable(2,1)
+	get_list_x0
+	unify_x_value(6)
+	unify_void
+	get_structure('-'/2,5)
+	unify_y_variable(1)
+	unify_y_variable(0)
+    guard_cond
+	put_y_value(3,6)
+	get_y_value(2,6)
+	put_y_value(1,6)
+	get_y_value(0,6)
+	dealloc_proceed
+label(2)
+	allocate(6)
+	get5_y_variable(0,5,1,4,2,3,3,2,4,1)
+	get_list_x0
+	unify_void
+	unify_y_variable(5)
+    guard_cond
+	put5_y_value(5,0,4,1,3,2,2,3,1,4)
+	put_y_value(0,5)
+	dealloc_execute('insertBucket'/6)
+)
+
+
+predicate('xsend'/3
+label(5)
+	switch_on_term(10,8,7,7,7,11,7)
+label(8)
+	switch_on_constant(1,[('[]',9)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(2)
+	get2_y_variable(0,2,1,1)
+	get_nil_x0
+    guard_commit
+	put_y_value(1,3)
+	get_y_value(0,3)
+	dealloc_proceed
+label(1)
+	allocate(4)
+	get2_y_variable(0,2,3,1)
+	get_list_x0
+	unify_y_variable(2)
+	unify_y_variable(1)
+    guard_commit
+	put_y_value(3,3)
+	get_list(3)
+	unify_y_value(2)
+	unify_x_variable(3)
+	put_y_value(1,0)
+	put_x_value(3,1)
+	put_y_value(0,2)
+	dealloc_execute('xsend'/3)
+)
+
+
+predicate('append'/3
+label(5)
+	switch_on_term(10,8,7,7,7,9,7)
+label(8)
+	switch_on_constant(1,[('[]',11)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(4)
+	get2_y_variable(3,2,0,1)
+	get_list_x0
+	unify_y_variable(2)
+	unify_y_variable(1)
+    guard_commit
+	put_y_value(3,3)
+	get_list(3)
+	unify_y_value(2)
+	unify_x_variable(3)
+	put2_y_value(1,0,0,1)
+	put_x_value(3,2)
+	dealloc_execute('append'/3)
+label(1)
+	allocate(2)
+	get2_y_variable(1,2,0,1)
+	get_nil_x0
+    guard_commit
+	put_y_value(1,3)
+	get_y_value(0,3)
+	dealloc_proceed
+)
+
+
+predicate('count'/2
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(2)
+	get2_y_variable(0,1,1,0)
+    guard_commit
+	put_constant(0,1)
+	put2_y_value(1,0,0,2)
+	dealloc_execute('count'/3)
+)
+
+
+predicate('count'/3
+label(5)
+	switch_on_term(10,8,7,7,7,11,7)
+label(8)
+	switch_on_constant(1,[('[]',9)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(2)
+	get2_y_variable(0,2,1,1)
+	get_nil_x0
+    guard_commit
+	put_y_value(1,3)
+	get_y_value(0,3)
+	dealloc_proceed
+label(1)
+	allocate(3)
+	get_y_variable(0,2)
+	get_x_variable(3,1)
+	get_list_x0
+	unify_void
+	unify_y_variable(2)
+	put_structure('+'/2,1)
+	unify_x_value(3)
+	unify_constant(1)
+	put_y_variable(1,0)
+	call('is'/2)
+    guard_commit
+	put3_y_value(2,0,1,1,0,2)
+	dealloc_execute('count'/3)
+)
+
+
+predicate('mult'/3
+label(3)
+	switch_on_term(7,5,5,5,5,5,6)
+label(6)
+	switch_on_structure(1,[('-'/2,7)],5)
+label(5)
+	fail
+label(7)
+	try_single(0)
+label(0)
+	allocate(3)
+	get2_y_variable(2,2,0,1)
+	get_structure_x0('-'/2)
+	unify_void
+	unify_y_variable(1)
+    guard_commit
+	put_y_value(2,6)
+	get_structure('-'/2,6)
+	unify_x_variable(6)
+	unify_x_variable(7)
+	put_constant(0,3)
+	put_constant(0,5)
+	put2_y_value(1,0,0,1)
+	put_x_value(7,2)
+	put_x_value(6,4)
+	dealloc_execute('mult'/6)
+)
+
+
+predicate('mult'/6
+label(5)
+	switch_on_term(10,8,7,7,7,9,7)
+label(8)
+	switch_on_constant(1,[('[]',11)],7)
+label(7)
+	fail
+label(9)
+	try_single(0)
+label(10)
+	try(0)
+	trust(1)
+label(11)
+	try_single(1)
+label(0)
+	allocate(8)
+	get_x_variable(6,5)
+	get_y_variable(1,4)
+	get_x_variable(7,3)
+	get_y_variable(0,2)
+	get_list_x0
+	unify_y_variable(7)
+	unify_y_variable(5)
+	get_list(1)
+	unify_y_variable(6)
+	unify_y_variable(4)
+	put_structure('*'/2,8)
+	unify_x_value(7)
+	unify_constant(3)
+	put_structure('+'/2,7)
+	unify_x_value(6)
+	unify_x_value(8)
+	put_structure('mod'/2,1)
+	unify_x_value(7)
+	unify_constant(2097152)
+	put_y_variable(2,0)
+	call('is'/2)
+    guard_commit
+	put_y_value(0,7)
+	get_list(7)
+	unify_y_variable(0)
+	unify_y_variable(3)
+	put3_y_value(7,0,6,1,0,2)
+	call('m'/3)
+	put5_y_value(5,0,4,1,3,2,2,3,1,4)
+	put_y_value(0,5)
+	dealloc_execute('mult'/6)
+label(1)
+	allocate(3)
+	get3_y_variable(1,4,0,3,2,2)
+	get_nil_x0
+	get_nil(1)
+    guard_commit
+	put_y_value(2,6)
+	get_nil(6)
+	put_y_value(1,6)
+	get_y_value(0,6)
+	dealloc_proceed
+)
+
+
+predicate('m'/3
+label(51)
+	switch_on_term(55,53,54,53,53,53,53)
+label(54)
+	switch_on_constant(5,[(1,60),(2,56),(3,57),(4,58),(5,59)],53)
+label(53)
+	fail
+label(55)
+	try(0)
+	retry(1)
+	retry(2)
+	retry(3)
+	retry(4)
+	retry(5)
+	retry(6)
+	retry(7)
+	retry(8)
+	retry(9)
+	retry(10)
+	retry(11)
+	retry(12)
+	retry(13)
+	retry(14)
+	retry(15)
+	retry(16)
+	retry(17)
+	retry(18)
+	retry(19)
+	retry(20)
+	retry(21)
+	retry(22)
+	retry(23)
+	trust(24)
+label(56)
+	try(0)
+	retry(5)
+	retry(10)
+	retry(15)
+	trust(20)
+label(57)
+	try(1)
+	retry(6)
+	retry(11)
+	retry(16)
+	trust(21)
+label(58)
+	try(2)
+	retry(7)
+	retry(12)
+	retry(17)
+	trust(22)
+label(59)
+	try(3)
+	retry(8)
+	retry(13)
+	retry(18)
+	trust(23)
+label(60)
+	try(4)
+	retry(9)
+	retry(14)
+	retry(19)
+	trust(24)
+label(0)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant(2,0)
+	get_constant(1,1)
+    guard_commit
+	put_y_value(0,3)
+	get_constant(1,3)
+	dealloc_proceed
+label(1)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant(3,0)
+	get_constant(1,1)
+    guard_commit
+	put_y_value(0,3)
+	get_constant(1,3)
+	dealloc_proceed
+label(2)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant(4,0)
+	get_constant(1,1)
+    guard_commit
+	put_y_value(0,3)
+	get_constant(1,3)
+	dealloc_proceed
+label(3)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant(5,0)
+	get_constant(1,1)
+    guard_commit
+	put_y_value(0,3)
+	get_constant(1,3)
+	dealloc_proceed
+label(4)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant(1,0)
+	get_constant(1,1)
+    guard_commit
+	put_y_value(0,3)
+	get_constant(1,3)
+	dealloc_proceed
+label(5)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant(2,0)
+	get_constant(2,1)
+    guard_commit
+	put_y_value(0,3)
+	get_constant(2,3)
+	dealloc_proceed
+label(6)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant(3,0)
+	get_constant(2,1)
+    guard_commit
+	put_y_value(0,3)
+	get_constant(1,3)
+	dealloc_proceed
+label(7)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant(4,0)
+	get_constant(2,1)
+    guard_commit
+	put_y_value(0,3)
+	get_constant(1,3)
+	dealloc_proceed
+label(8)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant(5,0)
+	get_constant(2,1)
+    guard_commit
+	put_y_value(0,3)
+	get_constant(5,3)
+	dealloc_proceed
+label(9)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant(1,0)
+	get_constant(2,1)
+    guard_commit
+	put_y_value(0,3)
+	get_constant(1,3)
+	dealloc_proceed
+label(10)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant(2,0)
+	get_constant(3,1)
+    guard_commit
+	put_y_value(0,3)
+	get_constant(1,3)
+	dealloc_proceed
+label(11)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant(3,0)
+	get_constant(3,1)
+    guard_commit
+	put_y_value(0,3)
+	get_constant(3,3)
+	dealloc_proceed
+label(12)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant(4,0)
+	get_constant(3,1)
+    guard_commit
+	put_y_value(0,3)
+	get_constant(4,3)
+	dealloc_proceed
+label(13)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant(5,0)
+	get_constant(3,1)
+    guard_commit
+	put_y_value(0,3)
+	get_constant(1,3)
+	dealloc_proceed
+label(14)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant(1,0)
+	get_constant(3,1)
+    guard_commit
+	put_y_value(0,3)
+	get_constant(1,3)
+	dealloc_proceed
+label(15)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant(2,0)
+	get_constant(4,1)
+    guard_commit
+	put_y_value(0,3)
+	get_constant(4,3)
+	dealloc_proceed
+label(16)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant(3,0)
+	get_constant(4,1)
+    guard_commit
+	put_y_value(0,3)
+	get_constant(1,3)
+	dealloc_proceed
+label(17)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant(4,0)
+	get_constant(4,1)
+    guard_commit
+	put_y_value(0,3)
+	get_constant(1,3)
+	dealloc_proceed
+label(18)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant(5,0)
+	get_constant(4,1)
+    guard_commit
+	put_y_value(0,3)
+	get_constant(3,3)
+	dealloc_proceed
+label(19)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant(1,0)
+	get_constant(4,1)
+    guard_commit
+	put_y_value(0,3)
+	get_constant(1,3)
+	dealloc_proceed
+label(20)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant(2,0)
+	get_constant(5,1)
+    guard_commit
+	put_y_value(0,3)
+	get_constant(1,3)
+	dealloc_proceed
+label(21)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant(3,0)
+	get_constant(5,1)
+    guard_commit
+	put_y_value(0,3)
+	get_constant(5,3)
+	dealloc_proceed
+label(22)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant(4,0)
+	get_constant(5,1)
+    guard_commit
+	put_y_value(0,3)
+	get_constant(2,3)
+	dealloc_proceed
+label(23)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant(5,0)
+	get_constant(5,1)
+    guard_commit
+	put_y_value(0,3)
+	get_constant(1,3)
+	dealloc_proceed
+label(24)
+	allocate(1)
+	get_y_variable(0,2)
+	get_constant(1,0)
+	get_constant(5,1)
+    guard_commit
+	put_y_value(0,3)
+	get_constant(1,3)
+	dealloc_proceed
+)
+
+
+predicate('kernel'/1
+label(3)
+	switch_on_term(5,5,5,5,5,5,5)
+label(5)
+	try_single(0)
+label(0)
+	allocate(1)
+	get_y_variable(0,0)
+    guard_commit
+	put_y_value(0,1)
+	get_list(1)
+	unify_x_variable(1)
+	unify_x_variable(2)
+	get_structure('-'/2,1)
+	unify_constant(1833472)
+	unify_list
+	unify_constant(1)
+	unify_list
+	unify_constant(1)
+	unify_list
+	unify_constant(1)
+	unify_list
+	unify_constant(1)
+	unify_list
+	unify_constant(1)
+	unify_list
+	unify_constant(2)
+	unify_list
+	unify_constant(2)
+	unify_list
+	unify_constant(2)
+	unify_list
+	unify_constant(2)
+	unify_list
+	unify_constant(2)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(5)
+	unify_list
+	unify_constant(5)
+	unify_list
+	unify_constant(5)
+	unify_list
+	unify_constant(5)
+	unify_list
+	unify_constant(5)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(5)
+	unify_list
+	unify_constant(5)
+	unify_list
+	unify_constant(5)
+	unify_list
+	unify_constant(5)
+	unify_list
+	unify_constant(5)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(4)
+	unify_nil
+	get_list(2)
+	unify_x_variable(2)
+	unify_x_variable(1)
+	get_structure('-'/2,2)
+	unify_constant(-590019)
+	unify_list
+	unify_constant(1)
+	unify_list
+	unify_constant(2)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(5)
+	unify_list
+	unify_constant(1)
+	unify_list
+	unify_constant(2)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(5)
+	unify_list
+	unify_constant(1)
+	unify_list
+	unify_constant(2)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(5)
+	unify_list
+	unify_constant(1)
+	unify_list
+	unify_constant(2)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(5)
+	unify_list
+	unify_constant(1)
+	unify_list
+	unify_constant(2)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(5)
+	unify_list
+	unify_constant(1)
+	unify_list
+	unify_constant(2)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(5)
+	unify_list
+	unify_constant(1)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(2)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(5)
+	unify_list
+	unify_constant(1)
+	unify_list
+	unify_constant(2)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(5)
+	unify_nil
+	get_list(1)
+	unify_x_variable(1)
+	unify_x_variable(2)
+	get_structure('-'/2,1)
+	unify_constant(1084198)
+	unify_list
+	unify_constant(1)
+	unify_list
+	unify_constant(1)
+	unify_list
+	unify_constant(1)
+	unify_list
+	unify_constant(1)
+	unify_list
+	unify_constant(1)
+	unify_list
+	unify_constant(2)
+	unify_list
+	unify_constant(2)
+	unify_list
+	unify_constant(2)
+	unify_list
+	unify_constant(2)
+	unify_list
+	unify_constant(2)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(5)
+	unify_list
+	unify_constant(5)
+	unify_list
+	unify_constant(5)
+	unify_list
+	unify_constant(5)
+	unify_list
+	unify_constant(5)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(2)
+	unify_list
+	unify_constant(2)
+	unify_list
+	unify_constant(2)
+	unify_list
+	unify_constant(2)
+	unify_list
+	unify_constant(2)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(3)
+	unify_nil
+	get_list(2)
+	unify_x_variable(2)
+	unify_nil
+	get_structure('-'/2,2)
+	unify_constant(1154844)
+	unify_list
+	unify_constant(1)
+	unify_list
+	unify_constant(2)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(5)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(1)
+	unify_list
+	unify_constant(2)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(5)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(1)
+	unify_list
+	unify_constant(2)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(5)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(1)
+	unify_list
+	unify_constant(2)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(5)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(1)
+	unify_list
+	unify_constant(2)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(5)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(1)
+	unify_list
+	unify_constant(2)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(5)
+	unify_list
+	unify_constant(1)
+	unify_list
+	unify_constant(2)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(5)
+	unify_list
+	unify_constant(4)
+	unify_list
+	unify_constant(1)
+	unify_list
+	unify_constant(2)
+	unify_list
+	unify_constant(3)
+	unify_list
+	unify_constant(5)
+	unify_list
+	unify_constant(4)
+	unify_nil
+	dealloc_proceed
+)
+
+

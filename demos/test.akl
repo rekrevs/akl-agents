@@ -1,0 +1,125 @@
+% $Id: test.akl,v 1.12 1994/03/25 14:51:54 jm Exp $
+
+test :-
+    all(prove,
+	 A\(Y:prove(nreverse([1,2,3],Y)), A = ('Y',Y)),
+	 "prove(nreverse([1,2,3],Y))",
+	 "=> [3,2,1]")
+    &
+
+    all(orp,
+	 A\(Y:solve([ancestor(a,Y),ancestor(b,Y)]), A = ('Y',Y)),
+	 "solve([ancestor(a,Y),ancestor(b,Y)])",
+	 "=> c")
+
+    &
+
+    all(lists,
+	 A\((S,L):list(100,L), qsort(L,S,[]), A = ('S',S)),
+	 "list(100,L), qsort(L,S,[])",
+	 "")
+
+    &
+
+    all(sublist,
+	A\(X:sub(X,[c,a,t,s]), sub(X,[l,a,s,t]), A = ('X',X)),
+	"sub(X,[c,a,t,s]), sub(X,[l,a,s,t])",
+	"=> [], [a], ...")
+
+    &
+
+    all(mwmerge,
+	 A\(L:merger([a|split([b,c],[d,e])],L), A = ('L',L)),
+	 "merger([a|split([b,c],[d,e])],L)",
+	 "=> [a,b,c,d,e]")
+
+    &
+
+    one(cipher,
+	 A\(frequency, A = yes),
+	 "frequency",
+	 "")
+
+    &
+
+    one(money,
+	 A\(money(ctr), A = yes),
+	 "money(ctr)",
+	 "9567 + 1085 = 10652")
+
+    &
+
+    one(queens,
+	 A\(queens(10), A = yes),
+	 "queens(10)",
+	 "")
+
+    &
+
+    one(scanner,
+	 A\(one(meow,proc), A = yes),
+	 "one(meow,proc)",
+         "")
+
+    &
+
+    one(zebra,
+	 A\(zebra(cir), A=yes),
+	 "zebra(cir)",
+	 "Zebra owned by Japanese, Norwegian drinks water")
+
+    &
+
+    one(kkqueen,
+	 A\(N:go(8,N), A = ('N',N)),
+	 "go(8,N)",
+	 "=> 92")
+
+    &
+
+    one(pascal,
+	 A\(N:go(67,N), A = ('N',N)),
+	 "go(67,N)",
+         "")
+   &
+
+   statistics.
+
+
+
+all(File, Goal, Print, Doc) :-
+	format('~nLoading ~w...~n', [File]),
+	load_quietly(File),
+	format('~n?- ~s. % ~s~n', [Print, Doc]),
+	bagof(Goal, Ans) ?
+	stdout(S),
+	report(Ans,S).
+
+one(File, Goal, Print, Doc) :-
+	format('~nLoading ~w...~n', [File]),
+	load_quietly(File),
+	format('~n?- ~s. % ~s~n', [Print, Doc]),
+	Goal(An),
+	stdout(S),
+	report([An],S) ? true.
+
+report([],_):- -> true.
+report([Answ|R],S):- ->
+	answer(Answ,S,S1),
+        fnl(S1,S2),
+	report(R,S2).
+
+
+answer(yes, S0, S) :- |
+	write('yes', S0, S).
+answer((V,T), S0, S) :- |
+	write(V, S0, S1),
+	write(' = ', S1, S2),
+	write(T, S2, S).
+
+
+
+
+
+
+

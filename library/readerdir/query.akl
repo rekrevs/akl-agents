@@ -1,0 +1,1 @@
+query:- load(library(lists)), load(library(ordsets)), load(library(ugraphs)), load(library(assoc)), load(utilities),load(map),load(syntax), load(rwrDTERM0), load(convDTERM0toDTERM1), load(rwrDTERM1), load(convDTERM1toDPROGRAM),load(convDPROGRAMtoDPROGRAM),load(annotDPROGRAM),load(toplevel),failcatch, trace_set_print_depth(-1), xref(test).
