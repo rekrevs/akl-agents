@@ -1,0 +1,10 @@
+# Build artifacts from ATTEMPT-01
+*.o
+config.status
+config.log
+autom4te.cache/
+configure~
+gmp/.libs/
+gmp/gmp-mparam.h
+gmp/mpn/*.c
+gmp/libgmp.la
