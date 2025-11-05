@@ -401,7 +401,11 @@ char *getwd(buf)
 void compute_cwd()
 {
 #ifdef unix
+#ifdef HAS_NO_GETWD
+  getcwd(cwd, MAXPATHLEN+1);
+#else
   getwd(cwd);
+#endif
 #endif
 }
 
