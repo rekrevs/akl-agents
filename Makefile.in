@@ -167,6 +167,7 @@ make-emulator:
 		 AGENTSFLAGS="$(OAGENTSFLAGS)" agents; \
 	 mv agents.o oagents.o; \
 	 mv agents oagents)
+	ln -sf emulator/oagents agents
 
 make-compiler:
 	(cd oldcompiler; \
@@ -191,6 +192,7 @@ make-version:
 	    version.pam.in >> version.pam
 
 make-agents:	agents.in
+	rm -f agents
 	echo \
 "#! /bin/csh -f" \
 	     > agents
