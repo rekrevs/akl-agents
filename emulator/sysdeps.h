@@ -6,6 +6,10 @@
 #define TADBITS 64
 #endif
 
+#if defined(__aarch64__) || defined(__arm64__)
+#define TADBITS 64
+#endif
+
 #ifdef mips
 #define HAS_NO_GCVT
 #endif
