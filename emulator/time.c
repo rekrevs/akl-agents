@@ -18,7 +18,7 @@
 #include "compare.h"
 #include "time.h"
 
-#ifdef unix
+#if defined(unix) || defined(__unix__) || defined(__APPLE__)
 #include <sys/time.h>
 #include <sys/resource.h>
 

@@ -77,7 +77,7 @@ for arg do
   case ${arg} in
     -without-fd | --without-fd )
       AGENTSFLAGS_FD=-DNOFD
-      OBJ_FD=""
+      OBJ_FD="fd_stub.o"
     ;;
   esac
 done
