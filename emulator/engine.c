@@ -40,7 +40,7 @@
 #define DUMMY_CODE	0
 
 #ifdef TRACE
-extern readstring();
+extern int readstring();
 extern int tracing;
 char tracecom[500];
 #endif
