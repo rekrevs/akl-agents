@@ -42,6 +42,19 @@
 #define REGISTER10 asm("$14")
 #endif
 
+#if defined(__x86_64__) || defined(__amd64__)
+#define REGISTER1 asm("r15")
+#define REGISTER2 asm("r14")
+#define REGISTER3 asm("r13")
+#define REGISTER4 asm("r12")
+#define REGISTER5 asm("rbx")
+#define REGISTER6 asm("rbp")
+#define REGISTER7 asm("r11")
+#define REGISTER8 asm("r10")
+#define REGISTER9 asm("r9")
+#define REGISTER10 asm("r8")
+#endif
+
 #endif
 
 #ifndef REGISTER10

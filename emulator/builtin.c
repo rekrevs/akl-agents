@@ -23,7 +23,6 @@ void itoa PROTO((long,int,char *));
 static bool list_to_cstring PROTO((Argproto,Term,char *,int));
 
 extern char *ecvt PROTO((double, int, int *, int *));
-extern char *gcvt PROTO((double, int, char *));
 
 Term term_list;
 
@@ -1506,11 +1505,7 @@ void ftoa(f, cbuf)
   register char *str, *str2;
   register int i, j;
 
-#ifndef HAS_NO_GCVT
-  gcvt(f, 15, str=cbuf);
-#else
-  sprintf(str=cbuf, "%.15g", f); /* gcvt broken */
-#endif
+  snprintf(str=cbuf, sizeof(cbuf), "%.15g", f);
   if (str[0]=='-') str++;
   switch (str[0])
     {
@@ -1526,18 +1521,10 @@ void ftoa(f, cbuf)
     }
   ff = atof(cbuf);
   if (f != ff)
-#ifndef HAS_NO_GCVT
-    gcvt(f, 16, str=cbuf);
-#else
-    sprintf(str=cbuf, "%.16g", f);	/* gcvt broken */
-#endif
+    snprintf(str=cbuf, sizeof(cbuf), "%.16g", f);
   ff = atof(cbuf);
   if (f != ff)
-#ifndef HAS_NO_GCVT
-    gcvt(f, 17, str=cbuf);
-#else
-    sprintf(str=cbuf, "%.17g", f);	/* gcvt broken */
-#endif
+    snprintf(str=cbuf, sizeof(cbuf), "%.17g", f);
 
 				/* add ".0" if need be */
   while (TRUE)

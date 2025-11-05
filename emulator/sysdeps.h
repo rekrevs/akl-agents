@@ -2,6 +2,10 @@
 #define TADBITS 64
 #endif
 
+#if defined(__x86_64__) || defined(__amd64__)
+#define TADBITS 64
+#endif
+
 #ifdef mips
 #define HAS_NO_GCVT
 #endif
