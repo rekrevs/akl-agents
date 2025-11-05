@@ -25,7 +25,7 @@
 
 #define POWERTABLELENGTH 13
 
-static power_table[POWERTABLELENGTH] = 
+static int power_table[POWERTABLELENGTH] =
       {0,1,4,8,16,32,64,128,256,512,1024,2048,4096};
 
 #define EMPTY_ENTRY -1
