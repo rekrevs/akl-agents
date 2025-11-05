@@ -2,7 +2,7 @@
 
 #include "include.h"
 
-#ifndef APOLLO
+#if !defined(APOLLO) && !defined(__APPLE__)
 #include <malloc.h>
 #endif
 
