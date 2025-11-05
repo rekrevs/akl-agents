@@ -339,7 +339,7 @@ typedef enum {
 #define FltSize 	sizeof(struct fp)
 #define FltVal(F)	((F)->val)
 
-#define MaxSmallNum	(1UL << (SMALLNUMBITS-1))
+#define MaxSmallNum	(1L << (SMALLNUMBITS-1))
 
 #define GetSmall(X)	NumVal(Num(X))
 #define MakeSmallNum(I)	TagNum(swordNum(I))
