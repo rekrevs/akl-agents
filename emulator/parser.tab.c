@@ -1982,14 +1982,10 @@ static const short yycheck[] = {   361,
 #include <alloca.h>
 #else /* not sparc */
 #if defined (MSDOS) && !defined (__TURBOC__)
-#ifndef __APPLE__
 #include <malloc.h>
-#endif
 #else /* not MSDOS, or __TURBOC__ */
 #if defined(_AIX)
-#ifndef __APPLE__
 #include <malloc.h>
-#endif
  #pragma alloca
 #else /* not MSDOS, __TURBOC__, or _AIX */
 #ifdef __hpux
