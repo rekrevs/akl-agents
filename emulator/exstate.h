@@ -468,3 +468,5 @@ extern bool	bind_external_uva();
 extern bool	bind_external_sva();
 
 extern void	redo_builtin();
+
+extern bool	entailed();
