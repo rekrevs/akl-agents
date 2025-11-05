@@ -10,6 +10,8 @@ config.h
 config.h.in~
 .deps/
 .libs/
+Makefile
+agents
 
 # Object files and binaries
 *.o
