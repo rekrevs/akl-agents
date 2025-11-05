@@ -76,7 +76,7 @@ dnl CFLAGS should contain nothing essential - it should be possible for users
 dnl to override it freely on the 'make' command line.  Essential things should
 dnl be aggregated with CFLAGS to form ALL_CFLAGS - see Makefile.in.
 if [[ ${GCC} ]] ; then
-  CFLAGS=-O2
+  CFLAGS="-O2 -fgnu89-inline"
 else
   CFLAGS=""
 fi
