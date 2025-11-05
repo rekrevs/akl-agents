@@ -348,7 +348,7 @@ undefine(`define')
 
 static char name[MAXATOMLEN];
 static char pname[MAXATOMLEN];
-static int abs;
+static int abs_level;
 static int arity;
 static int parity;
 static int ext;
@@ -521,16 +521,16 @@ definitions: /* empty */
 	  }
         | definitions
 	  PREDICATE LPAR NUMBER
-          { abs = atoi(yytext);
-          } SLASH NUMBER 
-	  { parity = atoi(yytext); 
+          { abs_level = atoi(yytext);
+          } SLASH NUMBER
+	  { parity = atoi(yytext);
 	  } SLASH NUMBER
 	  { ext = atoi(yytext);
-            Define_Abstraction(abs,parity,ext);
+            Define_Abstraction(abs_level,parity,ext);
 	  } code RPAR
           { End_Definition;
             if(verbose)
-    		printf("{ abstraction %d defined }\n", abs);
+    		printf("{ abstraction %d defined }\n", abs_level);
 	  }
 ;
 
@@ -622,8 +622,8 @@ instruction:
 	| TOKEN_DEALLOCATE
 	  { Instr_None(DEALLOCATE);
 	  }
-	| TOKEN_META_CALL LPAR NUMBER 
-	  { index1 = atoi(yytext)
+	| TOKEN_META_CALL LPAR NUMBER
+	  { index1 = atoi(yytext);
 	  } RPAR
 	  { Instr_Index(META_CALL,index1);
           }
