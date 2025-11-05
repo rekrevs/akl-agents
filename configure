@@ -628,6 +628,8 @@ CPPFLAGS
 LDFLAGS
 CFLAGS
 CC
+OBJ_FD
+AGENTSFLAGS_FD
 INSTALL_GMP
 MAKE_GMP
 AGENTSFLAGS_GMP
@@ -2258,6 +2260,19 @@ done
 
 
 
+
+
+
+AGENTSFLAGS_FD=""
+OBJ_FD="fd.o fd_akl.o"
+for arg do
+  case ${arg} in
+    -without-fd | --without-fd )
+      AGENTSFLAGS_FD=-DNOFD
+      OBJ_FD=""
+    ;;
+  esac
+done
 
 
 

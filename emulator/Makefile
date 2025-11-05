@@ -32,8 +32,7 @@ OBJ =	abstraction.o \
 	error.o \
 	examine.o \
 	exstate.o \
-	fd.o \
-	fd_akl.o \
+	$(OBJ_FD) \
 	foreign.o \
 	functor.o \
 	gc.o \

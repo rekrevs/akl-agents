@@ -70,6 +70,20 @@ AC_SUBST(AGENTSFLAGS_GMP)
 AC_SUBST(MAKE_GMP)
 AC_SUBST(INSTALL_GMP)
 
+dnl Handle FD exclusion.
+AGENTSFLAGS_FD=""
+OBJ_FD="fd.o fd_akl.o"
+for arg do
+  case ${arg} in
+    -without-fd | --without-fd )
+      AGENTSFLAGS_FD=-DNOFD
+      OBJ_FD=""
+    ;;
+  esac
+done
+AC_SUBST(AGENTSFLAGS_FD)
+AC_SUBST(OBJ_FD)
+
 AC_PROG_CC
 
 dnl CFLAGS should contain nothing essential - it should be possible for users
