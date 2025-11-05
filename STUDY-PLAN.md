@@ -1,9 +1,9 @@
 # AGENTS v0.9 - Modern Architecture Porting Study Plan
 
-**Document Version:** 2.0
+**Document Version:** 3.0
 **Last Updated:** 2025-11-05
-**Branch:** `porting-study`
-**Status:** ✅ **ALL PHASES COMPLETE**
+**Branch:** `claude/port-attempt-01-011CUoHSMTFawkiKfVsuVuPP`
+**Status:** ✅ **PLANNING COMPLETE** → 🟡 **IMPLEMENTATION PHASE**
 
 ---
 
@@ -71,8 +71,23 @@ docs/porting/
 │   └── Claude Code implementation roadmap with Vintage Emulation Strategy
 ├── 10-COMPATIBILITY-MATRIX.md       [✅ COMPLETE]
 │   └── Feature/platform compatibility tracking
-└── 11-CLAUDE-CODE-REALITY-CHECK.md  [✅ COMPLETE]
-    └── Honest feasibility assessment for Claude Code execution
+├── 11-CLAUDE-CODE-REALITY-CHECK.md  [✅ COMPLETE]
+│   └── Honest feasibility assessment for Claude Code execution
+├── 12-OPTION-B-EXECUTION-PLAN.md    [✅ COMPLETE]
+│   └── Detailed step-by-step execution plan for Direct Modern Port
+└── 13-ITERATIVE-STRATEGY.md         [✅ COMPLETE]
+    └── Framework for learning from failures and iterating
+
+docs/attempts/
+├── README.md                         [✅ COMPLETE]
+│   └── Attempt tracking overview
+├── LESSONS-LEARNED.md                [✅ COMPLETE]
+│   └── Cumulative knowledge across all attempts
+└── ATTEMPT-01/                       [🟡 READY]
+    ├── ATTEMPT-01-PLAN.md            [✅ COMPLETE]
+    ├── ATTEMPT-01-LOG.md             [📝 Template ready]
+    ├── ATTEMPT-01-ANALYSIS.md        [📝 Template ready]
+    └── ATTEMPT-01-RESULTS.md         [📝 Template ready]
 ```
 
 ---
@@ -216,7 +231,7 @@ Example: `emulator/sysdeps.h:45` or `emulator/eval.c:execute_instruction()`
 
 ## Progress Tracking
 
-### Overall Status: 🟢 ALL PHASES COMPLETE (100% Complete) ✅
+### Overall Status: 🟢 ALL PLANNING COMPLETE (100% Complete) ✅ → 🟡 Implementation Starting
 
 | Phase | Documents | Status | Completion |
 |-------|-----------|--------|------------|
@@ -225,8 +240,10 @@ Example: `emulator/sysdeps.h:45` or `emulator/eval.c:execute_instruction()`
 | Phase 3: Build System | 1 doc | 🟢 Complete | 1/1 (100%) |
 | Phase 4: Testing Strategy | 1 doc | 🟢 Complete | 1/1 (100%) |
 | Phase 5: Risk & Planning | 3 docs | 🟢 Complete | 3/3 (100%) |
+| **Phase 6: Execution Planning** | **2 docs** | **🟢 Complete** | **2/2 (100%)** |
 | **Supplemental** | **1 doc** | **🟢 Complete** | **1/1 (100%)** |
-| **TOTAL** | **11 docs** | **🟢** | **11/11 (100%)** ✅ |
+| **Attempt Infrastructure** | **4 docs** | **🟢 Ready** | **4/4 (100%)** |
+| **TOTAL PLANNING** | **13 docs + infra** | **🟢** | **13/13 (100%)** ✅ |
 
 ### Status Legend
 - 🔴 Not Started
@@ -259,8 +276,18 @@ Example: `emulator/sysdeps.h:45` or `emulator/eval.c:execute_instruction()`
 - [x] **09-IMPLEMENTATION-ROADMAP.md** - 🟢 Complete (v2.0 - Claude Code focused)
 - [x] **10-COMPATIBILITY-MATRIX.md** - 🟢 Complete
 
+### Phase 6 Documents (Execution Planning)
+- [x] **12-OPTION-B-EXECUTION-PLAN.md** - 🟢 Complete (67 detailed steps)
+- [x] **13-ITERATIVE-STRATEGY.md** - 🟢 Complete (Learning framework)
+
 ### Supplemental Documents
 - [x] **11-CLAUDE-CODE-REALITY-CHECK.md** - 🟢 Complete (Feasibility analysis)
+
+### Attempt Infrastructure
+- [x] **docs/attempts/README.md** - 🟢 Complete
+- [x] **docs/attempts/LESSONS-LEARNED.md** - 🟢 Complete
+- [x] **docs/attempts/ATTEMPT-01/ATTEMPT-01-PLAN.md** - 🟢 Complete
+- [x] **docs/attempts/ATTEMPT-01/templates** - 🟢 Ready
 
 ---
 
@@ -508,56 +535,101 @@ Based on the Alpha port, porting to x86-64 and ARM64 should be **straightforward
 |------|---------|--------|---------|
 | 2025-11-04 | 1.0 | Claude | Initial study plan created |
 | 2025-11-04 | 1.1 | Claude | Phase 1 completed - all 3 architecture documents done |
-| 2025-11-05 | 2.0 | Claude | **ALL PHASES COMPLETE** - All 10 documents finished |
+| 2025-11-05 | 2.0 | Claude | **ALL STUDY PHASES COMPLETE** - All 10 documents finished |
 | 2025-11-05 | 2.1 | Claude | Added Document 11 (Reality Check), rewrote Document 09 for Claude Code execution, defined implementation strategy |
+| 2025-11-05 | 3.0 | Claude | **EXECUTION PLANNING COMPLETE** - Added Documents 12-13, created attempt infrastructure, ready for implementation |
 
 ---
 
-## Next Steps
+## Completed Steps
 
 1. ✅ **Create `porting-study` branch** - COMPLETED
 2. ✅ **Write this STUDY-PLAN.md** - COMPLETED
 3. ✅ **Create `docs/porting/` directory structure** - COMPLETED
-4. ✅ **Complete Phase 1: Architecture Analysis** - COMPLETED
-   - ✅ 01-ARCHITECTURE-OVERVIEW.md
-   - ✅ 02-EMULATOR-ANALYSIS.md
-   - ✅ 03-PLATFORM-DEPENDENCIES.md
-5. ✅ **Complete Phase 2: Technical Deep Dives** - COMPLETED
-   - ✅ 04-MEMORY-MANAGEMENT.md
-   - ✅ 05-BYTECODE-DISPATCH.md
-6. ✅ **Complete Phase 3: Build System** - COMPLETED
-   - ✅ 06-BUILD-SYSTEM.md
-7. ✅ **Complete Phase 4: Testing Strategy** - COMPLETED
-   - ✅ 07-TESTING-STRATEGY.md
-8. ✅ **Complete Phase 5: Risk & Planning** - COMPLETED
-   - ✅ 08-RISK-ASSESSMENT.md
-   - ✅ 09-IMPLEMENTATION-ROADMAP.md
-   - ✅ 10-COMPATIBILITY-MATRIX.md
-9. ✅ **Update this plan as work progresses** - COMPLETED
+4. ✅ **Complete Phase 1-5: All Study Documents** - COMPLETED (Documents 01-11)
+5. ✅ **Complete Phase 6: Execution Planning** - COMPLETED
+   - ✅ 12-OPTION-B-EXECUTION-PLAN.md (67 detailed steps)
+   - ✅ 13-ITERATIVE-STRATEGY.md (Learning framework)
+6. ✅ **Create attempt tracking infrastructure** - COMPLETED
+   - ✅ docs/attempts/ directory structure
+   - ✅ ATTEMPT-01 templates and planning documents
+7. ✅ **Create implementation branch** - COMPLETED
+   - ✅ Branch: `claude/port-attempt-01-011CUoHSMTFawkiKfVsuVuPP`
+
+## Next Steps (When Implementation Begins)
+
+**Status:** 🟡 Ready to begin - Awaiting go-ahead
+
+**Note:** Per user request, implementation is NOT starting yet. Planning is complete and ready for execution.
+
+**When implementation begins:**
+
+1. **Execute ATTEMPT-01** following `12-OPTION-B-EXECUTION-PLAN.md`
+   - Phase 1: Alpha Port Analysis (Steps 1.1-1.5)
+   - Phase 2: Pattern Extraction (Steps 2.1-2.2)
+   - Phase 3: x86-64 Configuration (Steps 3.1-3.4)
+   - Phase 4: Incremental Implementation (Steps 4.1-4.5)
+   - Phase 5: Build and Test (Steps 5.1-5.5)
+
+2. **Document everything** in real-time
+   - Update ATTEMPT-01-LOG.md during execution
+   - Capture all errors, decisions, and learnings
+
+3. **Analyze results** after attempt completes
+   - Complete ATTEMPT-01-ANALYSIS.md
+   - Complete ATTEMPT-01-RESULTS.md
+   - Update LESSONS-LEARNED.md
+
+4. **Iterate** based on learnings
+   - Revise execution plan if needed
+   - Create ATTEMPT-02 plan
+   - Repeat until success
+
+**Expected Timeline:** 3-5 attempts to achieve stable x86-64 build
 
 ---
 
-## 🎉 STUDY COMPLETE - Ready for Implementation 🎉
+## 🎉 PLANNING COMPLETE - Ready for Implementation 🎉
 
-All 11 planning documents have been completed. The porting study is now **COMPLETE**.
+All 13 planning documents have been completed. The porting study and execution planning are now **COMPLETE**.
 
-### Chosen Implementation Strategy
+### Chosen Implementation Strategy: Option B (Direct Modern Port)
 
-Based on comprehensive analysis, **two viable paths** have been identified:
+Based on comprehensive analysis in Documents 09 and 11, **Option B** has been selected as the primary approach.
 
-**Option A: Vintage Emulation (Document 09, Sections 0-4)**
-- Establish baseline in QEMU SPARC environment
-- Incrementally modernize through stages
-- Migrate to x86-64/ARM64
-- **Requires:** Human assistance for QEMU setup
-- **Success probability:** 70-80% with human collaboration
+**Option B: Direct Modern Port (Documents 11-12)**
+- ✅ Leverage Alpha 64-bit port as proven blueprint
+- ✅ Port directly to native x86-64 environment
+- ✅ Skip vintage emulation complexity
+- ✅ 67 detailed, verifiable steps defined
+- ✅ Clear verification methods for each step
+- **Success probability:** 60-70% autonomous, 90% with human backup
 
-**Option B: Direct Modern Port (Document 11, Recommended)**
-- Leverage Alpha 64-bit port as blueprint
-- Port directly to native x86-64
-- Skip vintage emulation complexity
-- **Requires:** Human escalation backup for unexpected issues
-- **Success probability:** 60-70% autonomous, 90% with backup
+**Option A: Vintage Emulation (Document 09, Fallback)**
+- Available as backup strategy if Option B encounters fundamental issues
+- Requires more setup overhead (QEMU environment)
+- **Success probability:** 70-80% with human collaboration for setup
+
+### Execution Plan Overview (Document 12)
+
+**Phase 1: Alpha Port Analysis** - Extract 64-bit porting patterns
+**Phase 2: Pattern Extraction** - Create x86-64 mapping guide
+**Phase 3: x86-64 Configuration** - Add platform support
+**Phase 4: Incremental Implementation** - Build and fix iteratively
+**Phase 5: Build and Test** - Validate with test suite
+**Phase 6: ARM64 Adaptation** - Extend to ARM64
+
+### Iterative Strategy (Document 13)
+
+**Philosophy:** Expect failure, learn systematically, iterate to success
+
+**Process:** PLAN → EXECUTE → DOCUMENT → ANALYZE → REVISE → REPEAT
+
+**Infrastructure:**
+- ✅ Attempt tracking structure created
+- ✅ Documentation templates ready
+- ✅ Cumulative knowledge framework established
+- ✅ Branch created: `claude/port-attempt-01-011CUoHSMTFawkiKfVsuVuPP`
 
 ### Critical Insights from Document 11
 
@@ -565,15 +637,16 @@ Based on comprehensive analysis, **two viable paths** have been identified:
 - ✅ All code analysis and modification (80-90% of work)
 - ✅ Native x86-64 building and testing
 - ✅ Systematic verification and documentation
+- ✅ Iterative problem-solving with learning
 
 **Claude Code CANNOT do alone:**
 - ❌ Interactive QEMU setup (need human)
 - ❌ Builds >10 minutes (need workarounds)
 - ❌ Interactive debugging (need human escalation)
 
-**Recommended:** Start with Option B (Direct Modern Port), use Option A as fallback if needed.
+**Collaboration Model:** Claude Code leads implementation with human escalation for interactive tasks.
 
-**Next Phase:** Execute implementation following Document 09/11 guidance with human-Claude collaboration model.
+**Next Phase:** Execute ATTEMPT-01 following Document 12 guidance (when given go-ahead).
 
 ---
 
