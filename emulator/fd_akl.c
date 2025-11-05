@@ -416,7 +416,7 @@ int print_in(cns)
   cp = b_code+200;
   *(--cp) = FD_HALT;
   while (cp-b_code > 0) {
-    instr = FdInstrToEnum(byte_code[d]);
+    instr = FdInstrToEnum((fd_instr)byte_code[d]);
     switch(instr) {
     case FD_HALT:
       goto rest;

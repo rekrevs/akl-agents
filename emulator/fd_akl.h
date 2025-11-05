@@ -209,6 +209,7 @@ typedef address fd_instr;
 extern address *fd_instr_label_table;
 extern int fd_instr_label_table_length;
 extern enum_fd_instr fd_instr_to_enum();
+extern dep_class propagate_info();
 
 #else
 
