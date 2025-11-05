@@ -1,0 +1,154 @@
+bison -d  parser.y
+parser.y: warning: 1 shift/reduce conflict [-Wconflicts-sr]
+parser.y: note: rerun with option '-Wcounterexamples' to generate conflict counterexamples
+gcc -c -g -I../gmp -DMETERING -DNDEBUG abstraction.c -o abstraction.o
+In file included from abstraction.c:21:
+code.h:42:9: warning: ISO C99 requires whitespace after the macro name
+   42 | #define End_Definition\
+      |         ^~~~~~~~~~~~~~~
+   43 | { fix_labelrefs();\
+      |          
+gcc -c -g -I../gmp -DMETERING -DNDEBUG aggregate.c -o aggregate.o
+gcc -c -g -I../gmp -DMETERING -DNDEBUG array.c -o array.o
+In file included from array.c:4:
+array.c: In function 'method_sizeof':
+term.h:342:28: warning: left shift count >= width of type [-Wshift-count-overflow]
+  342 | #define MaxSmallNum     (1 << (SMALLNUMBITS-1))
+      |                            ^~
+term.h:356:34: note: in expansion of macro 'MaxSmallNum'
+  356 | #define IntIsSmall(I)   ((I) >= -MaxSmallNum && (I) < MaxSmallNum)
+      |                                  ^~~~~~~~~~~
+config.h:81:8: note: in expansion of macro 'IntIsSmall'
+   81 |    if (IntIsSmall(NNN)) {\
+      |        ^~~~~~~~~~
+array.c:689:3: note: in expansion of macro 'MakeIntegerTerm'
+  689 |   MakeIntegerTerm(tmp, arr->size);
+      |   ^~~~~~~~~~~~~~~
+term.h:342:28: warning: left shift count >= width of type [-Wshift-count-overflow]
+  342 | #define MaxSmallNum     (1 << (SMALLNUMBITS-1))
+      |                            ^~
+term.h:356:55: note: in expansion of macro 'MaxSmallNum'
+  356 | #define IntIsSmall(I)   ((I) >= -MaxSmallNum && (I) < MaxSmallNum)
+      |                                                       ^~~~~~~~~~~
+config.h:81:8: note: in expansion of macro 'IntIsSmall'
+   81 |    if (IntIsSmall(NNN)) {\
+      |        ^~~~~~~~~~
+array.c:689:3: note: in expansion of macro 'MakeIntegerTerm'
+  689 |   MakeIntegerTerm(tmp, arr->size);
+      |   ^~~~~~~~~~~~~~~
+gcc -c -g -I../gmp -DMETERING -DNDEBUG bam.c -o bam.o
+In file included from bam.c:22:
+trace.h:260:8: warning: type defaults to 'int' in declaration of 'trace_apply_list' [-Wimplicit-int]
+  260 | extern trace_apply_list();
+      |        ^~~~~~~~~~~~~~~~
+gcc -c -g -I../gmp -DMETERING -DNDEBUG bignum.c -o bignum.o
+In file included from bignum.c:15:
+bignum.c: In function 'canonize_bignum':
+term.h:342:28: warning: left shift count >= width of type [-Wshift-count-overflow]
+  342 | #define MaxSmallNum     (1 << (SMALLNUMBITS-1))
+      |                            ^~
+../gmp/gmp.h:1004:26: note: in definition of macro 'mpz_cmp_si'
+ 1004 |   (__builtin_constant_p (SI) && (SI) == 0 ? mpz_sgn (Z)                 \
+      |                          ^~
+bignum.c:121:31: note: in expansion of macro 'MaxSmallNum'
+  121 |   if (mpz_cmp_si(&b->mp_int, -MaxSmallNum) >= 0 &&
+      |                               ^~~~~~~~~~~
+term.h:342:28: warning: left shift count >= width of type [-Wshift-count-overflow]
+  342 | #define MaxSmallNum     (1 << (SMALLNUMBITS-1))
+      |                            ^~
+../gmp/gmp.h:1004:34: note: in definition of macro 'mpz_cmp_si'
+ 1004 |   (__builtin_constant_p (SI) && (SI) == 0 ? mpz_sgn (Z)                 \
+      |                                  ^~
+bignum.c:121:31: note: in expansion of macro 'MaxSmallNum'
+  121 |   if (mpz_cmp_si(&b->mp_int, -MaxSmallNum) >= 0 &&
+      |                               ^~~~~~~~~~~
+term.h:342:28: warning: left shift count >= width of type [-Wshift-count-overflow]
+  342 | #define MaxSmallNum     (1 << (SMALLNUMBITS-1))
+      |                            ^~
+../gmp/gmp.h:1005:28: note: in definition of macro 'mpz_cmp_si'
+ 1005 |    : __builtin_constant_p (SI) && (SI) > 0                              \
+      |                            ^~
+bignum.c:121:31: note: in expansion of macro 'MaxSmallNum'
+  121 |   if (mpz_cmp_si(&b->mp_int, -MaxSmallNum) >= 0 &&
+      |                               ^~~~~~~~~~~
+term.h:342:28: warning: left shift count >= width of type [-Wshift-count-overflow]
+  342 | #define MaxSmallNum     (1 << (SMALLNUMBITS-1))
+      |                            ^~
+../gmp/gmp.h:1005:36: note: in definition of macro 'mpz_cmp_si'
+ 1005 |    : __builtin_constant_p (SI) && (SI) > 0                              \
+      |                                    ^~
+bignum.c:121:31: note: in expansion of macro 'MaxSmallNum'
+  121 |   if (mpz_cmp_si(&b->mp_int, -MaxSmallNum) >= 0 &&
+      |                               ^~~~~~~~~~~
+term.h:342:28: warning: left shift count >= width of type [-Wshift-count-overflow]
+  342 | #define MaxSmallNum     (1 << (SMALLNUMBITS-1))
+      |                            ^~
+../gmp/gmp.h:1006:43: note: in definition of macro 'mpz_cmp_si'
+ 1006 |     ? _mpz_cmp_ui (Z, (unsigned long int) SI)                           \
+      |                                           ^~
+bignum.c:121:31: note: in expansion of macro 'MaxSmallNum'
+  121 |   if (mpz_cmp_si(&b->mp_int, -MaxSmallNum) >= 0 &&
+      |                               ^~~~~~~~~~~
+term.h:342:28: warning: left shift count >= width of type [-Wshift-count-overflow]
+  342 | #define MaxSmallNum     (1 << (SMALLNUMBITS-1))
+      |                            ^~
+../gmp/gmp.h:1007:21: note: in definition of macro 'mpz_cmp_si'
+ 1007 |    : _mpz_cmp_si (Z,SI))
+      |                     ^~
+bignum.c:121:31: note: in expansion of macro 'MaxSmallNum'
+  121 |   if (mpz_cmp_si(&b->mp_int, -MaxSmallNum) >= 0 &&
+      |                               ^~~~~~~~~~~
+term.h:342:28: warning: left shift count >= width of type [-Wshift-count-overflow]
+  342 | #define MaxSmallNum     (1 << (SMALLNUMBITS-1))
+      |                            ^~
+../gmp/gmp.h:1004:26: note: in definition of macro 'mpz_cmp_si'
+ 1004 |   (__builtin_constant_p (SI) && (SI) == 0 ? mpz_sgn (Z)                 \
+      |                          ^~
+bignum.c:122:30: note: in expansion of macro 'MaxSmallNum'
+  122 |       mpz_cmp_si(&b->mp_int, MaxSmallNum) < 0) {
+      |                              ^~~~~~~~~~~
+term.h:342:28: warning: left shift count >= width of type [-Wshift-count-overflow]
+  342 | #define MaxSmallNum     (1 << (SMALLNUMBITS-1))
+      |                            ^~
+../gmp/gmp.h:1004:34: note: in definition of macro 'mpz_cmp_si'
+ 1004 |   (__builtin_constant_p (SI) && (SI) == 0 ? mpz_sgn (Z)                 \
+      |                                  ^~
+bignum.c:122:30: note: in expansion of macro 'MaxSmallNum'
+  122 |       mpz_cmp_si(&b->mp_int, MaxSmallNum) < 0) {
+      |                              ^~~~~~~~~~~
+term.h:342:28: warning: left shift count >= width of type [-Wshift-count-overflow]
+  342 | #define MaxSmallNum     (1 << (SMALLNUMBITS-1))
+      |                            ^~
+../gmp/gmp.h:1005:28: note: in definition of macro 'mpz_cmp_si'
+ 1005 |    : __builtin_constant_p (SI) && (SI) > 0                              \
+      |                            ^~
+bignum.c:122:30: note: in expansion of macro 'MaxSmallNum'
+  122 |       mpz_cmp_si(&b->mp_int, MaxSmallNum) < 0) {
+      |                              ^~~~~~~~~~~
+term.h:342:28: warning: left shift count >= width of type [-Wshift-count-overflow]
+  342 | #define MaxSmallNum     (1 << (SMALLNUMBITS-1))
+      |                            ^~
+../gmp/gmp.h:1005:36: note: in definition of macro 'mpz_cmp_si'
+ 1005 |    : __builtin_constant_p (SI) && (SI) > 0                              \
+      |                                    ^~
+bignum.c:122:30: note: in expansion of macro 'MaxSmallNum'
+  122 |       mpz_cmp_si(&b->mp_int, MaxSmallNum) < 0) {
+      |                              ^~~~~~~~~~~
+term.h:342:28: warning: left shift count >= width of type [-Wshift-count-overflow]
+  342 | #define MaxSmallNum     (1 << (SMALLNUMBITS-1))
+      |                            ^~
+../gmp/gmp.h:1006:43: note: in definition of macro 'mpz_cmp_si'
+ 1006 |     ? _mpz_cmp_ui (Z, (unsigned long int) SI)                           \
+      |                                           ^~
+bignum.c:122:30: note: in expansion of macro 'MaxSmallNum'
+  122 |       mpz_cmp_si(&b->mp_int, MaxSmallNum) < 0) {
+      |                              ^~~~~~~~~~~
+term.h:342:28: warning: left shift count >= width of type [-Wshift-count-overflow]
+  342 | #define MaxSmallNum     (1 << (SMALLNUMBITS-1))
+      |                            ^~
+../gmp/gmp.h:1007:21: note: in definition of macro 'mpz_cmp_si'
+ 1007 |    : _mpz_cmp_si (Z,SI))
+      |                     ^~
+bignum.c:122:30: note: in expansion of macro 'MaxSmallNum'
+  122 |       mpz_cmp_si(&b->mp_int, MaxSmallNum) < 0) {
+      |                              ^~~~~~~~~~~
