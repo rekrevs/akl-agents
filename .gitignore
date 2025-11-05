@@ -28,6 +28,9 @@ gmp/.libs/
 gmp/*.o
 gmp/*.lo
 gmp/*.la
+gmp/*.s1
+gmp/*.s2
+gmp/*.subs
 gmp/config.h
 gmp/config.log
 gmp/config.status
