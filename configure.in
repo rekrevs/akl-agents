@@ -48,22 +48,23 @@ fi
 echo "configuring for $host"
 
 dnl Handle gmp exclusion.
-CFLAGS_GMP="-I$(gmpdir)"
-LDFLAGS_GMP="-L$(gmpdir) -lgmp"
-AGENTSFLAGS_GMP=""
-MAKE_GMP=make-gmp
-INSTALL_GMP=install-gmp
-for arg do
-  case ${arg} in
-    -without-gmp | --without-gmp )
-      CFLAGS_GMP=""
-      LDFLAGS_GMP=""
-      AGENTSFLAGS_GMP=-DNOBIGNUM
-      MAKE_GMP=""
-      INSTALL_GMP=""
-    ;;
-  esac
-done
+AC_ARG_WITH([gmp],
+  [AS_HELP_STRING([--without-gmp], [build without GMP (GNU Multi-Precision) library])],
+  [],
+  [with_gmp=yes])
+
+AS_IF([test "x$with_gmp" = xyes],
+  [CFLAGS_GMP="-I$(gmpdir)"
+   LDFLAGS_GMP="-L$(gmpdir) -lgmp"
+   AGENTSFLAGS_GMP=""
+   MAKE_GMP=make-gmp
+   INSTALL_GMP=install-gmp],
+  [CFLAGS_GMP=""
+   LDFLAGS_GMP=""
+   AGENTSFLAGS_GMP=-DNOBIGNUM
+   MAKE_GMP=""
+   INSTALL_GMP=""])
+
 AC_SUBST(CFLAGS_GMP)
 AC_SUBST(LDFLAGS_GMP)
 AC_SUBST(AGENTSFLAGS_GMP)
@@ -71,16 +72,17 @@ AC_SUBST(MAKE_GMP)
 AC_SUBST(INSTALL_GMP)
 
 dnl Handle FD exclusion.
-AGENTSFLAGS_FD=""
-OBJ_FD="fd.o fd_akl.o"
-for arg do
-  case ${arg} in
-    -without-fd | --without-fd )
-      AGENTSFLAGS_FD=-DNOFD
-      OBJ_FD="fd_stub.o"
-    ;;
-  esac
-done
+AC_ARG_WITH([fd],
+  [AS_HELP_STRING([--without-fd], [build without Finite Domain constraint solver])],
+  [],
+  [with_fd=yes])
+
+AS_IF([test "x$with_fd" = xyes],
+  [AGENTSFLAGS_FD=""
+   OBJ_FD="fd.o fd_akl.o"],
+  [AGENTSFLAGS_FD=-DNOFD
+   OBJ_FD="fd_stub.o"])
+
 AC_SUBST(AGENTSFLAGS_FD)
 AC_SUBST(OBJ_FD)
 
