@@ -1,0 +1,70 @@
+# AGENTS Build Artifacts
+
+# Autoconf/Automake
+autom4te.cache/
+config.log
+config.status
+configure~
+config.cache
+config.h
+config.h.in~
+.deps/
+.libs/
+
+# Object files and binaries
+*.o
+*.a
+*.so
+*.dylib
+*.exe
+
+# Emulator build outputs
+emulator/agents
+emulator/agents.o
+emulator/*.o
+
+# GMP build outputs
+gmp/.libs/
+gmp/*.o
+gmp/*.lo
+gmp/*.la
+gmp/config.h
+gmp/config.log
+gmp/config.status
+gmp/Makefile
+gmp/stamp-h*
+gmp/libtool
+
+# Backup files
+*~
+*.bak
+*.swp
+*.swo
+.*.sw?
+
+# Editor files
+.vscode/
+.idea/
+*.iml
+.DS_Store
+
+# Compiler outputs
+*.d
+*.tcov
+
+# Generated parser files (keep committed versions)
+# emulator/parser.tab.c
+# emulator/parser.tab.h
+# emulator/parser.yy.c
+
+# Temporary files
+/tmp/
+*.tmp
+
+# Testing outputs
+*.log
+*.sum
+*.plog
+*.psum
+tests/*.log
+tests/*.sum
