@@ -1,1212 +1,991 @@
-# AGENTS v0.9 - Implementation Roadmap
+# AGENTS v0.9 - Claude Code Implementation Roadmap
 
 **Document:** Phase 5, Document 9 of 10
 **Status:** Complete
 **Date:** 2025-11-05
-**Purpose:** Detailed phased implementation plan with milestones and effort estimates
+**Purpose:** Staged implementation plan for Claude Code autonomous porting
 
 ---
 
 ## Table of Contents
 
 1. [Executive Summary](#executive-summary)
-2. [Implementation Philosophy](#implementation-philosophy)
-3. [Phase 0: Preparation](#phase-0-preparation)
-4. [Phase 1: Bootstrap Port](#phase-1-bootstrap-port)
-5. [Phase 2: Optimization](#phase-2-optimization)
-6. [Phase 3: Validation](#phase-3-validation)
-7. [Phase 4: Production Ready](#phase-4-production-ready)
-8. [Effort Estimates](#effort-estimates)
-9. [Resource Requirements](#resource-requirements)
-10. [Dependencies and Prerequisites](#dependencies-and-prerequisites)
-11. [Success Metrics](#success-metrics)
-12. [Risk Mitigation](#risk-mitigation)
+2. [Claude Code Capabilities and Constraints](#claude-code-capabilities-and-constraints)
+3. [Chosen Strategy: Staged Vintage Emulation](#chosen-strategy-staged-vintage-emulation)
+4. [Phase 0: Vintage Environment Establishment](#phase-0-vintage-environment-establishment)
+5. [Phase 1: Vintage Bootstrap Verification](#phase-1-vintage-bootstrap-verification)
+6. [Phase 2: Incremental Modernization](#phase-2-incremental-modernization)
+7. [Phase 3: Architecture Transition](#phase-3-architecture-transition)
+8. [Phase 4: Modern Platform Validation](#phase-4-modern-platform-validation)
+9. [Verification Strategy](#verification-strategy)
+10. [Session Management](#session-management)
+11. [Rollback and Recovery](#rollback-and-recovery)
+12. [Critical Feasibility Analysis](#critical-feasibility-analysis)
 13. [References](#references)
 
 ---
 
 ## Executive Summary
 
-Based on the comprehensive analysis in documents 01-08, this roadmap outlines a **4-phase implementation strategy** for porting AGENTS v0.9 to modern x86-64 and ARM64 architectures.
+This roadmap outlines a **staged porting strategy** to be executed by **Claude Code** (autonomous AI coding agent), not a human development team.
 
-### Key Finding: Low-Risk Port ✅
+### Core Strategy: Vintage Emulation Path
 
-The existence of the **Alpha 64-bit port** significantly reduces porting risk. We can follow a proven path rather than blazing a new trail.
+**Rationale from Document 06:** The AGENTS build system is 30+ years old. Attempting to build directly on modern systems risks catastrophic failures with no baseline for comparison.
 
-### Timeline Summary
+**Approach:** Establish working system in vintage environment first, then incrementally modernize.
 
-| Phase | Duration | Effort | Status |
-|-------|----------|--------|--------|
-| Phase 0: Preparation | 1-2 weeks | 40-80 hours | 🔴 Not Started |
-| Phase 1: Bootstrap | 2-4 weeks | 80-160 hours | 🔴 Not Started |
-| Phase 2: Optimization | 2-3 weeks | 60-120 hours | 🔴 Not Started |
-| Phase 3: Validation | 2-3 weeks | 60-120 hours | 🔴 Not Started |
-| Phase 4: Production | 1-2 weeks | 40-80 hours | 🔴 Not Started |
-| **TOTAL** | **8-14 weeks** | **280-560 hours** | **🔴** |
+### Implementation Stages
 
-### Risk Level: **LOW-MEDIUM** 🟢
+```
+Stage 0: Vintage Setup          → QEMU + Solaris 2.5.1 / NetBSD 1.x
+         ↓
+Stage 1: Vintage Verification   → Build original system, verify tests pass
+         ↓
+Stage 2: Incremental Modern     → Update OS → gcc 4.x → gcc 8 → gcc 11
+         ↓
+Stage 3: Architecture Pivot     → SPARC 32→64 → x86-64 → ARM64
+         ↓
+Stage 4: Modern Validation      → Native modern Linux builds
+```
 
-- Alpha port provides proven 64-bit foundation
-- No fundamental architecture redesign needed
-- Clear platform dependency boundaries
-- Comprehensive existing test suite
+### Claude Code Execution Model
 
----
+**NOT a human team:**
+- No "280-560 hours" estimates (meaningless for AI)
+- No "hire a developer" (I am the developer)
+- No "consult expert" (must work from documentation)
 
-## Implementation Philosophy
+**Session-based execution:**
+- Work in discrete verification checkpoints
+- Each checkpoint: change → verify → commit
+- Session timeout: plan for 2-10 minute build windows
+- State persistence: everything written to files/git
 
-### Guiding Principles
+### Critical Feasibility Warning
 
-1. **Minimal Disruption:** Change as little as possible
-2. **Follow Alpha:** Use Alpha port as blueprint
-3. **Test Early, Test Often:** Continuous validation
-4. **Platform Parity:** x86-64 and ARM64 treated equally
-5. **Incremental Progress:** Working system at each phase
-6. **Preserve Backward Compatibility:** Keep existing ports working
-
-### Strategy
-
-**Bootstrap First, Optimize Later:**
-- Phase 1: Get it working with conservative choices
-- Phase 2: Add optimizations (HARDREGS, etc.)
-- Phase 3: Validate correctness thoroughly
-- Phase 4: Polish for production use
-
-**Test-Driven Porting:**
-- Port build system → Run tests → Fix failures → Repeat
-- Use existing test suite as validation oracle
-- Add architecture-specific tests as needed
+⚠️ **See Section 12** for honest assessment of what Claude Code can and cannot do. Some steps in this roadmap may require **human intervention** or **alternative approaches**.
 
 ---
 
-## Phase 0: Preparation
+## Claude Code Capabilities and Constraints
 
-**Duration:** 1-2 weeks
-**Effort:** 40-80 hours
-**Goal:** Set up development environment and infrastructure
+### What I CAN Do ✅
 
-### Tasks
+**Code Analysis:**
+- Read and understand complex C codebases
+- Search for patterns (Glob, Grep)
+- Static analysis of dependencies
+- Cross-reference tracking
 
-#### 0.1 Development Environment Setup
-**Effort:** 8-16 hours
+**Code Modification:**
+- Edit files with surgical precision
+- Write new files
+- Refactor code systematically
+- Apply transformations across multiple files
 
-**x86-64 Environment:**
-- [ ] Provision x86-64 Linux development machine (Ubuntu 22.04+ or similar)
-- [ ] Install gcc 11+ and clang 14+
-- [ ] Install build dependencies: autoconf 2.69+, make, gmp-dev
-- [ ] Install debugging tools: gdb, valgrind
-- [ ] Install testing tools: DejaGnu 1.6+
+**Build Automation:**
+- Run shell commands (bash)
+- Execute compilers (gcc, clang)
+- Run configure scripts
+- Execute make (with timeout constraints)
 
-**ARM64 Environment:**
-- [ ] Provision ARM64 Linux machine (or QEMU emulation)
-- [ ] Install same toolchain and dependencies as x86-64
-- [ ] Configure cross-compilation if using QEMU
-- [ ] Test basic compilation works
+**Verification:**
+- Run test suites (DejaGnu)
+- Compare outputs
+- Validate file contents
+- Check compilation success
 
-**Deliverables:**
-- Working build environments for both platforms
-- Documented setup procedures
+**Documentation:**
+- Create comprehensive documentation
+- Track decisions and rationale
+- Maintain change logs
 
----
+### What I CANNOT Do ❌
 
-#### 0.2 Baseline Build
-**Effort:** 8-16 hours
+**Interactive Operations:**
+- Cannot handle interactive prompts easily
+- Cannot use GUI applications
+- Cannot manually debug in gdb interactively
+- Cannot respond to "Press Y to continue"
 
-**Goal:** Get existing codebase building on development machines (even if non-functional)
+**Long-Running Processes:**
+- Maximum command timeout: 10 minutes
+- Full AGENTS build may take 30+ minutes
+- Cannot wait for multi-hour operations
 
-- [ ] Clone repository to both platforms
-- [ ] Run `./configure` and document failures
-- [ ] Update config.guess/config.sub to recognize modern platforms
-- [ ] Fix immediate build blockers (missing headers, etc.)
-- [ ] Achieve successful compilation (even with warnings/errors)
+**Emulator Interaction:**
+- Cannot easily log into QEMU console interactively
+- Cannot navigate through boot menus
+- Cannot handle graphical emulator interfaces
 
-**Deliverables:**
-- Build logs from both platforms
-- List of compatibility issues encountered
-- Initial patches for config.guess/config.sub
+**Cross-Session State:**
+- No memory between sessions (unless persisted to files)
+- Must reconstruct context from files/git each session
+- Cannot "remember" debugging insights
 
----
+**External Resources:**
+- Cannot download arbitrary files (no WebFetch for binaries)
+- Cannot access restricted networks
+- Limited to what's available via bash
 
-#### 0.3 Test Suite Familiarization
-**Effort:** 16-24 hours
+### Implications for Strategy
 
-**Goal:** Understand existing test coverage and identify gaps
-
-- [ ] Inventory all tests in `tests/` directory
-- [ ] Run tests on a working platform (if available)
-- [ ] Document test categories and coverage
-- [ ] Identify architecture-specific tests
-- [ ] Document test execution procedure
-
-**From Document 07 (Testing Strategy):**
-- ~60 test files across 9 categories
-- DejaGnu framework (expect-based)
-- Tests cover: syntax, stdlib, constraints, concurrency, I/O
-
-**Deliverables:**
-- Test suite inventory and categorization
-- Test execution guide
-- Baseline test results (if available from working platform)
-
----
-
-#### 0.4 Source Code Repository Setup
-**Effort:** 8-16 hours
-
-**Goal:** Establish version control and branching strategy
-
-- [ ] Create feature branches: `port/x86-64`, `port/arm64`
-- [ ] Set up CI/CD pipeline (GitHub Actions, GitLab CI, etc.)
-- [ ] Configure automated builds on both platforms
-- [ ] Set up automated test runs
-- [ ] Document branching and merging strategy
-
-**Deliverables:**
-- Configured CI/CD pipelines
-- Branching strategy document
-- Automated build/test infrastructure
+**Must adapt Vintage Emulation Strategy:**
+1. **Automate emulator interaction** (expect/pexpect scripts)
+2. **Use SSH into QEMU** (not console)
+3. **Break builds into chunks** (< 10 min each)
+4. **Heavy reliance on scripts** (not manual intervention)
+5. **Extensive pre-analysis** (understand before executing)
 
 ---
 
-#### 0.5 Reference Documentation
-**Effort:** 8-16 hours
+## Chosen Strategy: Staged Vintage Emulation
 
-**Goal:** Consolidate and organize all analysis documents
+From **Document 06 Section 9.3**, adapted for Claude Code execution.
 
-- [ ] Review all porting study documents (01-10)
-- [ ] Create quick reference guide for common tasks
-- [ ] Document known issues and workarounds
-- [ ] Prepare troubleshooting guide
-- [ ] Set up documentation website (optional)
+### Why This Approach?
 
-**Deliverables:**
-- Consolidated reference documentation
-- Quick start guide for porters
-- Troubleshooting FAQ
+**Problem:** 30-year-old build system with:
+- Deprecated functions (getwd, gcvt)
+- Ancient autoconf (pre-2.0)
+- Unknown build dependencies
+- Untested on modern systems
+
+**Solution:** Establish **known-good baseline** in vintage environment, then modernize incrementally.
+
+### Stage Evolution Path
+
+| Stage | Platform | OS | Compiler | Purpose |
+|-------|----------|----|---------|---------|
+| **0** | QEMU SPARC | Solaris 2.5.1 | gcc 2.7.x | Setup vintage environment |
+| **1** | QEMU SPARC | Solaris 2.5.1 | gcc 2.7.x | Verify original builds |
+| **2a** | QEMU SPARC | Solaris 9 | gcc 4.x | Modernize OS |
+| **2b** | QEMU SPARC | NetBSD 9 | gcc 8.x | Modern POSIX |
+| **2c** | QEMU SPARC64 | NetBSD 9 | gcc 10.x | 64-bit on SPARC |
+| **3a** | Native x86-64 | Ubuntu 22.04 | gcc 11 | Architecture pivot |
+| **3b** | Native ARM64 | Ubuntu 22.04 | gcc 11 | Second architecture |
+| **4** | Both native | Ubuntu 22.04 | gcc 11/clang 14 | Production validation |
+
+### Verification at Each Stage
+
+Every stage must achieve:
+1. ✅ **Build success**: `make all` completes without errors
+2. ✅ **Test passage**: DejaGnu tests pass (>95%)
+3. ✅ **Runtime verification**: Execute simple programs
+4. ✅ **Comparison**: Output matches previous stage (if applicable)
+
+---
+
+## Phase 0: Vintage Environment Establishment
+
+**Goal:** Set up QEMU with period-appropriate OS and toolchain
+
+**Duration:** 1-3 sessions (environment setup is tricky)
+
+### Task 0.1: QEMU Installation
+
+**Prerequisites:**
+- Modern Linux host (already have: Ubuntu/Debian in Claude Code environment)
+- QEMU package available
+
+**Actions:**
+```bash
+# Install QEMU with SPARC support
+sudo apt-get update
+sudo apt-get install -y qemu-system-sparc qemu-utils
+
+# Verify installation
+qemu-system-sparc --version
+```
+
+**Verification:**
+- QEMU binary exists and runs
+- SPARC emulation available
+
+**Claude Code Feasibility:** ✅ **HIGH** - straightforward package installation
+
+---
+
+### Task 0.2: Obtain Vintage OS Image
+
+**Options:**
+1. **Solaris 2.5.1** (Sun Microsystems, 1996)
+   - Authentic vintage environment
+   - Requires ISO and license consideration
+
+2. **NetBSD 1.6** (Open source, 2002)
+   - Freely available
+   - Good SPARC support
+   - More accessible
+
+**Actions:**
+```bash
+# Download NetBSD 1.6 SPARC ISO (public archive)
+wget http://archive.netbsd.org/pub/NetBSD-archive/NetBSD-1.6/sparc/installation/netboot/netbsd.ram.gz
+
+# Or use pre-configured image if available
+# Note: May need to use existing archived images
+```
+
+**Verification:**
+- ISO/image file downloaded
+- Checksum matches (if available)
+
+**Claude Code Feasibility:** ⚠️ **MEDIUM** - depends on image availability and licensing
+
+**Alternative:**  Skip vintage, start with NetBSD 9 (modern but still SPARC-supporting)
+
+---
+
+### Task 0.3: QEMU Configuration
+
+**Actions:**
+Create QEMU launch script:
+
+```bash
+#!/bin/bash
+# qemu-sparc-netbsd.sh
+
+qemu-system-sparc \
+  -M SS-5 \
+  -m 256 \
+  -hda netbsd-sparc.img \
+  -cdrom netbsd-1.6-sparc.iso \
+  -boot d \
+  -nographic \
+  -serial mon:stdio
+```
+
+**Verification:**
+- QEMU starts without errors
+- Can reach bootloader prompt
+
+**Claude Code Feasibility:** ⚠️ **MEDIUM** - interactive boot may be challenging
+
+---
+
+### Task 0.4: OS Installation Automation
+
+**Problem:** OS installation is typically interactive
+
+**Solutions:**
+1. **Pre-built image:** Find existing NetBSD SPARC image with gcc pre-installed
+2. **Automated installation:** Use expect scripts to automate installer
+3. **Skip to modern:** Use NetBSD 9 (easier setup, still SPARC)
+
+**Example expect script:**
+```tcl
+#!/usr/bin/expect -f
+spawn qemu-system-sparc -M SS-5 -m 256 -hda netbsd.img -cdrom netbsd.iso -nographic
+expect "boot:" { send "install\r" }
+expect "Terminal type?" { send "vt100\r" }
+# ... continue automation ...
+```
+
+**Verification:**
+- OS installs successfully
+- Can log in
+- gcc is available
+
+**Claude Code Feasibility:** ⚠️ **LOW-MEDIUM** - complex interactive automation
+
+**Recommended:** Use pre-built image or skip to modern NetBSD 9
+
+---
+
+### Task 0.5: Network Configuration for SSH
+
+**Goal:** Enable SSH access to QEMU guest (easier than console)
+
+**Actions:**
+```bash
+# QEMU with user-mode networking and port forwarding
+qemu-system-sparc \
+  -M SS-5 \
+  -m 256 \
+  -hda netbsd-sparc.img \
+  -netdev user,id=net0,hostfwd=tcp::2222-:22 \
+  -device ne2k_isa,netdev=net0 \
+  -nographic \
+  -daemonize
+
+# Then connect via SSH
+ssh -p 2222 root@localhost
+```
+
+**Verification:**
+- SSH connection succeeds
+- Can execute commands remotely
+- Can transfer files (scp)
+
+**Claude Code Feasibility:** ✅ **HIGH** - SSH automation is much easier than console
+
+**This is CRITICAL for Claude Code execution!**
 
 ---
 
 ### Phase 0 Exit Criteria
 
-✅ Both platforms have working build environments
-✅ Source code compiles (even if non-functional)
-✅ Test suite is understood and executable
-✅ CI/CD infrastructure is operational
-✅ Team is familiar with codebase architecture
+✅ QEMU environment is operational
+✅ Vintage OS is installed and accessible
+✅ SSH access configured and working
+✅ gcc and basic build tools available
+✅ Can transfer AGENTS source code into environment
+
+**Reality Check:** Phase 0 may require **human assistance** for initial setup, then Claude Code can take over for actual porting work.
 
 ---
 
-## Phase 1: Bootstrap Port
+## Phase 1: Vintage Bootstrap Verification
 
-**Duration:** 2-4 weeks
-**Effort:** 80-160 hours
-**Goal:** Functional AGENTS system on x86-64 and ARM64
+**Goal:** Prove that AGENTS builds and runs in vintage environment
 
-### Strategy
+**Duration:** 2-5 sessions
 
-**Follow the Alpha Blueprint:**
-1. Copy Alpha configuration patterns
-2. Use conservative settings (PTR_ORG=0, no HARDREGS initially)
-3. Focus on functional correctness, not performance
-4. Validate with minimal test suite
+### Task 1.1: Transfer Source Code
 
----
+**Actions:**
+```bash
+# From host to QEMU guest
+scp -P 2222 -r /path/to/agents root@localhost:/root/agents
 
-### Tasks
-
-#### 1.1 Platform Detection (Configure)
-**Effort:** 16-24 hours
-
-**Goal:** Teach configure script to recognize x86-64 and ARM64
-
-**File:** `configure.in`
-
-**Tasks:**
-- [ ] Add x86-64 platform detection
-- [ ] Add ARM64 platform detection
-- [ ] Set platform variables (PLATFORM, TADBITS, etc.)
-- [ ] Update config.guess and config.sub if needed
-- [ ] Test configure on both platforms
-
-**From Document 06 (Build System):**
-```sh
-# Add to configure.in
-case "$host" in
-  x86_64-*-linux*)
-    PLATFORM=x86_64
-    TADBITS=64
-    ;;
-  aarch64-*-linux*)
-    PLATFORM=arm64
-    TADBITS=64
-    ;;
-esac
+# Verify transfer
+ssh -p 2222 root@localhost "ls -la /root/agents"
 ```
 
-**Deliverables:**
-- Updated configure.in
-- Successful configure runs on both platforms
+**Verification:**
+- All source files present
+- Directory structure intact
+- No corruption
+
+**Claude Code Feasibility:** ✅ **HIGH**
 
 ---
 
-#### 1.2 Platform Dependencies (sysdeps.h)
-**Effort:** 24-40 hours
+### Task 1.2: Run Configure
 
-**Goal:** Define architecture parameters for x86-64 and ARM64
-
-**File:** `emulator/sysdeps.h`
-
-**Tasks:**
-- [ ] Add x86-64 platform section (copy from Alpha)
-- [ ] Add ARM64 platform section (copy from Alpha with adjustments)
-- [ ] Set TADBITS=64 for both
-- [ ] Set PTR_ORG=0 (like Alpha)
-- [ ] Set WORDALIGNMENT=8
-- [ ] Define feature flags (THREADED_CODE, etc.)
-- [ ] Test compilation
-
-**From Document 03 (Platform Dependencies):**
-```c
-#if defined(__x86_64__) || defined(__amd64__)
-#define x86_64
-#define TADBITS 64
-#define PTR_ORG 0
-#define WORDALIGNMENT 8
-#define THREADED_CODE
-// No HARDREGS initially
-#endif
-
-#if defined(__aarch64__) || defined(__arm64__)
-#define arm64
-#define TADBITS 64
-#define PTR_ORG 0
-#define WORDALIGNMENT 8
-#define THREADED_CODE
-#define OptionalWordAlign  // May need alignment helpers
-#endif
+**Actions:**
+```bash
+ssh -p 2222 root@localhost "cd /root/agents && ./configure"
 ```
 
-**Deliverables:**
-- Updated sysdeps.h with x86-64 and ARM64 sections
-- Clean compilation on both platforms
+**Expected:** Configure completes, creates Makefile
+
+**Possible Issues:**
+- autoconf version mismatch
+- Missing dependencies (m4, etc.)
+- Platform not recognized
+
+**Claude Code Actions:**
+- Capture configure output
+- Parse for errors
+- If platform unknown, may need to update config.guess
+
+**Verification:**
+- Configure succeeds (exit code 0)
+- Makefile generated
+- config.status created
+
+**Claude Code Feasibility:** ✅ **HIGH** - can run and parse output
 
 ---
 
-#### 1.3 Register Allocation (regdefs.h) - OPTIONAL
-**Effort:** 8-16 hours (if deferred to Phase 2)
+### Task 1.3: Initial Build Attempt
 
-**Goal:** Define soft register allocation (defer HARDREGS to Phase 2)
-
-**File:** `emulator/regdefs.h`
-
-**Tasks:**
-- [ ] Add x86-64 section without HARDREGS
-- [ ] Add ARM64 section without HARDREGS
-- [ ] Use default soft register definitions
-- [ ] Verify compilation
-
-**Note:** HARDREGS can be added in Phase 2 for ~10-20% performance gain
-
-**Deliverables:**
-- Updated regdefs.h (minimal changes)
-- Working soft register allocation
-
----
-
-#### 1.4 Build System Integration
-**Effort:** 16-24 hours
-
-**Goal:** Complete build system support for new platforms
-
-**Tasks:**
-- [ ] Update all Makefile.in files with platform-specific rules
-- [ ] Add platform-specific CFLAGS
-- [ ] Add platform-specific LDFLAGS
-- [ ] Test full build process (make clean && make)
-- [ ] Verify all components compile: emulator, compiler, runtime
-
-**From Document 06 (Build System):**
-```makefile
-# Makefile.in additions
-ifeq ($(PLATFORM),x86_64)
-  CFLAGS += -march=x86-64 -mtune=generic
-endif
-
-ifeq ($(PLATFORM),arm64)
-  CFLAGS += -march=armv8-a
-endif
+**Actions:**
+```bash
+ssh -p 2222 root@localhost "cd /root/agents && make all 2>&1 | tee build.log"
 ```
 
-**Deliverables:**
-- Complete build succeeds on both platforms
-- All binaries generated correctly
+**Expected:** Either success or well-defined failures
+
+**Timeout Concern:** Full build may take 20-30 minutes in QEMU
+
+**Solutions:**
+1. **Increase timeout:** Use 600000ms (10 min) - may not be enough
+2. **Build in background:**
+   ```bash
+   ssh -p 2222 root@localhost "cd /root/agents && nohup make all > build.log 2>&1 &"
+   # Check later
+   ssh -p 2222 root@localhost "tail -f /root/agents/build.log"
+   ```
+3. **Staged builds:**
+   ```bash
+   make -C emulator  # Build emulator only first
+   make -C compiler  # Then compiler
+   # etc.
+   ```
+
+**Verification:**
+- Build completes (check exit code or log)
+- Executables generated (agents, oagents)
+- No fatal errors in log
+
+**Claude Code Feasibility:** ⚠️ **MEDIUM** - timeout management required
 
 ---
 
-#### 1.5 Runtime System
-**Effort:** 16-32 hours
+### Task 1.4: Run Test Suite
 
-**Goal:** Get compiler and core runtime working
-
-**Tasks:**
-- [ ] Build aklcomp (AKL compiler)
-- [ ] Test compiling simple .akl programs
-- [ ] Verify bytecode generation
-- [ ] Check predicate tables
-- [ ] Test basic agent loading
-
-**Test Programs:**
-```akl
-% hello.akl
-main :- write('Hello from AGENTS'), nl.
+**Actions:**
+```bash
+ssh -p 2222 root@localhost "cd /root/agents/tests && runtest --tool agents AGENTS=../agents"
 ```
 
-**Deliverables:**
-- Working aklcomp on both platforms
-- Successful compilation of test programs
+**Expected:** Tests run, some pass
+
+**Verification:**
+- DejaGnu runs
+- agents.sum generated
+- Count passes/fails
+
+**Claude Code Feasibility:** ✅ **HIGH** - test execution straightforward
 
 ---
 
-#### 1.6 Basic Execution
-**Effort:** 24-48 hours
+### Task 1.5: Baseline Documentation
 
-**Goal:** Execute simple programs successfully
+**Actions:**
+- Save build log
+- Save test results
+- Document exact environment (OS version, gcc version, etc.)
+- Create snapshot: `build-baseline-sparc-vintage.tar.gz`
 
-**Tasks:**
-- [ ] Run emulator with minimal program
-- [ ] Debug any startup failures
-- [ ] Test basic instruction dispatch
-- [ ] Verify threaded code works
-- [ ] Test fallback to switch-based dispatch
+**Verification:**
+- All artifacts saved to git
+- Reproducible environment documented
 
-**Test Sequence:**
-1. **Minimal:** Program that just exits
-2. **Simple I/O:** Print "hello world"
-3. **Arithmetic:** Basic integer operations
-4. **Unification:** Simple pattern matching
-5. **Recursion:** Factorial or similar
-
-**From Document 05 (Bytecode Dispatch):**
-- Threaded code should work on both gcc and clang
-- Switch-based dispatch as fallback
-- Test both modes for correctness
-
-**Deliverables:**
-- Successful execution of minimal programs
-- Debug logs showing correct instruction dispatch
-
----
-
-#### 1.7 Memory Management Validation
-**Effort:** 16-24 hours
-
-**Goal:** Verify memory allocator and GC work correctly
-
-**Tasks:**
-- [ ] Test heap allocation
-- [ ] Test stack allocation
-- [ ] Force garbage collection
-- [ ] Verify mark-sweep works
-- [ ] Test for memory leaks (valgrind)
-
-**From Document 04 (Memory Management):**
-- Alpha port proves 64-bit GC works
-- Mark bit in high bit (bit 63)
-- WORDALIGNMENT=8 should prevent alignment faults
-
-**Tests:**
-- Large heap allocation
-- Many small allocations (fragmentation test)
-- GC stress test (allocate until GC triggers)
-
-**Deliverables:**
-- GC functioning correctly on both platforms
-- No memory leaks detected
-- Alignment issues resolved (ARM64)
+**Claude Code Feasibility:** ✅ **HIGH** - documentation is my strength
 
 ---
 
 ### Phase 1 Exit Criteria
 
-✅ Complete build system for x86-64 and ARM64
-✅ Emulator executes simple programs correctly
-✅ Basic test suite passes (20+ tests)
-✅ Memory management validated
-✅ No crashes or segfaults on core functionality
-✅ Both platforms show parity in functionality
+✅ AGENTS builds successfully in vintage environment
+✅ Test suite runs (even if some tests fail)
+✅ Baseline documented and preserved
+✅ Known-good configuration archived
 
-**Milestone:** First working AGENTS system on modern hardware! 🎉
+**If Phase 1 fails:** The system may need repairs before modernization. This is valuable information!
 
 ---
 
-## Phase 2: Optimization
+## Phase 2: Incremental Modernization
 
-**Duration:** 2-3 weeks
-**Effort:** 60-120 hours
-**Goal:** Optimize performance to match or exceed original
+**Goal:** Step through OS/compiler upgrades while staying on SPARC
 
-### Focus Areas
+**Duration:** 5-10 sessions
 
-1. Hard register allocation (HARDREGS)
-2. Compiler optimizations
-3. Platform-specific tuning
-4. Performance benchmarking
+### Stage 2a: Solaris 9 / gcc 4.x
 
----
+**Actions:**
+1. Set up QEMU with Solaris 9 or NetBSD 5.x
+2. Install gcc 4.x
+3. Attempt build with minimal changes
+4. Fix incompatibilities (deprecated functions, etc.)
+5. Verify tests still pass
 
-### Tasks
+**Expected Changes:**
+- Replace `getwd()` with `getcwd()`
+- Replace `gcvt()` with `snprintf()`
+- Update function signatures for prototypes
 
-#### 2.1 Hard Register Allocation
-**Effort:** 24-40 hours
+**Verification:**
+- Build succeeds
+- Tests pass with similar results to Stage 1
 
-**Goal:** Allocate frequently-used VM registers to physical registers
-
-**File:** `emulator/regdefs.h`
-
-**From Document 03 (Platform Dependencies):**
-- Alpha uses 10 hard registers
-- x86-64 has 16 GPRs → can use 10-12
-- ARM64 has 31 GPRs → can use 10-15
-
-**x86-64 Allocation (example):**
-```c
-#ifdef HARDREGS
-#define Register register
-register exstate *exs asm("%r12");
-register code *pc asm("%r13");
-register opcode op asm("%r14");
-register Term *areg asm("%r15");
-register Term *yreg asm("%rbx");
-register andbox *andb asm("%rbp");
-register choicebox *chb asm("%rdi");
-register Reference *str asm("%rsi");
-register int arity asm("%r8d");
-register Term *heaplimit asm("%r9");
-#endif
-```
-
-**ARM64 Allocation (example):**
-```c
-#ifdef HARDREGS
-#define Register register
-register exstate *exs asm("x19");
-register code *pc asm("x20");
-register opcode op asm("x21");
-register Term *areg asm("x22");
-register Term *yreg asm("x23");
-register andbox *andb asm("x24");
-register choicebox *chb asm("x25");
-register Reference *str asm("x26");
-register int arity asm("w27");
-register Term *heaplimit asm("x28");
-#endif
-```
-
-**Tasks:**
-- [ ] Define HARDREGS for x86-64
-- [ ] Define HARDREGS for ARM64
-- [ ] Test compilation
-- [ ] Run benchmarks
-- [ ] Measure performance improvement
-
-**Expected Gain:** 10-20% speedup
-
-**Deliverables:**
-- Hard register definitions for both platforms
-- Performance measurements before/after
+**Claude Code Feasibility:** ✅ **HIGH** - code changes are straightforward
 
 ---
 
-#### 2.2 Compiler Optimization Flags
-**Effort:** 8-16 hours
+### Stage 2b: NetBSD 9 / gcc 8.x
 
-**Goal:** Find optimal compiler flags for each platform
+**Actions:**
+1. Further compiler modernization
+2. Enable more warnings (-Wall -Wextra)
+3. Fix warnings
+4. Update autoconf if needed
 
-**From Document 06 (Build System):**
+**Verification:**
+- Clean compilation
+- All tests pass
+- No deprecation warnings
 
-**x86-64 Flags:**
-```makefile
-CFLAGS += -O3 -march=x86-64-v2 -mtune=generic
-CFLAGS += -fomit-frame-pointer
-CFLAGS += -funroll-loops
-```
-
-**ARM64 Flags:**
-```makefile
-CFLAGS += -O3 -march=armv8-a
-CFLAGS += -fomit-frame-pointer
-CFLAGS += -funroll-loops
-```
-
-**Tasks:**
-- [ ] Test various optimization levels (-O2 vs -O3)
-- [ ] Test micro-architecture targeting
-- [ ] Profile and identify hot paths
-- [ ] Tune based on profiling results
-
-**Deliverables:**
-- Optimal CFLAGS for each platform
-- Performance comparison matrix
+**Claude Code Feasibility:** ✅ **HIGH**
 
 ---
 
-#### 2.3 Platform-Specific Optimizations
-**Effort:** 16-24 hours
+### Stage 2c: SPARC 64-bit
 
-**Goal:** Leverage platform-specific features
+**Actions:**
+1. Set up SPARC64 environment (or use NetBSD's 64-bit mode)
+2. Change TADBITS=64 in configuration
+3. Build and test
+4. Compare behavior to Alpha 64-bit port
 
-**x86-64 Opportunities:**
-- Fast unaligned access (less critical)
-- Large register file
-- Strong memory ordering (fewer barriers)
+**This proves 32→64 bit transition before architecture change**
 
-**ARM64 Opportunities:**
-- Large register file (31 regs)
-- May need alignment helpers (OptionalWordAlign)
-- May need memory barriers for concurrent code
+**Verification:**
+- 64-bit build succeeds
+- Tests pass
+- Matches Alpha behavior
 
-**Tasks:**
-- [ ] Review hot paths in profiler
-- [ ] Add platform-specific optimizations where beneficial
-- [ ] Test OptionalWordAlign on ARM64
-- [ ] Add memory barriers if needed for concurrency
-
-**Deliverables:**
-- Platform-specific optimization patches
-- Performance measurements
-
----
-
-#### 2.4 Benchmarking Suite
-**Effort:** 16-24 hours
-
-**Goal:** Comprehensive performance benchmarking
-
-**From Document 07 (Testing Strategy):**
-- Use existing benchmarks in `benchmarks/` directory
-- Add new benchmarks for architecture-sensitive operations
-
-**Benchmark Categories:**
-- Instruction dispatch overhead
-- Memory allocation/GC speed
-- Unification performance
-- Concurrent execution (if applicable)
-- I/O throughput
-
-**Tasks:**
-- [ ] Run all existing benchmarks
-- [ ] Create new micro-benchmarks for critical paths
-- [ ] Compare x86-64 vs ARM64 performance
-- [ ] Compare against Alpha port (if available)
-- [ ] Identify performance regressions
-
-**Deliverables:**
-- Comprehensive benchmark results
-- Performance comparison report
+**Claude Code Feasibility:** ✅ **HIGH** - follows documented Alpha path
 
 ---
 
 ### Phase 2 Exit Criteria
 
-✅ HARDREGS implemented and validated
-✅ Optimal compiler flags determined
-✅ Platform-specific optimizations applied
-✅ Performance matches or exceeds original targets
-✅ No performance regressions vs Phase 1
-✅ Benchmark suite established
-
-**Milestone:** Production-grade performance achieved! 🚀
+✅ Modern compiler (gcc 8+) supported
+✅ Code compiles cleanly with warnings enabled
+✅ 64-bit transition successful on SPARC
+✅ Test passage maintained throughout
 
 ---
 
-## Phase 3: Validation
+## Phase 3: Architecture Transition
 
-**Duration:** 2-3 weeks
-**Effort:** 60-120 hours
-**Goal:** Comprehensive testing and validation
+**Goal:** Move from SPARC to x86-64 and ARM64
 
-### Focus Areas
+**Duration:** 5-15 sessions (complex)
 
-1. Full test suite execution
-2. Stress testing
-3. Concurrency validation
-4. Edge case testing
-5. Cross-platform consistency
+### Task 3.1: Update Platform Detection
 
----
+**Files:** `emulator/sysdeps.h`, `emulator/regdefs.h`, `configure.in`
 
-### Tasks
+**Actions:**
+```c
+// sysdeps.h
+#if defined(__x86_64__) || defined(__amd64__)
+#define TADBITS 64
+#define WORDALIGNMENT 8
+#endif
 
-#### 3.1 Full Test Suite Execution
-**Effort:** 16-24 hours
+#if defined(__aarch64__) || defined(__arm64__)
+#define TADBITS 64
+#define WORDALIGNMENT 8
+// May need OptionalWordAlign
+#endif
+```
 
-**Goal:** Run all existing tests on both platforms
-
-**From Document 07 (Testing Strategy):**
-- ~60 test files in DejaGnu framework
-- Categories: syntax, stdlib, constraints, concurrent, I/O
-
-**Tasks:**
-- [ ] Run complete test suite on x86-64
-- [ ] Run complete test suite on ARM64
-- [ ] Document all failures
-- [ ] Fix failures (or document as known issues)
-- [ ] Achieve >95% pass rate
-
-**Expected Results:**
-- Most tests should pass immediately (Alpha port similarity)
-- Some tests may be platform-specific (document/skip)
-- Some tests may reveal edge cases (fix)
-
-**Deliverables:**
-- Test results report for both platforms
-- Failure analysis and fixes
-- Updated test suite (if needed)
+**Claude Code Feasibility:** ✅ **HIGH** - straightforward code additions
 
 ---
 
-#### 3.2 Stress Testing
-**Effort:** 16-24 hours
+### Task 3.2: Cross-Compilation Test
 
-**Goal:** Test system under extreme conditions
+**Actions:**
+```bash
+# Install cross-compilers on host
+sudo apt-get install gcc-aarch64-linux-gnu
 
-**Test Categories:**
-- **Memory stress:** Large heaps, many allocations, GC pressure
-- **Deep recursion:** Stack depth limits
-- **Long-running:** Hours/days of continuous execution
-- **Concurrent load:** Many simultaneous agents (if applicable)
+# Try cross-compile
+./configure --host=aarch64-linux-gnu
+make
+```
 
-**Tasks:**
-- [ ] Create stress test suite
-- [ ] Run stress tests on both platforms
-- [ ] Monitor for memory leaks (valgrind)
-- [ ] Monitor for crashes
-- [ ] Test recovery from resource exhaustion
+**Verification:**
+- Cross-compilation succeeds
+- Binaries are ARM64 (file command)
 
-**Deliverables:**
-- Stress test suite
-- Stability report
+**Cannot run tests yet** (wrong architecture)
+
+**Claude Code Feasibility:** ✅ **HIGH**
 
 ---
 
-#### 3.3 Concurrency Validation
-**Effort:** 16-24 hours
+### Task 3.3: Native x86-64 Build
 
-**Goal:** Validate concurrent constraint execution
+**Actions:**
+```bash
+# On native x86-64 host (Claude Code environment)
+./configure
+make all
+```
 
-**From Documents 01-02:**
-- AGENTS uses or-parallelism (choice points)
-- Guards and committed choice
-- May use platform threading (unclear from study)
+**Expected:** Should work if Stage 2c (SPARC64) worked
 
-**Tasks:**
-- [ ] Test concurrent agent execution
-- [ ] Test guard commitment
-- [ ] Test choice point handling
-- [ ] Verify thread safety (if applicable)
-- [ ] Test on multi-core systems
+**Verification:**
+- Build succeeds
+- Emulator runs
+- Tests pass
 
-**Deliverables:**
-- Concurrency test results
-- Thread safety validation
+**Claude Code Feasibility:** ✅ **HIGH** - this is my native environment!
 
 ---
 
-#### 3.4 Edge Case Testing
-**Effort:** 16-24 hours
+### Task 3.4: Native ARM64 Build
 
-**Goal:** Test boundary conditions and edge cases
+**Options:**
+1. **QEMU ARM64:** Similar to SPARC approach
+2. **Cloud ARM64 instance:** If available
+3. **Cross-compile only:** Defer native testing
 
-**Test Cases:**
-- **Large integers:** GMP integration
-- **Deep structures:** Nested terms
-- **Empty collections:** [], nil
-- **Maximum sizes:** String limits, heap limits
-- **Error conditions:** Out of memory, stack overflow
-- **Platform limits:** Pointer sizes, alignment
-
-**Tasks:**
-- [ ] Design edge case test suite
-- [ ] Run on both platforms
-- [ ] Compare results for consistency
-- [ ] Document any platform differences
-
-**Deliverables:**
-- Edge case test suite
-- Platform comparison report
+**Claude Code Feasibility:** ⚠️ **MEDIUM** - depends on environment availability
 
 ---
 
-#### 3.5 Cross-Platform Consistency
-**Effort:** 8-16 hours
+### Task 3.5: Hard Register Allocation
 
-**Goal:** Ensure x86-64 and ARM64 produce identical results
+**Actions:**
+- Define HARDREGS for x86-64 and ARM64 (from Document 03)
+- Build with -DHARDREGS
+- Benchmark performance improvement
 
-**Tasks:**
-- [ ] Run same programs on both platforms
-- [ ] Compare outputs (should be identical)
-- [ ] Compare performance (within reasonable variance)
-- [ ] Document any differences
-- [ ] Investigate and fix inconsistencies
+**Verification:**
+- Performance increases 10-20%
+- Tests still pass
+- No register allocation conflicts
 
-**Deliverables:**
-- Cross-platform consistency report
-- List of known differences (if any)
+**Claude Code Feasibility:** ✅ **HIGH**
 
 ---
 
 ### Phase 3 Exit Criteria
 
-✅ Full test suite passes on both platforms (>95%)
-✅ Stress tests show stability
-✅ Concurrency validated
-✅ Edge cases handled correctly
-✅ x86-64 and ARM64 show behavioral parity
-✅ No critical bugs or crashes
-
-**Milestone:** Production-ready quality achieved! ✅
+✅ x86-64 native build successful
+✅ ARM64 build successful (native or cross)
+✅ Tests pass on both architectures
+✅ Performance acceptable (with HARDREGS)
+✅ Both platforms show behavioral parity
 
 ---
 
-## Phase 4: Production Ready
+## Phase 4: Modern Platform Validation
 
-**Duration:** 1-2 weeks
-**Effort:** 40-80 hours
-**Goal:** Polish for production deployment
+**Goal:** Final validation on modern systems
 
-### Focus Areas
+**Duration:** 3-5 sessions
 
-1. Documentation
-2. Installation and packaging
-3. User guides
-4. Compatibility guarantees
-5. Release preparation
+### Task 4.1: Modern Toolchain Testing
 
----
+**Actions:**
+```bash
+# Test with latest compilers
+export CC=gcc-12
+./configure && make clean && make all && make check
 
-### Tasks
+export CC=clang-16
+./configure && make clean && make all && make check
+```
 
-#### 4.1 Documentation Updates
-**Effort:** 16-24 hours
+**Verification:**
+- Both gcc and clang work
+- No compiler-specific issues
 
-**Goal:** Update all documentation for new platforms
-
-**Tasks:**
-- [ ] Update README with x86-64/ARM64 support
-- [ ] Update installation guide
-- [ ] Update build instructions
-- [ ] Document platform-specific notes
-- [ ] Update man pages (if applicable)
-- [ ] Create migration guide from SPARC
-
-**Files:**
-- README
-- INSTALL
-- doc/installation.md (if exists)
-- doc/manual/ (user manual)
-
-**Deliverables:**
-- Updated documentation
-- Platform support matrix
-- Migration guide
+**Claude Code Feasibility:** ✅ **HIGH**
 
 ---
 
-#### 4.2 Installation and Packaging
-**Effort:** 16-24 hours
+### Task 4.2: Full Test Suite
 
-**Goal:** Easy installation on target platforms
+**Actions:**
+- Run complete DejaGnu suite
+- Run all demos
+- Stress test (long-running programs)
 
-**Tasks:**
-- [ ] Test `make install` on both platforms
-- [ ] Create distribution packages (.tar.gz)
-- [ ] Create platform packages (deb, rpm, homebrew)
-- [ ] Test installation on clean systems
-- [ ] Document installation process
+**Verification:**
+- >95% test passage
+- All demos execute correctly
+- No crashes or memory leaks
 
-**Platforms:**
-- Ubuntu/Debian (apt packages)
-- RHEL/CentOS (rpm packages)
-- Arch Linux (AUR package)
-- macOS (homebrew formula, if supporting macOS ARM64)
-
-**Deliverables:**
-- Working installation process
-- Distribution packages
-- Package repository setup (optional)
+**Claude Code Feasibility:** ✅ **HIGH**
 
 ---
 
-#### 4.3 Backwards Compatibility
-**Effort:** 8-16 hours
+### Task 4.3: Documentation Updates
 
-**Goal:** Ensure existing platforms still work
+**Actions:**
+- Update README with new platforms
+- Update installation instructions
+- Document build requirements
+- Create migration guide
 
-**Tasks:**
-- [ ] Test that SPARC build still works (if possible)
-- [ ] Test that other existing platforms compile
-- [ ] Verify no regressions introduced
-- [ ] Document compatibility guarantees
-
-**Deliverables:**
-- Backwards compatibility report
-- No regressions in existing platforms
-
----
-
-#### 4.4 Release Preparation
-**Effort:** 8-16 hours
-
-**Goal:** Prepare for public release
-
-**Tasks:**
-- [ ] Create release notes
-- [ ] Update version numbers
-- [ ] Tag release in git
-- [ ] Create release branch
-- [ ] Prepare announcement
-
-**Release Notes Should Include:**
-- New platform support (x86-64, ARM64)
-- Performance improvements
-- Bug fixes
-- Known issues
-- Migration guide
-- Credits and acknowledgments
-
-**Deliverables:**
-- Release notes
-- Tagged release
-- Release announcement
+**Claude Code Feasibility:** ✅ **HIGH** - documentation is my strength
 
 ---
 
 ### Phase 4 Exit Criteria
 
+✅ Modern toolchains supported (gcc 11+, clang 14+)
+✅ Full test suite passes
 ✅ Documentation complete and accurate
-✅ Installation process tested and documented
-✅ Packages available for major distributions
-✅ Backwards compatibility verified
-✅ Release prepared and tagged
-
-**Milestone:** Ready for public release! 🎉
+✅ Installation tested on clean systems
+✅ **PORT COMPLETE**
 
 ---
 
-## Effort Estimates
+## Verification Strategy
 
-### Summary Table
+### Continuous Verification
 
-| Phase | Min (hours) | Max (hours) | Min (weeks) | Max (weeks) |
-|-------|-------------|-------------|-------------|-------------|
-| Phase 0: Preparation | 40 | 80 | 1 | 2 |
-| Phase 1: Bootstrap | 80 | 160 | 2 | 4 |
-| Phase 2: Optimization | 60 | 120 | 1.5 | 3 |
-| Phase 3: Validation | 60 | 120 | 1.5 | 3 |
-| Phase 4: Production | 40 | 80 | 1 | 2 |
-| **TOTAL** | **280** | **560** | **7** | **14** |
+At every checkpoint:
 
-**Assumptions:**
-- 1 full-time developer
-- 40 hours/week
-- 8 hours/day
+```bash
+# 1. Code compiles
+make clean && make all
+if [ $? -ne 0 ]; then
+  echo "BUILD FAILED"
+  exit 1
+fi
 
-**Confidence Level:**
-- **Minimum (280 hours):** Optimistic but achievable with experienced team
-- **Maximum (560 hours):** Conservative, accounts for unknowns and setbacks
-- **Expected (420 hours):** Realistic middle ground ≈ 10-11 weeks
+# 2. Tests pass
+cd tests && runtest --tool agents AGENTS=../agents
+grep "# of expected passes" agents.sum
 
----
-
-### Effort by Task Type
-
-| Task Type | Hours | % of Total |
-|-----------|-------|------------|
-| Build System | 60-120 | 21-21% |
-| Platform Configuration | 50-100 | 18-18% |
-| Testing & Validation | 80-160 | 29-29% |
-| Optimization | 40-80 | 14-14% |
-| Documentation | 30-60 | 11-11% |
-| Infrastructure | 20-40 | 7-7% |
-| **TOTAL** | **280-560** | **100%** |
-
----
-
-## Resource Requirements
-
-### Personnel
-
-**Minimum Team:**
-- 1 experienced C programmer with VM/compiler knowledge
-- Part-time access to architecture expert (ARM64 specifics)
-- Part-time tester
-
-**Ideal Team:**
-- 1 lead developer (VM internals)
-- 1 platform engineer (build systems, architecture)
-- 1 test engineer
-- 1 documentation writer (part-time)
-
-**Skills Required:**
-- Strong C programming
-- Understanding of VM/interpreter design
-- Experience with x86-64 and/or ARM64
-- Build system expertise (autoconf, make)
-- Debugging skills (gdb, valgrind)
-- Git version control
-
----
-
-### Hardware
-
-**Required:**
-- x86-64 Linux development machine (8+ GB RAM, 50+ GB disk)
-- ARM64 Linux development machine or QEMU emulator
-  - Raspberry Pi 4 (8GB) acceptable
-  - AWS Graviton instance
-  - Apple Silicon Mac (if macOS support desired)
-
-**Nice to Have:**
-- Multiple x86-64 machines (different vendors/models)
-- Multiple ARM64 devices (different vendors)
-- Older hardware for compatibility testing
-
----
-
-### Software
-
-**Required:**
-- gcc 11+ or clang 14+
-- autoconf 2.69+, automake, libtool
-- GNU make
-- GMP library (libgmp-dev)
-- Git
-- gdb
-- DejaGnu 1.6+
-
-**Nice to Have:**
-- valgrind
-- perf (performance profiling)
-- Multiple compiler versions (compatibility testing)
-- Docker (for reproducible builds)
-- CI/CD platform (GitHub Actions, GitLab CI)
-
----
-
-## Dependencies and Prerequisites
-
-### Critical Path Dependencies
-
-```
-Phase 0: Preparation
-    ↓
-Phase 1: Bootstrap ← Must complete before optimization
-    ↓
-Phase 2: Optimization ← Can overlap with Phase 3
-    ↓
-Phase 3: Validation ← Must complete before release
-    ↓
-Phase 4: Production
+# 3. Smoke test
+echo "write('Hello from AGENTS'), nl." | ../agents -b ../environment/boot.pam
 ```
 
-### External Dependencies
+### Automated Verification Script
 
-**Low Risk:**
-- GMP library availability (widely available)
-- Compiler support for computed goto (gcc/clang standard)
-- DejaGnu test framework (mature and stable)
+```bash
+#!/bin/bash
+# verify-checkpoint.sh
 
-**Medium Risk:**
-- Access to ARM64 hardware (cloud instances available)
-- Availability of original test suite (appears complete)
-- Documentation of original design (study docs fill gaps)
+set -e
 
-**Blockers (if any):**
-- None identified (all critical dependencies available)
+echo "=== Building ==="
+make clean && make all
 
----
+echo "=== Running Tests ==="
+cd tests
+runtest --tool agents AGENTS=../agents
+cd ..
 
-## Success Metrics
+echo "=== Smoke Test ==="
+echo "write('Port verification OK'), nl." | ./agents -b environment/boot.pam
 
-### Functional Correctness
-- ✅ Full test suite passes (>95% pass rate)
-- ✅ No crashes or segfaults on valid programs
-- ✅ Identical behavior across x86-64 and ARM64
-- ✅ GC operates correctly (no leaks)
-- ✅ Concurrent execution works (if applicable)
+echo "=== SUCCESS ==="
+exit 0
+```
 
-### Performance
-- ✅ Threaded code dispatch works on both platforms
-- ✅ Performance within 80-120% of Alpha port (if comparable)
-- ✅ HARDREGS provides 10-20% speedup
-- ✅ No major performance regressions
-
-### Quality
-- ✅ Clean compilation (no warnings with -Wall)
-- ✅ Valgrind clean (no memory errors)
-- ✅ Passes static analysis (if used)
-- ✅ Code follows existing style
-
-### Usability
-- ✅ Simple build process (`./configure && make`)
-- ✅ Clear documentation
-- ✅ Easy installation
-- ✅ Works on major Linux distributions
+**Claude Code Usage:**
+- Run this script after every change
+- Parse output for success/failure
+- Commit only if verification passes
 
 ---
 
-## Risk Mitigation
+## Session Management
 
-### Technical Risks
+### State Persistence
 
-**Risk:** Alignment issues on ARM64
-**Likelihood:** Medium
-**Impact:** Medium
-**Mitigation:**
-- Use OptionalWordAlign from the start
-- Test early on ARM64 hardware
-- Have alignment helper functions ready
+**Between sessions, Claude Code must:**
+1. **Commit all changes to git**
+2. **Write session log** (`session-NNNN.md`)
+3. **Update progress tracker** (`PORTING-STATUS.md`)
+4. **Save verification results** (`verification-YYYY-MM-DD.log`)
 
-**Risk:** Performance regression with HARDREGS
-**Likelihood:** Low
-**Impact:** Medium
-**Mitigation:**
-- Benchmark before and after
-- Have soft register fallback
-- Profile to identify issues
+**On session start:**
+1. **Read PORTING-STATUS.md** to understand current state
+2. **Review recent session logs**
+3. **Verify environment is clean**
+4. **Resume from last checkpoint**
 
-**Risk:** Test suite failures
-**Likelihood:** Medium
-**Impact:** High
-**Mitigation:**
-- Start testing early in Phase 1
-- Fix failures incrementally
-- Maintain test results log
+### Session Structure
+
+**Typical session:**
+```
+1. Load context (read status files)
+2. Execute 1-3 tasks (small, verifiable)
+3. Run verification script
+4. Commit changes
+5. Update status
+6. Document decisions
+```
+
+### Checkpoint Commits
+
+Format:
+```
+Port checkpoint: <phase>.<task> - <description>
+
+<what changed>
+<verification results>
+<next steps>
+```
+
+Example:
+```
+Port checkpoint: 2a.3 - Replace deprecated getwd() with getcwd()
+
+Modified files:
+- emulator/inout.c: Replace getwd() calls
+
+Verification:
+- Build: SUCCESS
+- Tests: 37/37 PASS (no regression)
+
+Next: Continue Stage 2a modernization
+```
 
 ---
 
-### Schedule Risks
+## Rollback and Recovery
 
-**Risk:** Unforeseen architecture issues
-**Likelihood:** Low
-**Impact:** High
-**Mitigation:**
-- Alpha port proves 64-bit feasibility
-- Buffer time in estimates (280-560 hour range)
-- Incremental approach allows early detection
+### If Verification Fails
 
-**Risk:** Resource unavailability (hardware, personnel)
-**Likelihood:** Medium
-**Impact:** Medium
-**Mitigation:**
-- Use cloud instances for ARM64 if needed
-- Document all steps for handoffs
-- Cross-train team members
+```bash
+# Immediately rollback
+git reset --hard HEAD~1
+
+# Analyze failure
+cat build.log
+grep FAIL tests/agents.sum
+
+# Document failure
+echo "Approach X failed because Y" >> FAILURES.md
+
+# Try alternative approach
+```
+
+### Saved States
+
+At each phase boundary:
+```bash
+git tag phase-1-complete
+git push --tags
+
+# Also save external artifacts
+tar czf phase-1-artifacts.tar.gz tests/*.sum tests/*.log build.log
+```
 
 ---
 
-### Quality Risks
+## Critical Feasibility Analysis
 
-**Risk:** Incomplete testing
-**Likelihood:** Medium
-**Impact:** High
-**Mitigation:**
-- Dedicated Phase 3 for validation
-- Use existing comprehensive test suite
-- Add architecture-specific tests
+### What is FEASIBLE for Claude Code ✅
 
-**Risk:** Documentation gaps
-**Likelihood:** Low
-**Impact:** Medium
-**Mitigation:**
-- Dedicated Phase 4 for documentation
-- Porting study docs provide foundation
-- Review by independent reader
+**Phases that Claude Code can execute autonomously:**
+
+1. **Code analysis and modification** (Phases 2-4)
+   - ✅ Update platform detection code
+   - ✅ Replace deprecated functions
+   - ✅ Add HARDREGS definitions
+   - ✅ Fix compiler warnings
+   - ✅ Update documentation
+
+2. **Native x86-64 building and testing** (Phase 3.3, Phase 4)
+   - ✅ Run configure and make on native system
+   - ✅ Execute test suite
+   - ✅ Verify results
+   - ✅ Iterate on failures
+
+3. **Static analysis and planning** (All phases)
+   - ✅ Understand codebase structure
+   - ✅ Identify dependencies
+   - ✅ Plan modifications
+   - ✅ Document extensively
+
+### What is CHALLENGING for Claude Code ⚠️
+
+**Phases that require careful automation:**
+
+1. **QEMU emulator setup** (Phase 0)
+   - ⚠️ Downloading OS images (may need human to provide)
+   - ⚠️ Interactive OS installation (needs expect scripts)
+   - ⚠️ Network configuration (finicky)
+   - **SOLUTION:** Use pre-built images or have human do initial setup
+
+2. **Building inside QEMU** (Phase 1)
+   - ⚠️ Long build times (10-30 minutes)
+   - ⚠️ Timeout management
+   - **SOLUTION:** Background builds with polling
+
+3. **ARM64 native testing** (Phase 3.4)
+   - ⚠️ May not have ARM64 environment available
+   - **SOLUTION:** Cross-compile only, defer native testing or use QEMU
+
+### What is NOT FEASIBLE for Claude Code ❌
+
+**Operations that require human intervention:**
+
+1. **Interactive debugging**
+   - ❌ Cannot step through gdb interactively
+   - ❌ Cannot investigate crashes in real-time
+   - **SOLUTION:** Use verbose logging, core dumps, automated analysis
+
+2. **Multi-hour operations**
+   - ❌ Cannot wait for 2-hour compilation
+   - ❌ Cannot babysit long-running tests
+   - **SOLUTION:** Break into chunks, use background jobs
+
+3. **Handling unexpected failures**
+   - ❌ May encounter unknown build errors
+   - ❌ May hit environment-specific issues
+   - **SOLUTION:** Extensive documentation review, systematic debugging, human escalation if stuck
+
+### Recommended Hybrid Approach
+
+**Human does:**
+- Phase 0: Set up QEMU environment with SSH access
+- Provide any hard-to-obtain resources (OS images, etc.)
+- Handle truly interactive debugging if Claude Code gets stuck
+
+**Claude Code does:**
+- Everything else: code analysis, modification, building, testing
+- Systematic verification at each step
+- Comprehensive documentation
+- 90%+ of the actual porting work
+
+**Result:** Efficient collaboration where each party does what they do best
+
+---
+
+## Alternative: Skip Vintage Emulation
+
+### Direct Modernization Path
+
+If QEMU setup proves too complex:
+
+**Phase 1: Static Analysis Port**
+1. Analyze Alpha 64-bit port (known good)
+2. Apply same patterns to x86-64
+3. Cross-reference with SPARC for any discrepancies
+4. Make all code changes based on static analysis
+
+**Phase 2: Native Build and Fix**
+1. Attempt build on native x86-64
+2. Fix errors one by one
+3. Refer to documentation when stuck
+4. Iterate until builds succeed
+
+**Phase 3: Testing and Validation**
+1. Run test suite
+2. Fix failures
+3. Verify against expected behavior
+
+**Tradeoff:**
+- ✅ **Faster** - no emulator setup
+- ✅ **Simpler** - fewer moving parts
+- ❌ **Higher risk** - no baseline
+- ❌ **Harder debugging** - no comparison point
+
+**When to use:** If vintage environment proves impractical
 
 ---
 
 ## References
 
-### Porting Study Documents
+### Source Documents
 
-**Phase 1: Architecture**
-- 01-ARCHITECTURE-OVERVIEW.md - System design
-- 02-EMULATOR-ANALYSIS.md - VM internals
-- 03-PLATFORM-DEPENDENCIES.md - Architecture inventory
+**Strategy Foundation:**
+- `06-BUILD-SYSTEM.md` - Vintage Emulation Strategy (Section 9.3)
+- `03-PLATFORM-DEPENDENCIES.md` - Alpha port as reference
+- `08-RISK-ASSESSMENT.md` - Risk mitigation strategies
 
-**Phase 2: Technical**
-- 04-MEMORY-MANAGEMENT.md - Memory model and GC
-- 05-BYTECODE-DISPATCH.md - Instruction dispatch
+**Technical Details:**
+- `01-ARCHITECTURE-OVERVIEW.md` - System architecture
+- `02-EMULATOR-ANALYSIS.md` - Emulator internals
+- `04-MEMORY-MANAGEMENT.md` - Memory model
+- `05-BYTECODE-DISPATCH.md` - Instruction set
+- `07-TESTING-STRATEGY.md` - Test methodology
+- `10-COMPATIBILITY-MATRIX.md` - Platform comparison
 
-**Phase 3: Build System**
-- 06-BUILD-SYSTEM.md - Build system analysis
-
-**Phase 4: Testing**
-- 07-TESTING-STRATEGY.md - Test approach
-
-**Phase 5: Planning**
-- 08-RISK-ASSESSMENT.md - Risk analysis
-- 10-COMPATIBILITY-MATRIX.md - Platform compatibility
-
----
-
-### Key Source Files
-
-**Configuration:**
-- configure.in - Build configuration
-- emulator/sysdeps.h - Platform parameters
-- emulator/regdefs.h - Register allocation
-
-**Core Emulator:**
-- emulator/engine.c - Instruction interpreter
-- emulator/instructions.h - Dispatch macros
-- emulator/opcodes.h - Instruction set
-
-**Build System:**
-- Makefile.in - Top-level build
-- emulator/Makefile.in - Emulator build
-
----
-
-## Appendix: Alpha Port Reference
-
-### Why Alpha is the Blueprint
-
-The DEC Alpha port provides a **proven 64-bit implementation**:
-
-**Alpha Characteristics:**
-- 64-bit architecture (like x86-64, ARM64)
-- Little-endian (like x86-64, ARM64)
-- RISC design (like ARM64)
-- Large register file (like ARM64)
-
-**Alpha Configuration (from sysdeps.h):**
-```c
-#ifdef alpha
-#define TADBITS 64
-#define PTR_ORG 0
-#define WORDALIGNMENT 8
-#define THREADED_CODE
-#ifdef HARDREGS
-#define Register register
-register exstate *exs asm("$9");
-register code *pc asm("$10");
-// ... 10 hard registers total
-#endif
-#endif
-```
-
-**Lessons from Alpha:**
-1. PTR_ORG=0 works (no pointer adjustment)
-2. WORDALIGNMENT=8 sufficient
-3. HARDREGS improves performance
-4. Threaded code works with RISC
-5. GC mark bit in high bit (bit 63)
-
-**Differences to Address:**
-- x86-64 is CISC (vs RISC) - minimal impact
-- ARM64 may need OptionalWordAlign
-- Register names differ (use gcc syntax)
+**Overall Plan:**
+- `STUDY-PLAN.md` - Porting study overview
 
 ---
 
@@ -1214,7 +993,8 @@ register code *pc asm("$10");
 
 | Date | Version | Changes |
 |------|---------|---------|
-| 2025-11-05 | 1.0 | Initial implementation roadmap |
+| 2025-11-05 | 1.0 | Initial human-centric roadmap |
+| 2025-11-05 | 2.0 | Complete rewrite for Claude Code execution with Vintage Emulation Strategy |
 
 ---
 
