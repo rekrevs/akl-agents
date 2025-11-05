@@ -1,5 +1,5 @@
 # Build System Analysis and Modernization Requirements
-## AGENTS v0.9 Porting Study - Phase 3, Document 6
+## AGENTS v0.9 Porting Study - Phase 3, Document 6 of 10
 
 **Version:** 1.0
 **Date:** 2025-11-04

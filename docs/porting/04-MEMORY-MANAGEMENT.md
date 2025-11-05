@@ -808,7 +808,7 @@ void test_ptr_org() {
 - `01-ARCHITECTURE-OVERVIEW.md` - System overview
 - `02-EMULATOR-ANALYSIS.md` - Emulator internals
 - `03-PLATFORM-DEPENDENCIES.md` - Platform ports
-- `07-TESTING-STRATEGY.md` - Testing approach (to be written)
+- `07-TESTING-STRATEGY.md` - Testing approach
 
 ---
 

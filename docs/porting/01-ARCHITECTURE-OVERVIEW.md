@@ -1,6 +1,6 @@
 # AGENTS v0.9 - System Architecture Overview
 
-**Document:** Phase 1, Document 1 of 3
+**Document:** Phase 1, Document 1 of 10
 **Status:** Complete
 **Date:** 2025-11-04
 **Purpose:** High-level system architecture and execution model analysis
@@ -44,6 +44,18 @@ The emulator implements a **WAM-inspired virtual machine** with extensions for c
 - **Garbage Collection:** Copying collector with flip-flop heaps
 - **Bytecode Dispatch:** Threaded code (computed goto) or switch-based
 - **Register Allocation:** Optional hard register mapping for performance
+
+### Porting Effort Summary
+
+**Target Architectures:** x86-64 (Intel/AMD) and ARM64 (ARMv8+)
+
+**Estimated Effort:** 280-560 hours (8-14 weeks) across 4 implementation phases (see **09-IMPLEMENTATION-ROADMAP.md**)
+
+**Overall Risk:** MEDIUM-HIGH due to system age and architecture transition (see **08-RISK-ASSESSMENT.md**)
+
+**Key Success Factor:** The existing **Alpha 64-bit port** provides a proven blueprint, significantly reducing porting risk.
+
+**Platform Compatibility:** See **10-COMPATIBILITY-MATRIX.md** for complete platform comparison and expected performance.
 
 ---
 
@@ -100,7 +112,7 @@ AKL is a **concurrent constraint programming language** where:
 │  ┌───────────────────────────────────────────────────────┐  │
 │  │          Bytecode Interpreter (engine.c)              │  │
 │  │    • Threaded code dispatch or switch-based           │  │
-│  │    • ~100+ instruction opcodes                        │  │
+│  │    • ~115 instruction opcodes                        │  │
 │  │    • Register-based VM with continuation passing      │  │
 │  ├───────────────────────────────────────────────────────┤  │
 │  │      Memory Manager (storage.c, gc.c)                 │  │
@@ -190,7 +202,7 @@ void tengine(exs, initcodes)
 3. **Instruction Dispatch**
    - **Threaded Code:** Uses gcc's computed goto (&&label syntax)
    - **Switch-Based:** Fallback for non-gcc compilers
-   - Performance critical: dispatches ~100+ instruction types
+   - Performance critical: dispatches ~115 instruction types
 
 ### Execution State
 
@@ -314,7 +326,7 @@ On 64-bit:
 
 From emulator/opcodes.h:1-100:
 
-The VM has ~100+ instruction opcodes organized into categories:
+The VM has ~115 instruction opcodes organized into categories:
 
 1. **Control Flow**
    - SWITCH_ON_TERM, TRY, RETRY, TRUST
@@ -667,9 +679,23 @@ Currently defined for:
 
 ### Related Documents
 
+**Phase 1: Architecture** (Documents 1-3)
 - `02-EMULATOR-ANALYSIS.md` - Detailed emulator code analysis
 - `03-PLATFORM-DEPENDENCIES.md` - Complete platform dependency inventory
-- `STUDY-PLAN.md` - Overall porting study plan
+
+**Phase 2-4: Technical Analysis** (Documents 4-7)
+- `04-MEMORY-MANAGEMENT.md` - Memory model, GC, and alignment
+- `05-BYTECODE-DISPATCH.md` - Instruction set and dispatch mechanisms
+- `06-BUILD-SYSTEM.md` - Build system modernization requirements
+- `07-TESTING-STRATEGY.md` - Testing and validation framework
+
+**Phase 5: Planning** (Documents 8-10)
+- `08-RISK-ASSESSMENT.md` - Risk analysis and mitigation strategies
+- `09-IMPLEMENTATION-ROADMAP.md` - Detailed 4-phase implementation plan
+- `10-COMPATIBILITY-MATRIX.md` - Platform compatibility and feature matrix
+
+**Overall**
+- `STUDY-PLAN.md` - Porting study plan and status
 
 ---
 
