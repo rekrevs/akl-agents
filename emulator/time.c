@@ -16,6 +16,7 @@
 #include "display.h"
 #include "functor.h"
 #include "compare.h"
+#include "time.h"
 
 #ifdef unix
 #include <sys/time.h>
@@ -23,8 +24,6 @@
 
 
 #ifndef HAS_NO_GETRUSAGE
-
-extern int getrusage PROTO((int who, struct *rusage));
 
 struct rusage u;
 
