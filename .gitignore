@@ -1,9 +1,17 @@
-# Build artifacts from ATTEMPT-01
+# Build artifacts
 *.o
+*.a
 config.status
 config.log
+config.cache
 autom4te.cache/
-configure~
+Makefile
+
+# Editor backups
+*~
+*.bak
+
+# GMP build artifacts
 gmp/.libs/
 gmp/gmp-mparam.h
 gmp/mpn/*.c
@@ -11,3 +19,8 @@ gmp/libgmp.la
 gmp/*.s1
 gmp/*.s2
 gmp/*.subs
+
+# Compiled binaries
+agents
+parser/parser
+emulator/emulator
