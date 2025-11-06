@@ -1,0 +1,22 @@
+# Build artifacts
+*.o
+*.a
+autom4te.cache/
+config.log
+config.status
+config.cache
+Makefile
+
+# Editor backups
+*~
+*.bak
+
+# GMP generated assembly files
+gmp/*.s1
+gmp/*.s2
+gmp/*.subs
+
+# Compiled binaries
+agents
+parser/parser
+emulator/emulator
