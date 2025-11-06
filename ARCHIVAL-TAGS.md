@@ -2,56 +2,78 @@
 
 This file documents the archival tags to create before deleting old development branches.
 
+## Status Summary
+
+| Tag | Branch | Status | Action Needed |
+|-----|--------|--------|---------------|
+| archive/attempt-01 | claude/port-attempt-01-011CUoHSMTFawkiKfVsuVuPP | ✅ Created | Delete branch |
+| archive/arm64-minimal-port | claude/arm64-minimal-port-011CUoHSMTFawkiKfVsuVuPP | ✅ Created | Delete branch |
+| archive/x86-64-improvements | claude/x86-64-improvements-011CUoHSMTFawkiKfVsuVuPP | ⏳ Pending | Create tag, delete branch |
+| archive/study | claude/porting-study-011CUoHSMTFawkiKfVsuVuPP | ⏳ Pending | Create tag, delete branch |
+| archive/planning | claude/porting-study-planning-011CUoHSMTFawkiKfVsuVuPP | ⏳ Pending | Create tag, delete branch |
+
+---
+
 ## Tags to Create
 
-### archive/x86-64-improvements
+**Note:** All tags must be created in your local repository using `origin/` prefix, since the branches only exist on remote.
+
+### archive/x86-64-improvements ⏳
 
 **Purpose:** Preserve the x86-64-improvements branch history before deletion
 
-**Command:**
+**Commands:**
 ```bash
-git tag archive/x86-64-improvements claude/x86-64-improvements-011CUoHSMTFawkiKfVsuVuPP
+git fetch origin
+git tag archive/x86-64-improvements origin/claude/x86-64-improvements-011CUoHSMTFawkiKfVsuVuPP
 git push origin archive/x86-64-improvements
 ```
 
-**Why:** This branch contains 27 commits representing a failed ARM64 macOS porting attempt. The valuable documentation has been extracted to `claude/book-dev-011CUoHSMTFawkiKfVsuVuPP`, but the complete history is preserved via this tag.
+**Why:** Contains 27 commits from failed ARM64 macOS porting attempt. Valuable documentation extracted to book-dev. See `X86-64-IMPROVEMENTS-BRANCH-ANALYSIS.md`.
 
-**Commit hash:** `9ffa035` (HEAD of improvements branch)
-
-**Branch can be deleted after tag is created:**
+**After tag is pushed:**
 ```bash
 git push origin --delete claude/x86-64-improvements-011CUoHSMTFawkiKfVsuVuPP
-git branch -D claude/x86-64-improvements-011CUoHSMTFawkiKfVsuVuPP
 ```
 
 ---
 
-### Other Recommended Archive Tags
+### archive/study ⏳
 
-Per `BRANCH-ORGANIZATION.md`, you may also want to archive:
+**Purpose:** Preserve initial porting study/planning phase
 
-#### archive/attempt-01
+**Commands:**
 ```bash
-git tag archive/attempt-01 claude/port-attempt-01-011CUoHSMTFawkiKfVsuVuPP
-git push origin archive/attempt-01
-```
-
-#### archive/attempt-02
-```bash
-git tag archive/attempt-02 claude/arm64-minimal-port-011CUoHSMTFawkiKfVsuVuPP
-git push origin archive/attempt-02
-```
-
-#### archive/study
-```bash
-git tag archive/study claude/porting-study-011CUoHSMTFawkiKfVsuVuPP
+git fetch origin
+git tag archive/study origin/claude/porting-study-011CUoHSMTFawkiKfVsuVuPP
 git push origin archive/study
 ```
 
-#### archive/planning
+**Why:** Initial analysis phase (docs 01-11). Superseded by main and book-dev. See `PORTING-STUDY-ANALYSIS.md`.
+
+**After tag is pushed:**
 ```bash
-git tag archive/planning claude/porting-study-planning-011CUoHSMTFawkiKfVsuVuPP
+git push origin --delete claude/porting-study-011CUoHSMTFawkiKfVsuVuPP
+```
+
+---
+
+### archive/planning ⏳
+
+**Purpose:** Preserve temporary working branch from cleanup session
+
+**Commands:**
+```bash
+git fetch origin
+git tag archive/planning origin/claude/porting-study-planning-011CUoHSMTFawkiKfVsuVuPP
 git push origin archive/planning
+```
+
+**Why:** Created organization docs (BRANCH-ORGANIZATION.md, etc.) - all migrated to book-dev. See `PORTING-STUDY-PLANNING-ANALYSIS.md`.
+
+**After tag is pushed:**
+```bash
+git push origin --delete claude/porting-study-planning-011CUoHSMTFawkiKfVsuVuPP
 ```
 
 ---
