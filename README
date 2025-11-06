@@ -27,6 +27,25 @@ novelty of AKL.  It also provides assorted built-in agents and other
 support.
 
 
+1.1 PLATFORM SUPPORT
+
+As of November 2025, AGENTS has been successfully ported to modern
+64-bit platforms:
+
+  ✓ x86-64 (Intel/AMD 64-bit)
+  ✓ ARM64 (Apple Silicon / AArch64)
+
+The system remains compatible with 32-bit platforms where applicable.
+
+Note: The 64-bit port operates without GMP (arbitrary-precision integers)
+by default, using 57-bit small integers. This is sufficient for most
+applications. GMP support may be re-enabled on platforms where a modern
+GMP library is available.
+
+See docs/64-BIT-PORTING-GUIDE.md for complete technical documentation
+of the porting work.
+
+
 2 MANIFEST
 
 This directory should contain the following at least:
@@ -105,8 +124,15 @@ described in terms of their effects on subsequent make's controlled by
 
   --without-gmp
   Do not build GMP, and do not build AGENTS with GMP.  If you do this,
-  arbitrary-precision integers (bignums) will not be supported.  There
-  is probably no reason to do this.
+  arbitrary-precision integers (bignums) will not be supported. On
+  modern 64-bit platforms (x86-64, ARM64), this option is RECOMMENDED
+  as the bundled GMP library from the 1990s does not build on modern
+  architectures. The system uses 57-bit small integers which are
+  sufficient for most applications.
+
+  --without-fd
+  Do not build the Finite Domain constraint solver. This option is
+  available for platforms where the FD solver has compatibility issues.
 
 Note that often none of these arguments is required.  Also note that
 you can override the default values of Makefile variables, including
@@ -133,6 +159,32 @@ Note that after installing, the source directory is no longer needed
 to run AGENTS; an installed version is genuinely stand-alone.  There
 should be at least about six megabytes of disk space available for
 installing AGENTS.
+
+
+3.1 MODERN PLATFORM NOTES (64-bit systems)
+
+On modern macOS (x86-64 or Apple Silicon):
+
+  1. Install Homebrew if not already installed
+  2. Install modern Bison: brew install bison
+  3. Configure and build:
+     % ./configure --without-gmp
+     % make
+
+The configure script automatically detects your platform and applies
+appropriate compiler flags.
+
+On modern Linux (x86-64):
+
+  1. Ensure Bison 3.x is installed: bison --version
+  2. If Bison 2.x, install bison 3.x via your package manager
+  3. Configure and build:
+     % ./configure --without-gmp
+     % make
+
+For other 64-bit platforms (RISC-V, PowerPC64, etc.), see
+docs/64-BIT-PORTING-GUIDE.md for guidance.
+
 
 The AGENTS Makefiles do not support building in directories other than
 those containing the sources.  (We have not used the VPATH feature of

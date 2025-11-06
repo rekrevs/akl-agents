@@ -12,12 +12,13 @@
 
 extern FILE *yyin;
 extern int parse();
+extern void yyrestart(FILE *);
 
 
 void load(file)
     FILE *file;
 {
-    yyin = file;
+    yyrestart(file);
     parse();
 }
 
