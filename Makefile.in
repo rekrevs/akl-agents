@@ -51,7 +51,7 @@
 #   oagents	TEMPORARY.  Build oagents in emulator directory.
 #   tagents	TEMPORARY.  Build tagents in emulator directory.
 
-VERSION = 0.9
+VERSION = 0.9.1
 
 SHELL = /bin/sh
 
@@ -87,9 +87,9 @@ INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 
 AGENTS = $(srcdir)/agents
-BISON = bison
+BISON = /opt/homebrew/opt/bison/bin/bison
 CC = @CC@
-CFLAGS = @CFLAGS@
+CFLAGS = @CFLAGS@ -Wno-implicit-int -Wno-implicit-function-declaration -Wno-int-conversion
 ALL_CFLAGS = @CFLAGS_GMP@ $(CFLAGS)
 ETAGS = etags
 FLEX = flex

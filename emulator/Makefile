@@ -5,14 +5,14 @@ SHELL = /bin/sh
 
 BISON = bison
 CC = gcc
-CFLAGS = -g -I../gmp
+CFLAGS = -g -fgnu89-inline
 ETAGS = etags
 FLEX = flex
 FLEXFLAGS = -8
-LDFLAGS = -L../gmp -lgmp -lm
-M4 = gm4
+LDFLAGS = -lm
+M4 = m4
 
-AGENTSFLAGS = -DMETERING -DNDEBUG
+AGENTSFLAGS = -DMETERING -DNDEBUG -DNOBIGNUM
 
 
 OBJ =	abstraction.o \

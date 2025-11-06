@@ -329,7 +329,7 @@
 "-"			{ return DASH; }
 [\n\t ]			;
 %.*$			;
-<<EOF>>			{ yy_init = 1; yy_start = 0; return END; }
+<<EOF>>			{ return END; }
 
 %%
 #ifndef yywrap

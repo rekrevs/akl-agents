@@ -23,7 +23,7 @@ Functor functor_errno_1;
 void error_exit(e)
     int e;
 {
-#ifdef unix
+#if defined(unix) && !defined(__APPLE__)
     break_to_gdb();		/* defined in foreign.c */
 #endif
     exit(e);

@@ -67,7 +67,7 @@ extern char *mktemp PROTO((char *name));
 extern int chdir PROTO((char *dir));
 extern int system PROTO((char *call));
 extern int access PROTO((char *path, int mode));
-extern char *getwd PROTO((char *pathname));
+extern char *getcwd PROTO((char *buf, size_t size));
 
 static char cwd[MAXPATHLEN+1];
 
@@ -401,7 +401,7 @@ char *getwd(buf)
 void compute_cwd()
 {
 #ifdef unix
-  getwd(cwd);
+  getcwd(cwd, MAXPATHLEN+1);
 #endif
 }
 
