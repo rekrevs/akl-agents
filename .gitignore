@@ -1,17 +1,21 @@
 # Build artifacts
 *.o
 *.a
-autom4te.cache/
-config.log
 config.status
+config.log
 config.cache
+autom4te.cache/
 Makefile
 
 # Editor backups
 *~
 *.bak
 
-# GMP generated assembly files
+# GMP build artifacts
+gmp/.libs/
+gmp/gmp-mparam.h
+gmp/mpn/*.c
+gmp/libgmp.la
 gmp/*.s1
 gmp/*.s2
 gmp/*.subs
