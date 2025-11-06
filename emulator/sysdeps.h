@@ -10,6 +10,9 @@
 #define TADBITS 64
 #define HAS_NO_GCVT
 #define HAS_NO_GETWD
+#ifdef __APPLE__
+#define unix
+#endif
 #endif
 
 #ifdef mips

@@ -299,7 +299,7 @@ int number_of_bits(l)
   return i;
 }
 
-inline void get_dom(dom,m)
+void get_dom(dom,m)
      Term dom;
      bitmask *m;
 {
@@ -2149,7 +2149,7 @@ void set_dom(x,t)
   }
 }
 
-inline dom_info monoton(ms)
+dom_info monoton(ms)
      monstruct *ms;
 {
   int s=1, g=1;
