@@ -55,6 +55,19 @@
 #define REGISTER10 asm("r8")
 #endif
 
+#if defined(__aarch64__) || defined(__arm64__)
+#define REGISTER1 asm("x19")
+#define REGISTER2 asm("x20")
+#define REGISTER3 asm("x21")
+#define REGISTER4 asm("x22")
+#define REGISTER5 asm("x23")
+#define REGISTER6 asm("x24")
+#define REGISTER7 asm("x25")
+#define REGISTER8 asm("x26")
+#define REGISTER9 asm("x27")
+#define REGISTER10 asm("x28")
+#endif
+
 #endif
 
 #ifndef REGISTER10
