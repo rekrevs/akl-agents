@@ -150,7 +150,7 @@ A **predicate** is defined by one or more clauses:
 ```
 % Factorial
 fact(0, 1).
-fact(N, F) :-
+fact(N, F) :=
     N > 0,
     N1 is N - 1,
     fact(N1, F1),
@@ -165,7 +165,7 @@ When multiple clauses exist, they represent alternatives (or-parallelism):
 
 ```
 member(X, [X|_]).
-member(X, [_|Xs]) :- member(X, Xs).
+member(X, [_|Xs]) := member(X, Xs).
 ```
 
 If the first clause fails to unify, the second is tried. This is **don't-know nondeterminism**.
@@ -176,7 +176,7 @@ Guards add synchronization and commitment:
 
 ```
 % Producer-consumer with guard
-consume(X, [H|T]) :-
+consume(X, [H|T]) :=
     H = value ?          % Guard waits for H to be bound
     process(H),
     consume(X, T).
@@ -199,8 +199,8 @@ A guard is a goal that:
 The `?` operator marks **commitment**:
 
 ```
-clause1(X) :- guard1 ? body1.
-clause2(X) :- guard2 ? body2.
+clause1(X) := guard1 ? body1.
+clause2(X) := guard2 ? body2.
 ```
 
 Execution:
@@ -217,7 +217,7 @@ Once a guard succeeds and commits, there's no going back to try other clauses. T
 Crucially, you can **backtrack inside a guard**:
 
 ```
-member_guard(X, L) :-
+member_guard(X, L) :=
     member(X, L) ?       % Try all members until one succeeds
     process(X).
 ```
@@ -232,7 +232,7 @@ Guards enable **synchronization**:
 
 ```
 % Wait for both arguments to be bound
-both_bound(X, Y) :-
+both_bound(X, Y) :=
     integer(X), integer(Y) ?
     compute(X, Y).
 ```
@@ -247,14 +247,14 @@ Many clauses have trivial guards that always succeed:
 
 ```
 append([], Ys, Ys).
-append([X|Xs], Ys, [X|Zs]) :- append(Xs, Ys, Zs).
+append([X|Xs], Ys, [X|Zs]) := append(Xs, Ys, Zs).
 ```
 
 These are really:
 
 ```
-append([], Ys, Ys) :- true ? .
-append([X|Xs], Ys, [X|Zs]) :- true ? append(Xs, Ys, Zs).
+append([], Ys, Ys) := true ? .
+append([X|Xs], Ys, [X|Zs]) := true ? append(Xs, Ys, Zs).
 ```
 
 The guard `true` always succeeds immediately, so these behave like Prolog clauses.
@@ -266,7 +266,7 @@ The guard `true` always succeeds immediately, so these behave like Prolog clause
 In AKL, a conjunction of goals can execute **concurrently**:
 
 ```
-solve(X, Y) :-
+solve(X, Y) :=
     subproblem1(X),      % Agent 1
     subproblem2(Y).      % Agent 2
 ```
@@ -280,14 +280,14 @@ This is **and-parallelism** (parallel conjunction) as opposed to **or-parallelis
 Agents synchronize by reading and writing shared variables:
 
 ```
-producer_consumer :-
+producer_consumer :=
     producer(Stream),
     consumer(Stream).
 
-producer([Item1, Item2, Item3 | Rest]) :-
+producer([Item1, Item2, Item3 | Rest]) :=
     generate_items([Item1, Item2, Item3 | Rest]).
 
-consumer([H|T]) :-
+consumer([H|T]) :=
     process(H),
     consumer(T).
 ```
@@ -304,64 +304,81 @@ The semantics are the same: agents can be thought of as running concurrently, co
 
 ### Creating Ports
 
-A **port** is created with the `port/1` built-in:
+A **port** is created with `open_port/2`, which connects a **port** (bag) to a **stream** (list):
 
 ```
-setup_communication(P) :- port(P).
+setup_communication(P, S) :=
+    open_port(P, S).
 ```
 
-This binds `P` to a new port (a stream with a write-protected tail).
+This creates port `P` and associates it with stream `S`. Messages sent to port `P` appear on stream `S`.
 
 ### Sending Messages
 
 Messages are sent with `send/2`:
 
 ```
-send_data(Message, Port) :- send(Message, Port).
+send_data(Message, Port) :=
+    send(Message, Port).
 ```
 
 **Key properties:**
 - `send/2` is **non-blocking** (always succeeds immediately)
-- Messages are queued in order
-- The port tail is protected—only `send/2` can extend it
+- Messages appear on the associated stream in FIFO order
+- Constant message delivery delay
 
 ### Receiving Messages
 
-Receive by unifying with the port stream:
+Receive by pattern-matching on the stream:
 
 ```
-receive_loop([Msg|Rest]) :-
-    process(Msg),
-    receive_loop(Rest).
+receive_loop(S) :=
+  ( S = [Msg|Rest] →
+      process(Msg),
+      receive_loop(Rest)
+  ; S = [] →
+      true ).
 ```
 
-If the stream is unbound, the receiver suspends until a message arrives.
+If the stream tail is unbound, the receiver suspends until a message arrives.
+
+### Automatic Stream Closure
+
+When the port is garbage collected (no more references to it), the associated stream is automatically closed. This provides automatic termination detection.
 
 ### Why Ports?
 
-Ports provide **asynchronous communication** without the complexity of full unification. In earlier concurrent logic languages like GHC, all communication was via shared variables, which can lead to complex synchronization patterns. Ports give a cleaner model for message passing.
+Ports provide **asynchronous communication** with automatic termination detection. They are constraint-based abstractions connecting bags (ports) to streams, not simple variables. In earlier concurrent logic languages like GHC, all communication was via shared variables, which can lead to complex synchronization patterns. Ports give a cleaner model for message passing.
 
 ### Example: Producer-Consumer with Ports
 
 ```
-main :-
-    port(P),
-    producer(P),
-    consumer(P).
+main :=
+    producer(5, S),
+    consumer(S).
 
-producer(P) :-
-    send(item1, P),
-    send(item2, P),
-    send(item3, P),
-    send(done, P).
+% Producer creates port and sends N messages
+producer(N, S) :=
+    open_port(P, S),
+    prod_loop(N, P).
 
-consumer(P) :- consume_loop(P).
+prod_loop(N, P) :=
+  ( N > 0 →
+      send(N, P),
+      N1 = N - 1,
+      prod_loop(N1, P)
+  ; true ).
 
-consume_loop([done]) :- !.
-consume_loop([Item|Rest]) :-
-    process(Item),
-    consume_loop(Rest).
+% Consumer receives from stream
+consumer(S) :=
+  ( S = [Item|Rest] →
+      process(Item),
+      consumer(Rest)
+  ; S = [] →
+      write('done') ).
 ```
+
+When `prod_loop` terminates, port `P` becomes garbage and stream `S` is automatically closed.
 
 The producer sends messages asynchronously. The consumer processes them as they arrive. Clean and efficient.
 
@@ -442,25 +459,25 @@ X in -dom(Y)           % Complement
 The classic N-Queens problem in AKL with FD:
 
 ```
-queens(N, L) :-
+queens(N, L) :=
     construct_domains(N, L),    % L is list of FD variables
     constrain(L),                % Post constraints
     label(L).                    % Search for solution
 
 construct_domains(0, []).
-construct_domains(N, [D|Rest]) :-
+construct_domains(N, [D|Rest]) :=
     N > 0,
     fd(D in 0..N),               % Queen in column 0..N
     N1 is N - 1,
     construct_domains(N1, Rest).
 
 constrain([]).
-constrain([D|Rest]) :-
+constrain([D|Rest]) :=
     constrain_each(Rest, D, 1),
     constrain(Rest).
 
 constrain_each([], _, _).
-constrain_each([E|Rest], D, S) :-
+constrain_each([E|Rest], D, S) :=
     fd(
         D \= E,                  % Not same column
         D \= E + S,              % Not same diagonal
@@ -470,7 +487,7 @@ constrain_each([E|Rest], D, S) :-
     constrain_each(Rest, D, S1).
 
 label([]).
-label([D|Rest]) :-
+label([D|Rest]) :=
     fd_labeling([D]),            % Assign value to D
     label(Rest).
 ```
@@ -519,7 +536,7 @@ Multiple clauses create choice points (or-parallelism):
 
 ```
 member(X, [X|_]).
-member(X, [_|Xs]) :- member(X, Xs).
+member(X, [_|Xs]) := member(X, Xs).
 ```
 
 On backtracking, alternative clauses are tried.
@@ -529,7 +546,7 @@ On backtracking, alternative clauses are tried.
 The **cut** `!` commits to the current clause and discards choice points:
 
 ```
-max(X, Y, X) :- X >= Y, !.
+max(X, Y, X) := X >= Y, !.
 max(X, Y, Y).
 ```
 
@@ -542,14 +559,14 @@ Cuts are useful for efficiency and expressing determinism, but they break logica
 **Negation as failure** is supported:
 
 ```
-not_member(X, L) :- member(X, L), !, fail.
+not_member(X, L) := member(X, L), !, fail.
 not_member(X, L).
 ```
 
 Or using `\+`:
 
 ```
-not_member(X, L) :- \+ member(X, L).
+not_member(X, L) := \+ member(X, L).
 ```
 
 This is **not logical negation**—it's procedural. If `member(X, L)` fails, `\+ member(X, L)` succeeds.
@@ -559,7 +576,7 @@ This is **not logical negation**—it's procedural. If `member(X, L)` fails, `\+
 Conditional execution:
 
 ```
-max(X, Y, Max) :-
+max(X, Y, Max) :=
     ( X >= Y ->
         Max = X
     ;
@@ -578,7 +595,7 @@ If `Condition` succeeds, execute `Then` (and don't try `Else`). If `Condition` f
 Collect all solutions to a goal:
 
 ```
-all_ancestors(Person, Ancestors) :-
+all_ancestors(Person, Ancestors) :=
     bagof(A, ancestor(Person, A), Ancestors).
 ```
 
@@ -589,7 +606,7 @@ This finds all `A` such that `ancestor(Person, A)` and collects them into a list
 Count solutions:
 
 ```
-count_solutions(Goal, N) :- numberof(Goal, N).
+count_solutions(Goal, N) := numberof(Goal, N).
 ```
 
 ### Apply
@@ -597,7 +614,7 @@ count_solutions(Goal, N) :- numberof(Goal, N).
 Apply a term as a goal:
 
 ```
-apply_goal(Goal) :- apply(Goal).
+apply_goal(Goal) := apply(Goal).
 ```
 
 If `Goal = append([1,2], [3,4], X)`, then `apply(Goal)` executes it.
@@ -672,7 +689,7 @@ fd_labeling(Vars)      % Search for FD solution
 
 ```
 factorial(0, 1).
-factorial(N, F) :-
+factorial(N, F) :=
     N > 0,
     N1 is N - 1,
     factorial(N1, F1),
@@ -684,17 +701,17 @@ Straightforward recursion. No concurrency or constraints.
 ### Example 2: Concurrent Stream Processing
 
 ```
-pipeline(Input, Output) :-
+pipeline(Input, Output) :=
     stage1(Input, Intermediate),
     stage2(Intermediate, Output).
 
 stage1([], []).
-stage1([X|Xs], [Y|Ys]) :-
+stage1([X|Xs], [Y|Ys]) :=
     process1(X, Y),
     stage1(Xs, Ys).
 
 stage2([], []).
-stage2([X|Xs], [Y|Ys]) :-
+stage2([X|Xs], [Y|Ys]) :=
     process2(X, Y),
     stage2(Xs, Ys).
 ```
@@ -704,22 +721,25 @@ stage2([X|Xs], [Y|Ys]) :-
 ### Example 3: Producer-Consumer with Port
 
 ```
-main :-
-    port(P),
-    producer(5, P),
-    consumer(P, Sum).
+main(Sum) :=
+    producer(5, S),
+    consumer(S, Sum).
 
-producer(0, P) :- send(done, P).
-producer(N, P) :-
+producer(N, S) :=
+    open_port(P, S),
+    prod_loop(N, P).
+
+prod_loop(0, P) := send(done, P).
+prod_loop(N, P) :=
     N > 0,
     send(N, P),
     N1 is N - 1,
-    producer(N1, P).
+    prod_loop(N1, P).
 
-consumer(P, Sum) :- consume(P, 0, Sum).
+consumer(S, Sum) := consume(S, 0, Sum).
 
 consume([done], Acc, Acc).
-consume([N|Rest], Acc, Sum) :-
+consume([N|Rest], Acc, Sum) :=
     Acc1 is Acc + N,
     consume(Rest, Acc1, Sum).
 ```
@@ -729,22 +749,22 @@ The producer sends numbers 5, 4, 3, 2, 1, done. The consumer sums them. Communic
 ### Example 4: N-Queens with Finite Domains
 
 ```
-queens(N, Solution) :-
+queens(N, Solution) :=
     length(Solution, N),
     domain(Solution, 1, N),
     safe(Solution),
     fd_labeling(Solution).
 
 domain([], _, _).
-domain([V|Vs], Min, Max) :-
+domain([V|Vs], Min, Max) :=
     fd(V in Min..Max),
     domain(Vs, Min, Max).
 
 safe([]).
-safe([Q|Qs]) :- safe(Qs), no_attack(Q, Qs, 1).
+safe([Q|Qs]) := safe(Qs), no_attack(Q, Qs, 1).
 
 no_attack(_, [], _).
-no_attack(Q, [Q2|Qs], Dist) :-
+no_attack(Q, [Q2|Qs], Dist) :=
     fd(
         Q \= Q2,
         Q \= Q2 + Dist,
@@ -761,10 +781,10 @@ This uses FD constraints to prune the search space efficiently. For N=8, instead
 ```
 merge([], Ys, Ys).
 merge(Xs, [], Xs).
-merge([X|Xs], [Y|Ys], [X|Zs]) :-
+merge([X|Xs], [Y|Ys], [X|Zs]) :=
     X =< Y ?
     merge(Xs, [Y|Ys], Zs).
-merge([X|Xs], [Y|Ys], [Y|Zs]) :-
+merge([X|Xs], [Y|Ys], [Y|Zs]) :=
     Y < X ?
     merge([X|Xs], Ys, Zs).
 ```
