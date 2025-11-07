@@ -4,11 +4,13 @@
 **Branch**: `claude/thesis-review-011CUtkv2EJhgbVJtVJsFh6o`
 **Status**: ✅ **COMPLETE**
 
+⚠️ **IMPORTANT NOTE**: This report documents the CORRECT guard semantic corrections. However, the "syntax error corrections" mentioned in the original version (changing `:-` to `:=` in 178 places) were **ERRONEOUS** and have been reverted in commit 6540ddc. See `SYNTAX-ERROR-CORRECTION.md` for the full explanation. Both `:-` and `:=` are valid AKL syntax (clausal vs definition notation).
+
 ---
 
 ## Executive Summary
 
-After correcting AKL syntax errors (`:=` vs `:-`) and port semantics, a **third critical error** was discovered: the draft chapters did not properly explain that AKL has **three different guard operators** with fundamentally different semantics.
+After finding and correcting port semantics errors, a **critical error** was discovered: the draft chapters did not properly explain that AKL has **three different guard operators** with fundamentally different semantics.
 
 This systematic review found and corrected **all instances** where the draft misrepresented guard semantics, ensuring the documentation now accurately reflects Janson's 1994 thesis specification.
 
