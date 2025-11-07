@@ -198,7 +198,7 @@ parse_goal(X, S0, S) :=
 Example:
 ```prolog
 % Input:
-foo(X,Y) := a(X), b(Y), c(X,Y).
+foo(X,Y) :- a(X), b(Y), c(X,Y).
 
 % Parsed:
 clause(
@@ -289,8 +289,8 @@ compile_choice(Clauses, Modes, Used, Max)-S :-
 For a predicate with multiple clauses:
 
 ```prolog
-append([], Ys, Zs) := -> Zs = Ys.
-append([X|Xs], Ys, Zs) := ->
+append([], Ys, Zs) :- -> Zs = Ys.
+append([X|Xs], Ys, Zs) :- ->
     Zs = [X|Zs1],
     append(Xs, Ys, Zs1).
 ```
@@ -641,8 +641,8 @@ Let's trace the compilation of a simple predicate:
 ### Input (`member.akl`):
 
 ```prolog
-member(X, [X|_]) := -> true.
-member(X, [_|Xs]) := -> member(X, Xs).
+member(X, [X|_]) :- -> true.
+member(X, [_|Xs]) :- -> member(X, Xs).
 ```
 
 ### Stage 1: Parsing
@@ -1075,11 +1075,11 @@ Inline small predicates at call sites:
 
 ```prolog
 % Before:
-foo(X) := bar(X, Y), baz(Y).
-bar(A, B) := B is A + 1.
+foo(X) :- bar(X, Y), baz(Y).
+bar(A, B) :- B is A + 1.
 
 % After inlining bar:
-foo(X) := Y is X + 1, baz(Y).
+foo(X) :- Y is X + 1, baz(Y).
 ```
 
 **Partial Evaluation:**
@@ -1089,7 +1089,7 @@ Specialize predicates for known argument patterns:
 ```prolog
 % Generic:
 append([], Ys, Ys).
-append([X|Xs], Ys, [X|Zs]) := append(Xs, Ys, Zs).
+append([X|Xs], Ys, [X|Zs]) :- append(Xs, Ys, Zs).
 
 % Specialized for second argument known:
 append_to_list123([], [1,2,3]).

@@ -165,7 +165,7 @@ When multiple clauses exist, they represent alternatives (or-parallelism):
 
 ```
 member(X, [X|_]).
-member(X, [_|Xs]) := member(X, Xs).
+member(X, [_|Xs]) :- member(X, Xs).
 ```
 
 If the first clause fails to unify, the second is tried. This is **don't-know nondeterminism**.
@@ -570,7 +570,7 @@ Multiple clauses create choice points (or-parallelism):
 
 ```
 member(X, [X|_]).
-member(X, [_|Xs]) := member(X, Xs).
+member(X, [_|Xs]) :- member(X, Xs).
 ```
 
 On backtracking, alternative clauses are tried.
@@ -580,7 +580,7 @@ On backtracking, alternative clauses are tried.
 The **cut** `!` commits to the current clause and discards choice points:
 
 ```
-max(X, Y, X) := X >= Y, !.
+max(X, Y, X) :- X >= Y, !.
 max(X, Y, Y).
 ```
 
@@ -593,14 +593,14 @@ Cuts are useful for efficiency and expressing determinism, but they break logica
 **Negation as failure** is supported:
 
 ```
-not_member(X, L) := member(X, L), !, fail.
+not_member(X, L) :- member(X, L), !, fail.
 not_member(X, L).
 ```
 
 Or using `\+`:
 
 ```
-not_member(X, L) := \+ member(X, L).
+not_member(X, L) :- \+ member(X, L).
 ```
 
 This is **not logical negation**—it's procedural. If `member(X, L)` fails, `\+ member(X, L)` succeeds.
@@ -640,7 +640,7 @@ This finds all `A` such that `ancestor(Person, A)` and collects them into a list
 Count solutions:
 
 ```
-count_solutions(Goal, N) := numberof(Goal, N).
+count_solutions(Goal, N) :- numberof(Goal, N).
 ```
 
 ### Apply
@@ -648,7 +648,7 @@ count_solutions(Goal, N) := numberof(Goal, N).
 Apply a term as a goal:
 
 ```
-apply_goal(Goal) := apply(Goal).
+apply_goal(Goal) :- apply(Goal).
 ```
 
 If `Goal = append([1,2], [3,4], X)`, then `apply(Goal)` executes it.
@@ -763,14 +763,14 @@ producer(N, S) :=
     open_port(P, S),
     prod_loop(N, P).
 
-prod_loop(0, P) := send(done, P).
+prod_loop(0, P) :- send(done, P).
 prod_loop(N, P) :=
     N > 0,
     send(N, P),
     N1 is N - 1,
     prod_loop(N1, P).
 
-consumer(S, Sum) := consume(S, 0, Sum).
+consumer(S, Sum) :- consume(S, 0, Sum).
 
 consume([done], Acc, Acc).
 consume([N|Rest], Acc, Sum) :=
@@ -795,7 +795,7 @@ domain([V|Vs], Min, Max) :=
     domain(Vs, Min, Max).
 
 safe([]).
-safe([Q|Qs]) := safe(Qs), no_attack(Q, Qs, 1).
+safe([Q|Qs]) :- safe(Qs), no_attack(Q, Qs, 1).
 
 no_attack(_, [], _).
 no_attack(Q, [Q2|Qs], Dist) :=
