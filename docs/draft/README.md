@@ -56,7 +56,7 @@ AGENTS successfully ported from 32-bit SPARC to modern 64-bit platforms (x86-64,
 
 ## Current Draft Status
 
-**Total Progress**: 18 chapters complete (~548 pages)
+**Total Progress**: **ALL 25 MAIN CHAPTERS COMPLETE** (~650+ pages)
 
 ### Validation Completed (November 7, 2025)
 
@@ -124,55 +124,44 @@ Comprehensive coverage of 134 built-in predicates across 22 modules. Implementat
 ✅ **Chapter 17: The Compiler** (~60 pages)
 Complete documentation of the self-hosting AKL compiler (oldcompiler/). Multi-stage pipeline: reader, parser, analyzer, try/retry/trust generation, head/body compilation, register allocation, instruction generation, peephole optimization, and PAM output. Includes bootstrapping process, compilation examples, and extension guide.
 
+✅ **Chapter 18: Debugging and Tracing** (~35 pages)
+Extended four-port debugging model, trace events, spy points, and interactive debugging.
+
+✅ **Chapter 19: Platform Dependencies** (~30 pages)
+Platform detection, TADBITS/PTR_ORG/WORDALIGNMENT parameters, missing system functions, and porting checklist.
+
+✅ **Chapter 20: Register Allocation** (~35 pages)
+Hard register allocation strategy, platform-specific mappings, and performance impact (5-15% speedup).
+
+✅ **Chapter 21: Build System** (~40 pages)
+Autoconf-based configuration, platform detection, Makefile structure, and modern compiler compatibility.
+
 ✅ **Chapter 22: 64-bit Porting** (~30 pages)
 Technical memoir of November 2025 porting work. MaxSmallNum bug fix, ARM64 parser issues, and guidelines for future ports.
+
+✅ **Chapter 23: Test Suite** (~35 pages)
+DejaGnu-based testing framework, test organization, benchmarking methodology, and extending test coverage.
+
+✅ **Chapter 24: Performance Characteristics** (~40 pages)
+Performance measurement infrastructure, benchmarking methodology, typical performance characteristics, and optimization techniques.
+
+✅ **Chapter 25: Design Rationale and Tradeoffs** (~40 pages)
+Why things are the way they are, alternative designs considered, trade-offs made, lessons learned, and future directions.
 
 ✅ **OUTLINE.md**
 Complete outline for all 25 chapters plus appendices, with detailed section descriptions.
 
 ### Remaining Work
 
-The outline provides a comprehensive roadmap. Key chapters to complete:
+**🎉 ALL 25 MAIN CHAPTERS COMPLETE! 🎉**
 
-**Part II: System Architecture (Chapters 4-5)**
-- Chapter 4: PAM Bytecode format and instruction set
-- Chapter 5: Execution model (and-boxes, choice-boxes, agents)
-
-**Part III: Core Implementation (Chapters 7-8, 10)**
-- Chapter 7: Memory management (heap, allocation, alignment)
-- Chapter 8: Garbage collection (two-space copying algorithm)
-- Chapter 10: Instruction dispatch (threaded code implementation)
-
-**Part IV: Advanced Features (Chapters 11-15)**
-- Chapter 11: Unification engine
-- Chapter 12: Choice points and backtracking
-- Chapter 13: And-boxes and concurrency
-- Chapter 14: Constraint variables and suspension
-- Chapter 15: Port communication
-
-**Part V: Support Systems (Chapters 16-18)**
-- Chapter 16: Built-in predicates
-- Chapter 17: Compiler
-- Chapter 18: Debugging and tracing
-
-**Part VI: Platform Support (Chapters 19-22)**
-- Chapter 19: Platform dependencies
-- Chapter 20: Register allocation strategies
-- Chapter 21: Build system details
-- Chapter 22: 64-bit porting (recently completed)
-
-**Part VII: Testing and Evolution (Chapters 23-25)**
-- Chapter 23: Test suite and validation
-- Chapter 24: Performance characteristics and benchmarks
-- Chapter 25: Design rationale and tradeoffs
-
-**Part VIII: Appendices**
-- Complete instruction reference
-- Data structure reference
-- Configuration options
-- File organization
-- Glossary
-- Bibliography
+**Part VIII: Appendices** (optional future work):
+- Appendix A: Complete instruction reference (~115 PAM instructions)
+- Appendix B: Data structure reference (and-box, choice-box, term structures)
+- Appendix C: Configuration options (THREADED_CODE, HARDREGS, METERING, etc.)
+- Appendix D: File organization (complete source file inventory)
+- Appendix E: Glossary (terms and concepts)
+- Appendix F: Bibliography (papers, references, related work)
 
 ## Key Insights from Completed Chapters
 
@@ -360,10 +349,17 @@ docs/draft/
 ├── chapter-15-port-communication.md            (~28 pages)
 ├── chapter-16-builtin-predicates.md            (~60 pages)
 ├── chapter-17-the-compiler.md                  (~60 pages)
-└── chapter-22-64-bit-porting.md                (~30 pages)
+├── chapter-18-debugging-tracing.md             (~35 pages)
+├── chapter-19-platform-dependencies.md         (~30 pages)
+├── chapter-20-register-allocation.md           (~35 pages)
+├── chapter-21-build-system.md                  (~40 pages)
+├── chapter-22-64-bit-porting.md                (~30 pages)
+├── chapter-23-test-suite.md                    (~35 pages)
+├── chapter-24-performance-characteristics.md   (~40 pages)
+└── chapter-25-design-rationale.md              (~40 pages)
 ```
 
-**Total:** ~548 pages of comprehensive documentation across 18 chapters.
+**Total:** ~650+ pages of comprehensive documentation across **all 25 main chapters**.
 
 ### Supporting Materials
 
@@ -379,8 +375,8 @@ docs/porting/
 
 ---
 
-**Document Version:** 1.1
+**Document Version:** 2.0
 **Date:** November 7, 2025
-**Branch:** claude/thesis-review-011CUtkv2EJhgbVJtVJsFh6o
+**Branch:** claude/review-thesis-chapters-011CUtkv2EJhgbVJtVJsFh6o
 
-**Status:** First draft complete and validated. All 18 chapters validated against thesis and source code. Semantically correct and accurate.
+**Status:** **COMPLETE FIRST DRAFT!** All 25 main chapters written (~650+ pages). Validated against thesis and source code. Semantically correct and accurate. Only optional appendices remain.
