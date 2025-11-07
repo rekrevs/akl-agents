@@ -56,7 +56,7 @@ AGENTS successfully ported from 32-bit SPARC to modern 64-bit platforms (x86-64,
 
 ## Current Draft Status
 
-**Total Progress**: 17 chapters complete (~488 pages)
+**Total Progress**: 18 chapters complete (~548 pages)
 
 ### Completed Chapters
 
@@ -107,6 +107,9 @@ Port-based message passing, send/2 and send/3 built-ins, SEND3 instruction, port
 
 ✅ **Chapter 16: Built-in Predicates** (~60 pages)
 Comprehensive coverage of 134 built-in predicates across 22 modules. Implementation patterns, registration system, categories (term testing, arithmetic, I/O, reflection, debugging), error handling, and integration with constraint system.
+
+✅ **Chapter 17: The Compiler** (~60 pages)
+Complete documentation of the self-hosting AKL compiler (oldcompiler/). Multi-stage pipeline: reader, parser, analyzer, try/retry/trust generation, head/body compilation, register allocation, instruction generation, peephole optimization, and PAM output. Includes bootstrapping process, compilation examples, and extension guide.
 
 ✅ **Chapter 22: 64-bit Porting** (~30 pages)
 Technical memoir of November 2025 porting work. MaxSmallNum bug fix, ARM64 parser issues, and guidelines for future ports.
@@ -338,10 +341,11 @@ docs/draft/
 ├── chapter-14-constraint-variables-suspension.md (~27 pages)
 ├── chapter-15-port-communication.md            (~28 pages)
 ├── chapter-16-builtin-predicates.md            (~60 pages)
+├── chapter-17-the-compiler.md                  (~60 pages)
 └── chapter-22-64-bit-porting.md                (~30 pages)
 ```
 
-**Total:** ~488 pages of comprehensive documentation across 17 chapters.
+**Total:** ~548 pages of comprehensive documentation across 18 chapters.
 
 ### Supporting Materials
 
