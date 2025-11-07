@@ -56,22 +56,54 @@ AGENTS successfully ported from 32-bit SPARC to modern 64-bit platforms (x86-64,
 
 ## Current Draft Status
 
+**Total Progress**: 15 chapters complete (~400 pages)
+
 ### Completed Chapters
 
-✅ **Chapter 1: Introduction**
+✅ **Chapter 1: Introduction** (~20 pages)
 Complete overview of AGENTS, historical context, and the AKL paradigm. Explains what makes this system unique and provides a reading guide.
 
-✅ **Chapter 2: The AKL Language**
+✅ **Chapter 2: The AKL Language** (~25 pages)
 Comprehensive introduction to AKL syntax and semantics. Covers guards, ports, constraints, concurrency, and provides practical examples.
 
-✅ **Chapter 3: Overall Architecture**
+✅ **Chapter 3: Overall Architecture** (~20 pages)
 The big picture: three-layer architecture, directory structure, build system, and how components fit together.
 
-✅ **Chapter 6: Data Representation**
+✅ **Chapter 4: PAM - The Prototype Abstract Machine** (~30 pages)
+Complete documentation of the ~115 bytecode instruction set, instruction categories, and compilation examples.
+
+✅ **Chapter 5: The Execution Model** (~35 pages)
+Agent tree structure, and-boxes, choice-boxes, task queue, choicehandler scheduling loop, guards, and candidate selection.
+
+✅ **Chapter 6: Data Representation** (~18 pages)
 Deep dive into the tagged pointer scheme. Explains how atoms, integers, lists, structures, and variables are encoded in memory.
 
-✅ **Chapter 9: The Execution Engine**
-The heart of the system. Covers the bytecode interpreter in engine.c, instruction dispatch, and-boxes, choice-boxes, and optimization techniques.
+✅ **Chapter 7: Memory Management** (~25 pages)
+Heap organization, block-based allocation, bump-pointer allocation, alignment requirements, and overflow handling.
+
+✅ **Chapter 8: Garbage Collection** (~27 pages)
+Two-space copying collector, FLIP/FLOP semispaces, Cheney's algorithm, forwarding pointers, and the close list.
+
+✅ **Chapter 9: The Execution Engine** (~20 pages)
+The heart of the system. Covers the bytecode interpreter in engine.c, register allocation, dual dispatch, and the tengine() function.
+
+✅ **Chapter 10: Instruction Dispatch** (~30 pages)
+Threaded code vs switch dispatch, computed goto, label-as-values, performance analysis, and opcode encoding.
+
+✅ **Chapter 11: Unification** (~35 pages)
+The fundamental logic programming operation. Two-tier unification, variable-variable cases, structure unification, the trail, and performance optimizations.
+
+✅ **Chapter 12: Choice Points and Backtracking** (~37 pages)
+TRY/RETRY/TRUST instructions, choice-box architecture, choice continuations, trail mechanism, context stack, and backtracking algorithm.
+
+✅ **Chapter 13: And-Boxes and Concurrency** (~33 pages)
+And-box lifecycle, concurrent execution, work queues, promotion/demotion, sequential vs concurrent calls, and memory management.
+
+✅ **Chapter 14: Constraint Variables and Suspension** (~27 pages)
+SVA/CVA variables, suspension mechanism, wake queues, SUSPEND_FLAT instruction, variable binding and waking, and finite domain constraints overview.
+
+✅ **Chapter 22: 64-bit Porting** (~30 pages)
+Technical memoir of November 2025 porting work. MaxSmallNum bug fix, ARM64 parser issues, and guidelines for future ports.
 
 ✅ **OUTLINE.md**
 Complete outline for all 25 chapters plus appendices, with detailed section descriptions.
@@ -282,16 +314,26 @@ For questions or feedback about this documentation project, see the repository.
 
 ```
 docs/draft/
-├── README.md                           (this file)
-├── OUTLINE.md                          (complete book structure)
-├── chapter-01-introduction.md          (20+ pages)
-├── chapter-02-akl-language.md          (25+ pages)
-├── chapter-03-overall-architecture.md  (20+ pages)
-├── chapter-06-data-representation.md   (18+ pages)
-└── chapter-09-execution-engine.md      (20+ pages)
+├── README.md                                   (this file)
+├── OUTLINE.md                                  (complete book structure)
+├── chapter-01-introduction.md                  (~20 pages)
+├── chapter-02-akl-language.md                  (~25 pages)
+├── chapter-03-overall-architecture.md          (~20 pages)
+├── chapter-04-pam.md                           (~30 pages)
+├── chapter-05-execution-model.md               (~35 pages)
+├── chapter-06-data-representation.md           (~18 pages)
+├── chapter-07-memory-management.md             (~25 pages)
+├── chapter-08-garbage-collection.md            (~27 pages)
+├── chapter-09-execution-engine.md              (~20 pages)
+├── chapter-10-instruction-dispatch.md          (~30 pages)
+├── chapter-11-unification.md                   (~35 pages)
+├── chapter-12-choice-points-backtracking.md    (~37 pages)
+├── chapter-13-and-boxes-concurrency.md         (~33 pages)
+├── chapter-14-constraint-variables-suspension.md (~27 pages)
+└── chapter-22-64-bit-porting.md                (~30 pages)
 ```
 
-**Total:** ~100+ pages of comprehensive documentation in first draft.
+**Total:** ~400+ pages of comprehensive documentation across 15 chapters.
 
 ### Supporting Materials
 
