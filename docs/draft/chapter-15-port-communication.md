@@ -24,81 +24,128 @@ Ports distinguish AKL from Prolog and make it suitable for concurrent, reactive 
 
 ## Port Semantics
 
-### The Stream Model
+### The Constraint Model
 
-A **port** in AKL is essentially a **logical variable** that represents the "tail" of a stream. Messages sent to the port are added to the stream as list elements.
+A **port** in AKL is a **binary constraint** connecting a **bag** (multiset) and a **stream** (list). This constraint states that the bag and stream contain the same messages, delivered in FIFO order.
 
-**Conceptual model**:
+**Key concepts**:
 
-```prolog
-% Port P represents the tail of a stream
-Stream = [msg1, msg2, msg3 | P]
+1. **Port P**: A **bag** (multiset) of messages
+2. **Stream S**: A **list** of messages
+3. **Constraint**: `open_port(P, S)` establishes that P and S contain the same messages
 
-% Sending msg4 to P:
-P = [msg4 | NewP]
+From Janson's thesis (Chapter 7.4):
 
-% Now Stream = [msg1, msg2, msg3, msg4 | NewP]
+> "A port is a binary constraint on a bag (a multiset) of messages and a corresponding stream of these messages. It simply states that they contain the same messages, in any order."
+
+**Ports are NOT variables** - they are constraint-based communication abstractions.
+
+### The open_port Operation
+
+**Syntax**: `open_port(P, S)`
+
+**Semantics**: Creates a port P (bag) and stream S (list), connected by a port constraint.
+
+**Example from thesis**:
+
+```
+open_port(P, S), send(a, P), send(b, P)
+
+yields
+
+P = 〈a port〉, S = [a, b]
 ```
 
-The port variable is progressively **instantiated** with new messages, building the stream incrementally.
+After `open_port(P, S)`:
+- **P** is a port (you send messages to it)
+- **S** is a stream (you pattern-match on it to receive messages)
+- Messages sent to P automatically appear on S in FIFO order
 
-### Send Operation
+### The send Operation
 
-**Syntax**: `send(Message, Port)`
+**Syntax**: `send(M, P)`
 
-**Semantics**:
+**Semantics**: Adds message M to port P (which appears on the associated stream).
 
-1. **Port is a variable**: Instantiate `Port = [Message | NewPort]`
-2. **Sender continues**: Operation is asynchronous (non-blocking)
-3. **NewPort**: New port variable (tail of extended stream)
+**Properties**:
+- **Asynchronous**: Sender continues immediately
+- **Constant delay**: Message appears on stream with constant delay
+- **FIFO order**: Messages appear in order sent ("first come first served")
 
 **Example**:
 
-```prolog
-producer(Port) :-
-  send(1, Port),      % Port = [1|P1]
-  send(2, Port),      % Wait—Port is already [1|P1]!
-  send(3, Port).      % Error: Port is already bound
+```
+producer(N, P) :=
+  ( N > 0 → send(N, P), producer(N-1, P)
+  ; true ).
 ```
 
-**Problem**: Standard `send/2` doesn't work this way. We need **send with continuation**.
+Multiple sends to the same port P are allowed because P is a bag, not a variable.
 
-### Send with Continuation
+### Receiving Messages
 
-**Syntax**: `send(Message, InPort, OutPort)`
+**Receiving** is done by **pattern matching** on the stream:
 
-**Semantics**:
+```
+consumer(S) :=
+  ( S = [Msg|Rest] → process(Msg), consumer(Rest)
+  ; S = [] → true ).
+```
 
-1. **InPort is a variable**: `InPort = [Message | OutPort]`
-2. **OutPort**: New port for next send
-3. **Returns**: True with OutPort for continuation
+**Suspension**: If stream tail is unbound, consumer suspends until message arrives.
+
+### Automatic Stream Closure
+
+When port P is **garbage collected** (no more references), stream S is **automatically closed**:
+
+- Stream terminates with `[]`
+- Consumer detects end of messages
+- No explicit "close" operation needed
 
 **Example**:
 
-```prolog
-producer(Port) :-
-  send(1, Port, P1),       % Port = [1|P1]
-  send(2, P1, P2),         % P1 = [2|P2]
-  send(3, P2, P3),         % P2 = [3|P3]
-  P3 = [].                 % Close stream
+```
+run :=
+    producer(5, S) & consumer(S).
+
+producer(N, S) :=
+    open_port(P, S),    % Create port P with stream S
+    prod_loop(N, P).    % Port P is local to producer
+
+prod_loop(N, P) :=
+  ( N > 0 → send(N, P), prod_loop(N-1, P)
+  ; true ).             % Producer terminates, P becomes garbage
+
+consumer(S) :=          % Stream S automatically closes
+  ( S = [H|T] → write(H), consumer(T)
+  ; S = [] → write('done') ).
 ```
 
-**Result**: `Port` is bound to `[1, 2, 3]`.
+When `prod_loop` terminates:
+1. Port P has no more references
+2. P becomes garbage
+3. Stream S is automatically closed (becomes `[]`)
+4. Consumer detects end and terminates
 
-This is the **standard** send operation in AGENTS.
+### Implementation Note: send/3
 
-### Receive Operation
+In AGENTS, there is also a `send/3` operation: `send(Message, InPort, OutPort)`.
 
-**Receiving** from a port is simply **pattern matching** on the stream:
+**This is an AGENTS-specific optimization**, not fundamental AKL semantics. From Janson's thesis (Chapter 7.4):
 
-```prolog
-consumer([Msg|Rest]) :-
-  process(Msg),
-  consumer(Rest).
-consumer([]).              % Stream closed
+> "In AGENTS, the open_port/2 operation is a specialised open_cc_port/2, which does not accept general continuations, but supports the send/3 operation."
+
+The `send/3` operation provides a "continuation" style for efficiency in certain implementation patterns. However, the fundamental AKL operation is `send/2` with `open_port/2`.
+
+**send/3 usage**:
+
+```
+send(Message, InPort, OutPort)
 ```
 
-**Suspension**: If the stream tail is unbound, consumer **suspends** until a message arrives (using SUSPEND_FLAT).
+This binds `InPort = [Message|OutPort]`, providing the new port tail. This is useful for implementation but not required for understanding port semantics.
+
+All examples in this chapter use the fundamental `send/2` operation unless otherwise noted.
 
 ## The SEND3 Instruction
 
@@ -343,57 +390,65 @@ bool akl_send_2(Arg)
 
 ### Simple Producer-Consumer
 
-**AKL code**:
+**AKL code using correct port semantics**:
 
-```prolog
-% Producer generates numbers 1..N
-producer(N, Port) :-
-  N > 0 ? send(N, Port, P1),
-          N1 is N - 1,
-          producer(N1, P1).
-producer(0, Port) :- ? Port = [].   % Close stream
-
-% Consumer processes messages
-consumer([X|Xs]) :- ?
-  write(X), nl,
-  consumer(Xs).
-consumer([]) :- ? true.            % Stream closed
-
+```
 % Run both concurrently
-run :-
-  producer(5, Stream) & consumer(Stream).
+run :=
+    producer(5, S) & consumer(S).
+
+% Producer creates port and sends messages
+producer(N, S) :=
+    open_port(P, S),
+    prod_loop(N, P).
+
+prod_loop(N, P) :=
+  ( N > 0 → send(N, P),
+            N1 = N - 1,
+            prod_loop(N1, P)
+  ; true ).                        % Port P becomes garbage, S closes
+
+% Consumer processes messages from stream
+consumer(S) :=
+  ( S = [X|Xs] → write(X), nl, consumer(Xs)
+  ; S = [] → true ).               % Stream closed
 ```
 
 **Execution trace**:
 
 1. **Start**: `run` creates two concurrent agents:
-   - `producer(5, Stream)`
-   - `consumer(Stream)`
+   - `producer(5, S)`
+   - `consumer(S)`
 
-2. **Producer sends**: `send(5, Stream, P1)`
-   - `Stream = [5|P1]`
-   - Producer continues with `producer(4, P1)`
+2. **Producer creates port**: `open_port(P, S)`
+   - Port P and stream S are created and connected
+   - Producer continues with `prod_loop(5, P)`
 
-3. **Consumer receives**: Match `Stream` with `[X|Xs]`
-   - `Stream` is bound to `[5|P1]`
-   - `X = 5`, `Xs = P1`
-   - Print 5, recurse on `P1`
+3. **Producer sends**: `send(5, P)`
+   - Message 5 is added to port P
+   - Appears on stream S: `S = [5|S1]` (where S1 is unbound tail)
 
-4. **Consumer suspends**: Match `P1` with `[X|Xs]`
-   - `P1` is unbound!
+4. **Consumer receives**: Match `S` with `[X|Xs]`
+   - `S` is bound to `[5|S1]`
+   - `X = 5`, `Xs = S1`
+   - Print 5, recurse on `S1`
+
+5. **Consumer suspends**: Match `S1` with `[X|Xs]`
+   - `S1` is unbound!
    - SUSPEND_FLAT suspends consumer
 
-5. **Producer sends**: `send(4, P1, P2)`
-   - `P1 = [4|P2]`
+6. **Producer sends**: `send(4, P)`
+   - Message 4 is added to port P
+   - Appears on stream: `S1 = [4|S2]`
    - **WakeAll** wakes consumer
 
-6. **Consumer resumes**: Match `P1` (now `[4|P2]`) with `[X|Xs]`
-   - `X = 4`, `Xs = P2`
+7. **Consumer resumes**: Match `S1` (now `[4|S2]`) with `[X|Xs]`
+   - `X = 4`, `Xs = S2`
    - Print 4, recurse
 
-7. **Repeat** until producer sends all numbers and closes stream
+8. **Repeat** until producer terminates, port P becomes garbage, stream S closes with `[]`
 
-**Key insight**: Suspension and waking synchronize producer and consumer automatically.
+**Key insight**: Suspension and waking synchronize producer and consumer automatically. Port P and stream S are connected by the port constraint.
 
 ### Buffered Port
 
