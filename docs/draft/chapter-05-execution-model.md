@@ -674,7 +674,7 @@ Traditional Prolog has a much simpler execution model:
 | **Conjunction** | Sequential (`,`) | Concurrent (`&`) |
 | **Choice points** | Stack | Tree (choice-boxes) |
 | **Backtracking** | Chronological | Non-chronological |
-| **Commitment** | Cut (`!`) | Guards (`?`) |
+| **Commitment** | Cut (`!`) | Guards (`→`, `|`, `?`) |
 | **Suspension** | None | Constraint variables |
 | **Parallelism** | None | And-parallelism + or-parallelism |
 

@@ -93,23 +93,26 @@ This model cleanly separates **computation** (what agents do) from **communicati
 
 ### Guarded Clauses
 
-AKL extends Horn clauses with **guards**. A clause has the form:
+AKL extends Horn clauses with **guards** and provides **three different guard operators** (`→`, `|`, `?`) with different commitment semantics. A guarded clause has the general form:
 
 ```
-Head :- Guard ? Body.
+Head :- Guard OP Body.
 ```
 
 Where:
 - **Head** matches the goal being called
 - **Guard** is a test that must succeed for the clause to be chosen
+- **OP** is one of three operators: `→` (conditional), `|` (committed choice), or `?` (nondeterminate choice)
 - **Body** is executed if the guard succeeds
 
-Guards are crucial for two reasons:
+Guards are crucial for several reasons:
 
 1. **Synchronization**: Guards can suspend on uninstantiated variables, waiting for more information
-2. **Committed Choice**: Once a guard succeeds, the choice is committed (no backtracking to try other clauses)
+2. **Committed Choice**: The `|` operator provides don't-care nondeterminism (commit to first available)
+3. **Nondeterminate Choice**: The `?` operator provides don't-know nondeterminism (search with backtracking)
+4. **Conditional Execution**: The `→` operator provides deterministic conditional execution
 
-The interaction between guards and backtracking gives AKL its power: within a guard, you can explore alternatives nondeterministically, but once the guard commits, the choice is final.
+This combination of three guard types gives AKL its expressive power, unifying features from Prolog, GHC, and constraint programming. (See Chapter 2 for detailed semantics.)
 
 ### Port-Based Communication
 
