@@ -11,15 +11,15 @@ We will not provide a complete formal semantics (see Appendix F for references t
 AKL syntax resembles Prolog but with important extensions. The basic building block is a **clause**:
 
 ```
-head :- guard ? body.
+head :- guard OP body.
 ```
 
 Where:
 - **head**: A term matching goals that call this clause
 - **guard**: A goal that must succeed for the clause to be selected
 - **body**: Goals to execute if the guard commits
-- **:-** separates head from guard
-- **?** separates guard from body (guard commitment operator)
+- **:-** separates head from guard (note: AKL uses `:=` for definitions, see below)
+- **OP**: One of three guard operators: `→` (conditional), `|` (committed), or `?` (nondeterminate)
 
 ### Simplified Forms
 
@@ -29,7 +29,7 @@ When the guard is trivial, it can be omitted:
 head :- body.
 ```
 
-This is syntactic sugar for `head :- true ? body.`
+This is syntactic sugar for `head :- true ? body.` (defaults to nondeterminate choice for Prolog compatibility)
 
 When there's no body:
 
