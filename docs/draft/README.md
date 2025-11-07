@@ -24,10 +24,10 @@ The book is written for:
 ### 1. Unified Programming Model
 
 AGENTS combines multiple paradigms:
-- **Logic programming** (Prolog-style Horn clauses)
+- **Logic programming** (Prolog-style Horn clauses with backtracking)
 - **Concurrent programming** (and-parallelism)
 - **Constraint solving** (finite domain constraints)
-- **Committed choice** (GHC-style guards)
+- **Three types of guards** (conditional `→`, committed choice `|`, nondeterminate `?`)
 - **Message passing** (port-based communication)
 
 This unification is not superficial—these features genuinely compose and interact.
@@ -171,7 +171,12 @@ The three-layer architecture (AKL source → PAM bytecode → C emulator) provid
 
 ### From Chapter 2: AKL Language
 
-The **guard commitment operator** (`?`) is the key innovation that enables both search (backtracking within guards) and commitment (no backtracking across guard success). This combination is unique and powerful.
+The **three guard operators** (`→`, `|`, `?`) are the key innovation. AKL uniquely combines:
+- **Conditional choice** (`→`): deterministic execution
+- **Committed choice** (`|`): don't-care nondeterminism (reactive programming)
+- **Nondeterminate choice** (`?`): don't-know nondeterminism (search with backtracking)
+
+This unified model integrates features from Prolog, GHC, and constraint programming into a coherent whole.
 
 **Ports** provide clean asynchronous message passing without the complexity of full unification in communication. This distinguishes AKL from earlier concurrent logic languages.
 
