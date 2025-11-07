@@ -23,7 +23,7 @@ Consider the Prolog program:
 
 ```prolog
 member(X, [X|_]).
-member(X, [_|Xs]) := member(X, Xs).
+member(X, [_|Xs]) :- member(X, Xs).
 ```
 
 When `member(1, [2,1,3])` is called, two clauses match. The system must:
@@ -465,8 +465,8 @@ This **undoes** all variable bindings made since the choice point was created.
 ### Example
 
 ```prolog
-p(X) := X = 1.
-p(X) := X = 2.
+p(X) :- X = 1.
+p(X) :- X = 2.
 ```
 
 When `p(Y)` is called:
@@ -642,7 +642,7 @@ If `NonEmptyChoiceCont(chb)` is false, no alternatives remain. The system:
 
 ```prolog
 member(X, [X|_]).
-member(X, [_|Xs]) := member(X, Xs).
+member(X, [_|Xs]) :- member(X, Xs).
 
 ?- member(1, [2,3,1]).
 ```

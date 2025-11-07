@@ -1013,7 +1013,7 @@ Type-checking predicates suspend when encountering unbound variables:
 
 ```prolog
 % Define constraint: X must be an atom when bound
-atom_constraint(X) := atom(X).
+atom_constraint(X) :- atom(X).
 
 % X is currently unbound
 ?- atom_constraint(X).

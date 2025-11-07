@@ -719,7 +719,7 @@ Some variables belong to specific environments (and-boxes). Must check locality:
 
 ```
 % Clause head: foo(X, f(Y))
-foo(A, B) := ...
+foo(A, B) :- ...
 
 % Match call: foo(1, f(2))
 ```

@@ -116,7 +116,7 @@ prod_loop(N, P) :=
   ( N > 0 → send(N, P), prod_loop(N-1, P)
   ; true ).             % Producer terminates, P becomes garbage
 
-consumer(S) :=          % Stream S automatically closes
+consumer(S) :-          % Stream S automatically closes
   ( S = [H|T] → write(H), consumer(T)
   ; S = [] → write('done') ).
 ```
@@ -460,16 +460,16 @@ buffer(N, In, Out) :=
   N > 0 ? In = [X|In1],
           Out = [X|Out1],
           buffer(N, In1, Out1).
-buffer(0, In, Out) := ?
+buffer(0, In, Out) :- ?
   Out = [X|Out1],
   In = [X|In1],
   buffer(0, In1, Out1).
 
 % Producer sends to buffered input
-producer(N, Port) := ...  % As before
+producer(N, Port) :- ...  % As before
 
 % Consumer reads from buffered output
-consumer(Stream) := ...   % As before
+consumer(Stream) :- ...   % As before
 
 % Run with buffer
 run :-
@@ -495,10 +495,10 @@ filter(P, [X|Xs], [Y|Ys]) :=
 filter(P, [X|Xs], Ys) :=
   not(call(P, X)) ?
     filter(P, Xs, Ys).
-filter(_, [], []) := ? true.
+filter(_, [], []) :- ? true.
 
 % Usage
-even(X) := X mod 2 =:= 0.
+even(X) :- X mod 2 =:= 0.
 
 run :-
   producer(10, S1) &
@@ -512,13 +512,13 @@ run :-
 
 ```prolog
 % Map function F over stream
-map(F, [X|Xs], [Y|Ys]) := ?
+map(F, [X|Xs], [Y|Ys]) :- ?
   call(F, X, Y),
   map(F, Xs, Ys).
-map(_, [], []) := ? true.
+map(_, [], []) :- ? true.
 
 % Usage
-double(X, Y) := Y is X * 2.
+double(X, Y) :- Y is X * 2.
 
 run :-
   producer(5, S1) &
@@ -679,9 +679,9 @@ workers(N, In, Out) :=
   N > 0 ?
     worker(In, W),
     workers(N-1, W, Out).
-workers(0, Out, Out) := ? true.
+workers(0, Out, Out) :- ? true.
 
-worker([Task|Rest], Out) := ?
+worker([Task|Rest], Out) :- ?
   process(Task, Result),
   Out = [Result|Out1],
   worker(Rest, Out1).

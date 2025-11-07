@@ -172,8 +172,8 @@ AGENTS can execute many Prolog programs with minimal modification:
 
 ```prolog
 % Standard Prolog
-ancestor(X,Y) := parent(X,Y).
-ancestor(X,Y) := parent(X,Z), ancestor(Z,Y).
+ancestor(X,Y) :- parent(X,Y).
+ancestor(X,Y) :- parent(X,Z), ancestor(Z,Y).
 ```
 
 This works in AKL because the default translation of Horn clauses is:
@@ -466,8 +466,8 @@ register code *pc REGISTER3;
 
 **AKL examples** show AKL language constructs:
 ```
-ancestor(X,Y) := parent(X,Y).
-ancestor(X,Y) := parent(X,Z), ancestor(Z,Y).
+ancestor(X,Y) :- parent(X,Y).
+ancestor(X,Y) :- parent(X,Z), ancestor(Z,Y).
 ```
 
 **Diagrams** are shown in ASCII art or described in text.

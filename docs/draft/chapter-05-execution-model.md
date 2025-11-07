@@ -181,10 +181,10 @@ Both structures are variable-sized, allocated from the heap.
 Consider the AKL program:
 
 ```prolog
-p(X) := q(X), r(X).
+p(X) :- q(X), r(X).
 q(1).
 q(2).
-r(X) := X > 0.
+r(X) :- X > 0.
 ```
 
 When `p(X)` is called, AGENTS creates:
