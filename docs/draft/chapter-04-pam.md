@@ -483,7 +483,7 @@ In practice, PAM files compiled on one 64-bit platform work on another 64-bit pl
 **AKL source:**
 ```
 append([], Ys, Ys).
-append([X|Xs], Ys, [X|Zs]) :- append(Xs, Ys, Zs).
+append([X|Xs], Ys, [X|Zs]) := append(Xs, Ys, Zs).
 ```
 
 **PAM bytecode (simplified):**

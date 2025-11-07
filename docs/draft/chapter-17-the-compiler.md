@@ -90,10 +90,10 @@ The compiler exposes two primary entry points:
 **1. `compilef(Base)` - Compile to file:**
 
 ```prolog
-compilef(Base) :-
+compilef(Base) :=
     compilef(Base, []).
 
-compilef(Base, ModeList) :-
+compilef(Base, ModeList) :=
     ->  bases_to_akl_pam(Base, Base, InFile, OutFile),
         compile_file_to_file(InFile, OutFile, ModeList).
 ```
@@ -110,7 +110,7 @@ This reads `myprogram.akl` and writes `myprogram.pam`.
 **2. `compile(Base)` - Compile and load:**
 
 ```prolog
-compile(Base, ModeList) :-
+compile(Base, ModeList) :=
     ->  unix(mktemp('/tmp/aklXXXXXX', Temp)),
         bases_to_akl_pam(Base, Temp, InFile, OutFile),
         compile_file_to_file(InFile, OutFile, ModeList)
@@ -148,7 +148,7 @@ The reader loads AKL source files and parses them into term structures using the
 The parser normalizes clauses into a canonical form separating head, guard, operator, and body:
 
 ```prolog
-parse_clause(Clause, ParsedClause) :-
+parse_clause(Clause, ParsedClause) :=
     normalise_clause(Clause, NormalClause),
     parse_normal_clause(NormalClause, ParsedClause).
 
@@ -156,7 +156,7 @@ normalise_clause(struct((:-),2,[Head,Body]), NormalClause) :-
     ->  normalise_body(Body, NormalBody),
         NormalClause = clause(Head, NormalBody).
 
-normalise_clause(Head, NormalClause) :-
+normalise_clause(Head, NormalClause) :=
     ->  normalise_body(struct(true,0,[]), NormalBody),
         NormalClause = clause(Head, NormalBody).
 ```
@@ -191,14 +191,14 @@ parse_goal(struct(',',2,[P,Q]), S0, S) :-
         parse_goal(Q, S1, S).
 parse_goal(struct(true,0,[]), S0, S) :-
     ->  S = S0.
-parse_goal(X, S0, S) :-
+parse_goal(X, S0, S) :=
     ->  S0 = [X|S].
 ```
 
 Example:
 ```prolog
 % Input:
-foo(X,Y) :- a(X), b(Y), c(X,Y).
+foo(X,Y) := a(X), b(Y), c(X,Y).
 
 % Parsed:
 clause(
@@ -239,19 +239,19 @@ ri(last, y(2))        % Last occurrence in Y2
 **Analysis Algorithm** (`analyze.akl:15-48`):
 
 ```prolog
-analyze_group([V]) :-
+analyze_group([V]) :=
     ->  V = vi(_,void,none).   % Single occurrence → void
 
-analyze_group(VI0) :-
+analyze_group(VI0) :=
     ->  VI0 = [vi(N,first,R)|VI],
         analyze_multiple(VI, N, R).
 
-analyze_multiple([V], N, R) :-
+analyze_multiple([V], N, R) :=
     V = vi(N,_,_)
     ->  R = x(_),   % Temporary variable → X register
         V = vi(_,last,R).
 
-analyze_multiple(VI, _, R) :-
+analyze_multiple(VI, _, R) :=
     ->  R = y(_),   % Permanent variable → Y register
         analyze_permanent(VI, R).
 ```
@@ -289,8 +289,8 @@ compile_choice(Clauses, Modes, Used, Max)-S :-
 For a predicate with multiple clauses:
 
 ```prolog
-append([], Ys, Zs) :- -> Zs = Ys.
-append([X|Xs], Ys, Zs) :- ->
+append([], Ys, Zs) := -> Zs = Ys.
+append([X|Xs], Ys, Zs) := ->
     Zs = [X|Zs1],
     append(Xs, Ys, Zs1).
 ```
@@ -337,14 +337,14 @@ Following Carlsson's optimization, the compiler processes:
 This minimizes register pressure and temporary allocations.
 
 ```prolog
-reorder_head_args(Args, PrepArgs) :-
+reorder_head_args(Args, PrepArgs) :=
     reorder_head_args(Args, 0, P, P, PrepArgs).
 
 reorder_head_args([var(U)|As], N, P0, V0, V) :-
     ->  V1 = [arg(N)-var(U)|V0],
         N1 is N+1,
         reorder_head_args(As, N1, P0, V1, V).
-reorder_head_args([A|As], N, P0, V0, V) :-
+reorder_head_args([A|As], N, P0, V0, V) :=
     ->  P0 = [arg(N)-A|P1],
         N1 is N+1,
         reorder_head_args(As, N1, P1, V0, V).
@@ -465,7 +465,7 @@ raw_clause_code(Cl, S0, V0)-P :-
 **Guard Operator Code** (`clause.akl:30-57`):
 
 ```prolog
-guard_op_code(Op, _, S0, S, V0, V) :-
+guard_op_code(Op, _, S0, S, V0, V) :=
     ->  V = V0,
         S0 = [guard_op(Op)|S].
 ```
@@ -485,7 +485,7 @@ The allocator assigns **X registers** (temporary) and **Y registers** (permanent
 **Permanent Register Allocation:**
 
 ```prolog
-allocate_permanent([], Y, F) :-
+allocate_permanent([], Y, F) :=
     ->  Y = 0,
         F = [].
 allocate_permanent([_-vi(_,last,y(I))|VI], Y, F) :-
@@ -494,7 +494,7 @@ allocate_permanent([_-vi(_,last,y(I))|VI], Y, F) :-
 allocate_permanent([_-vi(_,first,y(I))|VI], Y, F) :-
     ->  allocate_permanent(VI, Y, F0),
         F = [I|F0].
-allocate_permanent([_|VI], Y, F) :-
+allocate_permanent([_|VI], Y, F) :=
     ->  allocate_permanent(VI, Y, F).
 ```
 
@@ -503,7 +503,7 @@ This implements **stack slot allocation** for permanent variables, minimizing th
 **Temporary Register Allocation** (`allocate.akl:35-78`):
 
 ```prolog
-allocate_temporary(VI, C) :-
+allocate_temporary(VI, C) :=
     max_argument_reg(C, M),
     allocate_temporary(VI, M, []).
 ```
@@ -641,8 +641,8 @@ Let's trace the compilation of a simple predicate:
 ### Input (`member.akl`):
 
 ```prolog
-member(X, [X|_]) :- -> true.
-member(X, [_|Xs]) :- -> member(X, Xs).
+member(X, [X|_]) := -> true.
+member(X, [_|Xs]) := -> member(X, Xs).
 ```
 
 ### Stage 1: Parsing
@@ -962,7 +962,7 @@ To add a new optimization pass:
 **1. Create optimization module** (e.g., `myopt.akl`):
 
 ```prolog
-my_optimization(CodeIn, CodeOut) :-
+my_optimization(CodeIn, CodeOut) :=
     ->  analyze_code(CodeIn, Info),
         transform_code(CodeIn, Info, CodeOut).
 ```
@@ -1075,11 +1075,11 @@ Inline small predicates at call sites:
 
 ```prolog
 % Before:
-foo(X) :- bar(X, Y), baz(Y).
-bar(A, B) :- B is A + 1.
+foo(X) := bar(X, Y), baz(Y).
+bar(A, B) := B is A + 1.
 
 % After inlining bar:
-foo(X) :- Y is X + 1, baz(Y).
+foo(X) := Y is X + 1, baz(Y).
 ```
 
 **Partial Evaluation:**
@@ -1089,11 +1089,11 @@ Specialize predicates for known argument patterns:
 ```prolog
 % Generic:
 append([], Ys, Ys).
-append([X|Xs], Ys, [X|Zs]) :- append(Xs, Ys, Zs).
+append([X|Xs], Ys, [X|Zs]) := append(Xs, Ys, Zs).
 
 % Specialized for second argument known:
 append_to_list123([], [1,2,3]).
-append_to_list123([X|Xs], [X,1,2,3|Rest]) :-
+append_to_list123([X|Xs], [X,1,2,3|Rest]) :=
     append_to_list123(Xs, Rest).
 ```
 
