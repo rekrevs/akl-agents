@@ -667,7 +667,7 @@ For programs with many concurrent agents, this can add up. However:
 
 ```prolog
 % Producer sends numbers to consumer via port P
-producer(P, N) :-
+producer(P, N) :=
   N > 0,
   send(P, N),
   N1 is N - 1,
@@ -675,7 +675,7 @@ producer(P, N) :-
 producer(_, 0).
 
 % Consumer receives and processes numbers
-consumer(P) :-
+consumer(P) :=
   receive(P, X),
   process(X),
   consumer(P).
@@ -692,7 +692,7 @@ consumer(P) :-
 ```prolog
 % Apply F to each element of list in parallel
 pmap(_, [], []).
-pmap(F, [X|Xs], [Y|Ys]) :-
+pmap(F, [X|Xs], [Y|Ys]) :=
   apply(F, X, Y) &           % Apply F to X concurrently
   pmap(F, Xs, Ys).           % Recurse concurrently
 ```
@@ -708,7 +708,7 @@ This achieves **data parallelism** through concurrent recursion.
 
 ```prolog
 % Find a solution to N-Queens
-queens(N, Solution) :-
+queens(N, Solution) :=
   range(1, N, Rows),
   permutation(Rows, Solution),
   safe(Solution).

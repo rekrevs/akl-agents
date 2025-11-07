@@ -238,7 +238,7 @@ CaseLabel(SUSPEND_FLAT):
 ### Example AKL Code
 
 ```prolog
-p(X) :-
+p(X) :=
   suspend_on(X),    % Wait until X is bound
   process(X).       % Then process it
 
@@ -394,12 +394,12 @@ choicehandler:
 
 ```prolog
 % Producer generates stream
-producer(S) :-
+producer(S) :=
   S = [1|S1],
   producer(S1).
 
 % Consumer processes stream
-consumer([X|Xs]) :-
+consumer([X|Xs]) :=
   process(X),
   consumer(Xs).
 

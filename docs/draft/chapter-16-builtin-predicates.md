@@ -329,7 +329,7 @@ The distinction between `akl_var` and `akl_atom` is crucial:
 This allows AKL programs to test for variables explicitly:
 
 ```prolog
-check_term(X) :-
+check_term(X) :=
     ( var(X) ->
         write('Still a variable')
     ; atom(X) ->
@@ -1013,7 +1013,7 @@ Type-checking predicates suspend when encountering unbound variables:
 
 ```prolog
 % Define constraint: X must be an atom when bound
-atom_constraint(X) :- atom(X).
+atom_constraint(X) := atom(X).
 
 % X is currently unbound
 ?- atom_constraint(X).
@@ -1265,7 +1265,7 @@ This allows built-ins to participate in constraint propagation and concurrent ex
 
 ```prolog
 % Define safe division that checks for zero
-safe_div(X, Y, Z) :-
+safe_div(X, Y, Z) :=
     integer(X),           % Suspend until X is integer
     integer(Y),           % Suspend until Y is integer
     Y =\= 0,              % Check not zero
@@ -1283,12 +1283,12 @@ fail  % Y =\= 0 fails
 
 ```prolog
 % Read all terms from a file
-read_all_terms(File, Terms) :-
+read_all_terms(File, Terms) :=
     see(File),
     read_terms_loop(Terms),
     seen.
 
-read_terms_loop([Term|Rest]) :-
+read_terms_loop([Term|Rest]) :=
     read(Term),
     Term \= end_of_file,
     !,
@@ -1304,7 +1304,7 @@ Terms = [foo(1), bar(2), baz(3)]
 
 ```prolog
 % Time a goal's execution
-time_goal(Goal, Time) :-
+time_goal(Goal, Time) :=
     statistics(runtime, [_,_]),           % Reset timer
     call(Goal),                           % Execute goal
     statistics(runtime, [_,Time]).        % Get elapsed time
@@ -1319,14 +1319,14 @@ T = 3  % 3 milliseconds
 
 ```prolog
 % Build structure with variable arity
-make_structure(Name, Args, Structure) :-
+make_structure(Name, Args, Structure) :=
     length(Args, Arity),
     name_arity_to_functor(Name, Arity, Functor),
     functor_to_tree(Functor, Structure),
     fill_args(Args, Structure, 1).
 
 fill_args([], _, _).
-fill_args([Arg|Args], Structure, N) :-
+fill_args([Arg|Args], Structure, N) :=
     arg(N, Structure, Arg),
     N1 is N + 1,
     fill_args(Args, Structure, N1).
