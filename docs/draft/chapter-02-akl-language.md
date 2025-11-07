@@ -170,94 +170,128 @@ member(X, [_|Xs]) := member(X, Xs).
 
 If the first clause fails to unify, the second is tried. This is **don't-know nondeterminism**.
 
-### Guarded Clauses
+### Choice Statements
 
-Guards add synchronization and commitment:
+AKL provides **three different types of choice statements** with fundamentally different semantics. This distinguishes AKL from both Prolog (which has only `?`) and GHC (which has only `|`).
 
-```
-% Producer-consumer with guard
-consume(X, [H|T]) :=
-    H = value ?          % Guard waits for H to be bound
-    process(H),
-    consume(X, T).
-```
+## Three Types of Nondeterminism
 
-The **guard** `H = value` must succeed before the clause commits. If `H` is unbound, the guard **suspends** until `H` becomes bound.
+### 1. Conditional Choice: `→` (Deterministic)
 
-## Guards: Synchronization and Commitment
+**Syntax**: `( Guard → Body ; Guard → Body ; ... )`
 
-### Guard Semantics
+**Semantics**:
+- If guard is **entailed** → execute that body
+- If guard is **disentailed** → try next clause
+- If neither (unknown) → **wait/suspend**
+- This is **deterministic** - wait for enough information to decide
 
-A guard is a goal that:
-1. **Asks** the constraint store if it can succeed
-2. If yes, the clause **commits** (no backtracking to other clauses)
-3. If no, try the next clause
-4. If uncertain (variables unbound), **suspend** until more information arrives
-
-### The Commitment Operator (?)
-
-The `?` operator marks **commitment**:
+**Example**:
 
 ```
-clause1(X) := guard1 ? body1.
-clause2(X) := guard2 ? body2.
+append(X, Y, Z) :=
+  ( X = [] → Z = Y
+  ; X = [E|X1] → append(X1, Y, Z1), Z = [E|Z1] ).
 ```
 
-Execution:
-1. Try `guard1`
-   - If it succeeds, **commit** to `body1` (no backtracking)
-   - If it fails, try `clause2`
-   - If it suspends, wait
-2. Try `guard2` similarly
+If `X` is unbound, the choice statement **suspends** until `X` becomes bound. Once `X` is known to be `[]` or a list, the appropriate branch is taken.
 
-Once a guard succeeds and commits, there's no going back to try other clauses. This is **don't-care nondeterminism**.
+**Use cases**: Conditional execution, deterministic choice based on data structure
 
-### Backtracking Within Guards
+### 2. Committed Choice: `|` (Don't Care Nondeterminism)
 
-Crucially, you can **backtrack inside a guard**:
+**Syntax**: `( Guard | Body ; Guard | Body ; ... )`
+
+**Semantics**:
+- Ask **all guards** from the store
+- If **any** guard is entailed → **commit to that branch** (arbitrary choice if multiple)
+- If guard is disentailed → delete that clause
+- If no guards entailed → **wait**
+- Once committed, **no backtracking** to other clauses
+
+**Example**:
 
 ```
-member_guard(X, L) :=
-    member(X, L) ?       % Try all members until one succeeds
-    process(X).
+merge(X, Y, Z) :=
+  ( X = [] | Z = Y
+  ; Y = [] | Z = X
+  ; E, X1 : X = [E|X1] | Z = [E|Z1], merge(X1, Y, Z1)
+  ; E, Y1 : Y = [E|Y1] | Z = [E|Z1], merge(X, Y1, Z1) ).
 ```
 
-The guard `member(X, L)` can backtrack through all list elements. But once a member is found and the guard succeeds, we commit—we won't backtrack to try other members even if `process(X)` fails.
+The merge agent **reacts to the first available input** - it doesn't matter whether `X` or `Y` arrives first. This is **don't care nondeterminism** - we don't care which guard succeeds first.
 
-This combination of search (within guards) and commitment (across guards) is powerful and unique to AKL.
+**Use cases**: Reactive programming, process communication, handling multiple input sources
 
-### Guard Suspension
+### 3. Nondeterminate Choice: `?` (Don't Know Nondeterminism)
 
-Guards enable **synchronization**:
+**Syntax**: `( Guard ? Body ; Guard ? Body ; ... )`
+
+**Semantics**:
+- Ask **all guards** from the store
+- If guard is disentailed → delete that clause
+- If **only one clause** remains (determinate) → commit to it
+- If **multiple clauses** remain → **wait for more information**
+- If no more computation possible with multiple clauses → **try each alternative in separate copies** (search/backtracking)
+
+**Example**:
+
+```
+member(E, L) :=
+  ( L = [E|_] ? true
+  ; L = [_|L1] ? member(E, L1) ).
+```
+
+When called with unconstrained `L`, this can **generate** all members. When called with both `E` and `L` bound, it **tests** membership. This is **don't know nondeterminism** - we need to search through alternatives.
+
+**Use cases**: Search, generate-and-test, logic programming, constraint solving
+
+## Comparison Table
+
+| Operator | Type | When to Commit | Backtracking | Use Case |
+|----------|------|----------------|--------------|----------|
+| `→` | Conditional | When guard known true/false | N/A (deterministic) | Conditional execution |
+| `|` | Committed | When any guard true | No (don't care) | Reactive programming |
+| `?` | Nondeterminate | When only one guard possible | Yes, if needed (don't know) | Search, logic programming |
+
+## Flat vs Deep Guards
+
+**All three types** of choice statements support both flat and deep guards:
+
+### Flat Guards
+
+Guards contain **only constraints** (no agent calls):
+
+```
+( X = [] → Z = Y          % Flat guard: just constraint
+; ... )
+```
+
+### Deep Guards
+
+Guards contain **arbitrary statements** including agent calls:
+
+```
+( append(X, Y, Z) → p(Z)  % Deep guard: contains agent call
+; q(X, Y) )
+```
+
+When a guard contains statements, they are executed **locally** in a separate constraint store. The guard succeeds when local computation terminates successfully, and the asked constraint is the conjunction of constraints in the local store.
+
+## Guard Suspension and Synchronization
+
+Guards enable **dataflow synchronization**:
 
 ```
 % Wait for both arguments to be bound
 both_bound(X, Y) :=
-    integer(X), integer(Y) ?
-    compute(X, Y).
+  ( integer(X), integer(Y) → compute(X, Y)
+  ; true → fail ).
 ```
 
-If `X` or `Y` is unbound, the guard suspends. When they're both bound, the guard succeeds and commits.
+If `X` or `Y` is unbound, the guard **suspends**. When both are bound, the guard is entailed and the body executes.
 
 This is how AKL achieves **dataflow synchronization** without explicit wait operations.
-
-### Trivial Guards
-
-Many clauses have trivial guards that always succeed:
-
-```
-append([], Ys, Ys).
-append([X|Xs], Ys, [X|Zs]) := append(Xs, Ys, Zs).
-```
-
-These are really:
-
-```
-append([], Ys, Ys) := true ? .
-append([X|Xs], Ys, [X|Zs]) := true ? append(Xs, Ys, Zs).
-```
-
-The guard `true` always succeeds immediately, so these behave like Prolog clauses.
 
 ## Concurrent Execution: And-Parallelism
 
@@ -776,20 +810,29 @@ no_attack(Q, [Q2|Qs], Dist) :=
 
 This uses FD constraints to prune the search space efficiently. For N=8, instead of 8^8 = 16 million possibilities, FD reduces it to 92 solutions with minimal search.
 
-### Example 5: Guards for Synchronization
+### Example 5: Reactive Merge with Committed Choice
 
 ```
-merge([], Ys, Ys).
-merge(Xs, [], Xs).
-merge([X|Xs], [Y|Ys], [X|Zs]) :=
-    X =< Y ?
-    merge(Xs, [Y|Ys], Zs).
-merge([X|Xs], [Y|Ys], [Y|Zs]) :=
-    Y < X ?
-    merge([X|Xs], Ys, Zs).
+merge(X, Y, Z) :=
+  ( X = [] | Z = Y
+  ; Y = [] | Z = X
+  ; E, X1 : X = [E|X1] | Z = [E|Z1], merge(X1, Y, Z1)
+  ; E, Y1 : Y = [E|Y1] | Z = [E|Z1], merge(X, Y1, Z1) ).
 ```
 
-The guards `X =< Y` and `Y < X` wait until both `X` and `Y` are bound before committing. This is **demand-driven** computation—we don't proceed until we have enough information.
+This uses **committed choice** (`|`) - the merge agent **reacts to the first available input**. It doesn't matter which stream (`X` or `Y`) produces data first. This is **reactive programming** with don't care nondeterminism.
+
+### Example 6: Search with Nondeterminate Choice
+
+```
+solve_puzzle(State, Solution) :=
+  ( is_goal(State) ? Solution = [State]
+  ; State1 : move(State, State1) ?
+      solve_puzzle(State1, Rest),
+      Solution = [State|Rest] ).
+```
+
+This uses **nondeterminate choice** (`?`) for **search**. The `move(State, State1)` guard can generate multiple possible moves, and the system will **backtrack** through them to find a solution. This is don't know nondeterminism.
 
 ## Differences from Prolog
 
