@@ -4,7 +4,7 @@
 
 **Author:** Reconstructed from source code and documentation
 **Subject:** AGENTS v0.9 implementation internals
-**Status:** First comprehensive draft
+**Status:** First comprehensive draft - validated November 7, 2025
 
 ---
 
@@ -57,6 +57,19 @@ AGENTS successfully ported from 32-bit SPARC to modern 64-bit platforms (x86-64,
 ## Current Draft Status
 
 **Total Progress**: 18 chapters complete (~548 pages)
+
+### Validation Completed (November 7, 2025)
+
+All chapters have been systematically validated against:
+- **Sverker Janson's 1994 PhD thesis** (AKL language specification)
+- **AGENTS v0.9 source code** (implementation verification)
+
+**Three errors found and corrected:**
+1. ✅ **Port semantics** (Chapter 15): Fixed from "variables" to "bag/stream constraints"
+2. ✅ **Guard operators** (Chapters 1, 2, 5, README): Added complete documentation of three operators (`→`, `|`, `?`)
+3. ✅ **Non-existent & operator** (Chapter 13): Removed incorrect claim - all conjunction is concurrent
+
+See `FINAL-VALIDATION-REPORT.md` for complete details.
 
 ### Completed Chapters
 
@@ -366,8 +379,8 @@ docs/porting/
 
 ---
 
-**Document Version:** 1.0
-**Date:** November 6, 2025
-**Branch:** claude/draft-inside-agents-book-011CUsNSbHYNJMH8ApVc7GDt
+**Document Version:** 1.1
+**Date:** November 7, 2025
+**Branch:** claude/thesis-review-011CUtkv2EJhgbVJtVJsFh6o
 
-**Status:** First draft in progress. Core chapters complete. Foundation established for remaining work.
+**Status:** First draft complete and validated. All 18 chapters validated against thesis and source code. Semantically correct and accurate.
