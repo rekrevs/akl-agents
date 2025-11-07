@@ -299,39 +299,29 @@ q.
 r.
 ```
 
-**Sequential execution** (Prolog):
+**Concurrent execution** (AKL):
+
+All conjunction in AKL is **semantically concurrent**:
+
+```prolog
+p :- q, r.   % q and r are concurrent agents
+```
+
+**Execution**:
+1. Call `q`, creating and-box₁
+2. Call `r`, creating and-box₂ (sibling of and-box₁)
+3. Both can execute **concurrently**
+4. Both complete (in any order)
+
+The implementation may execute them sequentially (interleaved) or in parallel on multiple processors, but the **semantics** are concurrent: agents communicate through shared variables and can suspend waiting for each other.
+
+**Contrast with Prolog** (sequential):
 1. Call `q`
-2. Wait for `q` to complete
+2. **Wait** for `q` to complete
 3. Call `r`
 4. Wait for `r` to complete
 
-**Concurrent execution** (AGENTS):
-1. Call `q`, creating and-box₁
-2. Call `r`, creating and-box₂ (sibling of and-box₁)
-3. Both execute **concurrently**
-4. Both complete (in any order)
-
-### Concurrent Conjunction (`&`)
-
-AKL supports **explicit concurrent conjunction** with the `&` operator:
-
-```prolog
-p :- q & r.   % q and r execute concurrently
-```
-
-This compiles to code that creates sibling and-boxes directly.
-
-**Contrast with sequential conjunction** (`,`):
-
-```prolog
-p :- q, r.    % q executes, then r
-```
-
-This compiles to:
-1. CALL q (creates and-box, waits for completion)
-2. CALL r (creates and-box)
-
-The difference is **timing**: `&` creates both and-boxes immediately; `,` waits for the first to complete.
+Prolog enforces sequential left-to-right execution. AKL does not.
 
 ### Task Queue and Scheduling
 
@@ -693,13 +683,13 @@ consumer(P) :=
 % Apply F to each element of list in parallel
 pmap(_, [], []).
 pmap(F, [X|Xs], [Y|Ys]) :=
-  apply(F, X, Y) &           % Apply F to X concurrently
-  pmap(F, Xs, Ys).           % Recurse concurrently
+  apply(F, X, Y),            % Apply F to X
+  pmap(F, Xs, Ys).           % Recurse
 ```
 
 **Execution**:
 - Each recursive call creates a new and-box
-- All `apply(F, X, Y)` calls execute concurrently
+- All `apply(F, X, Y)` calls execute concurrently (conjunction is concurrent)
 - Results are assembled into output list
 
 This achieves **data parallelism** through concurrent recursion.
@@ -779,10 +769,10 @@ And-boxes are the fundamental unit of concurrent execution in AGENTS:
    - Kill sibling alternatives
    - Complex copying algorithm preserves sharing
 
-6. **Sequential vs concurrent**:
-   - CALL: Sequential execution (reuse and-box)
-   - TRY/RETRY/TRUST: Create sibling and-boxes
-   - `&`: Explicit concurrent conjunction
+6. **Conjunction is concurrent**:
+   - All conjunction (`,`) is semantically concurrent
+   - TRY/RETRY/TRUST: Create sibling and-boxes for alternatives
+   - Implementation may interleave or parallelize execution
 
 And-boxes enable AGENTS to express:
 - **Concurrent algorithms**: Producer-consumer, pipelines
