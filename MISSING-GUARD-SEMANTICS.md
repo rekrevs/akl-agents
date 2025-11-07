@@ -1,6 +1,10 @@
 # CRITICAL: Missing Guard Semantics in Draft
 
-## Problem
+**STATUS**: ✅ **FIXED** (November 7, 2025)
+
+All guard semantic errors have been corrected across Chapters 1, 2, 5, and README.md.
+
+## Problem (RESOLVED)
 
 The draft chapters (including the corrected Chapter 2) **do not properly explain** that AKL has **THREE different types of choice statements** with **THREE different guard operators** and **THREE fundamentally different semantics**.
 
@@ -277,6 +281,48 @@ choose_solution(X, Y, Result) :=
 
 ---
 
+## CORRECTIONS COMPLETED ✅
+
+**Date**: November 7, 2025
+**Commits**: 8942b5d, 663d3c9
+
+### Files Fixed
+
+**Chapter 1: Introduction**
+- Updated "Guarded Clauses" section to mention all three operators (`→`, `|`, `?`)
+- Clarified different commitment semantics for each operator
+- Added reference to Chapter 2 for detailed semantics
+
+**Chapter 2: The AKL Language**
+- Fixed syntax overview to show "OP" placeholder instead of just `?`
+- Clarified simplified forms default to `?` for Prolog compatibility
+- Added comprehensive "Choice Statements" section with:
+  - Conditional Choice (`→`) subsection
+  - Committed Choice (`|`) subsection
+  - Nondeterminate Choice (`?`) subsection
+  - Comparison table
+  - Correct examples for each type
+  - Flat vs Deep guards explanation
+
+**Chapter 5: Execution Model**
+- Fixed comparison table: "Guards (?)" → "Guards (→, |, ?)"
+
+**docs/draft/README.md**
+- Fixed paradigm list to mention "Three types of guards"
+- Expanded "Key Insights" to explain all three operators
+- Added descriptions of each operator's use case
+
+### Impact
+
+✅ Draft now correctly explains AKL's three-operator guard model
+✅ Readers will understand the fundamental differences between operators
+✅ Proper context for don't-care vs don't-know nondeterminism
+✅ Clear distinction from Prolog (only `?`) and GHC (only `|`)
+
+---
+
 **Document created**: November 7, 2025
-**Priority**: **CRITICAL** - Chapter 2 needs major rewrite
-**Impact**: Fundamental misrepresentation of AKL's core semantics
+**Corrections completed**: November 7, 2025
+**Priority**: **CRITICAL** - RESOLVED ✅
+**Original Impact**: Fundamental misrepresentation of AKL's core semantics
+**Current Status**: All errors corrected and documented
